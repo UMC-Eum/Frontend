@@ -1,7 +1,12 @@
 import "./App.css";
+import CheckButton from "./components/CheckButton";
 
 function App() {
-  return <>Eum</>;
+  return (
+    <>
+      <CheckButton label="확인" disabled={true} />
+    </>
+  );
 }
 
 export default App;
