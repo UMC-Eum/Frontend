@@ -2,7 +2,7 @@ import InactiveMic from "./InactiveMic";
 import LoadingMic from "./LoadingMic";
 import RecordingMic from "./RecordingMic";
 interface MicButtonProps {
-  status: "recording" | "inactive" | "loading";
+  status?: "recording" | "inactive" | "loading";
 }
 const MicButton = ({ status }: MicButtonProps) => {
   return (
