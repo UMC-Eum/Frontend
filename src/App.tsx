@@ -2,6 +2,7 @@ import "./App.css";
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import AppLayout from "./layout/AppLayout";
 import MatchingPage from "./pages/MatchingPage";
+import ResultPage from "./pages/Resultpage";
 const router = createBrowserRouter([
   {
     path: "/",
@@ -13,11 +14,13 @@ const router = createBrowserRouter([
       },
       {
         path: "matching",
-        element: (
-          <div>
-            <MatchingPage />
-          </div>
-        ),
+        element: <MatchingPage />,
+        children: [
+          {
+            path: "result",
+            element: <ResultPage />,
+          },
+        ],
       },
     ],
   },
