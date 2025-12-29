@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate, Outlet, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import BackButton from "../components/BackButton";
@@ -71,6 +71,7 @@ const MatchingPage = () => {
     const s = (sec % 60).toString().padStart(2, "0");
     return `${m}:${s}`;
   };
+  const scrollRef = useRef<HTMLDivElement | null>(null);
 
   return (
     <div className="relative h-screen mx-[20px] overflow-hidden">
@@ -172,10 +173,11 @@ const MatchingPage = () => {
             animate={{ x: 0 }}
             exit={{ x: "100%" }}
             transition={{ type: "spring", damping: 25, stiffness: 200 }}
-            className="absolute inset-0 z-50 bg-white"
+            ref={scrollRef}
+            className="absolute inset-0 z-50 bg-white overflow-auto"
           >
             {/* 이 Outlet 자리에 App.tsx에서 설정한 result 컴포넌트가 렌더링됨 */}
-            <Outlet />
+            <Outlet context={{ scrollRef }} />
           </motion.div>
         )}
       </AnimatePresence>
