@@ -74,7 +74,7 @@ const MatchingPage = () => {
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
   return (
-    <div className="relative h-screen mx-[20px] overflow-hidden">
+    <div className="relative h-screen px-[20px] overflow-hidden">
       {/* --- 배경: 매칭 중 페이지 UI --- */}
       <div className="mt-[5px]">
         <BackButton />
@@ -174,9 +174,10 @@ const MatchingPage = () => {
             exit={{ x: "100%" }}
             transition={{ type: "spring", damping: 25, stiffness: 200 }}
             ref={scrollRef}
-            className="absolute inset-0 z-50 bg-white overflow-auto"
+            // inset-0은 패딩을 무시하므로, 내부 콘텐츠가 잘리지 않게 하려면
+            // 이 레이어 자체는 화면 전체를 덮되, 안쪽 자식들이 유연해야 합니다.
+            className="absolute inset-0 z-50 bg-white overflow-y-auto overflow-x-hidden"
           >
-            {/* 이 Outlet 자리에 App.tsx에서 설정한 result 컴포넌트가 렌더링됨 */}
             <Outlet context={{ scrollRef }} />
           </motion.div>
         )}

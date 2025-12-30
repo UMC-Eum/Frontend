@@ -1,62 +1,23 @@
 import BackButton from "../components/BackButton";
-import { useInfiniteQuery } from "@tanstack/react-query";
-import { fetchMatchResults } from "../mockFetch";
-import { useMemo, useRef, useEffect } from "react";
-import { throttle } from "../hooks/throttle";
-import { useOutletContext } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { fetchAllMatchResults } from "../mockFetch";
+import LikeChatButtonGroup from "../components/LikeChatButtonGroup";
+
 const ResultPage = () => {
-  const { data, fetchNextPage, hasNextPage, isFetchingNextPage } =
-    useInfiniteQuery({
-      queryKey: ["matchResults"],
-      queryFn: fetchMatchResults,
-      initialPageParam: 0,
-      getNextPageParam: (lastPage) => lastPage.nextPage,
-    });
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ["matchResults"],
+    queryFn: fetchAllMatchResults,
+  });
 
-  const loaderRef = useRef<HTMLDivElement | null>(null);
-
-  const throttledFetchNext = useMemo(
-    () =>
-      throttle(() => {
-        if (hasNextPage && !isFetchingNextPage) {
-          fetchNextPage();
-        }
-      }, 1000),
-    [fetchNextPage, hasNextPage, isFetchingNextPage]
-  );
-
-  useEffect(() => {
-    if (!loaderRef.current || !hasNextPage || isFetchingNextPage) return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting) {
-          throttledFetchNext();
-        }
-      },
-      {
-        root: scrollRef.current,
-        threshold: 0,
-        rootMargin: "100px",
-      }
-    );
-
-    observer.observe(loaderRef.current);
-
-    return () => observer.disconnect();
-  }, [throttledFetchNext, hasNextPage, isFetchingNextPage]);
-
-  const { scrollRef } = useOutletContext<{
-    scrollRef: React.RefObject<HTMLDivElement>;
-  }>();
+  if (isLoading) return <div>로딩 중...</div>;
+  if (isError) return <div>에러가 발생했습니다.</div>;
 
   return (
-    <div>
+    <div className="px-[20px]">
       <div className="mt-[5px]">
         <BackButton />
       </div>
 
-      {/* ✅ 고정 간격 28px */}
       <div className="h-[28px]" />
 
       <h1 className="h-[100px] text-[24px] font-[700] leading-[140%] text-[#202020]">
@@ -64,17 +25,23 @@ const ResultPage = () => {
         <br />
         이런 분들을 추천해드릴게요
       </h1>
-      <h3 className="mt-[40px] font-[18px] font-500 text-gray-700">
+
+      <h3 className="mt-[40px] text-[18px] font-[500] text-gray-700">
         ~~님의 이상형은...
       </h3>
-      {data?.pages
-        .flatMap((page) => page.items)
-        .map((item) => (
-          <div key={item.id} className="border p-4 rounded-xl">
+
+      <div className="flex flex-col gap-4 items-center">
+        {" "}
+        {data?.map((item) => (
+          <div
+            key={item.id}
+            className="w-full max-w-[362px] h-[522px] border rounded-[14px] bg-white"
+          >
             {item.name}
+            <LikeChatButtonGroup />
           </div>
         ))}
-      <div ref={loaderRef} className="h-[80px]" />
+      </div>
     </div>
   );
 };
