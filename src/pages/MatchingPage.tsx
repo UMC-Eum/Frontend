@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, Outlet, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import BackButton from "../components/BackButton";
 import MicButton from "../components/MicButton";
 
 type MicStatus = "inactive" | "recording" | "loading";
@@ -74,11 +73,9 @@ const MatchingPage = () => {
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
   return (
-    <div className="relative h-screen px-[20px] overflow-hidden">
+    <div className="relative h-full px-[20px] overflow-hidden">
       {/* --- 배경: 매칭 중 페이지 UI --- */}
-      <div className="mt-[5px]">
-        <BackButton />
-      </div>
+
       <div className="h-[20px]" />
       <div className="h-[102px]">
         {status === "inactive" && !isResultPage && (
