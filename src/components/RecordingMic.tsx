@@ -1,7 +1,7 @@
 const RecordingMic = () => {
   //추후 수정예정 svg 애니메이션
   return (
-    <button type="button" className="relative w-[90px] h-[90px]">
+    <div className="relative w-[90px] h-[90px]">
       {/* 바깥 원 (90) */}
       <svg
         xmlns="http://www.w3.org/2000/svg"
@@ -131,7 +131,7 @@ const RecordingMic = () => {
           />
         </rect>
       </svg>
-    </button>
+    </div>
   );
 };
 
