@@ -56,7 +56,7 @@ const RecordingControl = ({
         <button
           onClick={onMicClick}
           disabled={status === "loading" || isResultPage}
-          className="outline-none select-none touch-manipulation"
+          className="w-[90px] h-[90px] flex items-center justify-center rounded-full"
           style={{ WebkitTapHighlightColor: "transparent" }}
         >
           <MicButton status={status} />
