@@ -15,7 +15,7 @@ const InactiveMic = () => {
       <svg
         xmlns="http://www.w3.org/2000/svg"
         viewBox="0 0 81 81"
-        className="absolute inset-[4.5px]"
+        className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[81px] h-[81px]"
         fill="none"
       >
         <circle cx="40.5" cy="40.5" r="40.5" fill="white" />

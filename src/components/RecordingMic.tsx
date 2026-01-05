@@ -14,7 +14,7 @@ const RecordingMic = () => {
       <svg
         xmlns="http://www.w3.org/2000/svg"
         viewBox="0 0 47 47"
-        className="absolute inset-[4.5px]"
+        className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[47px] h-[47px]"
         fill="none"
       >
         <rect
