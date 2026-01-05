@@ -37,10 +37,17 @@ const RecordingControl = ({
         </div>
       )}
 
-      {/* 3. 마이크 버튼 및 배경 애니메이션 */}
-      <div className="relative flex items-center justify-center">
+      <div
+        className="relative flex items-center justify-center"
+        style={{ WebkitTapHighlightColor: "transparent" }}
+      >
         <motion.div
-          className="absolute w-[120px] h-[120px] rounded-full blur-xl bg-[radial-gradient(circle,_rgba(252,51,103,0.7)_0%,_rgba(252,51,103,0.3)_45%,_transparent_60%)]"
+          className="pointer-events-none absolute w-[80px] h-[80px] rounded-full"
+          style={{
+            borderRadius: "50%",
+            boxShadow: "0 0 30px 10px rgba(252, 51, 103, 0.5)",
+            background: "transparent",
+          }}
           initial={{ opacity: 0, scale: 0.85 }}
           animate={{ opacity: [0, 1, 0], scale: [0.9, 1.1, 0.9] }}
           transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
@@ -49,6 +56,8 @@ const RecordingControl = ({
         <button
           onClick={onMicClick}
           disabled={status === "loading" || isResultPage}
+          className="w-[90px] h-[90px] flex items-center justify-center rounded-full"
+          style={{ WebkitTapHighlightColor: "transparent" }}
         >
           <MicButton status={status} />
         </button>
