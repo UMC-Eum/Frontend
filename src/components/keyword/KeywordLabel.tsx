@@ -16,8 +16,8 @@ const KeywordLabel = ({
   isTransparent = false,
 }: KeywordLabelProps) => {
   const shapeStyles: Record<Shape, string> = {
-    round: "px-4 py-2 rounded-[14px]",
-    pill: "px-4 py-2 rounded-full border-2 border-gray-300",
+    round: "px-2 py-1 rounded-[14px] text-xs",
+    pill: "px-2 py-1 rounded-full border-2 border-gray-300 text-xs",
   };
 
   const activeStyles = isActive
