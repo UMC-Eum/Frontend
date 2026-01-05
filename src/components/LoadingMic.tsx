@@ -1,6 +1,6 @@
 const LoadingMic = () => {
   return (
-    <div className="relative w-[90px] h-[90px]">
+    <div className="relative w-[90px] h-[90px] rounded-full">
       {/* 바깥 원 */}
       <svg
         viewBox="0 0 90 90"
