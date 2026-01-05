@@ -44,6 +44,7 @@ const RecordingControl = ({
         <motion.div
           className="pointer-events-none absolute w-[80px] h-[80px] rounded-full"
           style={{
+            borderRadius: "50%",
             boxShadow: "0 0 30px 10px rgba(252, 51, 103, 0.5)",
             background: "transparent",
           }}
