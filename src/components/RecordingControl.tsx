@@ -38,7 +38,10 @@ const RecordingControl = ({
       )}
 
       {/* 3. 마이크 버튼 및 배경 애니메이션 */}
-      <div className="relative flex items-center justify-center">
+      <div
+        className="relative flex items-center justify-center"
+        style={{ WebkitTapHighlightColor: "transparent" }}
+      >
         <motion.div
           className="absolute w-[120px] h-[120px] rounded-full blur-xl bg-[radial-gradient(circle,_rgba(252,51,103,0.7)_0%,_rgba(252,51,103,0.3)_45%,_transparent_60%)]"
           initial={{ opacity: 0, scale: 0.85 }}
