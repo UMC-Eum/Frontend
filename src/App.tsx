@@ -1,3 +1,4 @@
+//github and vercel deployment settings
 import "./App.css";
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import AppLayout from "./layout/AppLayout";
