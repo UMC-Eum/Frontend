@@ -3,9 +3,24 @@ import { Keyword } from "./keyword.model";
 type Shape = "round" | "pill";
 
 interface KeywordLabelProps {
+  /** 키워드 객체 */
   keyword: Keyword;
+  
+  /** 라벨의 모양 "round" | "pill" */
   shape?: Shape;
+
+  /**
+   * 활성화(교차) 상태 여부
+   * - true: 핑크색 배경
+   * - false: 회색 배경
+   */
   isActive?: boolean;
+
+  /**
+   * 배경 투명도
+   * - true: 반투명
+   * - false: 투명 X
+   */
   isTransparent?: boolean;
 }
 
@@ -16,8 +31,8 @@ const KeywordLabel = ({
   isTransparent = false,
 }: KeywordLabelProps) => {
   const shapeStyles: Record<Shape, string> = {
-    round: "px-4 py-2 rounded-[14px]",
-    pill: "px-4 py-2 rounded-full border-2 border-gray-300",
+    round: "px-2 py-1 rounded-[14px] text-xs",
+    pill: "px-2 py-1 rounded-full border-2 border-gray-300 text-xs",
   };
 
   const activeStyles = isActive

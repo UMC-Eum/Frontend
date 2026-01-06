@@ -1,16 +1,19 @@
-import cerficationmark from "../assets/card_cerfication.svg"
-import locationmark from "../assets/card_location.svg"
+import cerficationmark from "../assets/card_cerfication.svg";
+import locationmark from "../assets/card_location.svg";
+import { Keyword } from "./keyword/keyword.model";
+import KeywordLabel from "./keyword/KeywordLabel";
+
 interface CardProps {
-  imageUrl: string
-  name: string
-  age: number
-  distance: string
-  description: string
-  tags: string[]
-  isVerified?: boolean
-  onLike?: () => void
-  onChat?: () => void
-  onDetailClick?: () => void
+  imageUrl: string;
+  name: string;
+  age: number;
+  distance: string;
+  description: string;
+  keywords: Keyword[];
+  isVerified?: boolean;
+  onLike?: () => void;
+  onChat?: () => void;
+  onDetailClick?: () => void;
 }
 
 export default function Card({
@@ -19,7 +22,7 @@ export default function Card({
   age,
   distance,
   description,
-  tags,
+  keywords,
   isVerified = true,
   onLike,
   onChat,
@@ -49,21 +52,18 @@ export default function Card({
           <h2 className="text-2xl font-bold">
             {name} {age}
           </h2>
-          {isVerified && <img
-          src={cerficationmark}
-          alt="인증마크"
-          />}
+          {isVerified && <img src={cerficationmark} alt="인증마크" />}
         </div>
-            <p className="flex text-sm opacity-90 mb-2"><img
-            className="h-4 w-4"
-            src={locationmark}
-            alt="지역마크" /> {distance}</p>
+        <p className="flex text-sm opacity-90 mb-2">
+          <img className="h-4 w-4" src={locationmark} alt="지역마크" />{" "}
+          {distance}
+        </p>
 
         {/* 디스크립션 (클릭 시 이벤트만 전달) */}
         <div
           onClick={(e) => {
-            e.stopPropagation()
-            onDetailClick?.()
+            e.stopPropagation();
+            onDetailClick?.();
           }}
           className="
           text-sm mb-3 truncate cursor-pointer
@@ -73,30 +73,23 @@ export default function Card({
           {description}
         </div>
 
-        {/* 태그 */}
+        {/* 키워드 */}
         <div className="flex flex-wrap gap-2 mb-4">
-          {tags.map((tag, index) => (
-            <span
-              key={tag}
-              className={`px-2 py-1 text-xs rounded-md
-                ${
-                  index < 2
-                    ? "bg-[#FF88A6] text-white"
-                    : "bg-white/20 text-white"
-                }
-              `}
-            >
-              {tag}
-            </span>
-          ))}
+          {keywords.map((keyword, index) =>
+            index < 2 ? (
+              <KeywordLabel keyword={keyword} isActive={true} />
+            ) : (
+              <KeywordLabel keyword={keyword} isTransparent={true} />
+            )
+          )}
         </div>
 
         {/* 버튼 */}
         <div className="flex gap-3">
           <button
             onClick={(e) => {
-              e.stopPropagation()
-              onLike?.()
+              e.stopPropagation();
+              onLike?.();
             }}
             className="
               flex-1 h-12 bg-white text-black rounded-xl
@@ -108,8 +101,8 @@ export default function Card({
 
           <button
             onClick={(e) => {
-              e.stopPropagation()
-              onChat?.()
+              e.stopPropagation();
+              onChat?.();
             }}
             className="
               flex-1 h-12 bg-white/90 text-black rounded-xl
@@ -121,5 +114,5 @@ export default function Card({
         </div>
       </div>
     </div>
-  )
+  );
 }
