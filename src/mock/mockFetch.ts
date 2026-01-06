@@ -1,6 +1,6 @@
-// 1. 실제 Keyword 타입을 가져옵니다 (경로가 맞는지 확인해주세요)
-import { Keyword } from "../components/keyword/keyword.model";
+import { Keyword, KEYWORDS } from "../components/keyword/keyword.model";
 
+// 1. 사용할 데이터 타입 정의
 export interface MockUser {
   id: number;
   name: string;
@@ -8,11 +8,20 @@ export interface MockUser {
   imageUrl: string;
   distance: string;
   description: string;
-  // 2. 여기서 MockKeyword 대신 실제 Keyword[] 타입을 씁니다.
-  keywords: Keyword[];
+  keywords: Keyword[]; // 실제 Keyword 타입 사용
 }
 
+const findKeyword = (label: string): Keyword => {
+  const found = KEYWORDS.find((k) => k.label === label);
+  if (!found) {
+    console.warn(`[MockData] '${label}' 키워드를 찾을 수 없습니다.`);
+    return KEYWORDS[0];
+  }
+  return found;
+};
+
 export const fetchAllMatchResults = async (): Promise<MockUser[]> => {
+  // 실제 API 통신처럼 0.5초 딜레이
   await new Promise((resolve) => setTimeout(resolve, 500));
 
   return [
@@ -24,12 +33,11 @@ export const fetchAllMatchResults = async (): Promise<MockUser[]> => {
         "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=500&h=800&fit=crop",
       distance: "3km",
       description: "주말에는 카페 탐방을 즐겨요! 조용한 분위기를 선호합니다.",
-      // 3. 핵심 해결책: "이 배열은 Keyword[] 타입이 맞다"고 강제로 지정합니다.
       keywords: [
-        { id: 101, label: "카페투어", category: "HOBBY" },
-        { id: 102, label: "독서", category: "HOBBY" },
-        { id: 103, label: "고양이", category: "ANIMAL" },
-      ] as unknown as Keyword[],
+        findKeyword("카페생활"),
+        findKeyword("독서"),
+        findKeyword("반려동물"),
+      ],
     },
     {
       id: 2,
@@ -40,10 +48,10 @@ export const fetchAllMatchResults = async (): Promise<MockUser[]> => {
       distance: "5km",
       description: "활동적인 데이트를 좋아해요. 같이 러닝하실 분?",
       keywords: [
-        { id: 201, label: "러닝", category: "EXERCISE" },
-        { id: 202, label: "맛집탐방", category: "HOBBY" },
-        { id: 203, label: "유머", category: "PERSONALITY" },
-      ] as unknown as Keyword[],
+        findKeyword("러닝"),
+        findKeyword("드라이브"),
+        findKeyword("유머사용"),
+      ],
     },
     {
       id: 3,
@@ -54,10 +62,10 @@ export const fetchAllMatchResults = async (): Promise<MockUser[]> => {
       distance: "1.2km",
       description: "영화 보는 걸 좋아해요. 넷플릭스 같이 봐요!",
       keywords: [
-        { id: 301, label: "영화", category: "HOBBY" },
-        { id: 302, label: "집순이", category: "PERSONALITY" },
-        { id: 303, label: "게임", category: "HOBBY" },
-      ] as unknown as Keyword[],
+        findKeyword("영화감상"),
+        findKeyword("집순이"),
+        findKeyword("게임"),
+      ],
     },
   ];
 };
