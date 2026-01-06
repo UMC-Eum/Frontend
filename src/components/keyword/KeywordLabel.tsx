@@ -3,9 +3,24 @@ import { Keyword } from "./keyword.model";
 type Shape = "round" | "pill";
 
 interface KeywordLabelProps {
+  /** 키워드 객체 */
   keyword: Keyword;
+  
+  /** 라벨의 모양 "round" | "pill" */
   shape?: Shape;
+
+  /**
+   * 활성화(교차) 상태 여부
+   * - true: 핑크색 배경
+   * - false: 회색 배경
+   */
   isActive?: boolean;
+
+  /**
+   * 배경 투명도
+   * - true: 반투명
+   * - false: 투명 X
+   */
   isTransparent?: boolean;
 }
 
