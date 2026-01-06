@@ -4,7 +4,7 @@ import { AxiosError } from "axios";
 import { kakaoLogin, logout } from "../../../api/auth/authApi";
 import { IKakaoLoginResponse } from "../../../types/api/auth/authDTO";
 import { ApiFailResponse } from "../../../types/api/api";
-
+// 카카오 로그인
 export const useKakaoLogin = () => {
   const navigate = useNavigate();
 
@@ -48,6 +48,7 @@ export const useKakaoLogin = () => {
     },
   });
 };
+// 로그아웃
 export const useLogout = () => {
   const navigate = useNavigate();
 
