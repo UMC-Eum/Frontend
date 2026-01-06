@@ -1,11 +1,13 @@
-import axios from "axios";
+import axios, { AxiosRequestConfig, AxiosError } from "axios";
+import { ApiSuccessResponse, ApiFailResponse } from "../types/api/api"; // 👈 ApiFailResponse 추가 import
+import { ITokenRefreshResponse } from "../types/api/auth/authDTO";
 
 const api = axios.create({
-  baseURL: "https://{apiHost}/v1",
+  baseURL: import.meta.env.VITE_API_BASE_URL || "http://localhost:8080/api/v1",
   headers: { "Content-Type": "application/json" },
+  withCredentials: true,
 });
 
-// 요청 인터셉터: 모든 요청에 토큰 부착
 api.interceptors.request.use((config) => {
   const accessToken = localStorage.getItem("accessToken");
   if (accessToken) {
@@ -14,33 +16,40 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// 응답 인터셉터: 401 에러 시 토큰 재발급 로직
 api.interceptors.response.use(
   (response) => response,
-  async (error) => {
-    const originalRequest = error.config;
+  async (error: AxiosError) => {
+    const originalRequest = error.config as AxiosRequestConfig & {
+      _retry?: boolean;
+    };
 
-    // ✅ [추가] refresh 요청은 재시도 금지 (무한 루프 방지)
+    // 무한 루프 방지
     if (originalRequest?.url?.includes("/auth/token/refresh")) {
       return Promise.reject(error);
     }
 
-    if (error.response?.status === 401 && !originalRequest._retry) {
-      originalRequest._retry = true;
+    // 🔍 에러 응답 데이터 꺼내기 (타입 단언 사용)
+    const errorResponse = error.response?.data as ApiFailResponse | undefined;
+    const errorCode = errorResponse?.error?.code; // 예: "AUTH-002"
 
+    if (
+      error.response?.status === 401 &&
+      errorCode === "AUTH-002" &&
+      !originalRequest._retry
+    ) {
+      originalRequest._retry = true;
       const refreshToken = localStorage.getItem("refreshToken");
 
       if (!refreshToken) {
+        localStorage.clear();
         window.location.href = "/login";
         return Promise.reject(error);
       }
 
       try {
-        const res = await axios.post(
+        const res = await axios.post<ApiSuccessResponse<ITokenRefreshResponse>>(
           `${api.defaults.baseURL}/auth/token/refresh`,
-          {
-            refreshToken: refreshToken,
-          }
+          { refreshToken }
         );
 
         const { accessToken, refreshToken: newRefreshToken } =
@@ -51,7 +60,10 @@ api.interceptors.response.use(
           localStorage.setItem("refreshToken", newRefreshToken);
         }
 
-        originalRequest.headers.Authorization = `Bearer ${accessToken}`;
+        if (originalRequest.headers) {
+          originalRequest.headers.Authorization = `Bearer ${accessToken}`;
+        }
+
         return api(originalRequest);
       } catch (refreshError) {
         localStorage.clear();
