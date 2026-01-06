@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { fetchAllMatchResults } from "../mock/mockFetch";
+import Card from "../components/Card";
 
 const ResultPage = () => {
   const { data, isLoading, isError } = useQuery({
@@ -29,16 +30,19 @@ const ResultPage = () => {
           </span>
         </div>
       </div>
-
-      <div className="mt-[24px] flex flex-col gap-y-[20px] items-center">
-        {data?.map((item) => (
-          <div
-            key={item.id}
-            className="relative w-full max-w-[362px] h-[522px] border rounded-[14px] bg-white overflow-hidden"
-          >
-            <div className="p-4">{item.name}</div>
-          </div>
-        ))}
+      <div className="mt-[24px] space-y-[20px]">
+        {data &&
+          data.map((user) => (
+            <Card
+              key={user.id}
+              name={user.name}
+              age={user.age}
+              imageUrl={user.imageUrl}
+              distance={user.distance}
+              description={user.description}
+              keywords={user.keywords}
+            />
+          ))}
       </div>
     </div>
   );
