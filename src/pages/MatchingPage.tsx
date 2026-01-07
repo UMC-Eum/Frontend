@@ -1,8 +1,11 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react"; // ✅ useState 추가
 import { useNavigate, Outlet, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
+import { useMutation } from "@tanstack/react-query";
+
 import { useMicRecording } from "../hooks/useMicRecording";
 import RecordingControl from "../components/RecordingControl";
+import { mockAnalyzeVoice } from "../mock/mockApi";
 
 const MatchingPage = () => {
   const navigate = useNavigate();
@@ -10,11 +13,29 @@ const MatchingPage = () => {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const isResultPage = location.pathname.includes("result");
 
+  // [테스트용] 녹음 파일 URL 상태 추가
+  const [recordedUrl, setRecordedUrl] = useState<string | null>(null);
+
+  // [가짜 API 연동]
+  const { mutate: simulateAnalysis } = useMutation({
+    mutationFn: mockAnalyzeVoice,
+    onSuccess: (data) => {
+      console.log("🎉 분석 완료! 결과 데이터:", data);
+      navigate("/matching/result", { state: { result: data } });
+    },
+  });
+
+  // [훅 연결]
   const { status, setStatus, seconds, isShort, handleMicClick, resetStatus } =
-    useMicRecording(() => {
-      setTimeout(() => {
-        navigate("/matching/result");
-      }, 3000);
+    useMicRecording((file: File) => {
+      console.log("🎤 녹음된 파일 생성됨:", file);
+
+      //  [테스트 로직] 브라우저 가상 URL 생성
+      const url = URL.createObjectURL(file);
+      setRecordedUrl(url); // 화면에 표시하기 위해 상태 저장
+      console.log("🎧 녹음 파일 들어보기 링크:", url);
+
+      simulateAnalysis();
     });
 
   useEffect(() => {
@@ -33,6 +54,21 @@ const MatchingPage = () => {
 
   return (
     <div className="relative h-full px-[20px] overflow-hidden">
+      {/* ✅ [테스트 UI] 녹음된 파일이 있으면 플레이어 표시 (개발 중에만 사용하세요) */}
+      {recordedUrl && (
+        <div className="absolute top-0 left-0 z-50 w-full bg-yellow-100 p-2 text-xs border-b border-yellow-300">
+          <p className="font-bold mb-1">📢 녹음 테스트 (배포 전 삭제)</p>
+          <audio controls src={recordedUrl} className="w-full h-8 mb-1" />
+          <a
+            href={recordedUrl}
+            download="test_record.webm"
+            className="underline text-blue-600"
+          >
+            파일 다운로드하기
+          </a>
+        </div>
+      )}
+
       <div className="h-[20px]" />
       <div className="h-[102px]">
         {status === "inactive" && !isResultPage && (
@@ -57,9 +93,9 @@ const MatchingPage = () => {
         )}
         {(status === "loading" || isResultPage) && (
           <h1 className="text-[28px] font-[700] leading-[140%] text-[#202020]">
-            ~~님의
+            ~~님의 목소리를
             <br />
-            이상형을 찾는 중이에요 ...
+            분석하고 있어요 ...
           </h1>
         )}
       </div>
