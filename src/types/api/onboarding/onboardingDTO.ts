@@ -39,3 +39,19 @@ export interface IProfileResponse {
   userId: number;
   profileCompleted: boolean;
 }
+//v1/matches/recommendations(get)
+export interface IItemRecommendation {
+  userId: number;
+  nickname: string;
+  age: number;
+  areaName: string;
+  keywords: string[];
+  introText: string;
+  introAudioUrl: string;
+  matchScore: number;
+  matchReasons: string[];
+}
+export interface IRecommendationsResponse {
+  nextCursor: string | null;
+  items: IItemRecommendation[];
+}

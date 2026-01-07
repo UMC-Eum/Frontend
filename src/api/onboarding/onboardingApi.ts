@@ -8,6 +8,7 @@ import {
   IAnalyzeResponse,
   IProfileRequest,
   IProfileResponse,
+  IRecommendationsResponse,
 } from "../../types/api/onboarding/onboardingDTO";
 
 // v1/files/presign (POST)
@@ -44,6 +45,14 @@ export const postProfile = async (body: IProfileRequest) => {
   const { data } = await api.post<ApiSuccessResponse<IProfileResponse>>(
     "/v1/onboarding/profile",
     body
+  );
+
+  return data.success.data;
+};
+//v1/matches/recommendation(get)
+export const getRecommendations = async () => {
+  const { data } = await api.get<ApiSuccessResponse<IRecommendationsResponse>>(
+    "/v1/matches/recommendations"
   );
 
   return data.success.data;
