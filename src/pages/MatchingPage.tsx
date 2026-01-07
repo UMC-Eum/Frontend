@@ -1,7 +1,7 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react"; // ✅ useState 추가
 import { useNavigate, Outlet, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { useMutation } from "@tanstack/react-query"; // ✅ React Query 추가
+import { useMutation } from "@tanstack/react-query";
 
 import { useMicRecording } from "../hooks/useMicRecording";
 import RecordingControl from "../components/RecordingControl";
@@ -13,27 +13,30 @@ const MatchingPage = () => {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const isResultPage = location.pathname.includes("result");
 
+  // ✅ [테스트용] 녹음 파일 URL 상태 추가
+  const [recordedUrl, setRecordedUrl] = useState<string | null>(null);
+
   // 1️⃣ [가짜 API 연동]
-  // 녹음 파일은 받지만 가짜니까 안 쓰고, 그냥 2초 딜레이 주는 함수 실행
   const { mutate: simulateAnalysis } = useMutation({
     mutationFn: mockAnalyzeVoice,
     onSuccess: (data) => {
       console.log("🎉 분석 완료! 결과 데이터:", data);
-
-      // 결과 페이지로 이동하면서 데이터(state)도 같이 넘겨줌
       navigate("/matching/result", { state: { result: data } });
     },
   });
 
   // 2️⃣ [훅 연결]
-  // 녹음이 끝나면(File이 생성되면) -> 가짜 분석 시작(simulateAnalysis)
   const { status, setStatus, seconds, isShort, handleMicClick, resetStatus } =
     useMicRecording((file: File) => {
-      console.log("🎤 녹음된 파일 생성됨:", file); // 실제 파일 확인용 로그
-      simulateAnalysis(); // API 호출 시작!
-    });
+      console.log("🎤 녹음된 파일 생성됨:", file);
 
-  // ... (이 아래 UI 코드는 기존과 완벽히 동일합니다) ...
+      // ✅ [테스트 로직] 브라우저 가상 URL 생성
+      const url = URL.createObjectURL(file);
+      setRecordedUrl(url); // 화면에 표시하기 위해 상태 저장
+      console.log("🎧 녹음 파일 들어보기 링크:", url);
+
+      simulateAnalysis();
+    });
 
   useEffect(() => {
     if (isResultPage) {
@@ -51,6 +54,21 @@ const MatchingPage = () => {
 
   return (
     <div className="relative h-full px-[20px] overflow-hidden">
+      {/* ✅ [테스트 UI] 녹음된 파일이 있으면 플레이어 표시 (개발 중에만 사용하세요) */}
+      {recordedUrl && (
+        <div className="absolute top-0 left-0 z-50 w-full bg-yellow-100 p-2 text-xs border-b border-yellow-300">
+          <p className="font-bold mb-1">📢 녹음 테스트 (배포 전 삭제)</p>
+          <audio controls src={recordedUrl} className="w-full h-8 mb-1" />
+          <a
+            href={recordedUrl}
+            download="test_record.webm"
+            className="underline text-blue-600"
+          >
+            파일 다운로드하기
+          </a>
+        </div>
+      )}
+
       <div className="h-[20px]" />
       <div className="h-[102px]">
         {status === "inactive" && !isResultPage && (
@@ -73,7 +91,6 @@ const MatchingPage = () => {
             </button>
           </>
         )}
-        {/* 로딩 상태 텍스트 표시 */}
         {(status === "loading" || isResultPage) && (
           <h1 className="text-[28px] font-[700] leading-[140%] text-[#202020]">
             ~~님의 목소리를
