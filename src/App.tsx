@@ -23,9 +23,7 @@ const router = createBrowserRouter([
       {
         path: "onboarding",
         element: (
-          <div>
             <OnBoardingPage />
-          </div>
         ),
       },
     ],

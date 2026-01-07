@@ -1,5 +1,7 @@
 import { useState } from "react"
 import { TermType } from "../types"
+import unallcheckbutton from "../../../assets/term_unallcheckbutton.svg"
+import uncheckbutton from "../../../assets/term_uncheckbutton.svg"
 import allcheckbutton from "../../../assets/term_allcheckbutton.svg"
 import checkbutton from "../../../assets/term_checkbutton.svg"
 import detailbutton from "../../../assets/term_detailbutton.svg"
@@ -61,13 +63,18 @@ export default function AgreementSheet({
               onClick={() => onToggle(term.type)}
             >
               <div className="flex items-center gap-2 cursor-pointer">
+                {checked[term.type] 
+                ?
                 <img 
                   src={checkbutton}
-                  className={`
-                    w-5 h-5
-                    ${checked[term.type] ? "brightness-0" : "opacity-40"}
-                  `}
+                  className={`w-5 h-5`}
+                /> 
+                :
+                <img 
+                  src={uncheckbutton}
+                  className={`w-5 h-5`}
                 />
+                }
   <span>{term.title}</span>
 </div>
 
@@ -83,14 +90,20 @@ export default function AgreementSheet({
           onClick={onToggleAll}
           className="flex items-center gap-2 text-[20px] font-semibold mb-4 cursor-pointer"
         >
+          {Object.values(checked).every(Boolean)
+          ?
           <img
             src={allcheckbutton}
-            className={`
-              w-6 h-6
-              ${Object.values(checked).every(Boolean)
-                ? "brightness-0" : "opacity-40"}
-            `}
+            className={`w-6 h-6`}
+          /> 
+          :
+          <img
+            src={unallcheckbutton}
+            className={`w-6 h-6`}
           />
+          } 
+
+        
           <span>모든 이용약관에 동의합니다.</span>
         </div>
 
@@ -99,7 +112,14 @@ export default function AgreementSheet({
 
         <button
           onClick={handleConfirm}
-          className="text-[18px] w-full h-14 mb-10 bg-[#fc3367] text-white rounded-2xl"
+          className={`
+            text-[18px] w-full h-14 mb-10 rounded-2xl
+            ${!terms.some((t) => t.required && !checked[t.type])
+              ? 
+              "bg-[#fc3367] text-white" 
+              : 
+              "bg-gray-300 text-gray-500" }
+            `}
         >
           확인
         </button>
