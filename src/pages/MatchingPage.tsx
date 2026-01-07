@@ -1,8 +1,11 @@
 import { useEffect, useRef } from "react";
 import { useNavigate, Outlet, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
+import { useMutation } from "@tanstack/react-query"; // ✅ React Query 추가
+
 import { useMicRecording } from "../hooks/useMicRecording";
 import RecordingControl from "../components/RecordingControl";
+import { mockAnalyzeVoice } from "../mock/mockApi";
 
 const MatchingPage = () => {
   const navigate = useNavigate();
@@ -10,12 +13,27 @@ const MatchingPage = () => {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const isResultPage = location.pathname.includes("result");
 
+  // 1️⃣ [가짜 API 연동]
+  // 녹음 파일은 받지만 가짜니까 안 쓰고, 그냥 2초 딜레이 주는 함수 실행
+  const { mutate: simulateAnalysis } = useMutation({
+    mutationFn: mockAnalyzeVoice,
+    onSuccess: (data) => {
+      console.log("🎉 분석 완료! 결과 데이터:", data);
+
+      // 결과 페이지로 이동하면서 데이터(state)도 같이 넘겨줌
+      navigate("/matching/result", { state: { result: data } });
+    },
+  });
+
+  // 2️⃣ [훅 연결]
+  // 녹음이 끝나면(File이 생성되면) -> 가짜 분석 시작(simulateAnalysis)
   const { status, setStatus, seconds, isShort, handleMicClick, resetStatus } =
-    useMicRecording(() => {
-      setTimeout(() => {
-        navigate("/matching/result");
-      }, 3000);
+    useMicRecording((file: File) => {
+      console.log("🎤 녹음된 파일 생성됨:", file); // 실제 파일 확인용 로그
+      simulateAnalysis(); // API 호출 시작!
     });
+
+  // ... (이 아래 UI 코드는 기존과 완벽히 동일합니다) ...
 
   useEffect(() => {
     if (isResultPage) {
@@ -55,11 +73,12 @@ const MatchingPage = () => {
             </button>
           </>
         )}
+        {/* 로딩 상태 텍스트 표시 */}
         {(status === "loading" || isResultPage) && (
           <h1 className="text-[28px] font-[700] leading-[140%] text-[#202020]">
-            ~~님의
+            ~~님의 목소리를
             <br />
-            이상형을 찾는 중이에요 ...
+            분석하고 있어요 ...
           </h1>
         )}
       </div>
