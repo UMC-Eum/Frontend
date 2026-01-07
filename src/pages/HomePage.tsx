@@ -11,7 +11,7 @@ type ActivePerson = {
 };
 
 export default function HomePage() {
-  const isProfileRegistered = true;
+  const isProfileRegistered = false;
 
   const activePeople: ActivePerson[] = [
     {

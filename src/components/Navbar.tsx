@@ -21,7 +21,7 @@ export default function Navbar() {
     <nav className="absolute bottom-0 left-0 w-full h-[62px] bg-white shadow-[0_-4px_12px_rgba(0,0,0,0.08)]">
       <div className="relative h-full">
         <div className="h-full grid grid-cols-5 items-center px-5">
-          <NavLink to="/" end className={linkClass}>
+          <NavLink to="/home" end className={linkClass}>
             {({ isActive }) => (
               <>
                 <img src={isActive ? home : emptyhome} />
