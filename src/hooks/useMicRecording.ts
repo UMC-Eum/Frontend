@@ -1,9 +1,9 @@
 import { useState, useRef, useEffect } from "react";
 
-type RecordingStatus = "inactive" | "recording" | "loading";
+export type MicStatus = "inactive" | "recording" | "loading";
 
 export const useMicRecording = (onRecordingComplete: (file: File) => void) => {
-  const [status, setStatus] = useState<RecordingStatus>("inactive");
+  const [status, setStatus] = useState<MicStatus>("inactive");
   const [seconds, setSeconds] = useState(0);
   const [isShort, setIsShort] = useState(false);
 

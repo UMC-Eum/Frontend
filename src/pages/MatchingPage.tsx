@@ -13,10 +13,10 @@ const MatchingPage = () => {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const isResultPage = location.pathname.includes("result");
 
-  // ✅ [테스트용] 녹음 파일 URL 상태 추가
+  // [테스트용] 녹음 파일 URL 상태 추가
   const [recordedUrl, setRecordedUrl] = useState<string | null>(null);
 
-  // 1️⃣ [가짜 API 연동]
+  // [가짜 API 연동]
   const { mutate: simulateAnalysis } = useMutation({
     mutationFn: mockAnalyzeVoice,
     onSuccess: (data) => {
@@ -25,12 +25,12 @@ const MatchingPage = () => {
     },
   });
 
-  // 2️⃣ [훅 연결]
+  // [훅 연결]
   const { status, setStatus, seconds, isShort, handleMicClick, resetStatus } =
     useMicRecording((file: File) => {
       console.log("🎤 녹음된 파일 생성됨:", file);
 
-      // ✅ [테스트 로직] 브라우저 가상 URL 생성
+      //  [테스트 로직] 브라우저 가상 URL 생성
       const url = URL.createObjectURL(file);
       setRecordedUrl(url); // 화면에 표시하기 위해 상태 저장
       console.log("🎧 녹음 파일 들어보기 링크:", url);
