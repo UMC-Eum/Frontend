@@ -1,79 +1,59 @@
-import { useEffect, useRef, useState } from "react"; // ✅ useState 추가
+import { useEffect, useRef } from "react";
 import { useNavigate, Outlet, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { useMutation } from "@tanstack/react-query";
-
 import { useMicRecording } from "../hooks/useMicRecording";
+import { processVoiceAnalysis } from "../services/voiceService";
 import RecordingControl from "../components/RecordingControl";
-import { mockAnalyzeVoice } from "../mock/mockApi";
+import { useUserStore } from "../stores/useUserStore";
 
 const MatchingPage = () => {
+  const nickname = useUserStore((state) => state.user?.nickname);
   const navigate = useNavigate();
   const location = useLocation();
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const isResultPage = location.pathname.includes("result");
 
-  // [테스트용] 녹음 파일 URL 상태 추가
-  const [recordedUrl, setRecordedUrl] = useState<string | null>(null);
-
-  // [가짜 API 연동]
-  const { mutate: simulateAnalysis } = useMutation({
-    mutationFn: mockAnalyzeVoice,
+  // 1. API 요청 설정 (Mutation)
+  // 녹음 파일이 생기면 이 함수(analyze)를 실행해서 서버로 보냅니다.
+  const { mutate: analyze } = useMutation({
+    mutationFn: (file: File) => processVoiceAnalysis({ file, userId: 1 }), // 임시 userId
     onSuccess: (data) => {
-      console.log("🎉 분석 완료! 결과 데이터:", data);
+      console.log("분석 성공!", data);
+      // 성공하면 결과 페이지로 데이터 들고 이동
       navigate("/matching/result", { state: { result: data } });
+    },
+    onError: (error) => {
+      console.error(error);
+      alert("분석에 실패했습니다. 다시 시도해주세요.");
     },
   });
 
-  // [훅 연결]
+  // 2. 마이크 훅 설정 (하나로 통합!)
+  // 녹음이 끝나고 파일이 생성되면 -> analyze(file) 실행
   const { status, setStatus, seconds, isShort, handleMicClick, resetStatus } =
-    useMicRecording((file: File) => {
-      console.log("🎤 녹음된 파일 생성됨:", file);
-
-      //  [테스트 로직] 브라우저 가상 URL 생성
-      const url = URL.createObjectURL(file);
-      setRecordedUrl(url); // 화면에 표시하기 위해 상태 저장
-      console.log("🎧 녹음 파일 들어보기 링크:", url);
-
-      simulateAnalysis();
+    useMicRecording((file) => {
+      if (file) {
+        analyze(file); // 👈 여기서 Mutation 실행!
+      }
     });
 
+  // 3. 결과 페이지 진입 시 상태 처리
   useEffect(() => {
     if (isResultPage) {
       setStatus("loading");
     }
   }, [isResultPage, setStatus]);
 
-  const formatTime = (sec: number) => {
-    const m = Math.floor(sec / 60)
-      .toString()
-      .padStart(2, "0");
-    const s = (sec % 60).toString().padStart(2, "0");
-    return `${m}:${s}`;
-  };
-
   return (
     <div className="relative h-full px-[20px] overflow-hidden">
-      {/* ✅ [테스트 UI] 녹음된 파일이 있으면 플레이어 표시 (개발 중에만 사용하세요) */}
-      {recordedUrl && (
-        <div className="absolute top-0 left-0 z-50 w-full bg-yellow-100 p-2 text-xs border-b border-yellow-300">
-          <p className="font-bold mb-1">📢 녹음 테스트 (배포 전 삭제)</p>
-          <audio controls src={recordedUrl} className="w-full h-8 mb-1" />
-          <a
-            href={recordedUrl}
-            download="test_record.webm"
-            className="underline text-blue-600"
-          >
-            파일 다운로드하기
-          </a>
-        </div>
-      )}
-
       <div className="h-[20px]" />
+
+      {/* 상단 텍스트 영역 */}
       <div className="h-[102px]">
         {status === "inactive" && !isResultPage && (
           <h1 className="text-[28px] font-[700] leading-[140%] text-[#202020]">
-            ~~님의
+            {nickname || "guest"}님의
             <br />
             이상형을 이야기해주세요!
           </h1>
@@ -93,9 +73,9 @@ const MatchingPage = () => {
         )}
         {(status === "loading" || isResultPage) && (
           <h1 className="text-[28px] font-[700] leading-[140%] text-[#202020]">
-            ~~님의 목소리를
+            ~~님의
             <br />
-            분석하고 있어요 ...
+            이상형을 찾는 중이에요 ...
           </h1>
         )}
       </div>
@@ -115,7 +95,6 @@ const MatchingPage = () => {
         isShort={isShort}
         isResultPage={isResultPage}
         onMicClick={handleMicClick}
-        formatTime={formatTime}
       />
 
       <AnimatePresence mode="wait">

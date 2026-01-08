@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { fetchAllMatchResults } from "../mock/mockFetch";
 import Card from "../components/Card";
-
+import Navbar from "../components/Navbar";
 const ResultPage = () => {
   const { data, isLoading, isError } = useQuery({
     queryKey: ["matchResults"],
