@@ -5,6 +5,7 @@ import AppLayout from "./layout/AppLayout";
 import MatchingPage from "./pages/MatchingPage";
 import ResultPage from "./pages/ResultPage";
 import HomePage from "./pages/HomePage";
+import ProfileSetupMain from "./pages/profile-setup/ProfileSetupMain";
 const router = createBrowserRouter([
   {
     path: "/",
@@ -24,6 +25,12 @@ const router = createBrowserRouter([
           },
         ],
       },
+      {
+        path: "profileset",
+        element: (
+          <ProfileSetupMain />
+        )
+      }
     ],
   },
   {
