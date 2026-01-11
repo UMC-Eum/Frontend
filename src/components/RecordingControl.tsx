@@ -8,7 +8,6 @@ interface RecordingControlProps {
   isShort: boolean;
   isResultPage: boolean;
   onMicClick: () => void;
-  formatTime: (sec: number) => string;
 }
 
 const RecordingControl = ({
@@ -17,8 +16,14 @@ const RecordingControl = ({
   isShort,
   isResultPage,
   onMicClick,
-  formatTime,
 }: RecordingControlProps) => {
+  const formatTime = (sec: number) => {
+    const m = Math.floor(sec / 60)
+      .toString()
+      .padStart(2, "0");
+    const s = (sec % 60).toString().padStart(2, "0");
+    return `${m}:${s}`;
+  };
   return (
     <div className="absolute left-1/2 bottom-[40px] -translate-x-1/2 flex flex-col items-center gap-[12px]">
       {/* 1. 짧음 알림 메시지 */}
