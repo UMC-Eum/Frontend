@@ -3,6 +3,7 @@ import "./App.css";
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import AppLayout from "./layout/AppLayout";
 import MatchingPage from "./pages/MatchingPage";
+import OnBoardingPage from "./pages/onboarding/OnBoardingPage";
 import ResultPage from "./pages/ResultPage";
 import HomePage from "./pages/HomePage";
 import ProfileSetupMain from "./pages/profile-setup/ProfileSetupMain";
@@ -31,6 +32,11 @@ const router = createBrowserRouter([
           <ProfileSetupMain />
         )
       }
+        path: "onboarding",
+        element: (
+            <OnBoardingPage />
+        ),
+      },
     ],
   },
   {
