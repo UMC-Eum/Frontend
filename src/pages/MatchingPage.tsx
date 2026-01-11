@@ -3,7 +3,7 @@ import { useNavigate, Outlet, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { useMutation } from "@tanstack/react-query";
 import { useMicRecording } from "../hooks/useMicRecording";
-import { processVoiceAnalysis } from "../services/voiceService";
+import { processVoiceAnalysis } from "../service/voiceService";
 import RecordingControl from "../components/RecordingControl";
 import { useUserStore } from "../stores/useUserStore";
 

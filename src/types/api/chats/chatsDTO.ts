@@ -15,7 +15,7 @@ export interface IChatsRoomsPostResponse {
 }
 
 //v1/chats/rooms(get)
-export type MessageType = "TEXT" | "AUDIO" | "IMAGE";
+export type MessageType = "TEXT" | "AUDIO" | "PHOTO" | "VIDEO";
 
 export interface ILastMessage {
   type: MessageType;

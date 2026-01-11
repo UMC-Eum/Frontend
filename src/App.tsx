@@ -28,14 +28,11 @@ const router = createBrowserRouter([
       },
       {
         path: "profileset",
-        element: (
-          <ProfileSetupMain />
-        )
-      }
+        element: <ProfileSetupMain />,
+      },
+      {
         path: "onboarding",
-        element: (
-            <OnBoardingPage />
-        ),
+        element: <OnBoardingPage />,
       },
     ],
   },
