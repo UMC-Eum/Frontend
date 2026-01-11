@@ -31,7 +31,8 @@ const router = createBrowserRouter([
         element: (
           <ProfileSetupMain />
         )
-      }
+      },
+      {
         path: "onboarding",
         element: (
             <OnBoardingPage />
