@@ -3,6 +3,7 @@ import "./App.css";
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import AppLayout from "./layout/AppLayout";
 import MatchingPage from "./pages/MatchingPage";
+import OnBoardingPage from "./pages/onboarding/OnBoardingPage";
 import ResultPage from "./pages/ResultPage";
 import HomePage from "./pages/HomePage";
 const router = createBrowserRouter([
@@ -23,6 +24,12 @@ const router = createBrowserRouter([
             element: <ResultPage />,
           },
         ],
+      },
+      {
+        path: "onboarding",
+        element: (
+            <OnBoardingPage />
+        ),
       },
     ],
   },
