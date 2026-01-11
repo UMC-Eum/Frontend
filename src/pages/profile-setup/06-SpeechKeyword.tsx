@@ -72,14 +72,6 @@ export default function SpeechKeyword({ onNext, name }: SetGenderProps) {
     }
   }, [isResultPage]);
 
-  const formatTime = (sec: number) => {
-    const m = Math.floor(sec / 60)
-      .toString()
-      .padStart(2, "0");
-    const s = (sec % 60).toString().padStart(2, "0");
-    return `${m}:${s}`;
-  };
-
   const RenderRecordingControl = (
     <RecordingControl
       status={status}
@@ -87,7 +79,6 @@ export default function SpeechKeyword({ onNext, name }: SetGenderProps) {
       isShort={isShort}
       isResultPage={isResultPage}
       onMicClick={handleMicClick}
-      formatTime={formatTime}
     />
   );
 
