@@ -20,7 +20,6 @@ const MatchingPage = () => {
     mutationFn: (file: File) => processVoiceAnalysis({ file, userId: 1 }), // 임시 userId
     onSuccess: (data) => {
       console.log("분석 성공!", data);
-      // 성공하면 결과 페이지로 데이터 들고 이동
       navigate("/matching/result", { state: { result: data } });
     },
     onError: (error) => {
