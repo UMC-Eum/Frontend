@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { fetchAllMatchResults } from "../mock/mockFetch";
 import Card from "../components/Card";
-
+import Navbar from "../components/Navbar";
 const ResultPage = () => {
   const { data, isLoading, isError } = useQuery({
     queryKey: ["matchResults"],
@@ -43,6 +43,9 @@ const ResultPage = () => {
               keywords={user.keywords}
             />
           ))}
+      </div>
+      <div className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-100">
+        <Navbar />
       </div>
     </div>
   );

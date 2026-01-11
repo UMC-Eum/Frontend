@@ -77,9 +77,13 @@ export default function Card({
         <div className="flex flex-wrap gap-2 mb-4">
           {keywords.map((keyword, index) =>
             index < 2 ? (
-              <KeywordLabel keyword={keyword} isActive={true} />
+              <KeywordLabel key={index} keyword={keyword} isActive={true} />
             ) : (
-              <KeywordLabel keyword={keyword} isTransparent={true} />
+              <KeywordLabel
+                key={index}
+                keyword={keyword}
+                isTransparent={true}
+              />
             )
           )}
         </div>
