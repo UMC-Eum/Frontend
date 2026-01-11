@@ -6,7 +6,6 @@ import MatchingPage from "./pages/MatchingPage";
 import OnBoardingPage from "./pages/onboarding/OnBoardingPage";
 import ResultPage from "./pages/ResultPage";
 import HomePage from "./pages/HomePage";
-import ProfileSetupMain from "./pages/profile-setup/ProfileSetupMain";
 const router = createBrowserRouter([
   {
     path: "/",
@@ -27,11 +26,6 @@ const router = createBrowserRouter([
         ],
       },
       {
-        path: "profileset",
-        element: (
-          <ProfileSetupMain />
-        )
-      }
         path: "onboarding",
         element: (
             <OnBoardingPage />
