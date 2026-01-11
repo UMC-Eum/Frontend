@@ -97,7 +97,7 @@ export default function Card({
             }}
             className="
               flex-1 h-12 bg-white text-black rounded-xl
-              transition active:scale-[0.97] active:bg-gray-200
+              transition active:scale-[0.97] active:bg-[#fc3367]
             "
           >
             마음에 들어요
@@ -110,7 +110,7 @@ export default function Card({
             }}
             className="
               flex-1 h-12 bg-white/90 text-black rounded-xl
-              transition active:scale-[0.97] active:bg-gray-200
+              transition active:scale-[0.97] active:bg-[#fc3367]
             "
           >
             바로 대화해보기
