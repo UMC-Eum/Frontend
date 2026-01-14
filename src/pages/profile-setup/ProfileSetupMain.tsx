@@ -7,7 +7,7 @@ import SetImage from "./05-SetImage";
 import SpeechKeyword from "./06-SpeechKeyword";
 import SetKeywords from "./07-SetKeywords";
 import SetComplete from "./08-SetComplete";
-
+import BackButton from "../../components/BackButton";
 
 export default function ProfileSetupMain() {
   const [step, setStep] = useState(1);
