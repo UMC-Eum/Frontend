@@ -9,6 +9,7 @@ import HomePage from "./pages/HomePage";
 import ProfileSetupMain from "./pages/profile-setup/ProfileSetupMain";
 import ProfileRecommendPage from "./pages/ProfileRecommendPage";
 import Like from "./pages/Like";
+import ProfileEditMain from "./pages/profile-edit/ProfileEditMain";
 const router = createBrowserRouter([
   {
     path: "/",
@@ -40,6 +41,10 @@ const router = createBrowserRouter([
         path: "like",
         element: <Like />,
       },
+      {
+        path: "my",
+        element: <ProfileEditMain/>
+      }
     ],
   },
   {
