@@ -1,21 +1,29 @@
 import { useEffect, useState } from "react";
-import { ProfileData } from "./ProfileSetupMain";
-
 import { useMutation } from "@tanstack/react-query";
 import { useLocation } from "react-router-dom";
 
+// 경로에 맞게 import 확인해주세요
 import { MicStatus } from "../../hooks/useMicRecording";
 import RecordingControl from "../../components/RecordingControl";
 import { mockAnalyzeVoice } from "../../mock/mockApi";
+import { useUserStore } from "../../stores/useUserStore";
 
-interface SetGenderProps {
-  onNext: (data: Partial<ProfileData>) => void;
-  name: string;
+// ✅ 인터페이스 이름 수정
+interface SpeechKeywordProps {
+  // 부모에게 데이터를 넘길 수도 있고, 스토어에 저장 후 그냥 넘어갈 수도 있습니다.
+  // 여기서는 기존 코드를 존중하여 데이터를 넘기도록 유지했습니다.
+  onNext: (rec: { record: string; keywords: string[] }) => void;
 }
 
-export default function SpeechKeyword({ onNext, name }: SetGenderProps) {
+export default function SpeechKeyword({ onNext }: SpeechKeywordProps) {
   const location = useLocation();
   const isResultPage = location.pathname.includes("result");
+
+  // ✅ 스토어에서 유저 정보와 업데이트 함수 가져오기
+  const { user, updateUser } = useUserStore();
+
+  // ✅ 닉네임 가져오기 (없으면 기본값 '회원')
+  const name = user?.nickname || "회원";
 
   const [status, setStatus] = useState<MicStatus>("inactive");
   const [seconds, setSeconds] = useState(0);
@@ -24,10 +32,18 @@ export default function SpeechKeyword({ onNext, name }: SetGenderProps) {
   const { mutate: simulateAnalysis } = useMutation({
     mutationFn: mockAnalyzeVoice,
     onSuccess: () => {
-      onNext({
+      const mockResult = {
         record: "가짜녹음파일.webm",
-        keywords: [],
+        keywords: ["열정적인", "성실한", "등산"], // Mock 데이터 예시
+      };
+
+      updateUser({
+        introAudioUrl: mockResult.record,
+        keywords: mockResult.keywords,
       });
+
+      // ✅ 2. 다음 단계로 이동 (부모 컴포넌트 처리)
+      onNext(mockResult);
     },
   });
 
@@ -50,7 +66,7 @@ export default function SpeechKeyword({ onNext, name }: SetGenderProps) {
     }
 
     if (status === "recording") {
-      const tooShort = seconds < 10;
+      const tooShort = seconds < 3; // 10초는 테스트하기 너무 기니까 3초 정도로 조정 추천
 
       if (tooShort) {
         setIsShort(true);
@@ -59,6 +75,7 @@ export default function SpeechKeyword({ onNext, name }: SetGenderProps) {
         setIsShort(false);
         setStatus("loading");
 
+        // 분석 시뮬레이션 시작
         setTimeout(() => {
           simulateAnalysis();
         }, 1500);
@@ -96,7 +113,6 @@ export default function SpeechKeyword({ onNext, name }: SetGenderProps) {
     </main>
   );
 }
-
 type WhenInactiveProps = {
   name: string;
   RecordingControl: React.ReactNode;
@@ -106,6 +122,7 @@ function WhenInactive({ name, RecordingControl }: WhenInactiveProps) {
   const [isTop, setIsTop] = useState(false);
 
   useEffect(() => {
+    // 4초 뒤에 텍스트가 위로 올라가는 애니메이션
     const timer = setTimeout(() => {
       setIsTop(true);
     }, 4000);
@@ -115,19 +132,19 @@ function WhenInactive({ name, RecordingControl }: WhenInactiveProps) {
 
   return (
     <>
-      {/* 애니메이션 스타일 */}
       <style>{`
         .guide-container {
           transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
           position: absolute;
           width: 100%;
+          left: 0; /* absolute일 때 위치 잡기 위해 추가 */
+          padding-left: 0.5rem; /* px-2에 맞춤 */
+          padding-right: 0.5rem;
         }
-        /* 중앙에 있을 때 */
         .position-center {
           top: 45%;
           transform: translateY(-50%);
         }
-        /* 상단으로 올라갔을 때 */
         .position-top {
           top: 20px;
           transform: translateY(0);
@@ -135,7 +152,7 @@ function WhenInactive({ name, RecordingControl }: WhenInactiveProps) {
       `}</style>
 
       <div
-        className={`mt-5 mb-5 guide-container ${
+        className={`guide-container ${
           isTop ? "position-top" : "position-center"
         }`}
       >
@@ -153,7 +170,7 @@ function WhenInactive({ name, RecordingControl }: WhenInactiveProps) {
       </div>
 
       <div
-        className={`transition-opacity duration-500 ${
+        className={`transition-opacity duration-500 h-full ${
           isTop ? "opacity-100" : "opacity-0"
         }`}
       >
@@ -182,7 +199,7 @@ type WhenRecordingProps = {
 function WhenRecording({ name, RecordingControl }: WhenRecordingProps) {
   return (
     <>
-      <div className="mt-5 mb-5 guide-container">
+      <div className="mt-5 mb-5 absolute w-full top-[20px] px-2 left-0">
         <h1 className="text-[26px] font-bold text-black leading-tight">
           {name}님의 이야기를 듣고있어요..
         </h1>
@@ -198,6 +215,7 @@ function WhenRecording({ name, RecordingControl }: WhenRecordingProps) {
               녹음을 멈추고 싶으면 버튼을 한번 더 눌러주세요!
             </p>
           </div>
+          <div className="w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[8px] border-t-pink-100"></div>
         </div>
 
         {RecordingControl}
@@ -214,7 +232,7 @@ type WhenloadingProps = {
 function Whenloading({ name, RecordingControl }: WhenloadingProps) {
   return (
     <>
-      <div className="mt-5 mb-5 guide-container">
+      <div className="mt-5 mb-5 absolute w-full top-[20px] px-2 left-0">
         <h1 className="text-[26px] font-bold text-black leading-tight">
           AI가 {name}님의 이야기를 <br />
           정리하고있어요!

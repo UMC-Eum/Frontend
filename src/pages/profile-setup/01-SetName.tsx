@@ -1,17 +1,18 @@
 import { useState } from "react";
-import { ProfileData } from "./ProfileSetupMain";
-
+import { useUserStore } from "../../stores/useUserStore";
 interface SetNameProps {
-  onNext: (data: Partial<ProfileData>) => void;
+  onNext: () => void;
 }
 
 export default function SetName({ onNext }: SetNameProps) {
   const [name, setName] = useState("");
+  const { updateUser } = useUserStore();
 
   const isValid = name.trim().length > 0;
 
   const handleNext = () => {
-    onNext({ name: name.trim() });
+    updateUser({ nickname: name.trim() });
+    onNext();
   };
 
   return (
