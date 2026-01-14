@@ -1,15 +1,19 @@
-import { useRef, useState } from "react";
-import { ProfileData } from "./ProfileSetupMain";
+import { useRef, useState } from "react"; // useEffect 추가
+import { useUserStore } from "../../stores/useUserStore";
 
 interface SetAgeProps {
-  onNext: (data: Partial<ProfileData>) => void;
+  onNext: () => void;
 }
 
 export default function SetAge({ onNext }: SetAgeProps) {
-  const [age, setAge] = useState(0);
+  const [age, setAge] = useState(1);
+
+  const { updateUser } = useUserStore();
 
   const handleNext = () => {
-    onNext({ age: age });
+    if (age <= 0) return;
+    updateUser({ age });
+    onNext();
   };
 
   return (
@@ -42,48 +46,49 @@ export default function SetAge({ onNext }: SetAgeProps) {
 }
 
 type WheelPickerProps = {
-  onChange: (index: number) => void;
+  onChange: (age: number) => void;
 };
 
-// UX 문제
-// 스크롤보다 스타일 바뀌는 속도가 느림
-// DOM 요소 자체를 갱신하면 되긴 하는데 scroll-smooth가 안 먹음
-// 여기서 더 만졌다가 기한 내 완성을 못할 거 같아서 일단 둘 예정
-// 나중에 시연 때 설명 예정.
 const WheelPicker = ({ onChange }: WheelPickerProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const scrollTopRef = useRef(0);
+
+  // 1부터 100까지
   const ageList = Array.from({ length: 100 }, (_, i) => i + 1);
 
   const ITEM_HEIGHT = 60;
   const CONTAINER_HEIGHT = 420;
   const SPACER_HEIGHT = (CONTAINER_HEIGHT - ITEM_HEIGHT) / 2;
 
-  const clamp = (i: number) => Math.max(0, Math.min(ageList.length - 1, i));
+  // ✅ 초기 렌더링 시 상위 컴포넌트(SetAge)의 상태와 동기화
+  // (스크롤을 안 건드려도 1이 선택된 것으로 간주하기 위해 필요할 수 있음)
+  // 하지만 상위에서 useState(1)을 했다면 생략 가능합니다.
 
   const handleScroll = () => {
     if (!containerRef.current) return;
     scrollTopRef.current = containerRef.current.scrollTop;
-    const rawIndex = Math.round(scrollTopRef.current / ITEM_HEIGHT);
-    const index = clamp(rawIndex);
 
-    onChange(index+1);
+    // 정확한 인덱스 계산
+    const rawIndex = Math.round(scrollTopRef.current / ITEM_HEIGHT);
+    const index = Math.max(0, Math.min(ageList.length - 1, rawIndex));
+
+    // index는 0부터 시작하므로, 나이는 index + 1
+    onChange(index + 1);
   };
 
+  // ... (스타일 계산 로직은 그대로 유지) ...
   function computeBlockStyle(index: number) {
+    // ⚠️ 성능 이슈 주석:
+    // 스크롤 할 때마다 리렌더링이 발생하여 스타일을 계산하므로
+    // 모바일 웹에서는 약간의 버벅임(Jank)이 있을 수 있습니다.
+    // 하지만 "기한 내 완성"이 목표라면 이대로 두셔도 기능상 문제는 없습니다.
     const scrollTop = scrollTopRef.current;
     const centerIndex = scrollTop / ITEM_HEIGHT;
     const distance = Math.abs(index - centerIndex);
 
-    if (distance < 0.5) {
-      return "text-[#FC3367] text-5xl font-bold";
-    }
-    if (distance < 1.5) {
-      return "text-[#FC3367] text-4xl font-bold";
-    }
-    if (distance < 2.5) {
-      return "text-gray-400 text-3xl";
-    }
+    if (distance < 0.5) return "text-[#FC3367] text-5xl font-bold";
+    if (distance < 1.5) return "text-[#FC3367] text-4xl font-bold";
+    if (distance < 2.5) return "text-gray-400 text-3xl";
     return "text-gray-400 text-2xl";
   }
 
@@ -92,7 +97,6 @@ const WheelPicker = ({ onChange }: WheelPickerProps) => {
       className="relative overflow-hidden"
       style={{ height: CONTAINER_HEIGHT }}
     >
-      {/* no-scrollbar css 추가 */}
       <div
         ref={containerRef}
         onScroll={handleScroll}
@@ -117,6 +121,7 @@ const WheelPicker = ({ onChange }: WheelPickerProps) => {
       </div>
 
       <div className="pointer-events-none absolute inset-0 flex justify-center">
+        {/* 중앙선 디자인 유지 */}
         <div
           className="absolute w-[120px] h-px bg-[#FC3367]"
           style={{ top: (CONTAINER_HEIGHT - ITEM_HEIGHT) / 2 }}

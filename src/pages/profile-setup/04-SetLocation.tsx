@@ -1,25 +1,73 @@
 import { useState } from "react";
-import { ProfileData } from "./ProfileSetupMain";
+import { useUserStore } from "../../stores/useUserStore";
+// ✅ 타입 import 필수
+import { IUserArea } from "../../types/user";
 
 interface SetLocationProps {
-  onNext: (data: Partial<ProfileData>) => void;
+  onNext: () => void;
 }
 
 const LOCATION = [
-  "서울", "경기", "부산", "인천", "광주", "대전", "대구", "울산", "강원", "충북", "충남", "전북", "전남", "경북", "경남", "제주", "세종"
-]
+  "서울",
+  "경기",
+  "부산",
+  "인천",
+  "광주",
+  "대전",
+  "대구",
+  "울산",
+  "강원",
+  "충북",
+  "충남",
+  "전북",
+  "전남",
+  "경북",
+  "경남",
+  "제주",
+  "세종",
+];
 
 const SUB_LOCATIONS: Record<string, string[]> = {
-  "경기": ["일산 인근", "의정부 인근", "안양 인근", "분당 인근", "수원 인근", "기타"],
-}
+  경기: [
+    "일산 인근",
+    "의정부 인근",
+    "안양 인근",
+    "분당 인근",
+    "수원 인근",
+    "기타",
+  ],
+  // 나머지 지역 데이터 필요...
+};
 
-export default function SetLocation({ onNext } : SetLocationProps) {
+export default function SetLocation({ onNext }: SetLocationProps) {
   const [selectedLocation, setSelectedLocation] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
 
+  const { updateUser } = useUserStore();
+
   const handleRegionClick = (location: string) => {
-    setSelectedLocation(location); // "경기" 저장
-    setIsModalOpen(true);          // 모달 열기
+    setSelectedLocation(location);
+    setIsModalOpen(true);
+  };
+
+  // ✅ 모달에서 선택 완료 시 실행
+  const handleComplete = (subLocation: string) => {
+    const fullName = `${selectedLocation} ${subLocation}`; // 예: "경기 분당 인근"
+
+    // 1. IUserArea 형식에 맞춰 객체 생성
+    const newArea: IUserArea = {
+      // ⚠️ 중요: 백엔드에서 행정구역 코드(code)를 필수로 요구한다면
+      // 여기에 실제 코드를 매핑해서 넣어줘야 합니다.
+      // 일단은 코드가 없으므로 이름을 그대로 넣거나, 임시 값을 넣습니다.
+      code: "TEMP_CODE",
+      name: fullName,
+    };
+
+    // 2. 스토어에 'area' 필드로 업데이트 (타입 일치)
+    updateUser({ area: newArea });
+
+    setIsModalOpen(false);
+    onNext();
   };
 
   return (
@@ -42,9 +90,10 @@ export default function SetLocation({ onNext } : SetLocationProps) {
               onClick={() => handleRegionClick(location)}
               className={`
                 py-4 px-6 rounded-xl font-medium
-                ${selectedLocation === location 
-                  ? "bg-[#FFE2E9] text-[#FC3367] outline-2 outline-[#FC3367]" 
-                  : "bg-gray-50 text-gray-500"
+                ${
+                  selectedLocation === location
+                    ? "bg-[#FFE2E9] text-[#FC3367] outline-2 outline-[#FC3367]"
+                    : "bg-gray-50 text-gray-500"
                 }
               `}
             >
@@ -54,70 +103,94 @@ export default function SetLocation({ onNext } : SetLocationProps) {
         </div>
       </div>
 
-      <div>        
+      <div>
         {isModalOpen && (
-          <SetCitiesModal 
+          <SetCitiesModal
             location={selectedLocation}
             onClose={() => setIsModalOpen(false)}
-            onNext={onNext}
+            onConfirm={handleComplete}
           />
         )}
-        
       </div>
     </div>
   );
 }
 
+// ✅ 모달 Props 타입 정의
 type SetCitiesModalProps = {
   location: string;
   onClose: () => void;
-  onNext: (data: Partial<ProfileData>) => void;
+  onConfirm: (subLocation: string) => void;
 };
 
-function SetCitiesModal({ location, onClose, onNext }: SetCitiesModalProps) {
+function SetCitiesModal({ location, onClose, onConfirm }: SetCitiesModalProps) {
   const [selectedCity, setSelectedCity] = useState("");
 
-  const isValid = (selectedCity !== "")
+  const isValid = selectedCity !== "";
+  const cities = SUB_LOCATIONS[location] || [];
 
   const handleNext = () => {
-    if (selectedCity) {
-      onClose();
-      onNext({location: `${location} ${selectedCity}`});
+    if (isValid) {
+      onConfirm(selectedCity);
     }
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-end" onClick={onClose}>
-      
-      <div 
+    <div
+      className="fixed inset-0 z-50 bg-black/50 flex items-end"
+      onClick={onClose}
+    >
+      <div
         className="w-full bg-white rounded-t-3xl p-6 pb-10"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex justify-between items-center mb-8">
           <h2 className="text-xl font-bold">{location} 어디 지역인가요?</h2>
-          <button onClick={onClose} className="text-gray-400 text-2xl">✕</button>
+          <button onClick={onClose} className="text-gray-400 text-2xl">
+            ✕
+          </button>
         </div>
 
-        <div className="flex flex-col gap-6 mb-10">
-          {(SUB_LOCATIONS[location] || []).map((city) => (
-            <div 
-              key={city} 
-              className="flex items-center gap-4 cursor-pointer"
-              onClick={() => setSelectedCity(city)}
-            >
-              <div className={`
-                w-6 h-6 rounded-full flex items-center justify-center
-                ${selectedCity === city ? "bg-[#FC3367]" : "bg-gray-200"}
-              `}>
-                <svg width="12" height="9" viewBox="0 0 14 11" fill="none">
-                  <path d="M1 5.5L5 9.5L13 1.5" stroke="white" strokeWidth="2.5" strokeLinecap="round"/>
-                </svg>
+        <div className="flex flex-col gap-6 mb-10 max-h-[400px] overflow-y-auto">
+          {cities.length > 0 ? (
+            cities.map((city) => (
+              <div
+                key={city}
+                className="flex items-center gap-4 cursor-pointer"
+                onClick={() => setSelectedCity(city)}
+              >
+                <div
+                  className={`
+                  w-6 h-6 rounded-full flex items-center justify-center transition-colors
+                  ${selectedCity === city ? "bg-[#FC3367]" : "bg-gray-200"}
+                `}
+                >
+                  <svg width="12" height="9" viewBox="0 0 14 11" fill="none">
+                    <path
+                      d="M1 5.5L5 9.5L13 1.5"
+                      stroke="white"
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </div>
+                <span
+                  className={`text-lg ${
+                    selectedCity === city
+                      ? "text-black font-semibold"
+                      : "text-gray-600"
+                  }`}
+                >
+                  {city}
+                </span>
               </div>
-              <span className={`text-lg ${selectedCity === city ? "text-black font-semibold" : "text-gray-600"}`}>
-                {city}
-              </span>
+            ))
+          ) : (
+            <div className="text-center text-gray-400 py-10">
+              상세 지역 정보가 없습니다.
             </div>
-          ))}
+          )}
         </div>
 
         <button
@@ -135,4 +208,3 @@ function SetCitiesModal({ location, onClose, onNext }: SetCitiesModalProps) {
     </div>
   );
 }
-
