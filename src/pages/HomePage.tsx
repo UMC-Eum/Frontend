@@ -1,6 +1,7 @@
 import Navbar from "../components/Navbar";
 import { Outlet } from "react-router-dom";
 import pinkrectangle from "../assets/pink_rectangle.svg";
+import { useUserStore } from "../stores/useUserStore";
 
 type ActivePerson = {
   id: number;
@@ -11,6 +12,9 @@ type ActivePerson = {
 };
 
 export default function HomePage() {
+  const user = useUserStore((state) => state.user);
+  const userNickname = user?.nickname ?? "회원";
+
   const isProfileRegistered = false;
 
   const activePeople: ActivePerson[] = [
@@ -101,7 +105,7 @@ export default function HomePage() {
         {/* 콘텐츠 영역: 여기가 h-full의 기준이 됩니다 */}
         <main className="overflow-y-auto px-[20px] pb-[62px]">
           <header className="flex h-[45px] items-center text-[24px] mb-[10px] font-bold">
-            환영합니다 루씨님!
+            환영합니다 {userNickname}님!
           </header>
           <div className="flex flex-col gap-[20px]">
             {isProfileRegistered ? (
