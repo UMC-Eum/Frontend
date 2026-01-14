@@ -2,7 +2,7 @@ import Navbar from "../components/Navbar";
 import { Outlet } from "react-router-dom";
 import pinkrectangle from "../assets/pink_rectangle.svg";
 import { useUserStore } from "../stores/useUserStore";
-
+import { useNavigate } from "react-router-dom";
 type ActivePerson = {
   id: number;
   name: string;
@@ -14,6 +14,7 @@ type ActivePerson = {
 export default function HomePage() {
   const user = useUserStore((state) => state.user);
   const userNickname = user?.nickname ?? "회원";
+  const navigate = useNavigate();
 
   const isProfileRegistered = false;
 
@@ -137,6 +138,7 @@ export default function HomePage() {
                     </div>
                     <button
                       type="button"
+                      onClick={()=>navigate('/matching')}
                       className="shrink-0 rounded-full bg-white text-[13px] text-[#FC3367] font-semibold h-[26px] w-[79px]"
                     >
                       바로가기
