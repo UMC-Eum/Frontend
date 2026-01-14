@@ -31,7 +31,7 @@ export default function SpeechKeyword({ onNext }: SpeechKeywordProps) {
 
   const { mutate: simulateAnalysis } = useMutation({
     mutationFn: mockAnalyzeVoice,
-    onSuccess: (data) => {
+    onSuccess: () => {
       const mockResult = {
         record: "가짜녹음파일.webm",
         keywords: ["열정적인", "성실한", "등산"], // Mock 데이터 예시
