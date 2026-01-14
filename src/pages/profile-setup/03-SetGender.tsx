@@ -1,24 +1,24 @@
 import { useState } from "react";
-import { ProfileData } from "./ProfileSetupMain";
 import maleBtnInactive from "../../assets/male_btn_inactive.png";
 import femaleBtnInactive from "../../assets/female_btn_inactive.png";
 import maleBtnActive from "../../assets/male_btn_active.png";
 import femaleBtnActive from "../../assets/female_btn_active.png";
+import { useUserStore } from "../../stores/useUserStore";
 
 interface SetGenderProps {
-  onNext: (data: Partial<ProfileData>) => void;
+  onNext: () => void;
 }
 
-type gender = "male" | "female";
-
 export default function SetGender({ onNext }: SetGenderProps) {
-  const [gender, setGender] = useState<gender | null>(null);
+  const [gender, setGender] = useState<"M" | "F" | null>(null);
 
+  const { updateUser } = useUserStore();
   const isValid = gender !== null;
 
   const handleNext = () => {
-    if (!isValid) return;
-    onNext({ gender: gender });
+    if (!gender) return;
+    updateUser({ gender });
+    onNext();
   };
 
   return (
@@ -32,16 +32,19 @@ export default function SetGender({ onNext }: SetGenderProps) {
         </p>
       </div>
 
-      <div className="mt-30 flex flex-col items-center gap-15">
+      <div className="mt-30 flex flex-col items-center gap-10">
         <img
-          src={gender === "male" ? maleBtnActive : maleBtnInactive}
+          src={gender === "M" ? maleBtnActive : maleBtnInactive}
           className="cursor-pointer"
-          onClick={() => setGender("male")}
+          onClick={() => setGender("M")}
+          alt="Male"
         />
+
         <img
-          src={gender === "female" ? femaleBtnActive : femaleBtnInactive}
+          src={gender === "F" ? femaleBtnActive : femaleBtnInactive}
           className="cursor-pointer"
-          onClick={() => setGender("female")}
+          onClick={() => setGender("F")}
+          alt="Female"
         />
       </div>
 

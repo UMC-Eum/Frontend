@@ -1,20 +1,21 @@
 import { useState } from "react";
-import { ProfileData } from "./ProfileSetupMain";
 import avatar_placeholder from "../../assets/avatar_placeholder.png";
 import camera_btn from "../../assets/camera_btn.png";
-
+import { useUserStore } from "../../stores/useUserStore";
 interface SetImageProps {
-  onNext: (data: Partial<ProfileData>) => void;
+  onNext: () => void;
 }
 
 export default function SetImage({ onNext }: SetImageProps) {
   const [imageSrc, setImageSrc] = useState("");
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const { updateUser } = useUserStore();
 
   const isValid = imageSrc.length > 0;
 
   const handleNext = () => {
-    onNext({ image: imageSrc });
+    updateUser({ profileImageUrl: imageSrc });
+    onNext();
   };
 
   const handleImageUpload = () => {
