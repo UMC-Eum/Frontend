@@ -6,6 +6,7 @@ import { useMicRecording } from "../hooks/useMicRecording";
 import { processVoiceAnalysis } from "../service/voiceService";
 import RecordingControl from "../components/RecordingControl";
 import { useUserStore } from "../stores/useUserStore";
+import BackButton from "../components/BackButton";
 
 const MatchingPage = () => {
   const nickname = useUserStore((state) => state.user?.nickname);
@@ -45,11 +46,12 @@ const MatchingPage = () => {
   }, [isResultPage, setStatus]);
 
   return (
-    <div className="relative h-full px-[20px] overflow-hidden">
+    <div className="relative h-full overflow-hidden">
+      <BackButton />
       <div className="h-[20px]" />
 
       {/* 상단 텍스트 영역 */}
-      <div className="h-[102px]">
+      <div className="h-[102px] px-[20px]">
         {status === "inactive" && !isResultPage && (
           <h1 className="text-[28px] font-[700] leading-[140%] text-[#202020]">
             {nickname || "guest"}님의
@@ -80,7 +82,7 @@ const MatchingPage = () => {
       </div>
 
       {status !== "loading" && !isResultPage && (
-        <section className="text-gray-500 space-y-[12px] mt-8">
+        <section className="text-gray-500 space-y-[12px] mt-8 px-[20px] ">
           <p>이렇게 말해도 좋아요!</p>
           <p>비슷한 나이대의 조용한 사람이 좋아요.</p>
           <p>술은 많이 안 마셨으면 좋겠어요.</p>

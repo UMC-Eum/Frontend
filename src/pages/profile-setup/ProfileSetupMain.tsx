@@ -7,6 +7,7 @@ import SetImage from "./05-SetImage";
 import SpeechKeyword from "./06-SpeechKeyword";
 import SetKeywords from "./07-SetKeywords";
 import SetComplete from "./08-SetComplete";
+import BackButton from "../../components/BackButton";
 
 export default function ProfileSetupMain() {
   const [step, setStep] = useState(1);
@@ -19,6 +20,7 @@ export default function ProfileSetupMain() {
 
   return (
     <div className="w-full max-w-md mx-auto min-h-screen bg-white flex flex-col">
+      <BackButton />
       {/* 상단 프로그레스 바 */}
       {isBarVisible && (
         <div className="w-full h-1 bg-gray-100">

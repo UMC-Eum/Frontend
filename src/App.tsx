@@ -8,6 +8,7 @@ import ResultPage from "./pages/ResultPage";
 import HomePage from "./pages/HomePage";
 import ProfileSetupMain from "./pages/profile-setup/ProfileSetupMain";
 import ProfileRecommendPage from "./pages/ProfileRecommendPage";
+import Like from "./pages/Like";
 const router = createBrowserRouter([
   {
     path: "/",
@@ -34,6 +35,10 @@ const router = createBrowserRouter([
       {
         path: "onboarding",
         element: <OnBoardingPage />,
+      },
+      {
+        path: "like",
+        element: <Like />,
       },
     ],
   },

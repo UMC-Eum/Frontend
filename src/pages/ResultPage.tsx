@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { fetchAllMatchResults } from "../mock/mockFetch";
 import Card from "../components/Card";
 import Navbar from "../components/Navbar";
+import BackButton from "../components/BackButton";
 const ResultPage = () => {
   const { data, isLoading, isError } = useQuery({
     queryKey: ["matchResults"],
@@ -12,40 +13,43 @@ const ResultPage = () => {
   if (isError) return <div className="p-5">에러가 발생했습니다.</div>;
 
   return (
-    <div className="px-[20px] pb-[40px]">
-      <h1 className="mt-[28px] text-[24px] font-[700] leading-[140%] text-[#202020]">
-        말씀해주신 내용을 바탕으로
-        <br />
-        이런 분들을 추천해드릴게요
-      </h1>
+    <div>
+      <BackButton />
+      <div className="px-[20px] pb-[40px]">
+        <h1 className="mt-[28px] text-[24px] font-[700] leading-[140%] text-[#202020]">
+          말씀해주신 내용을 바탕으로
+          <br />
+          이런 분들을 추천해드릴게요
+        </h1>
 
-      <div className="mt-[40px]">
-        <h3 className="text-[18px] font-[500] text-[#707070]">
-          ~~님의 이상형은...
-        </h3>
+        <div className="mt-[40px]">
+          <h3 className="text-[18px] font-[500] text-[#707070]">
+            ~~님의 이상형은...
+          </h3>
 
-        <div className="mt-[12px] h-[96px] flex items-center bg-gray-50 rounded-[10px]">
-          <span className="text-gray-400 ml-2">
-            이상형 키워드들 (h-96 영역)
-          </span>
+          <div className="mt-[12px] h-[96px] flex items-center bg-gray-50 rounded-[10px]">
+            <span className="text-gray-400 ml-2">
+              이상형 키워드들 (h-96 영역)
+            </span>
+          </div>
         </div>
-      </div>
-      <div className="mt-[24px] space-y-[20px]">
-        {data &&
-          data.map((user) => (
-            <Card
-              key={user.id}
-              name={user.name}
-              age={user.age}
-              imageUrl={user.imageUrl}
-              distance={user.distance}
-              description={user.description}
-              keywords={user.keywords}
-            />
-          ))}
-      </div>
-      <div className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-100">
-        <Navbar />
+        <div className="mt-[24px] space-y-[20px]">
+          {data &&
+            data.map((user) => (
+              <Card
+                key={user.id}
+                name={user.name}
+                age={user.age}
+                imageUrl={user.imageUrl}
+                distance={user.distance}
+                description={user.description}
+                keywords={user.keywords}
+              />
+            ))}
+        </div>
+        <div className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-100">
+          <Navbar />
+        </div>
       </div>
     </div>
   );
