@@ -1,26 +1,49 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import avatar_placeholder from "../../assets/avatar_placeholder.png";
 import camera_btn from "../../assets/camera_btn.png";
 import { useUserStore } from "../../stores/useUserStore";
+
 interface SetImageProps {
   onNext: () => void;
 }
 
 export default function SetImage({ onNext }: SetImageProps) {
+  // ✅ 상태 하나로 통합 (이미지 경로)
   const [imageSrc, setImageSrc] = useState("");
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+
   const { updateUser } = useUserStore();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // ✅ 1. 파일 선택 시 실행 (앨범/카메라)
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // 미리보기 URL 생성
+    const url = URL.createObjectURL(file);
+
+    // 상태 업데이트 및 스토어 저장
+    setImageSrc(url);
+    updateUser({ profileImageUrl: url }); // 실제 구현시엔 서버 업로드 후 URL 사용
+  };
+
+  const triggerFileInput = () => {
+    setIsMenuOpen(false);
+    setTimeout(() => {
+      fileInputRef.current?.click();
+    }, 100);
+  };
+
+  const handleDefaultProfile = () => {
+    const defaultUrl =
+      "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee";
+    setImageSrc(defaultUrl);
+    updateUser({ profileImageUrl: defaultUrl });
+    setIsMenuOpen(false);
+  };
 
   const isValid = imageSrc.length > 0;
-
-  const handleNext = () => {
-    updateUser({ profileImageUrl: imageSrc });
-    onNext();
-  };
-
-  const handleImageUpload = () => {
-    setIsMenuOpen(true);
-  };
 
   return (
     <div className="flex-1 flex flex-col px-2">
@@ -41,21 +64,35 @@ export default function SetImage({ onNext }: SetImageProps) {
               : "bg-gray-300"
           } flex items-center justify-center`}
         >
-          <div className="w-full h-full rounded-full overflow-hidden">
-            <img src={isValid ? imageSrc : avatar_placeholder} />
+          <div className="w-full h-full rounded-full overflow-hidden bg-white">
+            <img
+              src={isValid ? imageSrc : avatar_placeholder}
+              className="w-full h-full object-cover" // 이미지 꽉 차게
+              alt="Profile"
+            />
           </div>
+
           <button
-            onClick={handleImageUpload}
+            onClick={() => setIsMenuOpen(true)}
             className="absolute -bottom-1 -right-1 flex items-center justify-center"
           >
-            <img src={camera_btn} />
+            <img src={camera_btn} alt="Camera" />
           </button>
         </div>
       </div>
 
+      {/* ✅ 숨겨진 파일 입력창 */}
+      <input
+        type="file"
+        accept="image/*"
+        ref={fileInputRef}
+        onChange={handleFileChange}
+        className="hidden"
+      />
+
       <div className="mt-auto pb-10">
         <button
-          onClick={handleNext}
+          onClick={onNext} // 이미 updateUser는 위에서 했으므로 바로 이동
           disabled={!isValid}
           className={`w-full py-5 rounded-[20px] text-[18px] font-semibold transition-all ${
             isValid
@@ -71,7 +108,8 @@ export default function SetImage({ onNext }: SetImageProps) {
         {isMenuOpen && (
           <SetImageModal
             onClose={() => setIsMenuOpen(false)}
-            onChange={setImageSrc}
+            onUpload={triggerFileInput} // 앨범/카메라 버튼 연결
+            onDefault={handleDefaultProfile} // 기본 이미지 버튼 연결
           />
         )}
       </div>
@@ -79,44 +117,42 @@ export default function SetImage({ onNext }: SetImageProps) {
   );
 }
 
-type SetImageModallProps = {
+// ✅ 모달 Props 수정 및 연결
+type SetImageModalProps = {
   onClose: () => void;
-  onChange: (image: string) => void;
+  onUpload: () => void; // 파일 선택창 띄우기용
+  onDefault: () => void; // 기본 이미지 설정용
 };
 
-function SetImageModal({ onClose, onChange }: SetImageModallProps) {
-  const handleSelectPhoto = () => {};
-
-  const handleDefaultProfile = () => {
-    onChange("https://images.unsplash.com/photo-1500530855697-b586d89ba3ee");
-    onClose();
-  };
-
+function SetImageModal({ onClose, onUpload, onDefault }: SetImageModalProps) {
   return (
     <div
-      className="px-10 pb-4 fixed inset-0 bg-black/50 flex items-end justify-center"
+      className="px-10 pb-4 fixed inset-0 bg-black/50 flex items-end justify-center z-50"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-md flex flex-col gap-4"
+        className="w-full max-w-md flex flex-col gap-4 animate-slide-up"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="bg-white text-center rounded-2xl divide-y-2 divide-gray-100">
+        <div className="bg-white text-center rounded-2xl divide-y-2 divide-gray-100 overflow-hidden">
           <button
-            className="w-full py-3 text-lg font-medium"
-            onClick={handleSelectPhoto}
+            className="w-full py-4 text-lg font-medium active:bg-gray-100"
+            onClick={onUpload} // ✅ 부모의 triggerFileInput 실행
           >
             촬영 또는 앨범에서 선택
           </button>
           <button
-            className="w-full py-3 text-lg font-medium"
-            onClick={handleDefaultProfile}
+            className="w-full py-4 text-lg font-medium active:bg-gray-100"
+            onClick={onDefault} // ✅ 부모의 handleDefaultProfile 실행
           >
             기본 프로필 선택
           </button>
         </div>
-        <div className="bg-white text-center rounded-2xl">
-          <button className="w-full py-3 text-lg font-medium" onClick={onClose}>
+        <div className="bg-white text-center rounded-2xl overflow-hidden">
+          <button
+            className="w-full py-4 text-lg font-medium active:bg-gray-100"
+            onClick={onClose}
+          >
             취소
           </button>
         </div>
