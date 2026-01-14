@@ -2,7 +2,6 @@ import { useState, useRef, useCallback } from "react";
 import Cropper from "react-easy-crop";
 import { useUserStore } from "../../stores/useUserStore";
 import getCroppedImg from "../../utils/cropImage";
-// 이미지 에셋 import (경로가 맞는지 확인해주세요)
 import avatar_placeholder from "../../assets/avatar_placeholder.png";
 import camera_btn from "../../assets/camera_btn.png";
 
