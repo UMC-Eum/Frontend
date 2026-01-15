@@ -1,7 +1,8 @@
 import Navbar from "../components/Navbar";
 import { Outlet } from "react-router-dom";
 import pinkrectangle from "../assets/pink_rectangle.svg";
-
+import { useUserStore } from "../stores/useUserStore";
+import { useNavigate } from "react-router-dom";
 type ActivePerson = {
   id: number;
   name: string;
@@ -11,6 +12,10 @@ type ActivePerson = {
 };
 
 export default function HomePage() {
+  const user = useUserStore((state) => state.user);
+  const userNickname = user?.nickname ?? "회원";
+  const navigate = useNavigate();
+
   const isProfileRegistered = false;
 
   const activePeople: ActivePerson[] = [
@@ -97,11 +102,11 @@ export default function HomePage() {
   ];
   return (
     <div className="flex justify-center min-h-screen">
-      <div className="w-full max-w-[420px] h-screen bg-gray-100 flex flex-col overflow-hidden flex-1 relative">
+      <div className="w-full max-w-[420px] h-screen bg-[#F8FAFB] flex flex-col overflow-hidden flex-1 relative">
         {/* 콘텐츠 영역: 여기가 h-full의 기준이 됩니다 */}
         <main className="overflow-y-auto px-[20px] pb-[62px]">
           <header className="flex h-[45px] items-center text-[24px] mb-[10px] font-bold">
-            환영합니다 루씨님!
+            환영합니다 {userNickname}님!
           </header>
           <div className="flex flex-col gap-[20px]">
             {isProfileRegistered ? (
@@ -133,6 +138,7 @@ export default function HomePage() {
                     </div>
                     <button
                       type="button"
+                      onClick={()=>navigate('/matching')}
                       className="shrink-0 rounded-full bg-white text-[13px] text-[#FC3367] font-semibold h-[26px] w-[79px]"
                     >
                       바로가기

@@ -13,3 +13,6 @@ export interface IUserProfile {
   introAudioUrl: string;
   profileImageUrl: string;
 }
+export interface IUserProfileExtend extends IUserProfile {
+  age: number;
+}

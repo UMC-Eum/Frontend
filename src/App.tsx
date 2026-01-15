@@ -7,7 +7,6 @@ import OnBoardingPage from "./pages/onboarding/OnBoardingPage";
 import ResultPage from "./pages/ResultPage";
 import HomePage from "./pages/HomePage";
 import ProfileSetupMain from "./pages/profile-setup/ProfileSetupMain";
-import CardTestPage from "./pages/CardTestPage";
 const router = createBrowserRouter([
   {
     path: "/",
@@ -32,18 +31,27 @@ const router = createBrowserRouter([
         element: (
           <ProfileSetupMain />
         )
-      },
-      {    
+      }
         path: "onboarding",
         element: (
-          <OnBoardingPage />
-        )
+            <OnBoardingPage />
+        ),
       },
+      {
+        path: "my",
+        element: <ProfileEditMain/>
+      }
     ],
   },
   {
     path: "/home",
-    element: <HomePage />,
+    children: [
+      { index: true, element: <HomePage /> },
+      {
+        path: "profilerecommend",
+        element: <ProfileRecommendPage />,
+      },
+    ],
   },
 ]);
 const App = () => {
