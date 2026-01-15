@@ -7,6 +7,8 @@ import OnBoardingPage from "./pages/onboarding/OnBoardingPage";
 import ResultPage from "./pages/ResultPage";
 import HomePage from "./pages/HomePage";
 import ProfileSetupMain from "./pages/profile-setup/ProfileSetupMain";
+import ProfileEditMain from "./pages/profile-edit/ProfileEditMain";
+import ProfileRecommendPage from "./pages/ProfileRecommendPage";
 const router = createBrowserRouter([
   {
     path: "/",
@@ -31,16 +33,17 @@ const router = createBrowserRouter([
         element: (
           <ProfileSetupMain />
         )
-      }
+      },
+      {
         path: "onboarding",
         element: (
             <OnBoardingPage />
-        ),
+        )
       },
       {
         path: "my",
         element: <ProfileEditMain/>
-      }
+      },
     ],
   },
   {

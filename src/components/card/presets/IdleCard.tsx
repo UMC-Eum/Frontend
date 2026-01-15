@@ -29,7 +29,7 @@ export default function IdleCard() {
         <CardKeywords
           keywords={[
             { id: 1, label: "음악감상", category: "hobby" },
-            { id: 2, label: "근처에 사는", category: "location" },
+            { id: 2, label: "근처에 사는", category: "hobby" },
             { id: 3, label: "게임하기", category: "hobby" },
             { id: 4, label: "조용한 성격", category: "character" },
           ]}
