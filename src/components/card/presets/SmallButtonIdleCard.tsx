@@ -10,12 +10,12 @@ import CloseAction from "../actions/CloseAction";
 
 export default function SmallButtonIdleCard() {
   return (
-    <CardShell imageUrl="https://picsum.photos/400/600">
+    <CardShell imageUrl="https://picsum.photos/400/600" >
       {/* 🔹 하단 그라데이션 */}
       <div className="absolute inset-x-0 bottom-0 h-80 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
 
       {/* 🔹 텍스트 정보 영역 */}
-      <div className="absolute left-4 right-4 bottom-32 text-white">
+      <div className="absolute left-4 right-4 bottom-28 text-white">
         <CardUserId name="테스트유저" age={27} isVerified />
 
         <div className="mt-1">
@@ -36,26 +36,27 @@ export default function SmallButtonIdleCard() {
               { id: 3, label: "집돌이", category: "lifestyle" },
               { id: 4, label: "조용함", category: "character" },
             ]}
+            mode="transparent"
           />
         </div>
       </div>
 
       {/* 🔹 하단 액션 버튼 */}
-      <div className="absolute inset-x-0 bottom-8 flex items-center justify-center gap-10">
+      <div className="absolute inset-x-0 bottom-4 flex items-center justify-center gap-13">
         {/* ❌ X 버튼 */}
-        <CloseAction size="lg" onClose={() => console.log("닫기 클릭")} />
+        <CloseAction size="md" onClose={() => console.log("닫기 클릭")} />
 
         {/* ✈️ 채팅 */}
         <ChatAction
           onChat={() => console.log("채팅 보내기 클릭!")}
-          size="md"
+          size="lg"
         />
 
         {/* ❤️ 좋아요 */}
         <LikeAction
           onLike={() => console.log("좋아요 클릭!")}
           size="md"
-          variant="icon"
+          variant="bigIcon"
         />
       </div>
     </CardShell>

@@ -7,30 +7,24 @@ interface UserIdProps {
   isVerified?: boolean;
 
   /** 추가 */
-  profileImageUrl?: string;   // 이미지 URL
-  showProfileImage?: boolean; // 활성화 여부
+  textsize?: string;
+  mbsize?: string;
+  bold?: string;
 }
 
 export function CardUserId({
   name,
   age,
   isVerified,
-  profileImageUrl,
-  showProfileImage = false,
+  textsize = "text-2xl",
+  mbsize = "mb-3",
+  bold = "font-bold",
+  
 }: UserIdProps) {
   return (
-    <div className="flex items-center gap-2 mb-3">
-      {/* ✅ 프로필 이미지 (선택) */}
-      {showProfileImage && profileImageUrl && (
-        <img
-          src={profileImageUrl}
-          alt="프로필 이미지"
-          className="w-8 h-8 rounded-full object-cover"
-        />
-      )}
-
+    <div className={`flex items-center gap-2 ${mbsize}`}>
       {/* 이름 + 나이 */}
-      <h2 className="text-2xl font-bold">
+      <h2 className={`${textsize} + ${bold} + text-white`}>
         {name} {age}
       </h2>
 

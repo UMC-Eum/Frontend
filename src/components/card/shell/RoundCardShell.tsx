@@ -6,10 +6,11 @@ interface CardShellProps {
   size?: string;
 }
 
-export function CardShell({ imageUrl, children, maxwidth="sm", size="2/3" }: CardShellProps) {
+export function RoundCardShell({ imageUrl, children, maxwidth="sm", size="2/3"}: CardShellProps) {
   return (
     <div 
-      className={`relative w-full max-w-${maxwidth} rounded-none overflow-hidden shadow-lg`}
+      className={`relative w-full max-w-${maxwidth} overflow-hidden rounded-2xl shadow-lg`}
+      
       style={{
         aspectRatio: size
       }}

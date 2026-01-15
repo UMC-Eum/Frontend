@@ -1,14 +1,14 @@
 // card/presets/ProfileCard.tsx
-import { CardShell } from "../shell/CardShell";
 import { CardUserId } from "../blocks/CardUserId";
 import { CardLocation } from "../blocks/CardLocation";
 import { CardDescription } from "../blocks/CardDescription";
 import { CardKeywords } from "../blocks/CardKeywords";
 import { CardActions } from "../actions/CardActions";
+import { RoundCardShell } from "../shell/RoundCardShell";
 
 export default function IdleCard() {
   return (
-    <CardShell imageUrl="https://picsum.photos/400/600">
+    <RoundCardShell imageUrl="https://picsum.photos/400/600">
       {/* 하단 가독성용 그라데이션 */}
       <div className="absolute inset-x-0 bottom-0 h-56 bg-gradient-to-t from-black/80 to-transparent" />
 
@@ -41,6 +41,6 @@ export default function IdleCard() {
           onChat={() => console.log("CHAT")}
         />
       </div>
-    </CardShell>
+    </RoundCardShell>
   );
 }

@@ -17,7 +17,6 @@ export function CardWithButton({
       className="
         w-full h-14 bg-[#6ED6FF] text-white
         rounded-xl text-lg font-semibold
-        active:scale-[0.98]
       "
     >
       {label}

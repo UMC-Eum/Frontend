@@ -1,13 +1,13 @@
 // card/presets/ProfileCard.tsx
-import { CardShell } from "../shell/CardShell";
 import { CardUserId } from "../blocks/CardUserId";
 import { CardLocation } from "../blocks/CardLocation";
 import { CardDescription } from "../blocks/CardDescription";
 import { CardKeywords } from "../blocks/CardKeywords";
+import { RoundCardShell } from "../shell/RoundCardShell";
 
 export default function MakingProfileCard() {
   return (
-    <CardShell imageUrl="https://picsum.photos/400/600">
+    <RoundCardShell imageUrl="https://picsum.photos/400/600">
       {/* 🔹 배경 톤 다운 */}
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
 
@@ -52,7 +52,7 @@ export default function MakingProfileCard() {
           />
         </div>
       </div>
-    </CardShell>
+    </RoundCardShell>
   );
 }
 

@@ -1,45 +1,65 @@
-// card/presets/ProfileCard.tsx
-import { CardShell } from "../shell/CardShell";
 import { CardUserId } from "../blocks/CardUserId";
 import { CardLocation } from "../blocks/CardLocation";
 import { CardDescription } from "../blocks/CardDescription";
 import { CardWithButton } from "../actions/CardWithButton";
 import { CardHighlightMessage } from "../blocks/CardHighlightMessage";
+import { CardMoreButton } from "../blocks/CardMoreButton";
+import { RoundCardShell } from "../shell/RoundCardShell";
 
-export default function IdleCard() {
+export default function WithCard() {
   return (
-    <CardShell imageUrl="https://picsum.photos/400/600">
-      {/* 🔹 상단 영역: 프로필 이미지 + 이름/나이 + 거리 */}
-      <div className="absolute top-4 left-4 right-4 text-white z-20">
-        <CardUserId
-          name="테스트유저"
-          age={27}
-          isVerified
-          profileImageUrl="https://picsum.photos/80"
-          showProfileImage 
-        />
+    <RoundCardShell 
+      imageUrl="https://picsum.photos/400/600"
+      size="1/1"
+      maxwidth="sm"
+    >
+      {/* 🔹 상단 레이아웃: 블록 배치 조절 */}
+      <div className="absolute top-5 left-4 right-4 flex justify-between items-start z-20">
+        <div className="flex items-center gap-3">
+          {/* 프로필 이미지 (블록과 분리하여 레이아웃 구성) */}
+          <div className="w-[40px] h-[40px] rounded-full overflow-hidden">
+             <img src="https://picsum.photos/100" className="w-full h-full object-cover" />
+          </div>
 
-        <CardLocation distance="2km" area="광주 인근" />
+          <div className="flex flex-col justify-center">
+            {/* 재사용 가능한 블록 배치 */}
+            <CardUserId
+              name="언젠간 만나게될까?"
+              age={31}
+              textsize="text-[16px]"
+            />
+            
+            {/* 위치 블록 배치 (간격/투명도 조절) */}
+            <div className="mt-[-14px] opacity-90 scale-95 origin-left">
+               <CardLocation area="58.7km" distance="" />
+            </div>
+          </div>
+        </div>
+
+        {/* 메뉴 아이콘 */}
+        <CardMoreButton onClick={() => console.log("더보기 클릭")} />
       </div>
 
       {/* 🔹 설명 영역 */}
-      <div className="absolute left-4 right-4 bottom-32 text-white">
-        <CardDescription>
-          이 카드는 테스트용 IdleCard입니다.
-        </CardDescription>
+      <div className="absolute left-4 right-4 bottom-24 z-20">
+        <div className="text-white">
+          <CardDescription>
+            저랑 진지하게 연락하실 한분 찾습니다! 나이, 장거리 상관없구 마음이 중요한게 아닐까요? 대화 걸어주세요 ^^
+          </CardDescription>
+        </div>
 
-        <div className="mt-3">
-          <CardHighlightMessage text="간단한 자기소개들입니다." />
+        <div className="mt-3 -mb-3 flex items-center gap-2">
+          <CardHighlightMessage text="같이 진지하게 만날래?" time="2분 전"/>
         </div>
       </div>
 
-      {/* 🔹 하단 CTA */}
-      <div className="absolute left-4 right-4 bottom-4">
+      {/* 🔹 하단 CTA 버튼 */}
+      <div className="absolute left-4 right-4 bottom-5 z-20">
         <CardWithButton
-          label="같이 할래요?"
+          label="👋 같이 할래요"
           onClick={() => console.log("같이 하기 클릭!")}
         />
       </div>
-    </CardShell>
+    </RoundCardShell>
   );
 }

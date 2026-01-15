@@ -17,14 +17,12 @@ export function CardFriendRequest({
       }}
       disabled={disabled}
       className={`
-        w-full h-14
-        rounded-2xl
-        text-white text-base font-semibold
+        w-full h-10
+        rounded-lg
+        text-white text-base
         bg-[#1EA7FD]
         transition
-        active:scale-[0.98]
         disabled:opacity-50
-        disabled:active:scale-100
       `}
     >
       {label}
