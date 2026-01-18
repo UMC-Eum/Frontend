@@ -7,13 +7,21 @@ import { KEYWORDS } from "../../components/keyword/keyword.model";
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import KeywordChip from "../../components/keyword/KeywordChip";
+import IntroTextEditModal from "./overlays/IntroTextEditModal";
+import SetImageModal from "./overlays/SetImageModal";
 
 const ProfileEditSecond = () => {
   const { user } = useUserStore();
+  
+  const [isImageModalOpen, setIsImageModalOpen] = useState(false); // 프로필 변경 모달창
+  const [isIntroModalOpen, setIsIntroModalOpen] = useState(false); // 나의 소개 모달창
+  
 
   return (
     <>
       <BackButton title="내 프로필" textClassName="text-[24px] font-semibold" />
+      
+      
       {/* 내 프로필 */}
       <div className="flex items-center">
         {/* 내 프로필 - 프로필사진 */}
@@ -23,13 +31,12 @@ const ProfileEditSecond = () => {
             src={user?.profileImageUrl}
           />
           <button
-            // 구현이 필요하면 훅으로 onClick={() => setIsMenuOpen(true)}
+            onClick={() => setIsImageModalOpen(true)}
             className="w-7 h-7 absolute -bottom-1 -right-1 flex items-center justify-center"
           >
             <img src={camera_btn} />
           </button>
         </div>
-
         {/* 내 프로필 - 이름 상자 */}
         <div className="flex flex-col">
           <span>
@@ -38,17 +45,30 @@ const ProfileEditSecond = () => {
           <span>{user?.area.name}</span>
         </div>
       </div>
+      {/* 내 프로필 - 프로필 변경 */}
+      {isImageModalOpen &&  <SetImageModal
+          onClose={() => setIsImageModalOpen(false)}
+        />}
+
 
       {/* 나의 소개 */}
       <div>
         <h2>나의 소개</h2>
-        <p className="m-5 p-4 border border-gray-200 rounded-xl bg-gray-100 text-sm text-gray-600 leading-tight">
+        <p
+          onClick={() => setIsIntroModalOpen(true)}
+          className="m-5 p-4 border border-gray-200 rounded-xl bg-gray-100 text-sm text-gray-600 leading-tight"
+        >
           {user?.introText ||
             "안녕하세요. 특별한 사람이라기보다는, 평범한 하루를 함께 나눌 수 있는 인연을 찾고 있습니다. 부담 없이 대화부터 시작해보고 싶어요... 평소 등산하는 것을 좋아합니다."}
         </p>
         {/* 나의 소개 - 음성 녹음 */}
         <IntroPlayer />
       </div>
+      {/* 나의 소개 - 모달창 */}
+      {isIntroModalOpen && (
+        <IntroTextEditModal onClose={() => setIsIntroModalOpen(false)} />
+      )}
+
 
       {/* 나의 관심사 */}
       <div>
@@ -73,6 +93,7 @@ const ProfileEditSecond = () => {
           })}
         </div>
       </div>
+
 
       {/* 나는 이런 사람이에요. */}
       <div>
@@ -104,6 +125,7 @@ const ProfileEditSecond = () => {
         </div>
       </div>
 
+
       {/* 나의 이상형 */}
       <div>
         <h2>나의 이상형</h2>
@@ -133,10 +155,11 @@ const ProfileEditSecond = () => {
         </div>
       </div>
 
+
       {/* 기본 정보 */}
       <div>
         <h2>기본 정보</h2>
-        
+
         <div className="flex items-center">
           <dt>성별</dt>
           <dd>{user?.gender}</dd>
@@ -144,14 +167,15 @@ const ProfileEditSecond = () => {
 
         <div className="flex items-center">
           <dt>나이</dt>
-          <dd>{user?.birthDate} ({user?.age})</dd>
+          <dd>
+            {user?.birthDate} ({user?.age})
+          </dd>
         </div>
 
         <div className="flex items-center">
           <dt>지역</dt>
           <dd>{user?.area.name}</dd>
         </div>
-
       </div>
     </>
   );
@@ -166,19 +190,29 @@ export default ProfileEditSecond;
 // - 음량 조절 가능하게 만들기
 
 const IntroPlayer = () => {
+  const [isPlaying, setIsPlaying] = useState(false);
+
+  const playIcon = `
+    w-0 h-0 
+    border-t-[6px] border-t-transparent
+    border-b-[6px] border-b-transparent 
+    border-l-[9px] border-l-white 
+    ml-1`
+
+  const pauseIcon = `
+    w-[10px] h-[12px] 
+    border-l-[3px] border-r-[3px] border-white
+  `
+
   return (
     <div className="m-5 p-2 gap-4 flex items-center border border-gray-300 rounded-full">
-      <button className="flex items-center justify-center w-8 h-8 rounded-[19px] bg-[#FF3D77]">
+      <button onClick={()=>setIsPlaying(!isPlaying)}
+      className="flex items-center justify-center w-8 h-8 rounded-[19px] bg-[#FF3D77]">
         <div
-          className="
-            w-0 h-0 
-            border-t-[6px] border-t-transparent
-            border-b-[6px] border-b-transparent 
-            border-l-[9px] border-l-white 
-            ml-1"
+          className={isPlaying ? pauseIcon : playIcon}
         />
       </button>
-      <Waveform />
+      <Waveform paused={!isPlaying}/>
       <img src={volume_btn} />
     </div>
   );
@@ -232,11 +266,8 @@ const Waveform = ({
 
       barsRef.current.forEach((bar, i) => {
         if (!bar) return;
-
         const wave = Math.sin(tRef.current - i * 0.6) * 0.5 + 0.5;
-
         const height = minHeight + wave * (maxHeight - minHeight);
-
         bar.style.height = `${height}px`;
       });
 
