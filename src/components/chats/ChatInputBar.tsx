@@ -1,6 +1,8 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useRef } from "react";
 import { useMicRecording } from "../../hooks/useMicRecording"; 
 import { ChatPlusMenu } from "./ChatPlusMenu"; 
+// 👇 [변경] MicButton 대신 RecordingControl 가져오기 (경로 확인!)
+import RecordingControl from "../RecordingControl"; 
 
 interface ChatInputBarProps {
   onSendText: (text: string) => void;
@@ -16,9 +18,8 @@ export function ChatInputBar({ onSendText, onSendVoice }: ChatInputBarProps) {
     onSendVoice(file);
   });
 
-  useEffect(() => {
-    if (isShort) alert("10초 이상 녹음해야 전송됩니다! 😅");
-  }, [isShort]);
+  // 👇 [삭제] RecordingControl이 UI로 보여주므로 alert는 필요 없음
+  // useEffect(() => { if (isShort) alert(...) }, [isShort]);
 
   const handleTextSend = () => {
     if (!text.trim()) return;
@@ -37,55 +38,24 @@ export function ChatInputBar({ onSendText, onSendVoice }: ChatInputBarProps) {
     if (isMenuOpen) setIsMenuOpen(false);
   };
 
-  const isRecording = status === "recording";
+  // status === "recording" 변수도 굳이 따로 안 빼도 됨 (직접 넣으면 됨)
 
   return (
-    <div className="relative w-full">
-      {/* 🎤 1. 플로팅 마이크 버튼 (입력창 위 중앙 정렬) 
-        - absolute positioning으로 입력바 위에 띄움 (-top-[70px])
-        - 메뉴가 열리든 말든 항상 보임
-      */}
-      <button 
-        onClick={handleMicClick} 
-        className={`absolute left-1/2 -translate-x-1/2 -top-[76px] z-30
-          w-[56px] h-[56px] bg-white rounded-full shadow-[0_4px_12px_rgba(0,0,0,0.08)]
-          flex items-center justify-center transition-all duration-200
-          ${isRecording ? "scale-110 ring-4 ring-[#FC3367]/20" : "hover:scale-105 active:scale-95"}
-        `}
-      >
-        {isRecording ? (
-           // 녹음 중일 때 (네모 아이콘)
-           <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><rect x="7" y="7" width="10" height="10" rx="2" fill="#FC3367"/></svg>
-        ) : (
-           // 평상시 (마이크 아이콘 - 그라데이션 느낌의 색상 적용)
-           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="url(#mic-gradient)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-             <defs>
-               <linearGradient id="mic-gradient" x1="12" y1="1" x2="12" y2="23" gradientUnits="userSpaceOnUse">
-                 <stop stopColor="#FF6B6B" />
-                 <stop offset="1" stopColor="#FC3367" />
-               </linearGradient>
-             </defs>
-             <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
-             <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
-             <line x1="12" y1="19" x2="12" y2="23"></line>
-             <line x1="8" y1="23" x2="16" y2="23"></line>
-           </svg>
-        )}
-      </button>
+    <div className="flex flex-col relative w-full">
+      
+      {/* 🎤 [핵심 변경] 기존 버튼과 타이머 코드를 싹 지우고 이거 한 줄로 끝! */}
+      {/* className="-top-[80px]"를 줘서 입력창 위로 띄웁니다. */}
+      <div className="absolute top-[80px] left-1/2 -translate-x-1/2 z-50">
+        <RecordingControl 
+          status={status}
+          seconds={seconds}
+          isShort={isShort}
+          isResultPage={false}
+          onMicClick={handleMicClick}
+        />
+      </div>
 
-      {/* 녹음 시간 표시 (마이크 버튼 바로 위에 표시하거나, 기존처럼 오버레이로 유지) */}
-      {isRecording && (
-        <div className="absolute left-1/2 -translate-x-1/2 -top-[130px] z-30 pointer-events-none animate-fade-in-up">
-           <div className="bg-white/90 backdrop-blur-md px-4 py-1.5 rounded-full shadow-sm border border-gray-100 flex items-center gap-2">
-             <div className="w-2 h-2 bg-[#FC3367] rounded-full animate-pulse" />
-             <span className="font-mono font-bold text-[#FC3367] text-sm">
-               00:{seconds.toString().padStart(2, '0')}
-             </span>
-           </div>
-        </div>
-      )}
-
-      {/* 👇 입력바 영역 (흰색 배경) */}
+      {/* 👇 입력바 영역 (여기는 건드린 거 없음) */}
       <div className="flex flex-col bg-white border-t border-gray-100 pb-safe z-20 relative">
         
         <div className="flex items-center gap-2 px-4 py-3 shrink-0">
@@ -107,26 +77,24 @@ export function ChatInputBar({ onSendText, onSendVoice }: ChatInputBarProps) {
             <input 
               ref={inputRef}
               className="w-full bg-transparent outline-none text-[15px] placeholder-gray-400 text-gray-800"
-              placeholder={isRecording ? "녹음 중입니다..." : "대화를 입력하세요"}
+              placeholder={status === "recording" ? "녹음 중입니다..." : "대화를 입력하세요"}
               value={text}
               onChange={(e) => setText(e.target.value)}
               onFocus={handleInputFocus} 
-              disabled={isRecording}
+              disabled={status === "recording"}
               onKeyDown={(e) => e.key === "Enter" && !e.nativeEvent.isComposing && handleTextSend()}
             />
           </div>
 
-          {/* 👉 2. 오른쪽 버튼: 텍스트 유무와 상관없이 항상 '전송' 관련 버튼 배치 
-            - 텍스트가 있으면: "전송" 글자
-            - 텍스트가 없으면: 종이비행기 아이콘 (기존 마이크 자리 대체)
-          */}
+          {/* 전송 버튼 or 종이비행기 */}
           {text.length > 0 ? (
             <button onClick={handleTextSend} className="p-2 font-bold text-[#FC3367] text-sm whitespace-nowrap">전송</button>
           ) : (
-            // 텍스트 없을 때 보이는 종이비행기 아이콘 (기능 없음 or 비활성화)
-            <button className="p-2 text-gray-400">
-               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
-            </button>
+            <div className="w-[37px] h-[37px] bg-[#E9ECED] rounded-full flex items-center justify-center">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 22 16" fill="none">
+                  <path d="M7.91645 7.652L1.42305 3.05942C0.63275 2.50047 1.01842 1.25681 1.9863 1.24309L19.339 0.996997C20.1755 0.985135 20.6559 1.94432 20.1455 2.60706L9.89652 15.9149C9.32159 16.6614 8.12763 16.2712 8.10455 15.3292L7.91645 7.652ZM7.91645 7.652L11.57 5.81253" stroke="#636970" strokeWidth="1.99387" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+            </div>
           )}
         </div>
 

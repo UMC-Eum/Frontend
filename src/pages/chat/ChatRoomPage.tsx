@@ -12,6 +12,7 @@ type IMessageItem = IChatsRoomIdMessagesGetResponse["items"];
 import { MessageBubble } from "../../components/chats/MessageBubble";
 import { ChatInputBar } from "../../components/chats/ChatInputBar";
 import { ReportModal } from "../../components/chats/ReportModal";
+import { formatTime } from "../../hooks/UseFormatTime";
 
 export default function ChatRoomPage() {
   const { roomId } = useParams();
@@ -73,7 +74,7 @@ export default function ChatRoomPage() {
       audioUrl: "",
       durationSec: 0,
       sendAt: new Date().toISOString(),
-      readAt: null
+      readAt: new Date(Date.now() - 1000 * 60 * 30).toISOString() // null 변경에 따라 읽음 안읽음 표시 가능
     };
 
     setMessages((prev) => [...prev, newMessage]);
@@ -91,7 +92,7 @@ export default function ChatRoomPage() {
       audioUrl: localAudioUrl, // 로컬 URL
       durationSec: 10, // 임의값
       sendAt: new Date().toISOString(),
-      readAt: null
+      readAt: new Date(Date.now() - 1000 * 60 * 30).toISOString() // null 변경에 따라 읽음 안읽음 표시 가능
     };
 
     setMessages((prev) => [...prev, newMessage]);
@@ -145,7 +146,8 @@ export default function ChatRoomPage() {
             content={msg.text}
             audioUrl={msg.audioUrl}
             duration={msg.durationSec}
-            timestamp={msg.sendAt.substring(11, 16)} 
+            timestamp={formatTime(msg.sendAt)} 
+            readAt={msg.readAt}
           />
         ))}
         <div ref={bottomRef} />

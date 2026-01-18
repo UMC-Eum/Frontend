@@ -1,5 +1,4 @@
-import { useState, useRef } from "react";
-// 👇 님 파일에 있는 타입 (경로 확인)
+import { useRef, useState } from "react";
 import { MessageType } from "../../types/api/chats/chatsDTO";
 
 interface MessageBubbleProps {
@@ -9,9 +8,10 @@ interface MessageBubbleProps {
   audioUrl: string | null;
   duration: number | null;
   timestamp: string;
+  readAt: string | null; 
 }
 
-export function MessageBubble({ isMe, type, content, audioUrl, duration, timestamp }: MessageBubbleProps) {
+export function MessageBubble({ isMe, type, content, audioUrl, duration, timestamp, readAt }: MessageBubbleProps) {
   const [isPlaying, setIsPlaying] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null);
 
@@ -26,7 +26,8 @@ export function MessageBubble({ isMe, type, content, audioUrl, duration, timesta
   };
 
   return (
-    <div className={`flex flex-col ${isMe ? "items-end" : "items-start"} mb-4`}>
+    <div className={`flex items-end gap-1 mb-4 ${isMe ? "flex-row-reverse" : "flex-row"}`}>
+      
       {/* 텍스트 메시지 */}
       {type === "TEXT" && content && (
         <div className={`px-4 py-2 rounded-[14px] max-w-[75%] text-[15px] leading-relaxed break-words
@@ -59,7 +60,28 @@ export function MessageBubble({ isMe, type, content, audioUrl, duration, timesta
           </span>
         </div>
       )}
-      <span className="text-[10px] text-gray-400 mt-1 px-1">{timestamp}</span>
+
+      {/* 읽음 처리와 타임스탬프 */}
+      <div className={`flex flex-col justify-end gap-0.5 ${isMe ? "items-end" : "items-start"}`}>
+        
+        {/* 읽음/안읽음 표시 (내가 보낸 메시지일 때만 보임) */}
+        {isMe && (
+          <span className="text-[12px] font-medium leading-none">
+            {readAt ? (
+              // 읽었을 때: 사진처럼 회색 "읽음" 텍스트
+              <span className="text-[#636970]">읽음</span>
+            ) : (
+              // 안 읽었을 때: 보통 노란색 숫자 1 또는 "1" 표기 (취향껏 변경 가능)
+              <span className="text-[#FBC02D]">1</span>
+            )}
+          </span>
+        )}
+
+        {/* 시간 */}
+        <span className="text-[12px] text-[#A6AFB6] whitespace-nowrap leading-none pb-[2px]">
+          {timestamp}
+        </span>
+      </div>
     </div>
   );
 }
