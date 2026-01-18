@@ -8,7 +8,8 @@ interface RecordingControlProps {
   isShort: boolean;
   isResultPage: boolean;
   onMicClick: () => void;
-  className?: string; 
+  className?: string;
+  isChat?: boolean; 
 }
 
 const RecordingControl = ({
@@ -17,7 +18,7 @@ const RecordingControl = ({
   isShort,
   isResultPage,
   onMicClick,
-  className = "bottom-[40px]",
+  className = "bottom-[40px]"
 }: RecordingControlProps) => {
   const formatTime = (sec: number) => {
     const m = Math.floor(sec / 60)

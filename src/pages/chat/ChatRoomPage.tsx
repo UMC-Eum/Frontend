@@ -5,7 +5,8 @@ import BackButton from "../../components/BackButton";
 // 👇 DTO 가져오기
 import { IChatsRoomIdMessagesGetResponse } from "../../types/api/chats/chatsDTO";
 
-// 🔴 [수정] DTO의 items가 배열이 아니므로 [number]를 제거했습니다.
+// 🔴 [수정 완료] items가 배열이기 때문에, 그 안의 '하나'의 타입을 꺼내려면 [number]가 반드시 있어야 합니다.
+// 이게 없으면 messages가 '배열의 배열'이 되어버려서 에러가 납니다.
 type IMessageItem = IChatsRoomIdMessagesGetResponse["items"];
 
 // 컴포넌트들
@@ -29,19 +30,21 @@ export default function ChatRoomPage() {
 
   const bottomRef = useRef<HTMLDivElement>(null);
 
+  const [playingId, setPlayingId] = useState<number | null>(null);
+
   // 🔄 초기 더미 데이터 로딩
   useEffect(() => {
     // API 호출 대신 가짜 데이터 설정
     setPeerInfo({ nickname: "김성수", age: 53, areaName: "죽전동", profileImageUrl: "https://picsum.photos/200/300?random=1" });
 
-    // 가짜 메시지 데이터 (DTO 타입인 audioUrl: string에 맞춰 null 대신 "" 사용)
+    // 가짜 메시지 데이터
     setMessages([
       {
         messageId: 1,
         senderId: 999, // 상대방 ID
         type: "TEXT",
         text: "서로를 알아가는 첫 이야기,\n편하게 시작해볼까요?",
-        audioUrl: "", // 👈 null 대신 빈 문자열
+        audioUrl: "", 
         durationSec: 0,
         sendAt: new Date(Date.now() - 1000 * 60 * 60).toISOString(),
         readAt: null
@@ -68,13 +71,13 @@ export default function ChatRoomPage() {
   const handleSendText = (text: string) => {
     const newMessage: IMessageItem = {
       messageId: Date.now(),
-      senderId: myId, //user?.userId || 0,
+      senderId: myId,
       type: "TEXT",
       text: text,
       audioUrl: "",
       durationSec: 0,
       sendAt: new Date().toISOString(),
-      readAt: new Date(Date.now() - 1000 * 60 * 30).toISOString() // null 변경에 따라 읽음 안읽음 표시 가능
+      readAt: new Date(Date.now() - 1000 * 60 * 30).toISOString()
     };
 
     setMessages((prev) => [...prev, newMessage]);
@@ -86,16 +89,26 @@ export default function ChatRoomPage() {
 
     const newMessage: IMessageItem = {
       messageId: Date.now(),
-      senderId: myId,//user?.userId || 0,
+      senderId: myId,
       type: "AUDIO",
       text: null,
-      audioUrl: localAudioUrl, // 로컬 URL
-      durationSec: 10, // 임의값
+      audioUrl: localAudioUrl, 
+      durationSec: 10, 
       sendAt: new Date().toISOString(),
-      readAt: new Date(Date.now() - 1000 * 60 * 30).toISOString() // null 변경에 따라 읽음 안읽음 표시 가능
+      readAt: new Date(Date.now() - 1000 * 60 * 30).toISOString()
     };
 
     setMessages((prev) => [...prev, newMessage]);
+  };
+
+  // ▶️ 오디오 재생 핸들러
+  const handlePlayAudio = (id: number) => {
+    // 이미 재생 중인 걸 또 누르면 멈춤(토글), 아니면 새로운 걸로 교체
+    if (playingId === id) {
+      setPlayingId(null);
+    } else {
+      setPlayingId(id);
+    }
   };
 
   return (
@@ -115,7 +128,6 @@ export default function ChatRoomPage() {
       </header>
 
       {/* Messages & 첫 대화시 화면 */}
-      
       <div className="flex-1 overflow-y-auto px-4 py-4 scroll-smooth">
         {/* 채팅방 초기 이미지 세팅값 */}
         <div className="flex flex-col items-center justify-center gap-3">
@@ -136,21 +148,25 @@ export default function ChatRoomPage() {
             <span>편하게 시작해볼까요?</span>
           </div>
         </div>
-        {/* message */}
+
+        {/* message list */}
         <div className="flex flex-col mt-5">
           {messages.map((msg) => (
-          <MessageBubble
-            key={msg.messageId}
-            isMe={msg.senderId === myId}//user?.userId}
-            type={msg.type}
-            content={msg.text}
-            audioUrl={msg.audioUrl}
-            duration={msg.durationSec}
-            timestamp={formatTime(msg.sendAt)} 
-            readAt={msg.readAt}
-          />
-        ))}
-        <div ref={bottomRef} />
+            <MessageBubble
+              key={msg.messageId}
+              isMe={msg.senderId === myId}
+              type={msg.type}
+              content={msg.text}
+              audioUrl={msg.audioUrl}
+              duration={msg.durationSec}
+              timestamp={formatTime(msg.sendAt)} 
+              readAt={msg.readAt}
+              // 👇 오디오 재생 로직 연결
+              isPlayingProp={playingId === msg.messageId}
+              onPlay={() => handlePlayAudio(msg.messageId)}
+            />
+          ))}
+          <div ref={bottomRef} />
         </div>
       </div>
 
@@ -161,21 +177,17 @@ export default function ChatRoomPage() {
       <ReportModal 
         isOpen={isMenuOpen} 
         onClose={() => setIsMenuOpen(false)} 
-        
-        // 1. 신고/차단 클릭 시 -> 경고 모달(isExitConfirmOpen)을 엽니다.
         onBlockAction={() => { 
           setIsMenuOpen(false); 
           setIsExitConfirmOpen(true); 
         }} 
-
-        // 2. 그냥 나가기 클릭 시 -> 경고 없이 바로 페이지를 이동합니다.
         onJustExit={() => {
           setIsMenuOpen(false);
           navigate(-1);
         }}
       />
 
-      {/* 나가기 확인 모달 (신고/차단 시에만 뜸) */}
+      {/* 나가기 확인 모달 */}
       {isExitConfirmOpen && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-8">
            <div className="absolute inset-0 bg-black/60" onClick={() => setIsExitConfirmOpen(false)} />
@@ -188,7 +200,6 @@ export default function ChatRoomPage() {
                 <path d="M18 6L6 18M6 6l12 12"/>
               </svg>
             </button>
-              {/* 문구는 상황에 맞게 조금 수정하셔도 됩니다 (현재는 신고/차단 공용) */}
               <h3 className="flex font-semibold text-[20px] mb-2 text-[#111]">대화방을 나갈까요?</h3>
               <p className="flex text-[#636970] text-[14px] mb-6">나가면 대화가 불가능합니다.</p>
               <div className="flex gap-3">

@@ -16,7 +16,7 @@ export function ChatInputBar({ onSendText, onSendVoice }: ChatInputBarProps) {
 
   const { status, seconds, handleMicClick, isShort } = useMicRecording((file) => {
     onSendVoice(file);
-  });
+  }, true);
 
   // 👇 [삭제] RecordingControl이 UI로 보여주므로 alert는 필요 없음
   // useEffect(() => { if (isShort) alert(...) }, [isShort]);
@@ -45,15 +45,15 @@ export function ChatInputBar({ onSendText, onSendVoice }: ChatInputBarProps) {
       
       {/* 🎤 [핵심 변경] 기존 버튼과 타이머 코드를 싹 지우고 이거 한 줄로 끝! */}
       {/* className="-top-[80px]"를 줘서 입력창 위로 띄웁니다. */}
-      <div className="absolute top-[80px] left-1/2 -translate-x-1/2 z-50">
         <RecordingControl 
           status={status}
           seconds={seconds}
           isShort={isShort}
           isResultPage={false}
           onMicClick={handleMicClick}
+          className="mb-10"
         />
-      </div>
+
 
       {/* 👇 입력바 영역 (여기는 건드린 거 없음) */}
       <div className="flex flex-col bg-white border-t border-gray-100 pb-safe z-20 relative">

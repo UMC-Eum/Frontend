@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 export type MicStatus = "inactive" | "recording" | "loading";
 
 // 👇 [핵심 수정 1] 콜백 함수가 'File'을 받는다고 타입 명시!
-export const useMicRecording = (onRecordingComplete: (file: File) => void) => {
+export const useMicRecording = (onRecordingComplete: (file: File) => void, isChat=false) => {
   const [status, setStatus] = useState<MicStatus>("inactive");
   const [seconds, setSeconds] = useState(0);
   const [isShort, setIsShort] = useState(false);
@@ -53,6 +53,12 @@ export const useMicRecording = (onRecordingComplete: (file: File) => void) => {
 
         // 마이크 끄기 (브라우저 상단 빨간불 끄기)
         stream.getTracks().forEach((track) => track.stop());
+
+        if (isChat) {
+          setStatus("inactive");
+          setSeconds(0);
+          setIsShort(false);
+        }
       };
 
       mediaRecorder.start();
