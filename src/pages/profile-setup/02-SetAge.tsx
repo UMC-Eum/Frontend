@@ -51,7 +51,7 @@ type WheelPickerProps = {
 
 const WheelPicker = ({ onChange }: WheelPickerProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const scrollTopRef = useRef(0);
+  const [activeIndex, setActiveIndex] = useState(0);
 
   // 1부터 100까지
   const ageList = Array.from({ length: 100 }, (_, i) => i + 1);
@@ -60,35 +60,25 @@ const WheelPicker = ({ onChange }: WheelPickerProps) => {
   const CONTAINER_HEIGHT = 420;
   const SPACER_HEIGHT = (CONTAINER_HEIGHT - ITEM_HEIGHT) / 2;
 
-  // ✅ 초기 렌더링 시 상위 컴포넌트(SetAge)의 상태와 동기화
-  // (스크롤을 안 건드려도 1이 선택된 것으로 간주하기 위해 필요할 수 있음)
-  // 하지만 상위에서 useState(1)을 했다면 생략 가능합니다.
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const currentScroll = e.currentTarget.scrollTop;
 
-  const handleScroll = () => {
-    if (!containerRef.current) return;
-    scrollTopRef.current = containerRef.current.scrollTop;
+    const newIndex = Math.round(currentScroll / ITEM_HEIGHT);
+    const safeIndex = Math.max(0, Math.min(ageList.length - 1, newIndex));
 
-    // 정확한 인덱스 계산
-    const rawIndex = Math.round(scrollTopRef.current / ITEM_HEIGHT);
-    const index = Math.max(0, Math.min(ageList.length - 1, rawIndex));
-
-    // index는 0부터 시작하므로, 나이는 index + 1
-    onChange(index + 1);
+    if (safeIndex !== activeIndex) {
+      setActiveIndex(safeIndex); // 여기서 렌더링 시점 결정
+      onChange(safeIndex + 1);
+    }
   };
 
-  // ... (스타일 계산 로직은 그대로 유지) ...
   function computeBlockStyle(index: number) {
-    // ⚠️ 성능 이슈 주석:
-    // 스크롤 할 때마다 리렌더링이 발생하여 스타일을 계산하므로
-    // 모바일 웹에서는 약간의 버벅임(Jank)이 있을 수 있습니다.
-    // 하지만 "기한 내 완성"이 목표라면 이대로 두셔도 기능상 문제는 없습니다.
-    const scrollTop = scrollTopRef.current;
-    const centerIndex = scrollTop / ITEM_HEIGHT;
-    const distance = Math.abs(index - centerIndex);
 
-    if (distance < 0.5) return "text-[#FC3367] text-5xl font-bold";
-    if (distance < 1.5) return "text-[#FC3367] text-4xl font-bold";
-    if (distance < 2.5) return "text-gray-400 text-3xl";
+    const distance = Math.abs(index - activeIndex);
+
+    if (distance === 0) return "text-[#FC3367] text-6xl font-bold";
+    if (distance === 1) return "text-[#FC3367] text-4xl font-bold";
+    if (distance === 2) return "text-gray-400 text-3xl";
     return "text-gray-400 text-2xl";
   }
 
@@ -100,7 +90,7 @@ const WheelPicker = ({ onChange }: WheelPickerProps) => {
       <div
         ref={containerRef}
         onScroll={handleScroll}
-        className="h-full overflow-y-scroll scroll-smooth snap-y snap-mandatory no-scrollbar"
+        className="h-full overflow-y-scroll snap-y snap-mandatory no-scrollbar"
       >
         <div style={{ height: SPACER_HEIGHT }} />
         {ageList.map((num, i) => (

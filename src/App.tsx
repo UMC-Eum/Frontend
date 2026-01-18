@@ -46,10 +46,13 @@ const router = createBrowserRouter([
         path: "my",
         element: <ProfileEditMain />,
       },
+<<<<<<< HEAD
       {
         path: "my/edit",
         element: <ProfileEditSecond />,
       },
+=======
+>>>>>>> e296d489c34cb6ff4c16ab7d7dce1f9eca4b7a2e
     ],
   },
   {
