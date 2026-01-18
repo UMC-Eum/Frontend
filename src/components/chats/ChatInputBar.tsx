@@ -1,12 +1,11 @@
 import { useState, useRef } from "react";
 import { useMicRecording } from "../../hooks/useMicRecording"; 
 import { ChatPlusMenu } from "./ChatPlusMenu"; 
-// 👇 [변경] MicButton 대신 RecordingControl 가져오기 (경로 확인!)
 import RecordingControl from "../RecordingControl"; 
 
 interface ChatInputBarProps {
   onSendText: (text: string) => void;
-  onSendVoice: (file: File) => void;
+  onSendVoice: (file: File, duration: number) => void;
 }
 
 export function ChatInputBar({ onSendText, onSendVoice }: ChatInputBarProps) {
@@ -14,12 +13,9 @@ export function ChatInputBar({ onSendText, onSendVoice }: ChatInputBarProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const { status, seconds, handleMicClick, isShort } = useMicRecording((file) => {
-    onSendVoice(file);
+  const { status, seconds, handleMicClick, isShort } = useMicRecording((file, duration) => {
+    onSendVoice(file, duration);
   }, true);
-
-  // 👇 [삭제] RecordingControl이 UI로 보여주므로 alert는 필요 없음
-  // useEffect(() => { if (isShort) alert(...) }, [isShort]);
 
   const handleTextSend = () => {
     if (!text.trim()) return;
@@ -38,26 +34,29 @@ export function ChatInputBar({ onSendText, onSendVoice }: ChatInputBarProps) {
     if (isMenuOpen) setIsMenuOpen(false);
   };
 
-  // status === "recording" 변수도 굳이 따로 안 빼도 됨 (직접 넣으면 됨)
-
   return (
-    <div className="flex flex-col relative w-full">
+    <div className="relative w-full z-30">
       
-      {/* 🎤 [핵심 변경] 기존 버튼과 타이머 코드를 싹 지우고 이거 한 줄로 끝! */}
-      {/* className="-top-[80px]"를 줘서 입력창 위로 띄웁니다. */}
+      {/* 입력바 영역 (흰색 박스) */}
+      {/* relative를 줘서 자식인 마이크가 이 박스를 기준으로 위치를 잡게 함 */}
+      <div className="flex flex-col bg-white border-t border-gray-100 pb-safe relative z-20">
+        
+        {/* 🎤 [수정 완료] 
+            absolute: 띄운다
+            bottom-full: 내 밑변을 부모(흰박스)의 윗변에 맞춘다 (딱 붙음)
+            mb-6: 거기서 24px만큼 더 위로 띄운다
+            flex flex-col items-center: 내부 정렬
+        */}
         <RecordingControl 
           status={status}
           seconds={seconds}
           isShort={isShort}
           isResultPage={false}
           onMicClick={handleMicClick}
-          className="mb-10"
+          className="absolute bottom-full mb-6 flex flex-col items-center" 
         />
 
-
-      {/* 👇 입력바 영역 (여기는 건드린 거 없음) */}
-      <div className="flex flex-col bg-white border-t border-gray-100 pb-safe z-20 relative">
-        
+        {/* ----------------- 기존 입력창 내용 ----------------- */}
         <div className="flex items-center gap-2 px-4 py-3 shrink-0">
           
           {/* (+) 버튼 */}
@@ -86,7 +85,7 @@ export function ChatInputBar({ onSendText, onSendVoice }: ChatInputBarProps) {
             />
           </div>
 
-          {/* 전송 버튼 or 종이비행기 */}
+          {/* 전송 버튼 */}
           {text.length > 0 ? (
             <button onClick={handleTextSend} className="p-2 font-bold text-[#FC3367] text-sm whitespace-nowrap">전송</button>
           ) : (

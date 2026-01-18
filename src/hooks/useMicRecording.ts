@@ -2,22 +2,31 @@ import { useState, useEffect, useCallback, useRef } from "react";
 
 export type MicStatus = "inactive" | "recording" | "loading";
 
-// 👇 [핵심 수정 1] 콜백 함수가 'File'을 받는다고 타입 명시!
-export const useMicRecording = (onRecordingComplete: (file: File) => void, isChat=false) => {
+// 👇 [수정] 콜백함수가 file과 duration(초) 두 개를 받도록 변경
+export const useMicRecording = (
+  onRecordingComplete: (file: File, duration: number) => void, 
+  isChat = false
+) => {
   const [status, setStatus] = useState<MicStatus>("inactive");
   const [seconds, setSeconds] = useState(0);
   const [isShort, setIsShort] = useState(false);
 
-  // 실제 녹음기를 담을 변수 (렌더링에 영향 안 주려고 useRef 사용)
+  // 👇 [추가] 최신 시간 값을 실시간으로 기억할 Ref
+  const secondsRef = useRef(0);
+
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
 
-  // 1. 타이머 로직 (기존과 동일)
+  // 1. 타이머 로직 수정 (Ref 동기화 추가)
   useEffect(() => {
     let interval: number;
     if (status === "recording") {
       interval = window.setInterval(() => {
-        setSeconds((prev) => prev + 1);
+        setSeconds((prev) => {
+          const next = prev + 1;
+          secondsRef.current = next; // Ref에도 최신 값 저장
+          return next;
+        });
       }, 1000);
     }
     return () => clearInterval(interval);
@@ -26,37 +35,31 @@ export const useMicRecording = (onRecordingComplete: (file: File) => void, isCha
   // 2. 녹음 시작 함수
   const startRecording = async () => {
     try {
-      // 마이크 권한 요청
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const mediaRecorder = new MediaRecorder(stream);
 
       mediaRecorderRef.current = mediaRecorder;
-      chunksRef.current = []; // 데이터 초기화
+      chunksRef.current = [];
 
-      // 데이터가 들어올 때마다 저장
       mediaRecorder.ondataavailable = (e) => {
         if (e.data.size > 0) {
           chunksRef.current.push(e.data);
         }
       };
 
-      // 녹음이 멈췄을 때 실행될 로직 (파일 생성 -> 부모에게 전달)
       mediaRecorder.onstop = () => {
         const blob = new Blob(chunksRef.current, { type: "audio/webm" });
-        // 👇 File 객체로 변환
-        const file = new File([blob], "voice_record.webm", {
-          type: "audio/webm",
-        });
+        const file = new File([blob], "voice_record.webm", { type: "audio/webm" });
 
-        // 👇 [핵심 수정 2] 여기서 파일을 쥐어주며 콜백 실행!
-        onRecordingComplete(file);
+        // 👇 [핵심 수정] seconds 대신 최신 값이 담긴 secondsRef.current 전달
+        onRecordingComplete(file, secondsRef.current);
 
-        // 마이크 끄기 (브라우저 상단 빨간불 끄기)
         stream.getTracks().forEach((track) => track.stop());
 
         if (isChat) {
           setStatus("inactive");
           setSeconds(0);
+          secondsRef.current = 0; // Ref 초기화
           setIsShort(false);
         }
       };
@@ -64,6 +67,7 @@ export const useMicRecording = (onRecordingComplete: (file: File) => void, isCha
       mediaRecorder.start();
       setStatus("recording");
       setSeconds(0);
+      secondsRef.current = 0; // 시작할 때 0으로
       setIsShort(false);
     } catch (err) {
       console.error("마이크 권한 오류:", err);
@@ -74,14 +78,14 @@ export const useMicRecording = (onRecordingComplete: (file: File) => void, isCha
   // 3. 녹음 종료 함수
   const stopRecording = () => {
     if (mediaRecorderRef.current && status === "recording") {
-      // 10초 미만 체크
-      if (seconds < 10) {
+      // 10초 미만 체크 (Ref값 사용 권장)
+      if (secondsRef.current < 10) {
         setIsShort(true);
-        return; // 녹음 안 멈춤 (사용자가 더 말하게 둠)
+        return; 
       }
 
       setStatus("loading");
-      mediaRecorderRef.current.stop(); // -> 이게 onstop 이벤트를 발생시킴
+      mediaRecorderRef.current.stop();
     }
   };
 
@@ -92,11 +96,12 @@ export const useMicRecording = (onRecordingComplete: (file: File) => void, isCha
     } else if (status === "recording") {
       stopRecording();
     }
-  }, [status, seconds]); // startRecording, stopRecording은 내부 함수라 의존성 생략 가능하나 원칙상 넣는게 좋음
+  }, [status]); // seconds 의존성 제거 가능
 
   const resetStatus = useCallback(() => {
     setStatus("inactive");
     setSeconds(0);
+    secondsRef.current = 0; // 초기화
     setIsShort(false);
   }, []);
 
@@ -107,7 +112,7 @@ export const useMicRecording = (onRecordingComplete: (file: File) => void, isCha
     isShort,
     handleMicClick,
     resetStatus,
-    startRecording, // 필요하면 밖에서 쓰라고 내보냄
-    stopRecording, // 필요하면 밖에서 쓰라고 내보냄
+    startRecording,
+    stopRecording,
   };
 };

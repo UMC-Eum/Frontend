@@ -3,6 +3,7 @@
 interface ChatPlusMenuProps {
   onCameraClick?: () => void;
   onAlbumClick?: () => void;
+  
 }
 
 export function ChatPlusMenu({ onCameraClick, onAlbumClick }: ChatPlusMenuProps) {
