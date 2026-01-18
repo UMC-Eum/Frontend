@@ -6,32 +6,40 @@ import { CardHighlightMessage } from "../blocks/CardHighlightMessage";
 import { CardMoreButton } from "../blocks/CardMoreButton";
 import { RoundCardShell } from "../shell/RoundCardShell";
 
-export default function WithCard() {
+type WithCardProps = {
+  imageUrl: string;
+  name: string;
+  age: number;
+  distance: string;
+  area: string;
+  description: string;
+}
+export default function WithCard({ imageUrl, name, age, distance, area, description }: WithCardProps) {
   return (
     <RoundCardShell 
-      imageUrl="https://picsum.photos/400/600"
+      imageUrl={imageUrl}
       size="1/1"
       maxwidth="sm"
     >
-      {/* 🔹 상단 레이아웃: 블록 배치 조절 */}
+      {/* 상단 레이아웃 */}
       <div className="absolute top-5 left-4 right-4 flex justify-between items-start z-20">
         <div className="flex items-center gap-3">
-          {/* 프로필 이미지 (블록과 분리하여 레이아웃 구성) */}
+          {/* 프로필 이미지 */}
           <div className="w-[40px] h-[40px] rounded-full overflow-hidden">
-             <img src="https://picsum.photos/100" className="w-full h-full object-cover" />
+             <img src={imageUrl} className="w-full h-full object-cover" />
           </div>
 
           <div className="flex flex-col justify-center">
             {/* 재사용 가능한 블록 배치 */}
             <CardUserId
-              name="언젠간 만나게될까?"
-              age={31}
+              name={name}
+              age={age}
               textsize="text-[16px]"
             />
             
-            {/* 위치 블록 배치 (간격/투명도 조절) */}
+            {/* 위치 블록 배치 */}
             <div className="mt-[-14px] opacity-90 scale-95 origin-left">
-               <CardLocation area="58.7km" distance="" />
+               <CardLocation area={area} distance={distance} />
             </div>
           </div>
         </div>
@@ -40,11 +48,11 @@ export default function WithCard() {
         <CardMoreButton onClick={() => console.log("더보기 클릭")} />
       </div>
 
-      {/* 🔹 설명 영역 */}
+      {/* 설명 영역 */}
       <div className="absolute left-4 right-4 bottom-24 z-20">
         <div className="text-white">
           <CardDescription>
-            저랑 진지하게 연락하실 한분 찾습니다! 나이, 장거리 상관없구 마음이 중요한게 아닐까요? 대화 걸어주세요 ^^
+            {description}
           </CardDescription>
         </div>
 
@@ -53,7 +61,7 @@ export default function WithCard() {
         </div>
       </div>
 
-      {/* 🔹 하단 CTA 버튼 */}
+      {/* 하단 CTA 버튼 */}
       <div className="absolute left-4 right-4 bottom-5 z-20">
         <CardWithButton
           label="👋 같이 할래요"
