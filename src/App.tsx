@@ -10,6 +10,8 @@ import ProfileSetupMain from "./pages/profile-setup/ProfileSetupMain";
 import ProfileRecommendPage from "./pages/ProfileRecommendPage";
 import Like from "./pages/Like";
 import ProfileEditMain from "./pages/profile-edit/ProfileEditMain";
+import ChatListPage from "./pages/chat/ChatListPage";
+import ChatRoomPage from "./pages/chat/ChatRoomPage";
 const router = createBrowserRouter([
   {
     path: "/",
@@ -57,6 +59,19 @@ const router = createBrowserRouter([
       },
     ],
   },
+  {
+    path: "/message",
+    children: [
+      {
+        index: true, 
+        element: <ChatListPage />, // url: /chats
+      },
+      {
+        path: "room/:roomId", 
+        element: <ChatRoomPage />, // url: /message/room/{숫자}
+      }
+    ]
+  }
 ]);
 const App = () => {
   return <RouterProvider router={router} />;
