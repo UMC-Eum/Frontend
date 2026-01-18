@@ -1,57 +1,319 @@
 import BackButton from "../../components/BackButton";
 import { useUserStore } from "../../stores/useUserStore";
 import camera_btn from "../../assets/camera_btn.png";
+import volume_btn from "../../assets/volume_btn.png";
+import white_mic from "../../assets/white_mic.png";
+import { KEYWORDS } from "../../components/keyword/keyword.model";
+
+import { useEffect, useMemo, useRef, useState } from "react";
+import KeywordChip from "../../components/keyword/KeywordChip";
+
 const ProfileEditSecond = () => {
   const { user } = useUserStore();
-  const hasIntro = user?.introText && user.introText.trim().length > 0;
-  // 프로필 이미지가 없으면 기본 이미지 사용
+
   return (
-    <div>
+    <>
       <BackButton title="내 프로필" textClassName="text-[24px] font-semibold" />
-      <div className="h-[108px] w-full flex items-start">
-        <div className="flex flex-row gap-x-[12px] items-center justify-center px-[20px] pt-[7px]">
-          <div
-            className={`relative w-[82px] h-[82px] rounded-full border-[2px] border-[#FC3367] flex items-center justify-center`}
+      {/* 내 프로필 */}
+      <div className="flex items-center">
+        {/* 내 프로필 - 프로필사진 */}
+        <div className="relative w-20 h-20 rounded-full p-[2px] bg-gradient-to-tr from-[#FFBD66] via-[#FF3D77] to-[#FF3D77]">
+          <img
+            className="w-full h-full rounded-full"
+            src={user?.profileImageUrl}
+          />
+          <button
+            // 구현이 필요하면 훅으로 onClick={() => setIsMenuOpen(true)}
+            className="w-7 h-7 absolute -bottom-1 -right-1 flex items-center justify-center"
           >
-            <div className="w-full h-full rounded-full overflow-hidden bg-white">
-              <img
-                src={user?.profileImageUrl}
-                className="w-full h-full object-cover"
-                alt="Profile"
-              />
-            </div>
-            <button className="absolute -bottom-1 -right-1 w-[24px] h-[24px] flex items-center justify-center">
-              <img src={camera_btn} alt="Change" />
-            </button>
-          </div>
-          <div className="flex flex-col gap-y-1">
-            <span className="text-black text-[20px] font-semibold">
-              {user?.nickname} {user?.age}
-            </span>
-            <span className="text-gray-700 text-[14px] font-[500]">
-              {user?.area.name}
-            </span>
-          </div>
+            <img src={camera_btn} />
+          </button>
+        </div>
+
+        {/* 내 프로필 - 이름 상자 */}
+        <div className="flex flex-col">
+          <span>
+            {user?.nickname} {user?.age}
+          </span>
+          <span>{user?.area.name}</span>
         </div>
       </div>
-      <div className="bg-gray-100 w-full h-[20px]"></div>
-      <div className="flex flex-col p-[20px] h-[225px] justify-center">
-        <p className="h-[48px] text-gray-900 text-[20px] font-[600] mb-[10px]">
-          나의 소개
+
+      {/* 나의 소개 */}
+      <div>
+        <h2>나의 소개</h2>
+        <p className="m-5 p-4 border border-gray-200 rounded-xl bg-gray-100 text-sm text-gray-600 leading-tight">
+          {user?.introText ||
+            "안녕하세요. 특별한 사람이라기보다는, 평범한 하루를 함께 나눌 수 있는 인연을 찾고 있습니다. 부담 없이 대화부터 시작해보고 싶어요... 평소 등산하는 것을 좋아합니다."}
         </p>
-        <div
-          className={`
-            w-full h-[79px] p-[14px] 
-            border-[1px] border-[#E9ECED] bg-gray-100 rounded-[14px] 
-            text-[16px] leading-[120%]
-            ${hasIntro ? "text-gray-700" : "text-gray-400"} 
-          `}
-        >
-          {hasIntro ? user.introText : "자기소개를 입력해주세요"}
+        {/* 나의 소개 - 음성 녹음 */}
+        <IntroPlayer />
+      </div>
+
+      {/* 나의 관심사 */}
+      <div>
+        <h2>나의 관심사</h2>
+        <div className="m-5 flex flex-wrap gap-2">
+          {user?.keywords.map((item, index) => {
+            // 문제 터지면 keyword 타입 리팩토링을 재고
+            const matchedKeyword = KEYWORDS.find(
+              (k) => k.label === item && k.category === "hobby",
+            );
+            return (
+              matchedKeyword && (
+                <KeywordChip
+                  key={index}
+                  keyword={matchedKeyword}
+                  isSelected={false}
+                  disabled
+                  onToggle={() => {}}
+                />
+              )
+            );
+          })}
         </div>
       </div>
-    </div>
+
+      {/* 나는 이런 사람이에요. */}
+      <div>
+        <h2>나는 이런 사람이에요.</h2>
+        <div className="mt-5 flex flex-wrap gap-2">
+          {user?.keywords.map((item, index) => {
+            // 문제 터지면 keyword 타입 리팩토링을 재고
+            const matchedKeyword = KEYWORDS.find(
+              (k) => k.label === item && k.category === "character",
+            );
+            return (
+              matchedKeyword && (
+                <KeywordChip
+                  key={index}
+                  keyword={matchedKeyword}
+                  isSelected={false}
+                  disabled
+                  onToggle={() => {}}
+                />
+              )
+            );
+          })}
+        </div>
+        <div className="flex items-center justify-center">
+          <button className="m-5 p-3 w-full flex items-center justify-center rounded-xl bg-[#FF3D77]">
+            <img className="h-4" src={white_mic} />
+            <span className="text-white">재녹음</span>
+          </button>
+        </div>
+      </div>
+
+      {/* 나의 이상형 */}
+      <div>
+        <h2>나의 이상형</h2>
+        <div className="mt-5 flex flex-wrap gap-2">
+          {user?.keywords.map((item, index) => {
+            // 문제 터지면 keyword 타입 리팩토링을 재고
+            // 목 데이터 만들어야 함
+            const matchedKeyword = KEYWORDS.find((k) => k.label === item);
+            return (
+              matchedKeyword && (
+                <KeywordChip
+                  key={index}
+                  keyword={matchedKeyword}
+                  isSelected={false}
+                  disabled
+                  onToggle={() => {}}
+                />
+              )
+            );
+          })}
+        </div>
+        <div className="flex items-center justify-center">
+          <button className="m-5 p-3 w-full flex items-center justify-center rounded-xl bg-[#FF3D77]">
+            <img className="h-4" src={white_mic} />
+            <span className="text-white">재녹음</span>
+          </button>
+        </div>
+      </div>
+
+      {/* 기본 정보 */}
+      <div>
+        <h2>기본 정보</h2>
+        
+        <div className="flex items-center">
+          <dt>성별</dt>
+          <dd>{user?.gender}</dd>
+        </div>
+
+        <div className="flex items-center">
+          <dt>나이</dt>
+          <dd>{user?.birthDate} ({user?.age})</dd>
+        </div>
+
+        <div className="flex items-center">
+          <dt>지역</dt>
+          <dd>{user?.area.name}</dd>
+        </div>
+
+      </div>
+    </>
   );
 };
 
 export default ProfileEditSecond;
+
+// todo list
+// - 재생 버튼 누르면 버튼 바뀌기
+// - 재생 버튼 누르면 멈추기
+// - 녹음된 소리 나오기
+// - 음량 조절 가능하게 만들기
+
+const IntroPlayer = () => {
+  return (
+    <div className="m-5 p-2 gap-4 flex items-center border border-gray-300 rounded-full">
+      <button className="flex items-center justify-center w-8 h-8 rounded-[19px] bg-[#FF3D77]">
+        <div
+          className="
+            w-0 h-0 
+            border-t-[6px] border-t-transparent
+            border-b-[6px] border-b-transparent 
+            border-l-[9px] border-l-white 
+            ml-1"
+        />
+      </button>
+      <Waveform />
+      <img src={volume_btn} />
+    </div>
+  );
+};
+
+interface WaveformProps {
+  width?: number;
+  barCount?: number;
+  barWidth?: number;
+  minHeight?: number;
+  maxHeight?: number;
+  paused?: boolean;
+}
+
+const Waveform = ({
+  width = 180,
+  barCount = 30,
+  barWidth = 2,
+  minHeight = 5,
+  maxHeight = 15,
+  paused = false,
+}: WaveformProps) => {
+  const barsRef = useRef<HTMLDivElement[]>([]);
+  const rafRef = useRef<number | null>(null);
+  const tRef = useRef(0);
+
+  // ⏱ 타이머 상태
+  const [seconds, setSeconds] = useState(0);
+  const timerRef = useRef<number | null>(null);
+
+  // gap 계산
+  const gap = useMemo(() => {
+    if (barCount <= 1) return 0;
+    return Math.max(0, (width - barCount * barWidth) / (barCount - 1));
+  }, [width, barCount, barWidth]);
+
+  /* =====================
+     Waveform Animation
+  ====================== */
+  useEffect(() => {
+    if (paused) {
+      if (rafRef.current) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+      }
+      return;
+    }
+
+    const animate = () => {
+      tRef.current += 0.08;
+
+      barsRef.current.forEach((bar, i) => {
+        if (!bar) return;
+
+        const wave = Math.sin(tRef.current - i * 0.6) * 0.5 + 0.5;
+
+        const height = minHeight + wave * (maxHeight - minHeight);
+
+        bar.style.height = `${height}px`;
+      });
+
+      rafRef.current = requestAnimationFrame(animate);
+    };
+
+    animate();
+
+    return () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    };
+  }, [paused, minHeight, maxHeight]);
+
+  /* =====================
+     Timer
+  ====================== */
+  useEffect(() => {
+    if (paused) {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+      return;
+    }
+
+    timerRef.current = window.setInterval(() => {
+      setSeconds((s) => s + 1);
+    }, 1000);
+
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+      timerRef.current = null;
+    };
+  }, [paused]);
+
+  // mm:ss 포맷
+  const formattedTime = useMemo(() => {
+    const m = Math.floor(seconds / 60)
+      .toString()
+      .padStart(2, "0");
+    const s = (seconds % 60).toString().padStart(2, "0");
+    return `${m}:${s}`;
+  }, [seconds]);
+
+  return (
+    <div className="flex items-center gap-8">
+      {/* Waveform */}
+      <div
+        style={{
+          width: `${width}px`,
+          display: "flex",
+          alignItems: "center",
+        }}
+      >
+        {Array.from({ length: barCount }).map((_, i) => (
+          <div
+            key={i}
+            ref={(el) => {
+              if (el) barsRef.current[i] = el;
+            }}
+            style={{
+              width: `${barWidth}px`,
+              height: `${minHeight}px`,
+              marginRight: i === barCount - 1 ? 0 : `${gap}px`,
+              backgroundColor: "#4b5563",
+              borderRadius: "9999px",
+              flexShrink: 0,
+            }}
+          />
+        ))}
+      </div>
+
+      {/* Timer */}
+      <span className="text-sm text-gray-500" style={{ width: "40px" }}>
+        {formattedTime}
+      </span>
+    </div>
+  );
+};
