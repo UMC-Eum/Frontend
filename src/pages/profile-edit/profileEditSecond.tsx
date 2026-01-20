@@ -9,6 +9,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import KeywordChip from "../../components/keyword/KeywordChip";
 import IntroTextEditModal from "./overlays/IntroTextEditModal";
 import SetImageModal from "./overlays/SetImageModal";
+import NextArrow from "../../components/NextArrow";
 
 const ProfileEditSecond = () => {
   const { user } = useUserStore();
@@ -97,6 +98,7 @@ const ProfileEditSecond = () => {
 
       {/* 나는 이런 사람이에요. */}
       <div>
+        <NextArrow title="나의 관심사" navigateTo="./hobby"/>
         <h2>나는 이런 사람이에요.</h2>
         <div className="mt-5 flex flex-wrap gap-2">
           {user?.keywords.map((item, index) => {

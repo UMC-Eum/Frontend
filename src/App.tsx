@@ -10,7 +10,8 @@ import ProfileSetupMain from "./pages/profile-setup/ProfileSetupMain";
 import ProfileRecommendPage from "./pages/ProfileRecommendPage";
 import Like from "./pages/Like";
 import ProfileEditMain from "./pages/profile-edit/ProfileEditMain";
-import ProfileEditSecond from "./pages/profile-edit/profileEditSecond";
+import ProfileEditSecond from "./pages/profile-edit/ProfileEditSecond";
+import HobbyEditPage from "./pages/profile-edit/HobbyEditPage";
 const router = createBrowserRouter([
   {
     path: "/",
@@ -46,13 +47,14 @@ const router = createBrowserRouter([
         path: "my",
         element: <ProfileEditMain />,
       },
-<<<<<<< HEAD
       {
         path: "my/edit",
         element: <ProfileEditSecond />,
       },
-=======
->>>>>>> e296d489c34cb6ff4c16ab7d7dce1f9eca4b7a2e
+      {
+        path: "my/edit/hobby",
+        element: <HobbyEditPage />,
+      },
     ],
   },
   {
