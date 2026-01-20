@@ -22,15 +22,12 @@ api.interceptors.response.use(
     const originalRequest = error.config as AxiosRequestConfig & {
       _retry?: boolean;
     };
-
-    // 무한 루프 방지
     if (originalRequest?.url?.includes("/auth/token/refresh")) {
       return Promise.reject(error);
     }
 
-    // 🔍 에러 응답 데이터 꺼내기 (타입 단언 사용)
     const errorResponse = error.response?.data as ApiFailResponse | undefined;
-    const errorCode = errorResponse?.error?.code; // 예: "AUTH-002"
+    const errorCode = errorResponse?.error?.code;
 
     if (
       error.response?.status === 401 &&
@@ -38,28 +35,15 @@ api.interceptors.response.use(
       !originalRequest._retry
     ) {
       originalRequest._retry = true;
-      const refreshToken = localStorage.getItem("refreshToken");
-
-      if (!refreshToken) {
-        localStorage.clear();
-        window.location.href = "/login";
-        return Promise.reject(error);
-      }
-
       try {
         const res = await axios.post<ApiSuccessResponse<ITokenRefreshResponse>>(
           `${api.defaults.baseURL}/auth/token/refresh`,
-          { refreshToken }
+          {}, // body 비움
+          { withCredentials: true }, // ★ 핵심: 쿠키 전송 허용
         );
-
-        const { accessToken, refreshToken: newRefreshToken } =
-          res.data.success.data;
+        const { accessToken } = res.data.success.data;
 
         localStorage.setItem("accessToken", accessToken);
-        if (newRefreshToken) {
-          localStorage.setItem("refreshToken", newRefreshToken);
-        }
-
         if (originalRequest.headers) {
           originalRequest.headers.Authorization = `Bearer ${accessToken}`;
         }
@@ -72,7 +56,7 @@ api.interceptors.response.use(
       }
     }
     return Promise.reject(error);
-  }
+  },
 );
 
 export default api;

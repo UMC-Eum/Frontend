@@ -4,8 +4,6 @@ export interface IHeartsRequest {
 }
 export interface IHeartsResponse {
   heartId: number;
-  isMatched: boolean;
-  chatRoomId: number | null;
 }
 
 //v1/hearts/sent(get)
@@ -76,8 +74,8 @@ export interface IReportsRequest {
   targetUserId: number;
   category: string;
   description: string;
-  evidenceMessageId: number | null;
+  chatRoomId: number;
 }
 export interface IReportsResponse {
-  reportId: number;
+  reportId: { reportId: number };
 }
