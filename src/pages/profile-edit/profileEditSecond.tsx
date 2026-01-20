@@ -10,19 +10,19 @@ import KeywordChip from "../../components/keyword/KeywordChip";
 import IntroTextEditModal from "./overlays/IntroTextEditModal";
 import SetImageModal from "./overlays/SetImageModal";
 import NextArrow from "../../components/NextArrow";
+import { useNavigate } from "react-router-dom";
 
 const ProfileEditSecond = () => {
-  const { user } = useUserStore();
-  
+  const { idealKeywords, user } = useUserStore();
+
   const [isImageModalOpen, setIsImageModalOpen] = useState(false); // 프로필 변경 모달창
   const [isIntroModalOpen, setIsIntroModalOpen] = useState(false); // 나의 소개 모달창
-  
+  const navigate = useNavigate();
 
   return (
     <>
       <BackButton title="내 프로필" textClassName="text-[24px] font-semibold" />
-      
-      
+
       {/* 내 프로필 */}
       <div className="flex items-center">
         {/* 내 프로필 - 프로필사진 */}
@@ -47,10 +47,9 @@ const ProfileEditSecond = () => {
         </div>
       </div>
       {/* 내 프로필 - 프로필 변경 */}
-      {isImageModalOpen &&  <SetImageModal
-          onClose={() => setIsImageModalOpen(false)}
-        />}
-
+      {isImageModalOpen && (
+        <SetImageModal onClose={() => setIsImageModalOpen(false)} />
+      )}
 
       {/* 나의 소개 */}
       <div>
@@ -70,10 +69,12 @@ const ProfileEditSecond = () => {
         <IntroTextEditModal onClose={() => setIsIntroModalOpen(false)} />
       )}
 
-
       {/* 나의 관심사 */}
       <div>
-        <h2>나의 관심사</h2>
+        <div className="flex justify-between items-center">
+          <h2>나의 관심사</h2>
+          <NextArrow navigateTo="./hobby" />
+        </div>
         <div className="m-5 flex flex-wrap gap-2">
           {user?.keywords.map((item, index) => {
             // 문제 터지면 keyword 타입 리팩토링을 재고
@@ -95,16 +96,21 @@ const ProfileEditSecond = () => {
         </div>
       </div>
 
-
       {/* 나는 이런 사람이에요. */}
       <div>
-        <NextArrow title="나의 관심사" navigateTo="./hobby"/>
-        <h2>나는 이런 사람이에요.</h2>
-        <div className="mt-5 flex flex-wrap gap-2">
+        <div className="flex justify-between items-center">
+          <h2>나는 이런 사람이에요.</h2>
+          <NextArrow navigateTo="./character" />
+        </div>
+        <div className="m-5 flex flex-wrap gap-2">
           {user?.keywords.map((item, index) => {
             // 문제 터지면 keyword 타입 리팩토링을 재고
             const matchedKeyword = KEYWORDS.find(
-              (k) => k.label === item && k.category === "character",
+              (k) =>
+                k.label === item &&
+                ["character", "value", "lifestyle", "expression"].includes(
+                  k.category,
+                ),
             );
             return (
               matchedKeyword && (
@@ -119,23 +125,34 @@ const ProfileEditSecond = () => {
             );
           })}
         </div>
+
         <div className="flex items-center justify-center">
-          <button className="m-5 p-3 w-full flex items-center justify-center rounded-xl bg-[#FF3D77]">
+          <button
+            onClick={() => navigate("./character-record")}
+            className="mx-5 p-3 w-full flex items-center justify-center rounded-xl bg-[#FF3D77]"
+          >
             <img className="h-4" src={white_mic} />
             <span className="text-white">재녹음</span>
           </button>
         </div>
       </div>
-
 
       {/* 나의 이상형 */}
       <div>
-        <h2>나의 이상형</h2>
-        <div className="mt-5 flex flex-wrap gap-2">
-          {user?.keywords.map((item, index) => {
+        <div className="flex justify-between items-center">
+          <h2>나의 이상형</h2>
+          <NextArrow navigateTo="./ideal" />
+        </div>
+        <div className="m-5 flex flex-wrap gap-2">
+          {idealKeywords.map((item, index) => {
             // 문제 터지면 keyword 타입 리팩토링을 재고
-            // 목 데이터 만들어야 함
-            const matchedKeyword = KEYWORDS.find((k) => k.label === item);
+            const matchedKeyword = KEYWORDS.find(
+              (k) =>
+                k.label === item &&
+                ["character", "value", "lifestyle", "expression"].includes(
+                  k.category,
+                ),
+            );
             return (
               matchedKeyword && (
                 <KeywordChip
@@ -149,14 +166,32 @@ const ProfileEditSecond = () => {
             );
           })}
         </div>
-        <div className="flex items-center justify-center">
-          <button className="m-5 p-3 w-full flex items-center justify-center rounded-xl bg-[#FF3D77]">
-            <img className="h-4" src={white_mic} />
-            <span className="text-white">재녹음</span>
-          </button>
-        </div>
+        {idealKeywords.length === 0 && (
+          <div className="mx-5 p-3 flex items-center justify-between rounded-xl bg-gradient-to-r from-[#FEC4D1] to-[#FFF0E5]">
+            <span className="">
+              지금 바로 <span className="text-[#FF3D77]">이상형 등록</span>하고{" "}
+              <br /> 내 취향에 맞는 프로필을 보러가요!
+            </span>
+            <button
+              onClick={() => navigate("./ideal-record")}
+              className="px-3 rounded-full bg-white text-[#FF3D77]"
+            >
+              바로가기
+            </button>
+          </div>
+        )}
+        {idealKeywords.length !== 0 && (
+          <div className="flex items-center justify-center">
+            <button
+              onClick={() => navigate("./ideal-record")}
+              className="mx-5 p-3 w-full flex items-center justify-center rounded-xl bg-[#FF3D77]"
+            >
+              <img className="h-4" src={white_mic} />
+              <span className="text-white">재녹음</span>
+            </button>
+          </div>
+        )}
       </div>
-
 
       {/* 기본 정보 */}
       <div>
@@ -199,22 +234,22 @@ const IntroPlayer = () => {
     border-t-[6px] border-t-transparent
     border-b-[6px] border-b-transparent 
     border-l-[9px] border-l-white 
-    ml-1`
+    ml-1`;
 
   const pauseIcon = `
     w-[10px] h-[12px] 
     border-l-[3px] border-r-[3px] border-white
-  `
+  `;
 
   return (
     <div className="m-5 p-2 gap-4 flex items-center border border-gray-300 rounded-full">
-      <button onClick={()=>setIsPlaying(!isPlaying)}
-      className="flex items-center justify-center w-8 h-8 rounded-[19px] bg-[#FF3D77]">
-        <div
-          className={isPlaying ? pauseIcon : playIcon}
-        />
+      <button
+        onClick={() => setIsPlaying(!isPlaying)}
+        className="flex items-center justify-center w-8 h-8 rounded-[19px] bg-[#FF3D77]"
+      >
+        <div className={isPlaying ? pauseIcon : playIcon} />
       </button>
-      <Waveform paused={!isPlaying}/>
+      <Waveform paused={!isPlaying} />
       <img src={volume_btn} />
     </div>
   );

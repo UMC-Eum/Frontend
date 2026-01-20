@@ -12,6 +12,10 @@ import Like from "./pages/Like";
 import ProfileEditMain from "./pages/profile-edit/ProfileEditMain";
 import ProfileEditSecond from "./pages/profile-edit/ProfileEditSecond";
 import HobbyEditPage from "./pages/profile-edit/HobbyEditPage";
+import CharacterEditPage from "./pages/profile-edit/CharacterEditPage";
+import IdealEditPage from "./pages/profile-edit/IdealEditPage";
+import CharacterRecordPage from "./pages/profile-edit/CharacterRecordPage";
+import IdealRecordPage from "./pages/profile-edit/IdealRecordPage";
 const router = createBrowserRouter([
   {
     path: "/",
@@ -55,6 +59,22 @@ const router = createBrowserRouter([
         path: "my/edit/hobby",
         element: <HobbyEditPage />,
       },
+      {
+        path: "my/edit/character",
+        element: <CharacterEditPage />,
+      },
+      { 
+        path: "my/edit/ideal",
+        element: <IdealEditPage />,
+      },
+      {
+        path: "my/edit/character-record",
+        element: <CharacterRecordPage />,
+      },
+      {
+        path: "my/edit/ideal-record",
+        element: <IdealRecordPage />,
+      }
     ],
   },
   {
