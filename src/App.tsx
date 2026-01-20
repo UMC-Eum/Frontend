@@ -1,4 +1,3 @@
-//github and vercel deployment settings
 import "./App.css";
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import AppLayout from "./layout/AppLayout";
@@ -9,6 +8,8 @@ import HomePage from "./pages/HomePage";
 import ProfileSetupMain from "./pages/profile-setup/ProfileSetupMain";
 import ProfileEditMain from "./pages/profile-edit/ProfileEditMain";
 import ProfileRecommendPage from "./pages/ProfileRecommendPage";
+import { useEffect } from "react";
+import { useMediaStore } from "./stores/useMediaStore";
 const router = createBrowserRouter([
   {
     path: "/",
@@ -30,15 +31,11 @@ const router = createBrowserRouter([
       },
       {
         path: "profileset",
-        element: (
-          <ProfileSetupMain />
-        )
+        element: <ProfileSetupMain />,
       },
       {
         path: "onboarding",
-        element: (
-            <OnBoardingPage />
-        )
+        element: <OnBoardingPage />,
       },
       {
         path: "my",
@@ -58,6 +55,11 @@ const router = createBrowserRouter([
   },
 ]);
 const App = () => {
+  const { checkPermission } = useMediaStore();
+
+  useEffect(() => {
+    checkPermission();
+  }, [checkPermission]);
   return <RouterProvider router={router} />;
 };
 
