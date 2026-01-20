@@ -1,8 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { fetchAllMatchResults } from "../mock/mockFetch";
-import Card from "../components/Card";
 import Navbar from "../components/Navbar";
 import BackButton from "../components/BackButton";
+import IdleCard from "../components/card/presets/IdleCard";
 const ResultPage = () => {
   const { data, isLoading, isError } = useQuery({
     queryKey: ["matchResults"],
@@ -36,12 +36,13 @@ const ResultPage = () => {
         <div className="mt-[24px] space-y-[20px]">
           {data &&
             data.map((user) => (
-              <Card
+              <IdleCard
                 key={user.id}
                 name={user.name}
                 age={user.age}
                 imageUrl={user.imageUrl}
                 distance={user.distance}
+                area={user.area}
                 description={user.description}
                 keywords={user.keywords}
               />

@@ -7,11 +7,10 @@ import OnBoardingPage from "./pages/onboarding/OnBoardingPage";
 import ResultPage from "./pages/ResultPage";
 import HomePage from "./pages/HomePage";
 import ProfileSetupMain from "./pages/profile-setup/ProfileSetupMain";
-import ProfileRecommendPage from "./pages/ProfileRecommendPage";
-import Like from "./pages/Like";
 import ProfileEditMain from "./pages/profile-edit/ProfileEditMain";
 import ChatListPage from "./pages/chat/ChatListPage";
 import ChatRoomPage from "./pages/chat/ChatRoomPage";
+import ProfileRecommendPage from "./pages/ProfileRecommendPage";
 const router = createBrowserRouter([
   {
     path: "/",
@@ -33,20 +32,20 @@ const router = createBrowserRouter([
       },
       {
         path: "profileset",
-        element: <ProfileSetupMain />,
+        element: (
+          <ProfileSetupMain />
+        )
       },
       {
         path: "onboarding",
-        element: <OnBoardingPage />,
-      },
-      {
-        path: "like",
-        element: <Like />,
+        element: (
+            <OnBoardingPage />
+        )
       },
       {
         path: "my",
-        element: <ProfileEditMain/>
-      }
+        element: <ProfileEditMain />,
+      },
     ],
   },
   {
