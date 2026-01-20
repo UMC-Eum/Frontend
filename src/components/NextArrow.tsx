@@ -1,8 +1,15 @@
 import { useNavigate } from "react-router-dom";
-const NextArrow = ({ navigateTo }: { navigateTo: string }) => {
+
+type NextArrowProps = {
+  title? : string
+  textclass? : string
+  navigateTo : string
+}
+
+const NextArrow = ({ title, textclass, navigateTo }: NextArrowProps) => {
   const navigate = useNavigate();
   return (
-    <div>
+    <div className="w-full h-[45px] flex gap-[20px] px-[20px] py-[8px] items-center">
       <button onClick={() => navigate(navigateTo)}>
         <svg
           xmlns="http://www.w3.org/2000/svg"
@@ -20,6 +27,8 @@ const NextArrow = ({ navigateTo }: { navigateTo: string }) => {
           />
         </svg>
       </button>
+
+      {title && <span className={textclass}>{title}</span>}
     </div>
   );
 };
