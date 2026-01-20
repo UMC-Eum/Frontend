@@ -9,7 +9,7 @@ type NextArrowProps = {
 const NextArrow = ({ title, textClassName, navigateTo }: NextArrowProps) => {
   const navigate = useNavigate();
   return (
-    <div>
+    <div className="w-full h-[45px] flex gap-[20px] px-[20px] py-[8px] items-center">
       <button onClick={() => navigate(navigateTo)}>
         <svg
           xmlns="http://www.w3.org/2000/svg"

@@ -1,4 +1,3 @@
-//github and vercel deployment settings
 import "./App.css";
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import AppLayout from "./layout/AppLayout";
@@ -7,8 +6,6 @@ import OnBoardingPage from "./pages/onboarding/OnBoardingPage";
 import ResultPage from "./pages/ResultPage";
 import HomePage from "./pages/HomePage";
 import ProfileSetupMain from "./pages/profile-setup/ProfileSetupMain";
-import ProfileRecommendPage from "./pages/ProfileRecommendPage";
-import Like from "./pages/Like";
 import ProfileEditMain from "./pages/profile-edit/ProfileEditMain";
 import ProfileEditSecond from "./pages/profile-edit/ProfileEditSecond";
 import HobbyEditPage from "./pages/profile-edit/HobbyEditPage";
@@ -16,6 +13,9 @@ import CharacterEditPage from "./pages/profile-edit/CharacterEditPage";
 import IdealEditPage from "./pages/profile-edit/IdealEditPage";
 import CharacterRecordPage from "./pages/profile-edit/CharacterRecordPage";
 import IdealRecordPage from "./pages/profile-edit/IdealRecordPage";
+import ProfileRecommendPage from "./pages/ProfileRecommendPage";
+import { useEffect } from "react";
+import { useMediaStore } from "./stores/useMediaStore";
 const router = createBrowserRouter([
   {
     path: "/",
@@ -42,10 +42,6 @@ const router = createBrowserRouter([
       {
         path: "onboarding",
         element: <OnBoardingPage />,
-      },
-      {
-        path: "like",
-        element: <Like />,
       },
       {
         path: "my",
@@ -89,6 +85,11 @@ const router = createBrowserRouter([
   },
 ]);
 const App = () => {
+  const { checkPermission } = useMediaStore();
+
+  useEffect(() => {
+    checkPermission();
+  }, [checkPermission]);
   return <RouterProvider router={router} />;
 };
 

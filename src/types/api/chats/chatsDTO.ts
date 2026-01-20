@@ -31,6 +31,7 @@ export interface IChatsRoomItem {
 export interface IChatsRoomsGetResponse {
   nextCursor: string | null;
   items: IChatsRoomItem[];
+  unreadCount: 1 | 0;
 }
 
 //v1/chats/rooms/{chatRoomId}(get)
@@ -46,17 +47,26 @@ export interface IChatsRoomIdGetResponse {
 
 //v1/chats/rooms/{chatRoomId}/messages(get)
 export interface IChatsRoomIdMessagesGetResponse {
-  nextCursor: string | null;
+  chatRoomId: number;
+  peer: {
+    userId: number;
+    nickname: string;
+    age: number;
+    areaName: string;
+  };
   items: {
     messageId: number;
-    senderId: number;
     type: MessageType;
-    audioUrl: string;
-    durationSec: number;
     text: null | string;
+    mediaUrl: string;
+    durationSec: number;
+    senderUserId: number;
     sendAt: string;
     readAt: string | null;
-  };
+    isMine: boolean;
+  }[];
+
+  nextCursor: string | null;
 }
 //v1/chats/rooms/{chatRoomId}/messages(post)
 export interface IChatsRoomIdMessagesPostRequset {
