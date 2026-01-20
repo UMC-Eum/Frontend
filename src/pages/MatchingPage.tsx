@@ -74,7 +74,7 @@ const MatchingPage = () => {
         )}
         {(status === "loading" || isResultPage) && (
           <h1 className="text-[28px] font-[700] leading-[140%] text-[#202020]">
-            ~~님의
+            {nickname}님의
             <br />
             이상형을 찾는 중이에요 ...
           </h1>
