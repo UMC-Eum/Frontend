@@ -5,9 +5,11 @@ export interface IPresignRequest {
   purpose: string;
 }
 export interface IPresignResponse {
-  uploadUrl: string;
-  fileUrl: string;
-  expiresAt: string;
+  data: {
+    uploadUrl: string;
+    fileUrl: string;
+    expiresAt: string;
+  };
 }
 //v1/onboarding/voice-profile/analyze(post)
 export interface IKeywordscandidate {

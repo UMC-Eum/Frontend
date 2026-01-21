@@ -18,7 +18,7 @@ const MatchingPage = () => {
   // 1. API 요청 설정 (Mutation)
   // 녹음 파일이 생기면 이 함수(analyze)를 실행해서 서버로 보냅니다.
   const { mutate: analyze } = useMutation({
-    mutationFn: (file: File) => processVoiceAnalysis({ file, userId: 1 }), // 임시 userId
+    mutationFn: (file: File) => processVoiceAnalysis({ file }), // 임시 userId
     onSuccess: (data) => {
       console.log("분석 성공!", data);
       navigate("/matching/result", { state: { result: data } });
