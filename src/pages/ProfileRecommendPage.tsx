@@ -1,6 +1,7 @@
 import BackButton from "../components/BackButton";
 import Navbar from "../components/Navbar";
 import chatpinkbox from "../assets/chat_pinkbox.svg";
+import KeywordLabel from "../components/keyword/KeywordLabel";
 
 export default function ProfileRecommendPage() {
   return (
@@ -10,7 +11,7 @@ export default function ProfileRecommendPage() {
           {/* 프로필 이미지 및 백버튼 */}
           <div className="relative">
             <div className="bg-gray-400 h-[585px]"></div>
-            <header className="absolute inset-0 w-full px-[20px] pt-[5px] shrink-0">
+            <header className="absolute inset-0 w-full pt-[5px] shrink-0">
               <BackButton />
             </header>
           </div>
@@ -25,38 +26,50 @@ export default function ProfileRecommendPage() {
             <section className="flex flex-col gap-[12px] mb-[15px]">
               <h1 className="text-[20px] font-semibold">저의 관심사에요.</h1>
               <div className="flex flex-wrap gap-[8px]">
-                <p className="bg-[#E9ECED] rounded-lg text-[14px] text-gray-700 px-[12px] py-[4px]">
-                  헬스
-                </p>
-                <p className="bg-[#E9ECED] rounded-lg text-[14px] text-gray-700 px-[12px] py-[4px]">
-                  영화 감상
-                </p>
-                <p className="bg-[#E9ECED] rounded-lg text-[14px] text-gray-700 px-[12px] py-[4px]">
-                  책 읽기
-                </p>
+                <KeywordLabel
+                  keyword={{ id: 271, label: "식물키우기", category: "hobby" }}
+                />
+                <KeywordLabel
+                  keyword={{
+                    id: 272,
+                    label: "반려동물케어",
+                    category: "hobby",
+                  }}
+                />
+                <KeywordLabel
+                  keyword={{ id: 273, label: "공부취미", category: "hobby" }}
+                />
               </div>
             </section>
             <section className="flex flex-col gap-[12px] mb-[15px]">
               <h1 className="text-[20px] font-semibold">이런 사람이 좋아요.</h1>
               <div className="flex flex-wrap gap-[8px]">
-                <p className="bg-[#E9ECED] rounded-lg text-[14px] text-gray-700 px-[12px] py-[7px]">
-                  귀여운
-                </p>
-                <p className="bg-[#E9ECED] rounded-lg text-[14px] text-gray-700 px-[12px] py-[7px]">
-                  다정한
-                </p>
-                <p className="bg-[#E9ECED] rounded-lg text-[14px] text-gray-700 px-[12px] py-[7px]">
-                  산책을 좋아하는
-                </p>
-                <p className="bg-[#E9ECED] rounded-lg text-[14px] text-gray-700 px-[12px] py-[7px]">
-                  가까이 사는
-                </p>
-                <p className="bg-[#E9ECED] rounded-lg text-[14px] text-gray-700 px-[12px] py-[7px]">
-                  솔직한 성격
-                </p>
-                <p className="bg-[#E9ECED] rounded-lg text-[14px] text-gray-700 px-[12px] py-[7px]">
-                  친절한
-                </p>
+                <KeywordLabel
+                  keyword={{ id: 271, label: "식물키우기", category: "hobby" }}
+                />
+                <KeywordLabel
+                  keyword={{
+                    id: 272,
+                    label: "반려동물케어",
+                    category: "hobby",
+                  }}
+                />
+                <KeywordLabel
+                  keyword={{ id: 273, label: "공부취미", category: "hobby" }}
+                />
+                <KeywordLabel
+                  keyword={{ id: 271, label: "식물키우기", category: "hobby" }}
+                />
+                <KeywordLabel
+                  keyword={{
+                    id: 272,
+                    label: "반려동물케어",
+                    category: "hobby",
+                  }}
+                />
+                <KeywordLabel
+                  keyword={{ id: 273, label: "공부취미", category: "hobby" }}
+                />
               </div>
             </section>
             <section className="mb-[15px]">

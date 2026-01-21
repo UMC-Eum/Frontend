@@ -5,7 +5,7 @@ type Shape = "round" | "pill";
 interface KeywordLabelProps {
   /** 키워드 객체 */
   keyword: Keyword;
-  
+
   /** 라벨의 모양 "round" | "pill" */
   shape?: Shape;
 
@@ -31,7 +31,7 @@ const KeywordLabel = ({
   isTransparent = false,
 }: KeywordLabelProps) => {
   const shapeStyles: Record<Shape, string> = {
-    round: "px-2 py-1 rounded-[14px] text-xs",
+    round: "px-[12px] py-[4px] rounded-[7px] text-[14px]",
     pill: "px-2 py-1 rounded-full border-2 border-gray-300 text-xs",
   };
 
