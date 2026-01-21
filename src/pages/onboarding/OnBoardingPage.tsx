@@ -38,6 +38,15 @@ export default function OnBoardingPage() {
     setShowAgreement(true);
   };
 
+  // 로그인 상태 확인
+  useEffect(() => {
+    const token = localStorage.getItem("accessToken");
+    if (token) {
+      // 이미 로그인된 경우 권한 단계로 이동
+      setStep("permission");
+    }
+  }, []);
+
   useEffect(() => {
     fetchOnboardingConfig().then(setConfig);
   }, []);
@@ -49,18 +58,8 @@ export default function OnBoardingPage() {
       {/* Splash */}
       {step === "splash" && <SplashStep onNext={() => setStep("login")} />}
 
-      {/* 🔥 Login은 agreement 중에도 계속 유지 */}
-      {step === "login" && (
-        <LoginStep
-          onLoginSuccess={(user) => {
-            if (user.age < config.minAge) {
-              setShowAgeLimit(true);
-            } else {
-              setShowAgreement(true);
-            }
-          }}
-        />
-      )}
+      {/* Login 단계 */}
+      {step === "login" && <LoginStep />}
 
       {/* 🔥 Agreement는 overlay */}
       {showAgreement && (
