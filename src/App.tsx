@@ -67,7 +67,7 @@ const router = createBrowserRouter([
         path: "my/edit/character",
         element: <CharacterEditPage />,
       },
-      { 
+      {
         path: "my/edit/ideal",
         element: <IdealEditPage />,
       },
@@ -78,7 +78,7 @@ const router = createBrowserRouter([
       {
         path: "my/edit/ideal-record",
         element: <IdealRecordPage />,
-      }
+      },
     ],
   },
 

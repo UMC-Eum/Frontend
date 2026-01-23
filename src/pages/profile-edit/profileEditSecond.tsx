@@ -1,3 +1,4 @@
+//버셀 오류 수정
 import BackButton from "../../components/BackButton";
 import { useUserStore } from "../../stores/useUserStore";
 import camera_btn from "../../assets/camera_btn.png";
