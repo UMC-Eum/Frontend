@@ -3,6 +3,10 @@ import { Outlet } from "react-router-dom";
 import pinkrectangle from "../assets/pink_rectangle.svg";
 import { useUserStore } from "../stores/useUserStore";
 import { useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { fetchAllMatchResults } from "../mock/mockFetch";
+import Card from "../components/Card";
+
 type ActivePerson = {
   id: number;
   name: string;
@@ -12,6 +16,11 @@ type ActivePerson = {
 };
 
 export default function HomePage() {
+  const { data } = useQuery({
+    queryKey: ["matchResults"],
+    queryFn: fetchAllMatchResults,
+  });
+
   const user = useUserStore((state) => state.user);
   const userNickname = user?.nickname ?? "회원";
   const navigate = useNavigate();
@@ -120,7 +129,26 @@ export default function HomePage() {
                       루씨님이 말한 이상형으로 찾아봤어요!
                     </p>
                   </div>
-                  <div className="bg-gray-400 h-[543px] rounded-2xl"></div>
+                  <div className="rounded-2xl">
+                    <div className="flex overflow-x-auto snap-x snap-mandatory scroll-smooth [-webkit-overflow-scrolling:touch] no-scrollbar">
+                      {data &&
+                        data.map((user) => (
+                          <div
+                            key={user.id}
+                            className="snap-center shrink-0 w-full pr-[12px] last:pr-0"
+                          >
+                            <Card
+                              name={user.name}
+                              age={user.age}
+                              imageUrl={user.imageUrl}
+                              distance={user.distance}
+                              description={user.description}
+                              keywords={user.keywords}
+                            />
+                          </div>
+                        ))}
+                    </div>
+                  </div>
                 </section>
               </div>
             ) : (
@@ -138,7 +166,7 @@ export default function HomePage() {
                     </div>
                     <button
                       type="button"
-                      onClick={()=>navigate('/matching')}
+                      onClick={() => navigate("/matching")}
                       className="shrink-0 rounded-full bg-white text-[13px] text-[#FC3367] font-semibold h-[26px] w-[79px]"
                     >
                       바로가기
@@ -154,7 +182,27 @@ export default function HomePage() {
                       나와 가까운 동네 사람들로 추천해 드려요
                     </p>
                   </div>
-                  <div className="bg-gray-400 h-[453px] rounded-2xl"></div>
+
+                  <div className="rounded-2xl">
+                    <div className="flex overflow-x-auto snap-x snap-mandatory scroll-smooth [-webkit-overflow-scrolling:touch] no-scrollbar">
+                      {data &&
+                        data.map((user) => (
+                          <div
+                            key={user.id}
+                            className="snap-center shrink-0 w-full pr-[12px] last:pr-0"
+                          >
+                            <Card
+                              name={user.name}
+                              age={user.age}
+                              imageUrl={user.imageUrl}
+                              distance={user.distance}
+                              description={user.description}
+                              keywords={user.keywords}
+                            />
+                          </div>
+                        ))}
+                    </div>
+                  </div>
                 </section>
               </div>
             )}
