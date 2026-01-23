@@ -4,8 +4,6 @@ import { ApiSuccessResponse } from "../../types/api/api";
 import {
   IPresignRequest,
   IPresignResponse,
-  IAnalyzeRequest,
-  IAnalyzeResponse,
   IProfileRequest,
   IProfileResponse,
   IRecommendationsResponse,
@@ -15,7 +13,7 @@ import {
 export const postPresign = async (body: IPresignRequest) => {
   const { data } = await api.post<ApiSuccessResponse<IPresignResponse>>(
     "/v1/files/presign",
-    body
+    body,
   );
 
   return data.success.data;
@@ -30,21 +28,11 @@ export const uploadFileToS3 = async (uploadUrl: string, file: File) => {
   });
 };
 
-// v1/onboarding/voice-profile/analyze (POST)
-export const postAnalyze = async (body: IAnalyzeRequest) => {
-  const { data } = await api.post<ApiSuccessResponse<IAnalyzeResponse>>(
-    "/v1/onboarding/voice-profile/analyze",
-    body
-  );
-
-  return data.success.data;
-};
-
 // v1/onboarding/profile (POST)
 export const postProfile = async (body: IProfileRequest) => {
   const { data } = await api.post<ApiSuccessResponse<IProfileResponse>>(
     "/v1/onboarding/profile",
-    body
+    body,
   );
 
   return data.success.data;
@@ -52,7 +40,7 @@ export const postProfile = async (body: IProfileRequest) => {
 //v1/matches/recommendation(get)
 export const getRecommendations = async () => {
   const { data } = await api.get<ApiSuccessResponse<IRecommendationsResponse>>(
-    "/v1/matches/recommendations"
+    "/v1/matches/recommendations",
   );
 
   return data.success.data;
