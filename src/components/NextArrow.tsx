@@ -1,12 +1,12 @@
 import { useNavigate } from "react-router-dom";
 
 type NextArrowProps = {
-  title? : string
-  textclass? : string
+  title?: string;
+  textClassName?: string;
   navigateTo : string
 }
 
-const NextArrow = ({ title, textclass, navigateTo }: NextArrowProps) => {
+const NextArrow = ({ title, textClassName, navigateTo }: NextArrowProps) => {
   const navigate = useNavigate();
   return (
     <div className="w-full h-[45px] flex gap-[20px] px-[20px] py-[8px] items-center">
@@ -21,14 +21,18 @@ const NextArrow = ({ title, textclass, navigateTo }: NextArrowProps) => {
           <path
             d="M1 1L8 8L1 15"
             stroke="#A6AFB6"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
           />
         </svg>
       </button>
 
-      {title && <span className={textclass}>{title}</span>}
+      {title && (
+        <span className={textClassName}>
+          {title}
+        </span>
+      )}
     </div>
   );
 };
