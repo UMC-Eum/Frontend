@@ -10,17 +10,19 @@ import ResultPage from "./pages/ResultPage";
 import HomePage from "./pages/HomePage";
 import ProfileSetupMain from "./pages/profile-setup/ProfileSetupMain";
 import ProfileEditMain from "./pages/profile-edit/ProfileEditMain";
+import ChatListPage from "./pages/chat/ChatListPage";
+import ChatRoomPage from "./pages/chat/ChatRoomPage";
 import ProfileEditSecond from "./pages/profile-edit/ProfileEditSecond";
 import HobbyEditPage from "./pages/profile-edit/HobbyEditPage";
 import CharacterEditPage from "./pages/profile-edit/CharacterEditPage";
 import IdealEditPage from "./pages/profile-edit/IdealEditPage";
 import CharacterRecordPage from "./pages/profile-edit/CharacterRecordPage";
 import IdealRecordPage from "./pages/profile-edit/IdealRecordPage";
-import ProfileRecommendPage from "./pages/ProfileRecommendPage";
 
 import LoginStep from "./pages/onboarding/steps/LoginStep";
 import OAuthCallbackPage from "./pages/OAuthCallbackPage";
 
+import ProfileRecommendPage from "./pages/ProfileRecommendPage";
 const router = createBrowserRouter([
   {
     path: "/",
@@ -99,6 +101,19 @@ const router = createBrowserRouter([
       },
     ],
   },
+  {
+    path: "/message",
+    children: [
+      {
+        index: true, 
+        element: <ChatListPage />, // url: /chats
+      },
+      {
+        path: "room/:roomId", 
+        element: <ChatRoomPage />, // url: /message/room/{숫자}
+      }
+    ]
+  }
 ]);
 
 const App = () => {
