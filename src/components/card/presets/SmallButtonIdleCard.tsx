@@ -9,6 +9,13 @@ import { LikeAction } from "../actions/LikeAction";
 import CloseAction from "../actions/CloseAction";
 import { Keyword } from "../../keyword/keyword.model";
 
+<<<<<<< Updated upstream
+=======
+// ✅ 훅 불러오기 (경로가 맞는지 확인해주세요)
+import {UseMoveToChat} from "../../../hooks/UseMoveToChat"; // 파일명 대소문자 주의
+import { useLike } from "../../../hooks/UseLike";
+
+>>>>>>> Stashed changes
 type SmallButtonIdleCardProps = {
   imageUrl: string;
   name: string;

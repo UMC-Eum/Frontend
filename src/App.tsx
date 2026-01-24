@@ -25,6 +25,7 @@ import LoginStep from "./pages/onboarding/steps/LoginStep";
 import OAuthCallbackPage from "./pages/OAuthCallbackPage";
 
 import ProfileRecommendPage from "./pages/ProfileRecommendPage";
+import CardTestPage from "./pages/CardTestPage";
 const router = createBrowserRouter([
   // 1. 메인 레이아웃을 쓰는 페이지들
   {
@@ -120,6 +121,10 @@ const router = createBrowserRouter([
         element: <ChatRoomPage />, // url: /message/room/{숫자}
       }
     ]
+  },
+  {
+    path: "/cardtest",
+    element: <CardTestPage />,
   }
 ]);
 
