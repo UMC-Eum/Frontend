@@ -1,10 +1,12 @@
 import { useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
+import { useUserStore } from "../stores/useUserStore";
 
 export default function OAuthCallbackPage() {
   const navigate = useNavigate();
   const hasRequested = useRef(false);
+  const { setIsLoggedIn } = useUserStore();
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -26,7 +28,6 @@ export default function OAuthCallbackPage() {
         .then((res) => {
           console.log("🎉 로그인 성공!", res.data);
 
-          // 👇 [수정됨] 경로를 정확하게 잡았습니다! (success.data 안에서 꺼냄)
           // 안전하게 꺼내기 위해 옵셔널 체이닝(?.) 사용
           const loginData = res.data?.success?.data;
           const accessToken = loginData?.accessToken;
@@ -37,7 +38,11 @@ export default function OAuthCallbackPage() {
             localStorage.setItem("accessToken", accessToken);
             console.log("✅ 토큰 저장 완료:", accessToken);
 
-            // 2. 페이지 이동 로직 (온보딩 필요하면 거기로 감)
+            // 2. 로그인 상태 설정
+            setIsLoggedIn(true);
+            console.log("✅ 로그인 상태 업데이트 완료");
+
+            // 3. 페이지 이동 로직 (온보딩 필요하면 거기로 감)
             if (needsOnboarding) {
               navigate("/onboarding"); // 온보딩 페이지 경로가 맞는지 확인하세요!
             } else {
@@ -54,7 +59,7 @@ export default function OAuthCallbackPage() {
           navigate("/login");
         });
     }
-  }, [navigate]);
+  }, [navigate, setIsLoggedIn]);
 
   return <div>로그인 처리 중입니다...</div>;
 }

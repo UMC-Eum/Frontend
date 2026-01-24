@@ -23,8 +23,7 @@ export const useMicRecording = (onRecordingComplete: (file: File) => void) => {
     return () => clearInterval(interval);
   }, [status]);
 
-  // 녹음 시작
-  const startRecording = () => {
+  const startRecording = useCallback(() => {
     if (!stream) {
       alert("마이크가 연결되지 않았습니다. 권한을 확인해주세요!");
       return;
@@ -32,7 +31,6 @@ export const useMicRecording = (onRecordingComplete: (file: File) => void) => {
 
     try {
       const mediaRecorder = new MediaRecorder(stream);
-
       mediaRecorderRef.current = mediaRecorder;
       chunksRef.current = [];
 
@@ -47,7 +45,6 @@ export const useMicRecording = (onRecordingComplete: (file: File) => void) => {
         const file = new File([blob], "voice_record.webm", {
           type: "audio/webm",
         });
-
         onRecordingComplete(file);
       };
 
@@ -58,19 +55,21 @@ export const useMicRecording = (onRecordingComplete: (file: File) => void) => {
     } catch (err) {
       console.error("녹음 시작 실패:", err);
     }
-  };
+  }, [stream, onRecordingComplete]);
 
-  // 녹음 종료
-  const stopRecording = () => {
+  const stopRecording = useCallback(() => {
     if (mediaRecorderRef.current && status === "recording") {
       if (seconds < 10) {
         setIsShort(true);
+        setTimeout(() => {
+          setIsShort(false);
+        }, 2000);
         return;
       }
       setStatus("loading");
       mediaRecorderRef.current.stop();
     }
-  };
+  }, [status, seconds]);
 
   const handleMicClick = useCallback(() => {
     if (status === "inactive") {
@@ -78,7 +77,7 @@ export const useMicRecording = (onRecordingComplete: (file: File) => void) => {
     } else if (status === "recording") {
       stopRecording();
     }
-  }, [status, seconds, stream]); // stream 의존성 추가
+  }, [status, startRecording, stopRecording]);
 
   const resetStatus = useCallback(() => {
     setStatus("inactive");
