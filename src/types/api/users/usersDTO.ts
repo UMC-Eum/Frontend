@@ -4,6 +4,6 @@ export interface IPatchUserProfileRequest {
   introText: string;
 }
 
-export interface IUpdateInterestKeywordsRequest {
+export interface IKeywordsRequest {
   interestKeywordIds: number[];
 }

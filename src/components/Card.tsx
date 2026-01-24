@@ -84,7 +84,7 @@ export default function Card({
                 keyword={keyword}
                 isTransparent={true}
               />
-            )
+            ),
           )}
         </div>
 

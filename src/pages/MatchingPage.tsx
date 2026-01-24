@@ -18,7 +18,7 @@ const MatchingPage = () => {
   // 1. API 요청 설정 (Mutation)
   // 녹음 파일이 생기면 이 함수(analyze)를 실행해서 서버로 보냅니다.
   const { mutate: analyze } = useMutation({
-    mutationFn: (file: File) => processVoiceAnalysis({ file, userId: 1 }), // 임시 userId
+    mutationFn: (file: File) => processVoiceAnalysis({ file }), // 임시 userId
     onSuccess: (data) => {
       console.log("분석 성공!", data);
       navigate("/matching/result", { state: { result: data } });
@@ -48,10 +48,10 @@ const MatchingPage = () => {
   return (
     <div className="relative h-full overflow-hidden">
       <BackButton />
-      <div className="h-[20px]" />
+      <div className="h-[10px]" />
 
       {/* 상단 텍스트 영역 */}
-      <div className="h-[102px] px-[20px]">
+      <div className="h-[78px] px-[20px]">
         {status === "inactive" && !isResultPage && (
           <h1 className="text-[28px] font-[700] leading-[140%] text-[#202020]">
             {nickname || "guest"}님의
@@ -74,7 +74,7 @@ const MatchingPage = () => {
         )}
         {(status === "loading" || isResultPage) && (
           <h1 className="text-[28px] font-[700] leading-[140%] text-[#202020]">
-            ~~님의
+            {nickname}님의
             <br />
             이상형을 찾는 중이에요 ...
           </h1>
@@ -82,7 +82,7 @@ const MatchingPage = () => {
       </div>
 
       {status !== "loading" && !isResultPage && (
-        <section className="text-gray-500 space-y-[12px] mt-8 px-[20px] ">
+        <section className="text-gray-500 space-y-[12px] mt-8 px-[20px]">
           <p>이렇게 말해도 좋아요!</p>
           <p>비슷한 나이대의 조용한 사람이 좋아요.</p>
           <p>술은 많이 안 마셨으면 좋겠어요.</p>

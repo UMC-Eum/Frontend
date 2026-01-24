@@ -1,72 +1,65 @@
-import { useEffect, useState } from "react"
-import { fetchOnboardingConfig } from "./api"
-import { OnboardingConfig, TermType } from "./types"
+import { useEffect, useState } from "react";
+import { fetchOnboardingConfig } from "./api";
+import { OnboardingConfig, TermType } from "./types";
+import { useNavigate } from "react-router-dom";
+import SplashStep from "./steps/SplashStep";
+import LoginStep from "./steps/LoginStep";
+import PermissionStep from "./steps/PermissionStep";
 
-import SplashStep from "./steps/SplashStep"
-import LoginStep from "./steps/LoginStep"
-import PermissionStep from "./steps/PermissionStep"
+import AgreementSheet from "./overlays/AgreementSheet";
+import AgeLimitModal from "./overlays/AgeLimitModal";
 
-import AgreementSheet from "./overlays/AgreementSheet"
-import AgeLimitModal from "./overlays/AgeLimitModal"
+import ServiceTerms from "./terms/ServiceTerms";
+import PrivacyPolicy from "./terms/PrivacyPolicy";
+import MarketingTerms from "./terms/MarketingTerms";
 
-import ServiceTerms from "./terms/ServiceTerms"
-import PrivacyPolicy from "./terms/PrivacyPolicy"
-import MarketingTerms from "./terms/MarketingTerms"
-
-type Step = "splash" | "login" | "permission"
+type Step = "splash" | "login" | "permission";
 
 export default function OnBoardingPage() {
-  const [config, setConfig] = useState<OnboardingConfig | null>(null)
+  const navigate = useNavigate();
 
-  const [step, setStep] = useState<Step>("splash")
+  const [config, setConfig] = useState<OnboardingConfig | null>(null);
 
-  const [showAgreement, setShowAgreement] = useState(false)
+  const [step, setStep] = useState<Step>("splash");
+
+  const [showAgreement, setShowAgreement] = useState(false);
 
   const [checkedTerms, setCheckedTerms] = useState<Record<TermType, boolean>>({
-  service: false,
-  privacy: false,
-  marketing: false,
-})
-  const [currentTerm, setCurrentTerm] = useState<TermType | null>(null)
+    service: false,
+    privacy: false,
+    marketing: false,
+  });
+  const [currentTerm, setCurrentTerm] = useState<TermType | null>(null);
 
-  const [showAgeLimit, setShowAgeLimit] = useState(false)
-
-  const [permissions, setPermissions] = useState<Record<string, boolean>>({
-    camera: false,
-    microphone: false,
-    notification: false,
-  })
+  const [showAgeLimit, setShowAgeLimit] = useState(false);
 
   const handleBackFromTerms = () => {
-  setCurrentTerm(null)
-  setShowAgreement(true)
-}
+    setCurrentTerm(null);
+    setShowAgreement(true);
+  };
+
+  // 로그인 상태 확인
+  useEffect(() => {
+    const token = localStorage.getItem("accessToken");
+    if (token) {
+      // 이미 로그인된 경우 권한 단계로 이동
+      setStep("permission");
+    }
+  }, []);
 
   useEffect(() => {
-    fetchOnboardingConfig().then(setConfig)
-  }, [])
+    fetchOnboardingConfig().then(setConfig);
+  }, []);
 
-  if (!config) return null
+  if (!config) return null;
 
   return (
     <>
       {/* Splash */}
-      {step === "splash" && (
-        <SplashStep onNext={() => setStep("login")} />
-      )}
+      {step === "splash" && <SplashStep onNext={() => setStep("login")} />}
 
-      {/* 🔥 Login은 agreement 중에도 계속 유지 */}
-      {step === "login" && (
-        <LoginStep
-          onLoginSuccess={(user) => {
-            if (user.age < config.minAge) {
-              setShowAgeLimit(true)
-            } else {
-              setShowAgreement(true) 
-            }
-          }}
-        />
-      )}
+      {/* Login 단계 */}
+      {step === "login" && <LoginStep />}
 
       {/* 🔥 Agreement는 overlay */}
       {showAgreement && (
@@ -80,21 +73,21 @@ export default function OnBoardingPage() {
             }))
           }
           onToggleAll={() => {
-            const next = !Object.values(checkedTerms).every(Boolean)
+            const next = !Object.values(checkedTerms).every(Boolean);
             setCheckedTerms({
               service: next,
               privacy: next,
               marketing: next,
-            })
+            });
           }}
           onOpenTerm={(type) => {
-            setShowAgreement(false)
-            setCurrentTerm(type)
+            setShowAgreement(false);
+            setCurrentTerm(type);
           }}
           onConfirm={() => {
-            setCurrentTerm(null)
-            setShowAgreement(false)
-            setStep("permission")
+            setCurrentTerm(null);
+            setShowAgreement(false);
+            setStep("permission");
           }}
         />
       )}
@@ -113,24 +106,15 @@ export default function OnBoardingPage() {
       {/* Permission */}
       {step === "permission" && (
         <PermissionStep
-          permissions={permissions}
-          onToggle={(key) =>
-            setPermissions((prev) => ({
-              ...prev,
-              [key]: !prev[key],
-            }))
-          }
           onFinish={() => {
-            console.log("권한 상태:", permissions)
-            alert("온보딩 완료")
+            console.log("온보딩 완료");
+            navigate("/home");
           }}
         />
       )}
 
       {/* Age Limit */}
-      {showAgeLimit && (
-        <AgeLimitModal onClose={() => setShowAgeLimit(false)} />
-      )}
+      {showAgeLimit && <AgeLimitModal onClose={() => setShowAgeLimit(false)} />}
     </>
-  )
+  );
 }

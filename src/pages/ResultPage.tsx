@@ -1,9 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
 import { fetchAllMatchResults } from "../mock/mockFetch";
-import Card from "../components/Card";
 import Navbar from "../components/Navbar";
 import BackButton from "../components/BackButton";
+import IdleCard from "../components/card/presets/IdleCard";
+import { useUserStore } from "../stores/useUserStore";
+
 const ResultPage = () => {
+  const nickname = useUserStore((state) => state.user?.nickname);
   const { data, isLoading, isError } = useQuery({
     queryKey: ["matchResults"],
     queryFn: fetchAllMatchResults,
@@ -24,7 +27,7 @@ const ResultPage = () => {
 
         <div className="mt-[40px]">
           <h3 className="text-[18px] font-[500] text-[#707070]">
-            ~~님의 이상형은...
+            {nickname || "guest"}님의 이상형은...
           </h3>
 
           <div className="mt-[12px] h-[96px] flex items-center bg-gray-50 rounded-[10px]">
@@ -36,12 +39,13 @@ const ResultPage = () => {
         <div className="mt-[24px] space-y-[20px]">
           {data &&
             data.map((user) => (
-              <Card
+              <IdleCard
                 key={user.id}
                 name={user.name}
                 age={user.age}
                 imageUrl={user.imageUrl}
                 distance={user.distance}
+                area={user.area}
                 description={user.description}
                 keywords={user.keywords}
               />

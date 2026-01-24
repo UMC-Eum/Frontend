@@ -2,9 +2,10 @@ import { useNavigate } from "react-router-dom";
 
 interface BackButtonProps {
   title?: string;
+  textClassName?: string;
 }
 
-const BackButton = ({ title }: BackButtonProps) => {
+const BackButton = ({ title, textClassName }: BackButtonProps) => {
   const navigate = useNavigate();
 
   const handleBack = () => {
@@ -39,7 +40,11 @@ const BackButton = ({ title }: BackButtonProps) => {
         </svg>
       </button>
 
-      {title && <span className="text-[24px] font-semibold">{title}</span>}
+      {title && (
+        <span className={`text-[24px] font-semibold ${textClassName}`}>
+          {title}
+        </span>
+      )}
     </div>
   );
 };

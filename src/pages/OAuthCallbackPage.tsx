@@ -1,0 +1,60 @@
+import { useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
+import axios from "axios";
+
+export default function OAuthCallbackPage() {
+  const navigate = useNavigate();
+  const hasRequested = useRef(false);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get("code");
+    const REDIRECT_URI = "http://localhost:5173/oauth/callback/kakao";
+
+    if (code && hasRequested.current === false) {
+      hasRequested.current = true;
+
+      const requestBody = {
+        authorizationCode: code,
+        redirectUri: REDIRECT_URI,
+      };
+
+      console.log("백엔드로 보낼 데이터:", requestBody);
+
+      axios
+        .post("http://localhost:3000/api/v1/auth/kakao/login", requestBody)
+        .then((res) => {
+          console.log("🎉 로그인 성공!", res.data);
+
+          // 👇 [수정됨] 경로를 정확하게 잡았습니다! (success.data 안에서 꺼냄)
+          // 안전하게 꺼내기 위해 옵셔널 체이닝(?.) 사용
+          const loginData = res.data?.success?.data;
+          const accessToken = loginData?.accessToken;
+          const needsOnboarding = loginData?.onboardingRequired;
+
+          if (accessToken) {
+            // 1. 토큰 저장
+            localStorage.setItem("accessToken", accessToken);
+            console.log("✅ 토큰 저장 완료:", accessToken);
+
+            // 2. 페이지 이동 로직 (온보딩 필요하면 거기로 감)
+            if (needsOnboarding) {
+              navigate("/onboarding"); // 온보딩 페이지 경로가 맞는지 확인하세요!
+            } else {
+              navigate("/");
+            }
+          } else {
+            console.error("🚨 토큰이 응답에 없습니다!");
+            navigate("/login");
+          }
+        })
+        .catch((err) => {
+          console.error("😭 로그인 실패 원인:", err.response?.data || err);
+          alert("로그인 실패! 관리자에게 문의하세요.");
+          navigate("/login");
+        });
+    }
+  }, [navigate]);
+
+  return <div>로그인 처리 중입니다...</div>;
+}
