@@ -27,6 +27,7 @@ interface UserActions {
   updateUser: (fields: Partial<IUserProfileExtend>) => void;
   updateArea: (area: IUserArea) => void;
   clearUser: () => void;
+  setIsLoggedIn: (isLoggedIn: boolean) => void;
 
   //동작도 추가했습니다.
   updateIdealKeywords: (keywords: string[]) => void;
@@ -77,13 +78,18 @@ export const useUserStore = create<UserState & UserActions>()(
             state.user = null;
             state.isLoggedIn = false;
           }),
+
+        setIsLoggedIn: (isLoggedIn) =>
+          set((state) => {
+            state.isLoggedIn = isLoggedIn;
+          }),
       })),
       {
         name: "user-storage",
-      }
+      },
     ),
     {
       name: "UserStore",
-    }
-  )
+    },
+  ),
 );
