@@ -126,6 +126,10 @@ const router = createBrowserRouter([
     path: "/cardtest",
     element: <CardTestPage />,
   }
+  ,{
+    path: "/cardtest",
+    element: <CardTestPage />,
+  }
 ]);
 
 const App = () => {
