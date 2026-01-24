@@ -19,12 +19,12 @@ import CharacterEditPage from "./pages/profile-edit/CharacterEditPage";
 import IdealEditPage from "./pages/profile-edit/IdealEditPage";
 import CharacterRecordPage from "./pages/profile-edit/CharacterRecordPage";
 import IdealRecordPage from "./pages/profile-edit/IdealRecordPage";
-import ProfileRecommendPage from "./pages/ProfileRecommendPage";
 
 // ⭐ [필수] 로그인 관련 페이지 2개 import
 import LoginStep from "./pages/onboarding/steps/LoginStep";
 import OAuthCallbackPage from "./pages/OAuthCallbackPage";
 
+import ProfileRecommendPage from "./pages/ProfileRecommendPage";
 const router = createBrowserRouter([
   // 1. 메인 레이아웃을 쓰는 페이지들
   {
