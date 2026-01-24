@@ -2,14 +2,14 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 // API 함수들 (경로는 본인 프로젝트에 맞게 유지하세요)
-import { 
-  getAgreements, 
-  updateMarketingAgreements 
-} from "../../api/agreements";
+import {
+  getAgreements,
+  updateMarketingAgreements
+} from "../../api/agreements/agreementsApi";
 
 // 타입 불러오기
-import type { 
-  IAgreements 
+import type {
+  IAgreements
 } from "../../types/api/agreements/agreementsDTO";
 
 import { TermType } from "./types";
@@ -39,7 +39,6 @@ export default function OnBoardingPage() {
 
   // 서버(혹은 가짜) 데이터를 저장할 state
   const [serverAgreements, setServerAgreements] = useState<IAgreements[]>([]);
-  
   const [step, setStep] = useState<Step>("splash");
   const [showAgreement, setShowAgreement] = useState(false);
 
@@ -48,7 +47,6 @@ export default function OnBoardingPage() {
     privacy: false,
     marketing: false,
   });
-  
   const [currentTerm, setCurrentTerm] = useState<TermType | null>(null);
   const [showAgeLimit, setShowAgeLimit] = useState(false);
 
@@ -76,7 +74,6 @@ export default function OnBoardingPage() {
     const loadAgreements = async () => {
       try {
         const items = await getAgreements();
-        
         // 서버 데이터가 있으면 사용
         if (items && items.length > 0) {
           console.log("✅ 서버 약관 데이터 로드 성공:", items);
@@ -164,7 +161,7 @@ export default function OnBoardingPage() {
             setShowAgreement(false);
             setCurrentTerm(type);
           }}
-          onConfirm={handleAgreementConfirm} 
+          onConfirm={handleAgreementConfirm}
         />
       )}
 
