@@ -8,6 +8,8 @@ interface RecordingControlProps {
   isShort: boolean;
   isResultPage: boolean;
   onMicClick: () => void;
+  className?: string;
+  isChat?: boolean; 
 }
 
 const RecordingControl = ({
@@ -16,6 +18,8 @@ const RecordingControl = ({
   isShort,
   isResultPage,
   onMicClick,
+  // 👇 부모에서 className을 주면 이 기본값(bottom-[40px])은 무시됩니다.
+  className = "bottom-[40px] absolute flex flex-col items-center"
 }: RecordingControlProps) => {
   const formatTime = (sec: number) => {
     const m = Math.floor(sec / 60)
@@ -24,8 +28,11 @@ const RecordingControl = ({
     const s = (sec % 60).toString().padStart(2, "0");
     return `${m}:${s}`;
   };
+
   return (
-    <div className="absolute left-1/2 bottom-[40px] -translate-x-1/2 flex flex-col items-center gap-[12px]">
+    // left-1/2 같은 공통 위치 속성은 남겨두고, className을 뒤에 붙입니다.
+    <div className={`left-1/2 -translate-x-1/2 gap-[12px] z-50 ${className}`}>
+      
       {/* 1. 짧음 알림 메시지 */}
       {isShort && (
         <div className="flex w-[232px] h-[36px] bg-pink-100 items-center justify-center rounded-[7px]">

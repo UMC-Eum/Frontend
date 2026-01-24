@@ -21,3 +21,20 @@ body {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+/* 1. 키프레임 정의 (동작) */
+@keyframes slideUp {
+  from {
+    transform: translateY(100%); /* 화면 아래쪽 100% 위치에서 시작 */
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);    /* 제자리로 이동 */
+    opacity: 1;
+  }
+}
+
+/* 2. 클래스 생성 (이름표) */
+.animate-slide-up {
+  animation: slideUp 0.5s ease-out forwards;
+}
