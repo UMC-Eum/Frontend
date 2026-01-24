@@ -2,12 +2,15 @@ import TermsLayout from "./TermsLayout"
 
 export default function MarketingTerms({
   onBack,
+  content // props로 받음
 }: {
-  onBack: () => void
+  onBack: () => void;
+  content?: string;
 }) {
   return (
-    <TermsLayout title="마케팅 정보 수신" onBack={onBack}>
-      마케팅 정보 수신 약관 내용
+    <TermsLayout title="개인정보처리방침" onBack={onBack}>
+      {/* HTML 문자열인 경우 dangerouslySetInnerHTML 사용 고려 */}
+      <div className="whitespace-pre-wrap">{content}</div>
     </TermsLayout>
   )
 }
