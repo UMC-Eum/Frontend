@@ -9,9 +9,7 @@ import { useUserStore } from "../stores/useUserStore";
 import BackButton from "../components/BackButton";
 const MatchingPage = () => {
   const nickname = useUserStore((state) => state.user?.nickname);
-  const updateIdealKeywords = useUserStore(
-    (state) => state.updateIdealKeywords,
-  );
+  const updateIdealPersonalities = useUserStore((state) => state.updateUser);
   const navigate = useNavigate();
   const location = useLocation();
   const scrollRef = useRef<HTMLDivElement | null>(null);
@@ -35,7 +33,7 @@ const MatchingPage = () => {
       }
 
       // Zustand 업데이트 및 페이지 이동
-      updateIdealKeywords(keywords);
+      updateIdealPersonalities({ idealPersonalities: keywords });
       navigate("/matching/result", { state: { result: data } });
     },
     onError: (error) => {

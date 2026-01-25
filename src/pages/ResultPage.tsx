@@ -7,7 +7,9 @@ import { useUserStore } from "../stores/useUserStore";
 
 const ResultPage = () => {
   const nickname = useUserStore((state) => state.user?.nickname);
-  const idealKeywords = useUserStore((state) => state.idealKeywords);
+  const idealPersonalities = useUserStore(
+    (state) => state.user?.idealPersonalities,
+  );
   const { data, isLoading, isError } = useQuery({
     queryKey: ["matchResults"],
     queryFn: fetchAllMatchResults,
@@ -32,13 +34,13 @@ const ResultPage = () => {
           </h3>
 
           <div className="mt-[12px] flex flex-wrap items-start gap-[10px]">
-            {idealKeywords && idealKeywords.length > 0 ? (
-              idealKeywords.map((keyword, index) => (
+            {idealPersonalities && idealPersonalities.length > 0 ? (
+              idealPersonalities.map((personality, index) => (
                 <span
                   key={index}
                   className="inline-block h-[38px] bg-[#FFECF1] border border-[#FC3367] text-pink-700 px-[16px] py-[4px] rounded-[7px] text-[16px]"
                 >
-                  {keyword}
+                  {personality}
                 </span>
               ))
             ) : (
