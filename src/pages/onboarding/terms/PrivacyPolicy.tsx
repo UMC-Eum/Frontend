@@ -1,13 +1,9 @@
-import TermsLayout from "./TermsLayout"
+import TermsLayout from "./TermsLayout";
 
-export default function PrivacyPolicy({
-  onBack,
-}: {
-  onBack: () => void
-}) {
+export default function PrivacyPolicy({ onBack, content }: { onBack: () => void; content?: string; }) {
   return (
-    <TermsLayout title="개인정보처리방침" onBack={onBack}>
-      개인정보처리방침 내용
+    <TermsLayout title="개인정보 처리방침" onBack={onBack}>
+      <div className="whitespace-pre-wrap text-[#636970]">{content}</div>
     </TermsLayout>
-  )
+  );
 }

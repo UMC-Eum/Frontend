@@ -1,16 +1,9 @@
-import TermsLayout from "./TermsLayout"
+import TermsLayout from "./TermsLayout";
 
-export default function ServiceTerms({
-  onBack,
-  content // props로 받음
-}: {
-  onBack: () => void;
-  content?: string;
-}) {
+export default function ServiceTerms({ onBack, content }: { onBack: () => void; content?: string; }) {
   return (
-    <TermsLayout title="개인정보처리방침" onBack={onBack}>
-      {/* HTML 문자열인 경우 dangerouslySetInnerHTML 사용 고려 */}
-      <div className="whitespace-pre-wrap">{content}</div>
+    <TermsLayout title="서비스 이용약관" onBack={onBack}>
+      <div className="whitespace-pre-wrap text-[#636970]">{content}</div>
     </TermsLayout>
-  )
+  );
 }

@@ -2,7 +2,7 @@ import api from "../axiosInstance";
 import { ApiSuccessResponse } from "../../types/api/api";
 import * as DTO from "../../types/api/socials/socialsDTO";
 // 마음 보내기 (POST)
-export const sendHeart = async (body: DTO.IHeartsRequest) => {
+export const sendHeart = async (body: DTO.IHeartsRequest):Promise<DTO.IHeartsResponse> => {
   const { data } = await api.post<ApiSuccessResponse<DTO.IHeartsResponse>>(
     "/hearts",
     body

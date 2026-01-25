@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
-import { MessageType } from "../../types/api/chats/chatsDTO";
+// MessageType 경로는 본인 프로젝트에 맞게 확인해주세요
+import { MessageType } from "../../types/api/chats/chatsDTO"; 
 
 interface MessageBubbleProps {
   isMe: boolean;
@@ -11,28 +12,35 @@ interface MessageBubbleProps {
   readAt: string | null;      
   isPlayingProp: boolean;    
   onPlay: () => void;
+  // 👇 [추가] 삭제 함수 (내가 보낸 메시지일 때만 함수가 들어옴)
+  onDelete?: () => void;
 }
 
-export function MessageBubble({ isMe, type, content, audioUrl, duration, timestamp, readAt, isPlayingProp, onPlay }: MessageBubbleProps) {
+export function MessageBubble({ 
+  isMe, 
+  type, 
+  content, 
+  audioUrl, 
+  duration, 
+  timestamp, 
+  readAt, 
+  isPlayingProp, 
+  onPlay, 
+  onDelete 
+}: MessageBubbleProps) {
+  
   const audioRef = useRef<HTMLAudioElement>(null);
 
-  // ✅ [핵심] 부모가 준 신호(isPlayingProp)에 따라 오디오를 켜고 끕니다.
   useEffect(() => {
     if (!audioRef.current) return;
-
     if (isPlayingProp) {
-      // 부모가 "너 재생해!"(true) 라고 하면 재생
-      audioRef.current.play().catch(() => {
-        // (가끔 브라우저 정책상 자동재생 막힐 때 예외처리 - 필수는 아님)
-      });
+      audioRef.current.play().catch(() => {});
     } else {
-      // 부모가 "너 꺼져!"(false) 라고 하면 정지 및 되감기
       audioRef.current.pause();
       audioRef.current.currentTime = 0; 
     }
   }, [isPlayingProp]);
 
-  // ✅ 버튼을 누르면 직접 재생하지 않고 "부모님, 저 눌렸어요!"라고 보고만 함
   const handlePlayClick = () => {
     onPlay(); 
   };
@@ -40,7 +48,7 @@ export function MessageBubble({ isMe, type, content, audioUrl, duration, timesta
   return (
     <div className={`flex items-end gap-1 mb-4 ${isMe ? "flex-row-reverse" : "flex-row"}`}>
       
-      {/* 텍스트 메시지 */}
+      {/* 1. 텍스트 메시지 */}
       {type === "TEXT" && content && (
         <div className={`px-4 py-2 rounded-[14px] max-w-[75%] text-[15px] leading-relaxed break-words
             ${isMe ? "bg-[#FC3367] text-white" : "bg-[#E9ECED] text-gray-900"}`}>
@@ -48,29 +56,25 @@ export function MessageBubble({ isMe, type, content, audioUrl, duration, timesta
         </div>
       )}
 
-      {/* 오디오 메시지 */}
+      {/* 2. 오디오 메시지 */}
       {type === "AUDIO" && audioUrl && (
         <div className={`flex items-center gap-3 px-4 py-2 rounded-[14px] min-w-[180px]
             ${isMe ? "bg-[#FC3367] text-white" : "bg-[#E9ECED] text-gray-900"}`}>
           
-          {/* onEnded: 재생 끝나면 onPlay를 호출 -> 부모가 토글해서 멈춤 상태로 만듦 */}
           <audio ref={audioRef} src={audioUrl} onEnded={onPlay} className="hidden" />
           
           <button onClick={handlePlayClick} className="shrink-0">
             <div className={`w-8 h-8 rounded-full flex items-center justify-center 
               ${isMe ? "bg-white/20 text-white" : "bg-gray-100 text-[#FC3367]"}`}>
-              {/* 내 상태(isPlayingProp)에 따라 아이콘 변경 */}
               {isPlayingProp ? <span>❚❚</span> : <span>▶</span>}
             </div>
           </button>
           
-          {/* 오디오 파형 눈속임 */}
           <div className="flex items-center gap-[2px] h-4 flex-1 opacity-80">
             {[...Array(12)].map((_, i) => (
               <div key={i} className={`w-[2px] rounded-full ${isMe ? "bg-white" : "bg-gray-400"}`}
                 style={{ 
                   height: `${Math.random() * 60 + 40}%`, 
-                  // 내 상태(isPlayingProp)에 따라 애니메이션 작동
                   animation: isPlayingProp ? "pulse 0.5s infinite" : "none" 
                 }} />
             ))}
@@ -81,10 +85,10 @@ export function MessageBubble({ isMe, type, content, audioUrl, duration, timesta
         </div>
       )}
 
-      {/* 읽음 처리와 타임스탬프 */}
+      {/* 3. 읽음 / 시간 / 삭제버튼 영역 */}
       <div className={`flex flex-col justify-end gap-0.5 ${isMe ? "items-end" : "items-start"}`}>
         
-        {/* 읽음/안읽음 표시 */}
+        {/* 읽음 표시 (내 메시지일 때만) */}
         {isMe && (
           <span className="text-[12px] font-medium leading-none">
             {readAt ? (
@@ -95,10 +99,23 @@ export function MessageBubble({ isMe, type, content, audioUrl, duration, timesta
           </span>
         )}
 
-        {/* 시간 */}
+        {/* 시간 표시 */}
         <span className="text-[12px] text-[#A6AFB6] whitespace-nowrap leading-none pb-[2px]">
           {timestamp}
         </span>
+
+        {/* 👇 [추가] 삭제 버튼 (isMe이고 onDelete 함수가 있을 때만 표시) */}
+        {isMe && onDelete && (
+          <button 
+            onClick={(e) => {
+              e.stopPropagation(); // 버블 클릭 등 다른 이벤트 방지
+              onDelete();
+            }}
+            className="text-[11px] text-gray-400 underline mt-1 hover:text-red-500"
+          >
+            삭제
+          </button>
+        )}
       </div>
     </div>
   );
