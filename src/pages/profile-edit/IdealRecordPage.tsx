@@ -17,7 +17,7 @@ export default function IdealRecordPage() {
   const [isKeywordPage, setIsKeywordPage] = useState(false);
 
   // ✅ 스토어에서 유저 정보와 업데이트 함수 가져오기
-  const { user, updateUser, updateIdealKeywords } = useUserStore();
+  const { user, updateUser } = useUserStore();
 
   // ✅ 닉네임 가져오기 (없으면 기본값 '회원')
   const name = user?.nickname || "회원";
@@ -38,7 +38,7 @@ export default function IdealRecordPage() {
         introAudioUrl: mockResult.record,
       });
 
-      updateIdealKeywords(mockResult.keywords);
+      updateUser({ idealPersonalities: mockResult.keywords });
 
       setIsKeywordPage(true);
     },
@@ -220,17 +220,17 @@ function Whenloading({ name, RecordingControl }: WhenloadingProps) {
 function IdealEditPage() {
   const MAX_SELECT = 5;
   const navigate = useNavigate();
-  const { idealKeywords, updateIdealKeywords } = useUserStore();
+  const { user, updateUser } = useUserStore();
 
   const [selectedIds, setSelectedIds] = useState<number[]>(() => {
-    if (!idealKeywords) return [];
+    if (!user?.idealPersonalities) return [];
 
     // 현재 유저의 키워드 라벨들과 일치하는 ID들을 찾아 초기값으로 설정
     return KEYWORDS.filter(
       (k) =>
         ["character", "value", "lifestyle", "expression"].includes(
           k.category,
-        ) && idealKeywords.includes(k.label),
+        ) && user?.idealPersonalities.includes(k.label),
     ).map((k) => k.id);
   });
 
@@ -243,7 +243,7 @@ function IdealEditPage() {
       .map((id) => KEYWORDS.find((k) => k.id === id)?.label)
       .filter((label): label is string => !!label);
 
-    updateIdealKeywords([...selectedLabels]);
+    updateUser({ idealPersonalities: [...selectedLabels] });
     navigate("/my/edit/");
   };
 

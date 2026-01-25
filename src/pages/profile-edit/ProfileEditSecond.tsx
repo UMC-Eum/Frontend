@@ -14,7 +14,7 @@ import NextArrow from "../../components/NextArrow";
 import { useNavigate } from "react-router-dom";
 
 const ProfileEditSecond = () => {
-  const { idealKeywords, user } = useUserStore();
+  const { user } = useUserStore();
 
   const [isImageModalOpen, setIsImageModalOpen] = useState(false); // 프로필 변경 모달창
   const [isIntroModalOpen, setIsIntroModalOpen] = useState(false); // 나의 소개 모달창
@@ -145,7 +145,7 @@ const ProfileEditSecond = () => {
           <NextArrow navigateTo="./ideal" />
         </div>
         <div className="m-5 flex flex-wrap gap-2">
-          {idealKeywords.map((item, index) => {
+          {user?.idealPersonalities.map((item, index) => {
             // 문제 터지면 keyword 타입 리팩토링을 재고
             const matchedKeyword = KEYWORDS.find(
               (k) =>
@@ -167,7 +167,7 @@ const ProfileEditSecond = () => {
             );
           })}
         </div>
-        {idealKeywords.length === 0 && (
+        {user?.idealPersonalities.length === 0 && (
           <div className="mx-5 p-3 flex items-center justify-between rounded-xl bg-gradient-to-r from-[#FEC4D1] to-[#FFF0E5]">
             <span className="">
               지금 바로 <span className="text-[#FF3D77]">이상형 등록</span>하고{" "}
@@ -181,7 +181,7 @@ const ProfileEditSecond = () => {
             </button>
           </div>
         )}
-        {idealKeywords.length !== 0 && (
+        {user?.idealPersonalities.length !== 0 && (
           <div className="flex items-center justify-center">
             <button
               onClick={() => navigate("./ideal-record")}

@@ -8,17 +8,17 @@ import { useNavigate } from "react-router-dom";
 export default function IdealEditPage() {
   const MAX_SELECT = 5;
   const navigate = useNavigate();
-  const { idealKeywords, updateIdealKeywords } = useUserStore();
+  const { updateUser, user } = useUserStore();
 
   const [selectedIds, setSelectedIds] = useState<number[]>(() => {
-    if (!idealKeywords) return [];
+    if (!user?.idealPersonalities) return [];
 
     // 현재 유저의 키워드 라벨들과 일치하는 ID들을 찾아 초기값으로 설정
     return KEYWORDS.filter(
       (k) =>
         ["character", "value", "lifestyle", "expression"].includes(
           k.category,
-        ) && idealKeywords.includes(k.label),
+        ) && user?.idealPersonalities.includes(k.label),
     ).map((k) => k.id);
   });
 
@@ -31,7 +31,7 @@ export default function IdealEditPage() {
       .map((id) => KEYWORDS.find((k) => k.id === id)?.label)
       .filter((label): label is string => !!label);
 
-    updateIdealKeywords([...selectedLabels]);
+    updateUser({ idealPersonalities: [...selectedLabels] });
     navigate("/my/edit/");
   };
 
