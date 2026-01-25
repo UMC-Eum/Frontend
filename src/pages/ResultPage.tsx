@@ -7,6 +7,7 @@ import { useUserStore } from "../stores/useUserStore";
 
 const ResultPage = () => {
   const nickname = useUserStore((state) => state.user?.nickname);
+  const idealKeywords = useUserStore((state) => state.idealKeywords);
   const { data, isLoading, isError } = useQuery({
     queryKey: ["matchResults"],
     queryFn: fetchAllMatchResults,
@@ -30,10 +31,19 @@ const ResultPage = () => {
             {nickname || "guest"}님의 이상형은...
           </h3>
 
-          <div className="mt-[12px] h-[96px] flex items-center bg-gray-50 rounded-[10px]">
-            <span className="text-gray-400 ml-2">
-              이상형 키워드들 (h-96 영역)
-            </span>
+          <div className="mt-[12px] flex flex-wrap items-start gap-[10px]">
+            {idealKeywords && idealKeywords.length > 0 ? (
+              idealKeywords.map((keyword, index) => (
+                <span
+                  key={index}
+                  className="inline-block h-[38px] bg-[#FFECF1] border border-[#FC3367] text-pink-700 px-[16px] py-[4px] rounded-[7px] text-[16px]"
+                >
+                  {keyword}
+                </span>
+              ))
+            ) : (
+              <span className="text-gray-400">이상형 키워드가 없습니다.</span>
+            )}
           </div>
         </div>
         <div className="mt-[24px] space-y-[20px]">

@@ -11,6 +11,8 @@ const createInitialUser = (): IUserProfileExtend => ({
   area: { code: "", name: "" },
   introText: "",
   keywords: [],
+  personalities: [],
+  idealPersonalities: [],
   introAudioUrl: "",
   profileImageUrl: "",
 });

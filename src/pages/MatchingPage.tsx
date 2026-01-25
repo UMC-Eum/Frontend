@@ -7,9 +7,11 @@ import { processVoiceAnalysis } from "../service/voiceService";
 import RecordingControl from "../components/RecordingControl";
 import { useUserStore } from "../stores/useUserStore";
 import BackButton from "../components/BackButton";
-
 const MatchingPage = () => {
   const nickname = useUserStore((state) => state.user?.nickname);
+  const updateIdealKeywords = useUserStore(
+    (state) => state.updateIdealKeywords,
+  );
   const navigate = useNavigate();
   const location = useLocation();
   const scrollRef = useRef<HTMLDivElement | null>(null);
@@ -21,6 +23,19 @@ const MatchingPage = () => {
     mutationFn: (file: File) => processVoiceAnalysis({ file }), // 임시 userId
     onSuccess: (data) => {
       console.log("분석 성공!", data);
+      const keywords = data?.keywordCandidates?.map((k) => k.text) || [];
+
+      // 2. 콘솔에 예쁘게 출력
+      if (keywords.length > 0) {
+        console.log("✨ 추출된 이상형 키워드들:", keywords.join(", "));
+        // 테이블 형태로 보고 싶다면 아래 주석을 해제하세요
+        // console.table(data.keywordsCandidates);
+      } else {
+        console.log("ℹ️ 추출된 키워드가 없습니다.");
+      }
+
+      // Zustand 업데이트 및 페이지 이동
+      updateIdealKeywords(keywords);
       navigate("/matching/result", { state: { result: data } });
     },
     onError: (error) => {

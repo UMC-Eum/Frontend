@@ -10,6 +10,8 @@ export interface IUserProfile {
   area: IUserArea;
   introText: string;
   keywords: string[];
+  personalities: string[];
+  idealPersonalities: string[];
   introAudioUrl: string;
   profileImageUrl: string;
 }
