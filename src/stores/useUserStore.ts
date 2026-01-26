@@ -11,6 +11,8 @@ const createInitialUser = (): IUserProfileExtend => ({
   area: { code: "", name: "" },
   introText: "",
   keywords: [],
+  personalities: [],
+  idealPersonalities: [],
   introAudioUrl: "",
   profileImageUrl: "",
 });
@@ -18,18 +20,13 @@ const createInitialUser = (): IUserProfileExtend => ({
 interface UserState {
   user: IUserProfileExtend | null;
   isLoggedIn: boolean;
-
-  //idealKeywords는 이상형 키워드 저장공간이 따로 필요할 거 같아서 추가했씁니다.
-  idealKeywords: string[];
 }
 
 interface UserActions {
   updateUser: (fields: Partial<IUserProfileExtend>) => void;
   updateArea: (area: IUserArea) => void;
   clearUser: () => void;
-
-  //동작도 추가했습니다.
-  updateIdealKeywords: (keywords: string[]) => void;
+  setIsLoggedIn: (isLoggedIn: boolean) => void;
 }
 export const useUserStore = create<UserState & UserActions>()(
   devtools(
@@ -53,12 +50,6 @@ export const useUserStore = create<UserState & UserActions>()(
             }
           }),
 
-        //이상형 키워드 로직 구현
-        updateIdealKeywords: (keywords) =>
-          set((state) => {
-            state.idealKeywords = keywords;
-          }),
-
         updateArea: (area) =>
           set((state) => {
             if (state.user) {
@@ -77,13 +68,18 @@ export const useUserStore = create<UserState & UserActions>()(
             state.user = null;
             state.isLoggedIn = false;
           }),
+
+        setIsLoggedIn: (isLoggedIn) =>
+          set((state) => {
+            state.isLoggedIn = isLoggedIn;
+          }),
       })),
       {
         name: "user-storage",
-      }
+      },
     ),
     {
       name: "UserStore",
-    }
-  )
+    },
+  ),
 );

@@ -1,7 +1,7 @@
 import { ApiSuccessResponse } from "../../types/api/api";
 import axios from "axios";
 
-interface KeywordsCandidate {
+interface KeywordCandidate {
   text: string;
   score: number;
 }
@@ -12,7 +12,7 @@ interface IVoiceAnalyzeRequest {
 interface IVoiceAnalyzeResponse {
   transcript: string;
   summary: string;
-  keywordsCandidates: KeywordsCandidate[];
+  keywordCandidates: KeywordCandidate[];
   vibeVector: number[];
 }
 export const postVoiceAnalyze = async (body: IVoiceAnalyzeRequest) => {

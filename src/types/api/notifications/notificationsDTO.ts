@@ -1,5 +1,5 @@
 //v1/notifications(get)
-export interface Iitems {
+export interface INotification {
   notificationId: number;
   type: string;
   title: string;
@@ -9,7 +9,7 @@ export interface Iitems {
 }
 export interface INotificationsGetResponse {
   nextCursor: string | null;
-  items: Iitems;
+  items: INotification[];
 }
 //v1/notifications/{notificationId}/read(patch)
 // {

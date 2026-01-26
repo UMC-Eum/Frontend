@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useLayoutEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useUserStore } from "../../stores/useUserStore"; 
+import { useUserStore } from "../../stores/useUserStore";
 import BackButton from "../../components/BackButton";
 
 // API (경로 확인해주세요)
@@ -267,10 +267,16 @@ export default function ChatRoomPage() {
       <header className="shrink-0 h-[45px] px-4 flex items-center justify-between bg-white z-10 border-b border-gray-100">
         <div className="-ml-5"><BackButton /></div>
         <div className="absolute top-0 left-1/2 -translate-x-1/2 px-4 py-2">
-          <span className="font-bold text-[24px] text-[#111]">{peerInfo?.nickname}</span>
+          <span className="font-bold text-[24px] text-[#111]">
+            {peerInfo?.nickname}
+          </span>
         </div>
         <button onClick={() => setIsMenuOpen(true)} className="p-2 -mr-2">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="5" r="2" fill="#111"/><circle cx="12" cy="12" r="2" fill="#111"/><circle cx="12" cy="19" r="2" fill="#111"/></svg>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+            <circle cx="12" cy="5" r="2" fill="#111" />
+            <circle cx="12" cy="12" r="2" fill="#111" />
+            <circle cx="12" cy="19" r="2" fill="#111" />
+          </svg>
         </button>
       </header>
 
@@ -286,8 +292,14 @@ export default function ChatRoomPage() {
             />
           </div>
           <div className="flex flex-col items-center justify-center">
-            <span className="font-semibold text-[18px] text-[#636970]">{peerInfo?.nickname}</span>
-            {peerInfo && <span className="text-[14px] text-[#636970]">{peerInfo.age}세 · {peerInfo.areaName}</span>}
+            <span className="font-semibold text-[18px] text-[#636970]">
+              {peerInfo?.nickname}
+            </span>
+            {peerInfo && (
+              <span className="text-[14px] text-[#636970]">
+                {peerInfo.age}세 · {peerInfo.areaName}
+              </span>
+            )}
           </div>
           <div className="mt-10 mb-6 text-[18px] text-[#636970] flex flex-col items-center justify-center">
             <span>서로 알아가는 첫 이야기,</span>
@@ -304,7 +316,7 @@ export default function ChatRoomPage() {
               content={msg.text}
               audioUrl={msg.mediaUrl}           
               duration={msg.durationSec}
-              timestamp={formatTime(msg.sendAt)} 
+              timestamp={formatTime(msg.sendAt)}
               readAt={msg.readAt}
               isPlayingProp={playingId === msg.messageId}
               onPlay={() => handlePlayAudio(msg.messageId)}
