@@ -12,10 +12,21 @@ export interface IPresignResponse {
   };
 }
 //v1/onboarding/voice-profile/analyze(post)
-export interface IKeywordscandidate {
+export interface IPersonality {
   text: string;
   score: number;
 }
+
+export interface IInterest {
+  text: string;
+  score: number;
+}
+
+export interface IKeywordscandidate {
+  personalities: IPersonality[];
+  interests: IInterest[];
+}
+
 export interface IAnalyzeRequest {
   userId: number;
   audioUrl: string;

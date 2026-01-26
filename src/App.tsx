@@ -14,9 +14,9 @@ import ChatListPage from "./pages/chat/ChatListPage";
 import ChatRoomPage from "./pages/chat/ChatRoomPage";
 import ProfileEditSecond from "./pages/profile-edit/ProfileEditSecond";
 import HobbyEditPage from "./pages/profile-edit/HobbyEditPage";
-import CharacterEditPage from "./pages/profile-edit/CharacterEditPage";
+import CharacterEditPage from "./pages/profile-edit/PersonalitiesEditPage";
 import IdealEditPage from "./pages/profile-edit/IdealEditPage";
-import CharacterRecordPage from "./pages/profile-edit/CharacterRecordPage";
+import CharacterRecordPage from "./pages/profile-edit/PersonalitiesRecordPage";
 import IdealRecordPage from "./pages/profile-edit/IdealRecordPage";
 
 import LoginStep from "./pages/onboarding/steps/LoginStep";
