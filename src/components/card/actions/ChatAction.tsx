@@ -41,7 +41,7 @@ export function ChatAction({
             flex items-center justify-center
             z-50
             transition-transform 
-            ${disabled ? 'opacity-50 cursor-not-allowed' : 'active:scale-95'} 
+            ${disabled && 'opacity-50 cursor-not-allowed'} 
           `}
         >
           {/* SVG 아이콘 부분 (기존 코드 유지) */}

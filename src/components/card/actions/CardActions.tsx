@@ -18,7 +18,7 @@ export function CardActions({ isLiked = false, onLike, onChat }: Props) {
             flex-1 h-12 rounded-xl font-semibold text-base transition-colors duration-200
             ${isLiked 
               ? "bg-[#fc3367] text-white shadow-md" // ❤️ 좋아요 ON: 핑크색 + 흰글씨
-              : "bg-white text-black hover:bg-gray-50 active:scale-95" // 🤍 좋아요 OFF: 흰색
+              : "bg-white text-black " // 🤍 좋아요 OFF: 흰색
             }
           `}
         >
@@ -33,10 +33,7 @@ export function CardActions({ isLiked = false, onLike, onChat }: Props) {
             e.stopPropagation();
             onChat();
           }}
-          className="
-            flex-1 h-12 bg-white text-black rounded-xl font-semibold text-base
-            hover:bg-gray-50 active:scale-95 transition-transform
-          "
+          className="flex-1 h-12 bg-white text-black rounded-xl font-semibold text-base"
         >
           바로 대화해보기
         </button>

@@ -31,7 +31,7 @@ export default function LikeAction({
     bg-white/25 backdrop-blur-sm  
     flex items-center justify-center
     z-50
-    transition-transform active:scale-95 duration-200 cursor-pointer
+    cursor-pointer
   `;
 
   return (
