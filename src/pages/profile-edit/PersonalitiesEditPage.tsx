@@ -20,7 +20,7 @@ export default function CharacterEditPage() {
     const mergedKeywords = Array.from(
       new Set([...(user?.personalities || []), ...selectedKeywords]),
     );
-    updateUser({ keywords: mergedKeywords });
+    updateUser({ personalities: mergedKeywords });
     navigate("/my/edit/");
   };
 
