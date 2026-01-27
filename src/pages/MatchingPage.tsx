@@ -22,7 +22,7 @@ const MatchingPage = () => {
     onSuccess: (data) => {
       console.log("분석 성공!", data);
       const keywords =
-        data?.keywordCandidates?.interests.map((k) => k.text) || [];
+        data?.keywordCandidates?.personalities.map((k) => k.text) || [];
 
       // 2. 콘솔에 예쁘게 출력
       if (keywords.length > 0) {

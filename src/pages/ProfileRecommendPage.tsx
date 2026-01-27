@@ -26,50 +26,20 @@ export default function ProfileRecommendPage() {
             <section className="flex flex-col gap-[12px] mb-[15px]">
               <h1 className="text-[20px] font-semibold">저의 관심사에요.</h1>
               <div className="flex flex-wrap gap-[8px]">
-                <KeywordLabel
-                  keyword={{ id: 271, label: "식물키우기", category: "hobby" }}
-                />
-                <KeywordLabel
-                  keyword={{
-                    id: 272,
-                    label: "반려동물케어",
-                    category: "hobby",
-                  }}
-                />
-                <KeywordLabel
-                  keyword={{ id: 273, label: "공부취미", category: "hobby" }}
-                />
+                <KeywordLabel keyword="식물키우기" />
+                <KeywordLabel keyword="반려동물케어" />
+                <KeywordLabel keyword="공부취미" />
               </div>
             </section>
             <section className="flex flex-col gap-[12px] mb-[15px]">
               <h1 className="text-[20px] font-semibold">이런 사람이 좋아요.</h1>
               <div className="flex flex-wrap gap-[8px]">
-                <KeywordLabel
-                  keyword={{ id: 271, label: "식물키우기", category: "hobby" }}
-                />
-                <KeywordLabel
-                  keyword={{
-                    id: 272,
-                    label: "반려동물케어",
-                    category: "hobby",
-                  }}
-                />
-                <KeywordLabel
-                  keyword={{ id: 273, label: "공부취미", category: "hobby" }}
-                />
-                <KeywordLabel
-                  keyword={{ id: 271, label: "식물키우기", category: "hobby" }}
-                />
-                <KeywordLabel
-                  keyword={{
-                    id: 272,
-                    label: "반려동물케어",
-                    category: "hobby",
-                  }}
-                />
-                <KeywordLabel
-                  keyword={{ id: 273, label: "공부취미", category: "hobby" }}
-                />
+                <KeywordLabel keyword="식물키우기" />
+                <KeywordLabel keyword="반려동물케어" />
+                <KeywordLabel keyword="공부취미" />
+                <KeywordLabel keyword="식물키우기" />
+                <KeywordLabel keyword="반려동물케어" />
+                <KeywordLabel keyword="공부취미" />
               </div>
             </section>
             <section className="mb-[15px]">
