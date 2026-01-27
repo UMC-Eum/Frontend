@@ -1,63 +1,73 @@
+import { useEffect, useRef } from "react";
+import { useNavigate, Outlet, useLocation } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
+import { useMutation } from "@tanstack/react-query";
+import { useMicRecording } from "../hooks/useMicRecording";
+import { processVoiceAnalysis } from "../service/voiceService";
+import RecordingControl from "../components/RecordingControl";
+import { useUserStore } from "../stores/useUserStore";
 import BackButton from "../components/BackButton";
-import MicButton from "../components/MicButton";
-import { useEffect, useState } from "react";
-type MicStatus = "inactive" | "recording" | "loading";
 const MatchingPage = () => {
-  const [status, setStatus] = useState<MicStatus>("inactive");
-  const [seconds, setSeconds] = useState(0);
-  const [showTooShortNotice, setShowTooShortNotice] = useState(false);
+  const nickname = useUserStore((state) => state.user?.nickname);
+  const updateIdealPersonalities = useUserStore((state) => state.updateUser);
+  const navigate = useNavigate();
+  const location = useLocation();
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const isResultPage = location.pathname.includes("result");
 
-  useEffect(() => {
-    if (status !== "recording") return;
+  // 1. API 요청 설정 (Mutation)
+  // 녹음 파일이 생기면 이 함수(analyze)를 실행해서 서버로 보냅니다.
+  const { mutate: analyze } = useMutation({
+    mutationFn: (file: File) => processVoiceAnalysis({ file }), // 임시 userId
+    onSuccess: (data) => {
+      console.log("분석 성공!", data);
+      const keywords = data?.keywordCandidates?.map((k) => k.text) || [];
 
-    const interval = setInterval(() => {
-      setSeconds((prev) => prev + 1);
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [status]);
-
-  const handleMicClick = () => {
-    // 🎙 녹음 중일 때
-    if (status === "recording") {
-      // ❗ 10초 미만 → 안내만
-      if (seconds < 10) {
-        setShowTooShortNotice(true);
-        return;
+      // 2. 콘솔에 예쁘게 출력
+      if (keywords.length > 0) {
+        console.log("✨ 추출된 이상형 키워드들:", keywords.join(", "));
+        // 테이블 형태로 보고 싶다면 아래 주석을 해제하세요
+        // console.table(data.keywordsCandidates);
+      } else {
+        console.log("ℹ️ 추출된 키워드가 없습니다.");
       }
 
-      // ✅ 10초 이상 → 로딩으로 전환
+      // Zustand 업데이트 및 페이지 이동
+      updateIdealPersonalities({ idealPersonalities: keywords });
+      navigate("/matching/result", { state: { result: data } });
+    },
+    onError: (error) => {
+      console.error(error);
+      alert("분석에 실패했습니다. 다시 시도해주세요.");
+    },
+  });
+
+  // 2. 마이크 훅 설정 (하나로 통합!)
+  // 녹음이 끝나고 파일이 생성되면 -> analyze(file) 실행
+  const { status, setStatus, seconds, isShort, handleMicClick, resetStatus } =
+    useMicRecording((file) => {
+      if (file) {
+        analyze(file); // 👈 여기서 Mutation 실행!
+      }
+    });
+
+  // 3. 결과 페이지 진입 시 상태 처리
+  useEffect(() => {
+    if (isResultPage) {
       setStatus("loading");
-      setSeconds(0);
-      setShowTooShortNotice(false);
-      return;
     }
-
-    // ▶️ 비활성 → 녹음 시작
-    if (status === "inactive") {
-      setStatus("recording");
-      setSeconds(0);
-      setShowTooShortNotice(false);
-    }
-  };
-
-  const formatTime = (sec: number) => {
-    const m = Math.floor(sec / 60)
-      .toString()
-      .padStart(2, "0");
-    const s = (sec % 60).toString().padStart(2, "0");
-    return `${m}:${s}`;
-  };
+  }, [isResultPage, setStatus]);
 
   return (
-    <div className="relative h-screen mx-[20px]">
-      <div className="mt-[5px]">
-        <BackButton />
-      </div>
-      <div className="h-[102px]">
-        {status === "inactive" && (
+    <div className="relative h-full overflow-hidden">
+      <BackButton />
+      <div className="h-[10px]" />
+
+      {/* 상단 텍스트 영역 */}
+      <div className="h-[78px] px-[20px]">
+        {status === "inactive" && !isResultPage && (
           <h1 className="text-[28px] font-[700] leading-[140%] text-[#202020]">
-            ~~님의
+            {nickname || "guest"}님의
             <br />
             이상형을 이야기해주세요!
           </h1>
@@ -68,50 +78,54 @@ const MatchingPage = () => {
               듣고 있어요 ...
             </h1>
             <button
-              onClick={() => setStatus("inactive")}
-              className="bg-pink-200"
+              onClick={resetStatus}
+              className="bg-pink-200 px-2 py-1 rounded-md text-sm mt-2"
             >
               재녹음
             </button>
           </>
         )}
-
-        {status === "loading" && (
+        {(status === "loading" || isResultPage) && (
           <h1 className="text-[28px] font-[700] leading-[140%] text-[#202020]">
-            ~~님의
+            {nickname}님의
             <br />
             이상형을 찾는 중이에요 ...
           </h1>
         )}
       </div>
 
-      {status !== "loading" && (
-        <section className="text-gray-500 space-y-[12px]">
+      {status !== "loading" && !isResultPage && (
+        <section className="text-gray-500 space-y-[12px] mt-8 px-[20px]">
           <p>이렇게 말해도 좋아요!</p>
           <p>비슷한 나이대의 조용한 사람이 좋아요.</p>
           <p>술은 많이 안 마셨으면 좋겠어요.</p>
           <p>대화는 자주 하는 편이면 좋겠어요.</p>
         </section>
       )}
-      <div className="absolute left-1/2 bottom-[40px] -translate-x-1/2 flex flex-col items-center gap-[12px]">
-        {showTooShortNotice && (
-          <div className="flex w-[232px] h-[36px] bg-pink-100 items-center justify-center rounded-[7px]">
-            <p className="text-[14px] font-[500] text-[#FF88A6]">
-              너무 짧아요! 10초 이상 말해주세요!
-            </p>
-          </div>
-        )}
 
-        {status === "recording" && (
-          <div className="text-[18px] font-[500] text-[#FC3367] tabular-nums">
-            {formatTime(seconds)}
-          </div>
-        )}
+      <RecordingControl
+        status={status}
+        seconds={seconds}
+        isShort={isShort}
+        isResultPage={isResultPage}
+        onMicClick={handleMicClick}
+      />
 
-        <button onClick={handleMicClick} disabled={status === "loading"}>
-          <MicButton status={status} />
-        </button>
-      </div>
+      <AnimatePresence mode="wait">
+        {isResultPage && (
+          <motion.div
+            key="matching-result-layer"
+            initial={{ x: "100%" }}
+            animate={{ x: 0 }}
+            exit={{ x: "100%" }}
+            transition={{ type: "spring", damping: 25, stiffness: 200 }}
+            ref={scrollRef}
+            className="absolute inset-0 z-50 bg-white overflow-y-auto overflow-x-hidden"
+          >
+            <Outlet context={{ scrollRef }} />
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
