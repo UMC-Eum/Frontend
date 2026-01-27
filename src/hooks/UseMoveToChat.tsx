@@ -24,7 +24,7 @@ export const useMoveToChat = () => {
         console.log(`✅ 채팅방 입장: RoomID ${data.chatRoomId}`);
         // 2. 해당 채팅방 경로로 이동 (라우터 경로에 맞게 수정하세요)
         // 예: /chats/123
-        navigate(`/chats/${data.chatRoomId}`);
+        navigate(`/message/room/${data.chatRoomId}`);
       }
     } catch (error) {
       console.error("❌ 채팅방 생성/입장 실패:", error);

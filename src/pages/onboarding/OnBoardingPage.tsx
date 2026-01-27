@@ -135,7 +135,7 @@ export default function OnBoardingPage() {
         />
       )}
 
-      {step === "permission" && <PermissionStep onFinish={() => navigate("/home")} />}
+      {step === "permission" && <PermissionStep onFinish={() => navigate("/profileset")} />}
     </div>
   );
 }
