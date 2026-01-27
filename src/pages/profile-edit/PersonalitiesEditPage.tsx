@@ -5,7 +5,7 @@ import { useUserStore } from "../../stores/useUserStore";
 import { useNavigate } from "react-router-dom";
 import { useScoreStore } from "../../stores/useScoreStore";
 
-export default function HobbyEditPage() {
+export default function CharacterEditPage() {
   const MAX_SELECT = 5;
   const navigate = useNavigate();
   const { user, updateUser } = useUserStore();
@@ -18,18 +18,19 @@ export default function HobbyEditPage() {
 
   const handleSave = () => {
     const mergedKeywords = Array.from(
-      new Set([...(user?.keywords || []), ...selectedKeywords]),
+      new Set([...(user?.personalities || []), ...selectedKeywords]),
     );
-    updateUser({ keywords: mergedKeywords });
+    updateUser({ personalities: mergedKeywords });
     navigate("/my/edit/");
   };
+
   return (
     <>
       <BackButton
-        title="나의 관심사"
+        title="나는 이런 사람이에요."
         textClassName="text-[24px] font-semibold"
       />
-      <h2>나의 관심사를 선택해주세요!</h2>
+      <h2>나를 나타내는 키워드들을 골라주세요. </h2>
       <p>최대 5개까지 고를 수 있어요.</p>
       <div className="pb-4 flex flex-wrap gap-3">
         <KeywordChips

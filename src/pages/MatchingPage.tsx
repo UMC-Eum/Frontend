@@ -21,7 +21,8 @@ const MatchingPage = () => {
     mutationFn: (file: File) => processVoiceAnalysis({ file }), // 임시 userId
     onSuccess: (data) => {
       console.log("분석 성공!", data);
-      const keywords = data?.keywordCandidates?.map((k) => k.text) || [];
+      const keywords =
+        data?.keywordCandidates?.personalities.map((k) => k.text) || [];
 
       // 2. 콘솔에 예쁘게 출력
       if (keywords.length > 0) {

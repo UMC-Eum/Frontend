@@ -4,7 +4,6 @@ import { CardDescription } from "../blocks/CardDescription";
 import { CardKeywords } from "../blocks/CardKeywords";
 import { CardActions } from "../actions/CardActions"; // 아까 수정한 CardActions 사용
 import { RoundCardShell } from "../shell/RoundCardShell";
-import { Keyword } from "../../keyword/keyword.model";
 
 // ✅ 1. 훅 불러오기 (경로를 프로젝트 구조에 맞춰주세요)
 import { useMoveToChat } from "../../../hooks/UseMoveToChat";
@@ -23,7 +22,7 @@ type IdleCardProps = {
   distance: string;
   area: string;
   description: string;
-  keywords: Keyword[];
+  keywords: string[];
 };
 
 export default function IdleCard({

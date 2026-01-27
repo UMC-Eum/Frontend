@@ -1,26 +1,20 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 
 // 경로에 맞게 import 확인해주세요
 import { MicStatus } from "../../hooks/useMicRecording";
 import RecordingControl from "../../components/RecordingControl";
 import { mockAnalyzeVoice } from "../../mock/mockApi";
 import { useUserStore } from "../../stores/useUserStore";
-import { KEYWORDS } from "../../components/keyword/keyword.model";
-import BackButton from "../../components/BackButton";
-import KeywordChips from "../../components/keyword/KeywordChips";
+import IdealEditPage from "./IdealEditPage";
 
 export default function IdealRecordPage() {
   const location = useLocation();
   const isResultPage = location.pathname.includes("result");
   const [isKeywordPage, setIsKeywordPage] = useState(false);
 
-  // ✅ 스토어에서 유저 정보와 업데이트 함수 가져오기
   const { user, updateUser } = useUserStore();
-
-  // ✅ 닉네임 가져오기 (없으면 기본값 '회원')
-  const name = user?.nickname || "회원";
 
   const [status, setStatus] = useState<MicStatus>("inactive");
   const [seconds, setSeconds] = useState(0);
@@ -34,11 +28,14 @@ export default function IdealRecordPage() {
         keywords: ["미니멀", "소유중시", "반려식물"], // Mock 데이터 예시
       };
 
+      const mergedKeywords = Array.from(
+        new Set([...(user?.idealPersonalities || []), ...mockResult.keywords]),
+      );
+
       updateUser({
         introAudioUrl: mockResult.record,
+        idealPersonalities: mergedKeywords,
       });
-
-      updateUser({ idealPersonalities: mockResult.keywords });
 
       setIsKeywordPage(true);
     },
@@ -102,30 +99,30 @@ export default function IdealRecordPage() {
         <main className="flex-1 flex flex-col px-2 relative h-full">
           {status === "inactive" && (
             <WhenInactive
-              name={name}
+              name={user?.nickname}
               RecordingControl={RenderRecordingControl}
             />
           )}
           {status === "recording" && (
             <WhenRecording
-              name={name}
+              name={user?.nickname}
               RecordingControl={RenderRecordingControl}
             />
           )}
           {status === "loading" && (
             <Whenloading
-              name={name}
+              name={user?.nickname}
               RecordingControl={RenderRecordingControl}
             />
           )}
         </main>
       )}
-      {isKeywordPage && <IdealEditPage />}
+      {isKeywordPage && <IdealEditPage/>}
     </>
   );
 }
 type WhenInactiveProps = {
-  name: string;
+  name: string | undefined;
   RecordingControl: React.ReactNode;
 };
 
@@ -161,7 +158,7 @@ function WhenInactive({ name, RecordingControl }: WhenInactiveProps) {
 }
 
 type WhenRecordingProps = {
-  name: string;
+  name: string | undefined;
   RecordingControl: React.ReactNode;
 };
 
@@ -194,7 +191,7 @@ function WhenRecording({ name, RecordingControl }: WhenRecordingProps) {
 }
 
 type WhenloadingProps = {
-  name: string;
+  name: string | undefined;
   RecordingControl: React.ReactNode;
 };
 
@@ -210,66 +207,6 @@ function Whenloading({ name, RecordingControl }: WhenloadingProps) {
 
       <div className="absolute inset-0 flex flex-col items-center justify-center">
         <div className="relative w-full h-[140px]">{RecordingControl}</div>
-      </div>
-    </>
-  );
-}
-
-//IdealEditPage 그대로 가져옴
-//글자만 수정
-function IdealEditPage() {
-  const MAX_SELECT = 5;
-  const navigate = useNavigate();
-  const { user, updateUser } = useUserStore();
-
-  const [selectedIds, setSelectedIds] = useState<number[]>(() => {
-    if (!user?.idealPersonalities) return [];
-
-    // 현재 유저의 키워드 라벨들과 일치하는 ID들을 찾아 초기값으로 설정
-    return KEYWORDS.filter(
-      (k) =>
-        ["character", "value", "lifestyle", "expression"].includes(
-          k.category,
-        ) && user?.idealPersonalities.includes(k.label),
-    ).map((k) => k.id);
-  });
-
-  const filteredKeywords = useMemo(() => {
-    return KEYWORDS.filter((k) => k.id >= 180 && k.id <= 200);
-  }, []);
-
-  const handleSave = () => {
-    const selectedLabels = selectedIds
-      .map((id) => KEYWORDS.find((k) => k.id === id)?.label)
-      .filter((label): label is string => !!label);
-
-    updateUser({ idealPersonalities: [...selectedLabels] });
-    navigate("/my/edit/");
-  };
-
-  return (
-    <>
-      <BackButton
-        title="나는 이런 사람이에요."
-        textClassName="text-[24px] font-semibold"
-      />
-      <h2>나를 나타내는 키워드들을 골라주세요. </h2>
-      <p>최대 5개까지 고를 수 있어요.</p>
-      <div className="pb-4 flex flex-wrap gap-3">
-        <KeywordChips
-          keywords={filteredKeywords}
-          selectedIds={selectedIds}
-          maxSelect={MAX_SELECT}
-          onChange={(ids) => setSelectedIds(ids)}
-        />
-      </div>
-      <div className="flex items-center justify-center">
-        <button
-          className="m-5 p-3 w-full flex items-center justify-center rounded-xl bg-[#FF3D77] text-white"
-          onClick={handleSave}
-        >
-          저장하기
-        </button>
       </div>
     </>
   );

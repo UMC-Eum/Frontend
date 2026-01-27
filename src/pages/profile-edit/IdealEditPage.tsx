@@ -1,37 +1,26 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import BackButton from "../../components/BackButton";
 import KeywordChips from "../../components/keyword/KeywordChips";
 import { useUserStore } from "../../stores/useUserStore";
-import { KEYWORDS } from "../../components/keyword/keyword.model";
 import { useNavigate } from "react-router-dom";
+import { useScoreStore } from "../../stores/useScoreStore";
 
 export default function IdealEditPage() {
   const MAX_SELECT = 5;
   const navigate = useNavigate();
   const { updateUser, user } = useUserStore();
+  const { getInterests } = useScoreStore();
 
-  const [selectedIds, setSelectedIds] = useState<number[]>(() => {
-    if (!user?.idealPersonalities) return [];
-
-    // 현재 유저의 키워드 라벨들과 일치하는 ID들을 찾아 초기값으로 설정
-    return KEYWORDS.filter(
-      (k) =>
-        ["character", "value", "lifestyle", "expression"].includes(
-          k.category,
-        ) && user?.idealPersonalities.includes(k.label),
-    ).map((k) => k.id);
-  });
-
-  const filteredKeywords = useMemo(() => {
-    return KEYWORDS.filter((k) => k.id >= 180 && k.id <= 200);
-  }, []);
+  //선택된 키워드
+  const [selectedKeywords, setSelectedKeywords] = useState<string[]>([]);
+  //스토어에서 가져온 추천된 키워드(30개)
+  const recommendedKeywords = getInterests().slice(0, 30)
 
   const handleSave = () => {
-    const selectedLabels = selectedIds
-      .map((id) => KEYWORDS.find((k) => k.id === id)?.label)
-      .filter((label): label is string => !!label);
-
-    updateUser({ idealPersonalities: [...selectedLabels] });
+    const mergedKeywords = Array.from(
+      new Set([...(user?.idealPersonalities || []), ...selectedKeywords]),
+    );
+    updateUser({ idealPersonalities: mergedKeywords });
     navigate("/my/edit/");
   };
 
@@ -45,10 +34,9 @@ export default function IdealEditPage() {
       <p>최대 5개까지 고를 수 있어요.</p>
       <div className="pb-4 flex flex-wrap gap-3">
         <KeywordChips
-          keywords={filteredKeywords}
-          selectedIds={selectedIds}
+          keywords={recommendedKeywords}
           maxSelect={MAX_SELECT}
-          onChange={(ids) => setSelectedIds(ids)}
+          onChange={(ids) => setSelectedKeywords(ids)}
         />
       </div>
       <div className="flex items-center justify-center">

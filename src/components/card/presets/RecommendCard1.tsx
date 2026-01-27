@@ -4,7 +4,6 @@ import { CardDescription } from "../blocks/CardDescription";
 import { CardKeywords } from "../blocks/CardKeywords";
 import { CardRecommend } from "../blocks/CardRecommend";
 import { RoundCardShell } from "../shell/RoundCardShell";
-import { Keyword } from "../../keyword/keyword.model";
 
 type RecommendCardProps = {
   // ✅ 나중에 페이지 이동할 때 쓸 ID만 받아둡니다.
@@ -16,7 +15,7 @@ type RecommendCardProps = {
   distance: string;
   area: string;
   description: string;
-  keywords: Keyword[];
+  keywords: string[];
 }
 
 export default function RecommendCard({ 

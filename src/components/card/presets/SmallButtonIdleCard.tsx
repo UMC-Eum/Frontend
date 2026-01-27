@@ -6,7 +6,6 @@ import { CardKeywords } from "../blocks/CardKeywords";
 import { ChatAction } from "../actions/ChatAction";
 import LikeAction from "../actions/LikeAction"; 
 import CloseAction from "../actions/CloseAction";
-import { Keyword } from "../../keyword/keyword.model";
 
 // ✅ 훅 불러오기 (경로가 맞는지 확인해주세요)
 import { useMoveToChat } from "../../../hooks/UseMoveToChat"; // 파일명 대소문자 주의
@@ -19,7 +18,7 @@ type SmallButtonIdleCardProps = {
   age: number;
   distance: string;
   area: string;
-  keywords: Keyword[];
+  keywords: string[];
   description: string;
   initialHeartId?: number; // ✅ 좋아요 취소용 ID
   initialIsLiked?: boolean; // ✅ 초기 좋아요 상태
