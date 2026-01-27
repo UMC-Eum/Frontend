@@ -23,7 +23,6 @@ import LoginStep from "./pages/onboarding/steps/LoginStep";
 import OAuthCallbackPage from "./pages/OAuthCallbackPage";
 
 import ProfileRecommendPage from "./pages/ProfileRecommendPage";
-import CardTestPage from "./pages/CardTestPage";
 const router = createBrowserRouter([
   {
     path: "/",
@@ -115,10 +114,6 @@ const router = createBrowserRouter([
       }
     ]
   },
-  {
-    path: "/cardtest",
-    element: <CardTestPage />,
-  }
 ]);
 
 const App = () => {
