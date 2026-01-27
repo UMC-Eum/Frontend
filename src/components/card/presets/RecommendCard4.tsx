@@ -7,8 +7,6 @@ import { CardKeywords } from "../blocks/CardKeywords";
 import { LikeAction } from "../actions/LikeAction";
 import CloseAction from "../actions/CloseAction";
 import { ChatAction } from "../actions/ChatAction";
-import { Keyword } from "../../keyword/keyword.model";
-
 
 type RecommendCard4Props = {
   imageUrl: string;
@@ -16,7 +14,7 @@ type RecommendCard4Props = {
   age: number;
   distance: string;
   area: string;
-  keywords: Keyword[];
+  keywords: string[];
   description: string;
 }
 export default function RecommendCard4({ imageUrl, name, age, distance, area, keywords, description }: RecommendCard4Props) {

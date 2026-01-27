@@ -8,7 +8,6 @@ import CloseAction from "../actions/CloseAction";
 import { CardRecommend } from "../blocks/CardRecommend";
 import VoiceAction from "../actions/VoiceActions";
 import { RoundCardShell } from "../shell/RoundCardShell";
-import { Keyword } from "../../keyword/keyword.model";
 
 type RecommendCard3Props = {
   imageUrl: string;
@@ -16,7 +15,7 @@ type RecommendCard3Props = {
   age: number;
   distance: string;
   area: string;
-  keywords: Keyword[];
+  keywords: string[];
   description: string;
 }
 export default function RecommendCard3({ imageUrl, name, age, distance, area, keywords, description }: RecommendCard3Props) {
