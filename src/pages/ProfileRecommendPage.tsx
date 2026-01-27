@@ -2,15 +2,46 @@ import BackButton from "../components/BackButton";
 import Navbar from "../components/Navbar";
 import chatpinkbox from "../assets/chat_pinkbox.svg";
 import KeywordLabel from "../components/keyword/KeywordLabel";
+import RecommendCard2 from "../components/card/presets/RecommendCard2";
+import { useLocation } from "react-router-dom";
+
+type Profile = {
+  id: number;
+  name: string;
+  age: number;
+  imageUrl: string;
+  distance: number;
+  area: string;
+};
 
 export default function ProfileRecommendPage() {
+  const location = useLocation();
+  const profile = (location.state as { profile: Profile })?.profile;
+
+  // 🔒 방어 처리 (직접 URL 접근 대비)
+  if (!profile) {
+    return (
+      <div className="flex justify-center min-h-screen items-center">
+        <p>프로필 정보를 불러올 수 없습니다.</p>
+      </div>
+    );
+  }
+
   return (
     <div className="flex justify-center min-h-screen">
       <div className="w-full max-w-[420px] h-screen bg-[#F8FAFB] flex flex-col overflow-hidden flex-1 relative">
-        <main className="overflow-y-auto pb-[62px]">
+        <main className="flex-1 overflow-y-auto pb-[62px]">
           {/* 프로필 이미지 및 백버튼 */}
           <div className="relative">
-            <div className="bg-gray-400 h-[585px]"></div>
+            <div className="h-[585px]">
+              <RecommendCard2
+                imageUrl={profile.imageUrl}
+                name={profile.name}
+                age={profile.age}
+                distance={`${profile.distance}`}
+                area={profile.area}
+              />
+            </div>
             <header className="absolute inset-0 w-full pt-[5px] shrink-0">
               <BackButton />
             </header>
