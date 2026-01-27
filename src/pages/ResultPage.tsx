@@ -52,6 +52,7 @@ const ResultPage = () => {
           {data &&
             data.map((user) => (
               <IdleCard
+                targetUserId={user.id}
                 key={user.id}
                 name={user.name}
                 age={user.age}
