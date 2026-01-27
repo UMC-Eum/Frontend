@@ -105,7 +105,7 @@ export default function OnBoardingPage() {
               console.log(`🎂 사용자 생년월일: ${userData.birthDate}, 만 나이: ${age}세`);
 
               // 나이 검사 (만 50세 미만 or 만 100세 초과)
-              if (age < 50 || age > 100) {
+              if (age < 50 || age >200) {
                 setShowAgreement(false);
                 setShowAgeLimit(true);
                 return; // 여기서 로직 종료
