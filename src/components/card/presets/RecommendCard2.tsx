@@ -4,9 +4,11 @@ import { CardLocation } from "../blocks/CardLocation";
 import LikeAction from "../actions/LikeAction"; // 위에서 수정한 파일
 import { CardShell } from "../shell/CardShell";
 import { useLike } from "../../../hooks/useLike"; // 1번에서 만든 훅 경로
+import { useNavigate } from "react-router-dom";
 
 // ✅ Props 정의: 데이터가 없을 수도 있으므로 optional (?) 처리
 type RecommendCard2Props = {
+  profileUrl: string;
   targetUserId: number;  // API 호출을 위해 필수 (없으면 좋아요 불가)
   imageUrl?: string;
   name?: string;
@@ -19,6 +21,7 @@ type RecommendCard2Props = {
 }
 
 export default function RecommendCard2({ 
+  profileUrl,
   targetUserId,
   imageUrl = "", // 기본값 처리
   name = "알 수 없음", 
@@ -36,8 +39,15 @@ export default function RecommendCard2({
     initialHeartId
   });
 
+  // 배경이미지클릭시 프로필 화면으로 이동
+  const navigate = useNavigate();
+
+  const handleBackgroundClick = () => {
+    navigate(profileUrl);
+  };
+
   return (
-    <CardShell imageUrl={imageUrl}>
+    <CardShell imageUrl={imageUrl} onClick={handleBackgroundClick} className="cursor-pointer">
       
       {/* 배경 그라데이션 */}
       <div className="absolute inset-x-0 bottom-0 h-[70%] bg-gradient-to-t from-black/90 via-black/50 to-transparent pointer-events-none z-10" />
@@ -56,7 +66,7 @@ export default function RecommendCard2({
         </div>
 
         {/* 오른쪽: 액션 버튼들 */}
-        <div className="flex items-center gap-3 shrink-0 pb-0.5">
+        <div onClick={(e) => e.stopPropagation()} className="flex items-center gap-3 shrink-0 pb-0.5">
 
           <LikeAction
             isLiked={isLiked} // 훅에서 관리하는 상태

@@ -4,12 +4,15 @@ interface CardShellProps {
   children: React.ReactNode;
   maxwidth?: string;
   size?: string;
+  onClick?: () => void;
+  className?: string;
 }
 
-export function CardShell({ imageUrl, children, maxwidth="sm", size="2/3" }: CardShellProps) {
+export function CardShell({ imageUrl, children, maxwidth="sm", size="2/3", onClick, className }: CardShellProps) {
   return (
     <div 
-      className={`relative w-full max-w-${maxwidth} rounded-none overflow-hidden shadow-lg`}
+      onClick={onClick}
+      className={`relative w-full max-w-${maxwidth} rounded-none overflow-hidden shadow-lg ${className}`}
       style={{
         aspectRatio: size
       }}

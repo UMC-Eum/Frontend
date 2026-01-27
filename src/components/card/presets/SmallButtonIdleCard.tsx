@@ -10,8 +10,10 @@ import CloseAction from "../actions/CloseAction";
 // ✅ 훅 불러오기 (경로가 맞는지 확인해주세요)
 import { useMoveToChat } from "../../../hooks/UseMoveToChat"; // 파일명 대소문자 주의
 import { useLike } from "../../../hooks/useLike";
+import { useNavigate } from "react-router-dom";
 
 type SmallButtonIdleCardProps = {
+  profileUrl: string;
   targetUserId: number; 
   imageUrl: string;
   name: string;
@@ -25,6 +27,7 @@ type SmallButtonIdleCardProps = {
 }
 
 export default function SmallButtonIdleCard({ 
+  profileUrl,
   targetUserId, 
   imageUrl, 
   name, 
@@ -47,8 +50,15 @@ export default function SmallButtonIdleCard({
     initialHeartId
   });
 
+  // 배경이미지클릭시 프로필 화면으로 이동
+  const navigate = useNavigate();
+
+  const handleBackgroundClick = () => {
+    navigate(profileUrl);
+  };
+
   return (
-    <CardShell imageUrl={imageUrl} >
+    <CardShell imageUrl={imageUrl} onClick={handleBackgroundClick} className="cursor-pointer">
       {/* 하단 그라데이션 */}
       <div className="absolute inset-x-0 bottom-0 h-80 bg-gradient-to-t from-black/80 via-black/40 to-transparent pointer-events-none" />
 
@@ -75,7 +85,7 @@ export default function SmallButtonIdleCard({
       </div>
 
       {/* 하단 액션 버튼 */}
-      <div className="absolute inset-x-0 bottom-4 flex items-center justify-center gap-13 z-20">
+      <div onClick={(e) => e.stopPropagation()} className="absolute inset-x-0 bottom-4 flex items-center justify-center gap-13 z-20">
         {/* X 버튼 */}
         <CloseAction size="md" onClose={() => console.log("닫기 클릭")} />
 
