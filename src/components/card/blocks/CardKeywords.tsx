@@ -1,7 +1,8 @@
 // card/blocks/CardKeywords.tsx
+import { Keyword } from "../../keyword/keyword.model";
 import KeywordLabel from "../../keyword/KeywordLabel";
 
-export function CardKeywords({ keywords, mode = "default" }: { keywords: string[]; mode?: "default" | "transparent" }) {
+export function CardKeywords({ keywords, mode = "default" }: { keywords: Keyword[]; mode?: "default" | "transparent" }) {
   return (
     <div className="flex flex-wrap gap-2 mb-4">
       {keywords.map((k, i) => {

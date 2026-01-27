@@ -4,6 +4,7 @@ import { useUserStore } from "../../stores/useUserStore";
 import camera_btn from "../../assets/camera_btn.png";
 import volume_btn from "../../assets/volume_btn.png";
 import white_mic from "../../assets/white_mic.png";
+import { KEYWORDS } from "../../components/keyword/keyword.model";
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import KeywordChip from "../../components/keyword/KeywordChip";
@@ -76,15 +77,21 @@ const ProfileEditSecond = () => {
           <NextArrow navigateTo="./hobby" />
         </div>
         <div className="m-5 flex flex-wrap gap-2">
-          {user?.keywords.map((k, i) => {
+          {user?.keywords.map((item, index) => {
+            // 문제 터지면 keyword 타입 리팩토링을 재고
+            const matchedKeyword = KEYWORDS.find(
+              (k) => k.label === item && k.category === "hobby",
+            );
             return (
+              matchedKeyword && (
                 <KeywordChip
-                  key={i}
-                  keyword={k}
+                  key={index}
+                  keyword={matchedKeyword}
                   isSelected={false}
                   disabled
                   onToggle={() => {}}
                 />
+              )
             );
           })}
         </div>
@@ -97,15 +104,25 @@ const ProfileEditSecond = () => {
           <NextArrow navigateTo="./character" />
         </div>
         <div className="m-5 flex flex-wrap gap-2">
-          {user?.personalities.map((k, i) => {
+          {user?.keywords.map((item, index) => {
+            // 문제 터지면 keyword 타입 리팩토링을 재고
+            const matchedKeyword = KEYWORDS.find(
+              (k) =>
+                k.label === item &&
+                ["character", "value", "lifestyle", "expression"].includes(
+                  k.category,
+                ),
+            );
             return (
+              matchedKeyword && (
                 <KeywordChip
-                  key={i}
-                  keyword={k}
+                  key={index}
+                  keyword={matchedKeyword}
                   isSelected={false}
                   disabled
                   onToggle={() => {}}
                 />
+              )
             );
           })}
         </div>
@@ -128,15 +145,25 @@ const ProfileEditSecond = () => {
           <NextArrow navigateTo="./ideal" />
         </div>
         <div className="m-5 flex flex-wrap gap-2">
-          {user?.idealPersonalities.map((k, i) => {
+          {user?.idealPersonalities.map((item, index) => {
+            // 문제 터지면 keyword 타입 리팩토링을 재고
+            const matchedKeyword = KEYWORDS.find(
+              (k) =>
+                k.label === item &&
+                ["character", "value", "lifestyle", "expression"].includes(
+                  k.category,
+                ),
+            );
             return (
+              matchedKeyword && (
                 <KeywordChip
-                  key={i}
-                  keyword={k}
+                  key={index}
+                  keyword={matchedKeyword}
                   isSelected={false}
                   disabled
                   onToggle={() => {}}
                 />
+              )
             );
           })}
         </div>

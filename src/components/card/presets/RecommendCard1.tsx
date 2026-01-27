@@ -5,6 +5,7 @@ import { CardDescription } from "../blocks/CardDescription";
 import { CardKeywords } from "../blocks/CardKeywords";
 import { CardRecommend } from "../blocks/CardRecommend";
 import { RoundCardShell } from "../shell/RoundCardShell";
+import { Keyword } from "../../keyword/keyword.model";
 
 type RecommendCardProps = {
   imageUrl: string;
@@ -13,7 +14,7 @@ type RecommendCardProps = {
   distance: string;
   area: string;
   description: string;
-  keywords: string[];
+  keywords: Keyword[];
 }
 export default function RecommendCard({ imageUrl, name, age, distance, area, description, keywords }: RecommendCardProps) {
   return (

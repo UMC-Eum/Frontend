@@ -7,6 +7,7 @@ import { CardKeywords } from "../blocks/CardKeywords";
 import { ChatAction } from "../actions/ChatAction";
 import { LikeAction } from "../actions/LikeAction";
 import CloseAction from "../actions/CloseAction";
+import { Keyword } from "../../keyword/keyword.model";
 
 type SmallButtonIdleCardProps = {
   imageUrl: string;
@@ -14,7 +15,7 @@ type SmallButtonIdleCardProps = {
   age: number;
   distance: string;
   area: string;
-  keywords: string[];
+  keywords: Keyword[];
   description: string;
 }
 export default function SmallButtonIdleCard({ imageUrl, name, age, distance, area, keywords, description }: SmallButtonIdleCardProps) {

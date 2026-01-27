@@ -1,5 +1,7 @@
+import { Keyword } from "./keyword.model";
+
 interface KeywordChipProps {
-  keyword: string;
+  keyword: Keyword;
   isSelected: boolean;
   disabled?: boolean;
   onToggle: () => void;
@@ -24,7 +26,7 @@ const KeywordChip = ({
       }
     `}
   >
-    {keyword}
+    {keyword.label}
   </button>
 );
 

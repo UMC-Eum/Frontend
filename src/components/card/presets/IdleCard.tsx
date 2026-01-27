@@ -5,6 +5,7 @@ import { CardDescription } from "../blocks/CardDescription";
 import { CardKeywords } from "../blocks/CardKeywords";
 import { CardActions } from "../actions/CardActions";
 import { RoundCardShell } from "../shell/RoundCardShell";
+import { Keyword } from "../../keyword/keyword.model";
 
 type IdleCardProps = {
   imageUrl: string;
@@ -13,7 +14,7 @@ type IdleCardProps = {
   distance: string;
   area: string
   description: string;
-  keywords : string[];
+  keywords : Keyword[];
 };
 
 export default function IdleCard({

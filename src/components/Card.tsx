@@ -1,5 +1,6 @@
 import cerficationmark from "../assets/card_cerfication.svg";
 import locationmark from "../assets/card_location.svg";
+import { Keyword } from "./keyword/keyword.model";
 import KeywordLabel from "./keyword/KeywordLabel";
 
 interface CardProps {
@@ -8,7 +9,7 @@ interface CardProps {
   age: number;
   distance: string;
   description: string;
-  keywords: string[];
+  keywords: Keyword[];
   isVerified?: boolean;
   onLike?: () => void;
   onChat?: () => void;

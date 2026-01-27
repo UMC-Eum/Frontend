@@ -1,8 +1,10 @@
+import { Keyword } from "./keyword.model";
+
 type Shape = "round" | "pill";
 
 interface KeywordLabelProps {
   /** 키워드 객체 */
-  keyword: string;
+  keyword: Keyword;
 
   /** 라벨의 모양 "round" | "pill" */
   shape?: Shape;
@@ -47,7 +49,7 @@ const KeywordLabel = ({
         ${activeStyles}
       `}
     >
-      {keyword}
+      {keyword.label}
     </span>
   );
 };

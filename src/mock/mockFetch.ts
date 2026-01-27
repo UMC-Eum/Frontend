@@ -1,3 +1,6 @@
+// 1. 실제 Keyword 타입을 가져옵니다 (경로가 맞는지 확인해주세요)
+import { Keyword } from "../components/keyword/keyword.model";
+import { KEYWORDS } from "../components/keyword/keyword.model";
 export interface MockUser {
   id: number;
   name: string;
@@ -6,7 +9,7 @@ export interface MockUser {
   distance: string;
   area: string
   description: string;
-  keywords: string[];
+  keywords: Keyword[];
 }
 
 export const fetchAllMatchResults = async (): Promise<MockUser[]> => {
@@ -22,7 +25,7 @@ export const fetchAllMatchResults = async (): Promise<MockUser[]> => {
       area: "분당 인근",
       distance: "3km",
       description: "주말에는 카페 탐방을 즐겨요! 조용한 분위기를 선호합니다.",
-      keywords: ["자기계발", "경험중시", "결과중심"],
+      keywords: [KEYWORDS[101], KEYWORDS[102], KEYWORDS[103]],
     },
     {
       id: 2,
@@ -33,7 +36,7 @@ export const fetchAllMatchResults = async (): Promise<MockUser[]> => {
       area: "의정부 인근",
       distance: "5km",
       description: "활동적인 데이트를 좋아해요. 같이 러닝하실 분?",
-      keywords: ["자기계발", "경험중시", "결과중심"],
+      keywords: [KEYWORDS[301], KEYWORDS[302], KEYWORDS[303]],
     },
     {
       id: 3,
@@ -44,7 +47,7 @@ export const fetchAllMatchResults = async (): Promise<MockUser[]> => {
       area: "수원 인근",
       distance: "1.2km",
       description: "영화 보는 걸 좋아해요. 넷플릭스 같이 봐요!",
-      keywords: ["자기계발", "경험중시", "결과중심"],
+      keywords: [KEYWORDS[201], KEYWORDS[202], KEYWORDS[203]],
     },
   ];
 };
