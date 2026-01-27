@@ -1,41 +1,38 @@
-import { Keyword } from "./keyword.model";
 import KeywordChip from "./KeywordChip";
 
 interface KeywordChipsProps {
-  keywords: Keyword[];
-  selectedIds: number[];
+  keywords: string[];
   maxSelect: number;
-  onChange: (ids: number[]) => void;
+  onChange: (keywords: string[]) => void;
 }
 
 const KeywordChips = ({
   keywords,
-  selectedIds,
   maxSelect,
   onChange,
 }: KeywordChipsProps) => {
-  const toggle = (id: number) => {
-    const isSelected = selectedIds.includes(id);
-    if (!isSelected && selectedIds.length >= maxSelect) return;
+  const toggle = (keyword: string) => {
+    const isSelected = keywords.includes(keyword);
+    if (!isSelected && keywords.length >= maxSelect) return;
 
     onChange(
-      isSelected ? selectedIds.filter((v) => v !== id) : [...selectedIds, id]
+      isSelected ? keywords.filter((v) => v !== keyword) : [...keywords, keyword]
     );
   };
 
   return (
     <>
       {keywords.map((k) => {
-        const isSelected = selectedIds.includes(k.id);
-        const disabled = !isSelected && selectedIds.length >= maxSelect;
+        const isSelected = keywords.includes(k);
+        const disabled = !isSelected && keywords.length >= maxSelect;
 
         return (
           <KeywordChip
-            key={k.id}
+            key={k}
             keyword={k}
             isSelected={isSelected}
             disabled={disabled}
-            onToggle={() => toggle(k.id)}
+            onToggle={() => toggle(k)}
           />
         );
       })}

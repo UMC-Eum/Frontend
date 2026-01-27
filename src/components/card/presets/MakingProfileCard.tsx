@@ -4,7 +4,6 @@ import { CardLocation } from "../blocks/CardLocation";
 import { CardDescription } from "../blocks/CardDescription";
 import { CardKeywords } from "../blocks/CardKeywords";
 import { RoundCardShell } from "../shell/RoundCardShell";
-import { Keyword } from "../../keyword/keyword.model";
 
 type MakingProfileCardProps = {
   imageUrl: string;
@@ -13,7 +12,7 @@ type MakingProfileCardProps = {
   distance: string;
   area: string;
   description: string;
-  keywords: Keyword[];
+  keywords: string[];
 };
 export default function MakingProfileCard({
   imageUrl,
