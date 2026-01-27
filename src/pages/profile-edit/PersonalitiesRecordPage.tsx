@@ -35,7 +35,7 @@ export default function CharacterRecordPage() {
 
       updateUser({
         introAudioUrl: mockResult.record,
-        keywords: mergedKeywords,
+        personalities: mergedKeywords,
       });
 
       setIsKeywordPage(true);
@@ -118,7 +118,7 @@ export default function CharacterRecordPage() {
           )}
         </main>
       )}
-      {isKeywordPage && <CharacterEditPage recommendedKeywords={["API 키워드 넣어야 해요"]}/>}
+      {isKeywordPage && <CharacterEditPage />}
     </>
   );
 }
