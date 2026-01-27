@@ -10,6 +10,8 @@ import AgreementSheet from "./overlays/AgreementSheet";
 import ServiceTerms from "./terms/ServiceTerms";
 import PrivacyPolicy from "./terms/PrivacyPolicy";
 import MarketingTerms from "./terms/MarketingTerms";
+import { getMyProfile } from "../../api/users/usersApi";
+import AgeLimitModal from "./overlays/AgeLimitModal";
 
 const DUMMY_DATA: IAgreementItem[] = [
   { agreementId: 1, body: "서비스 이용약관 상세 내용더미...", type: "POLICY" },
@@ -21,8 +23,10 @@ export default function OnBoardingPage() {
   const navigate = useNavigate();
   const [step, setStep] = useState<"splash" | "login" | "permission">("splash");
   const [agreements, setAgreements] = useState<IAgreementItem[]>([]);
+
   const [showAgreement, setShowAgreement] = useState(false);
   const [currentTerm, setCurrentTerm] = useState<AgreementType | null>(null);
+  const [showAgeLimit, setShowAgeLimit] = useState(false);
   
   const [checkedTerms, setCheckedTerms] = useState<Record<AgreementType, boolean>>({
     POLICY: false,
@@ -31,7 +35,7 @@ export default function OnBoardingPage() {
   });
 
   // ----------------------------------------------------------------------
-  // 🔥 [새로 추가됨] 권한 상태를 확인하고 페이지를 이동시키는 함수
+  // 권한 상태를 확인하고 페이지를 이동시키는 함수
   // ----------------------------------------------------------------------
   const checkPermissionAndPass = async () => {
     try {
@@ -39,7 +43,6 @@ export default function OnBoardingPage() {
       const isNotiGranted = Notification.permission === "granted";
 
       // 2. 카메라/마이크 권한 (비동기적 확인)
-      // (주의: 일부 브라우저는 query 미지원이므로 try-catch로 감쌈)
       const cameraStatus = await navigator.permissions.query({ name: "camera" as any });
       const micStatus = await navigator.permissions.query({ name: "microphone" as any });
 
@@ -61,8 +64,15 @@ export default function OnBoardingPage() {
       setStep("permission");
     }
   };
-  // ----------------------------------------------------------------------
 
+  // 나이 제한 모달 닫기 핸들러 (로그아웃 처리)
+ 
+  const handleAgeLimitClose = () => {
+    // 가입 대상이 아니므로 토큰을 지우고 스플래시로 돌려보냄
+    localStorage.removeItem("accessToken");
+    setShowAgeLimit(false);
+    setStep("splash");
+  };
   useEffect(() => {
     const token = localStorage.getItem("accessToken");
 
@@ -74,7 +84,40 @@ export default function OnBoardingPage() {
 
         if (token) {
           setStep("login");
-          setShowAgreement(true);
+
+          try {
+            // 1.API 호출
+            const userData = await getMyProfile();
+            
+            // 2. 나이 검사 //age필요
+            if (userData?.birthDate) {
+              const today = new Date();
+              const birthDate = new Date(userData.birthDate);
+
+              let age = today.getFullYear() - birthDate.getFullYear();
+              const monthDiff = today.getMonth() - birthDate.getMonth();
+
+              // 생일이 아직 안 지났으면 1살 차감
+              if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+                age--;
+              }
+
+              console.log(`🎂 사용자 생년월일: ${userData.birthDate}, 만 나이: ${age}세`);
+
+              // 나이 검사 (만 50세 미만 or 만 100세 초과)
+              if (age < 50 || age > 100) {
+                setShowAgreement(false);
+                setShowAgeLimit(true);
+                return; // 여기서 로직 종료
+              }
+              else {
+                setShowAgreement(true);
+              }
+            }
+          } catch (err) {
+            console.error("유저 정보 조회 실패:", err);
+            // 에러 발생 시 정책 결정 필요 (여기서는 일단 진행하도록 둠)
+          }
         }
       } catch (error) {
         console.error("약관 로드 실패:", error);
@@ -123,6 +166,10 @@ export default function OnBoardingPage() {
     <div className="relative min-h-screen bg-white">
       {step === "splash" && <SplashStep onNext={() => setStep("login")} />}
       {step === "login" && <LoginStep />}
+
+      {showAgeLimit && (
+        <AgeLimitModal onClose={handleAgeLimitClose} />
+      )}
 
       {showAgreement && agreements.length > 0 && (
         <AgreementSheet
