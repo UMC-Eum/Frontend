@@ -1,5 +1,4 @@
 // card/blocks/actions/LikeAction.tsx
-import React from "react";
 
 interface LikeActionProps {
   isLiked: boolean; // ✅ 상태를 외부에서 받음
