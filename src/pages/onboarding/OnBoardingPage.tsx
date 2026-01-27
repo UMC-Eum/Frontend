@@ -1,21 +1,16 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-// 주신 API 함수 그대로 가져오기
 import { getAgreements, updateMarketingAgreements } from "../../api/agreements/agreementsApi";
-// 주신 DTO 그대로 가져오기
 import { IAgreementItem, AgreementType } from "../../types/api/agreements/agreementsDTO";
 
 import SplashStep from "./steps/SplashStep";
 import LoginStep from "./steps/LoginStep";
 import PermissionStep from "./steps/PermissionStep";
 import AgreementSheet from "./overlays/AgreementSheet";
-
-// 상세 페이지 컴포넌트
 import ServiceTerms from "./terms/ServiceTerms";
 import PrivacyPolicy from "./terms/PrivacyPolicy";
 import MarketingTerms from "./terms/MarketingTerms";
 
-// ID가 number인 주신 스펙에 맞춘 더미 데이터
 const DUMMY_DATA: IAgreementItem[] = [
   { agreementId: 1, body: "서비스 이용약관 상세 내용더미...", type: "POLICY" },
   { agreementId: 2, body: "개인정보 처리방침 상세 내용더미...", type: "PERSONAL_INFORMATION" },
@@ -35,19 +30,48 @@ export default function OnBoardingPage() {
     MARKETING: false,
   });
 
+  // ----------------------------------------------------------------------
+  // 🔥 [새로 추가됨] 권한 상태를 확인하고 페이지를 이동시키는 함수
+  // ----------------------------------------------------------------------
+  const checkPermissionAndPass = async () => {
+    try {
+      // 1. 알림 권한 (동기적 확인)
+      const isNotiGranted = Notification.permission === "granted";
+
+      // 2. 카메라/마이크 권한 (비동기적 확인)
+      // (주의: 일부 브라우저는 query 미지원이므로 try-catch로 감쌈)
+      const cameraStatus = await navigator.permissions.query({ name: "camera" as any });
+      const micStatus = await navigator.permissions.query({ name: "microphone" as any });
+
+      const isCameraGranted = cameraStatus.state === "granted";
+      const isMicGranted = micStatus.state === "granted";
+
+      // 3. 판단: 필수 권한(카메라, 마이크) + 알림이 모두 있다면 바로 이동
+      if (isCameraGranted && isMicGranted && isNotiGranted) {
+        console.log("✅ 모든 권한 허용됨 -> 바로 프로필 설정으로 이동");
+        navigate("/profileset", { replace: true });
+      } else {
+        // 하나라도 없으면 권한 페이지 보여주기
+        console.log("❌ 권한 부족 -> 권한 설정 페이지 노출");
+        setStep("permission");
+      }
+    } catch (error) {
+      // 브라우저 호환성 문제 등으로 확인 불가 시, 안전하게 권한 페이지 보여줌
+      console.log("⚠️ 권한 확인 불가 -> 권한 설정 페이지 노출");
+      setStep("permission");
+    }
+  };
+  // ----------------------------------------------------------------------
+
   useEffect(() => {
     const token = localStorage.getItem("accessToken");
 
     const fetchData = async () => {
       try {
-        // 주신 getAgreements 호출 (IAgreementItem[] 반환)
         const items = await getAgreements();
-        
-        // 데이터가 없으면 더미를 넣어 레이아웃 깨짐 방지
         const finalItems = items && items.length > 0 ? items : DUMMY_DATA;
         setAgreements(finalItems);
 
-        // 데이터 세팅이 끝난 후 토큰이 있으면 모달 오픈
         if (token) {
           setStep("login");
           setShowAgreement(true);
@@ -65,39 +89,41 @@ export default function OnBoardingPage() {
     fetchData();
   }, []);
 
-  // 상세 페이지 내용 헬퍼
   const getTermContent = (type: AgreementType) => {
     return agreements.find((a) => a.type === type)?.body || "";
   };
 
   const handleConfirm = async () => {
     try {
-      // 주신 API 인자 형식: { marketingAgreementId: number, isAgreed: boolean }[]
       const marketingItems = agreements
         .filter(a => a.type === "MARKETING" || a.agreementId === 3)
         .map(a => ({
-          marketingAgreementId: a.agreementId, // 이미 number임
+          marketingAgreementId: a.agreementId,
           isAgreed: checkedTerms.MARKETING
         }));
 
-      // 주신 함수 호출 (배열을 그대로 전달하면 내부에서 body로 감싸서 post함)
       await updateMarketingAgreements(marketingItems);
       
       setShowAgreement(false);
-      setStep("permission");
+
+      // ----------------------------------------------------------------------
+      // 🔥 [수정됨] 무조건 setStep("permission") 하던 것을 함수 호출로 변경
+      // ----------------------------------------------------------------------
+      // setStep("permission");  <-- 기존 코드 주석 처리
+      await checkPermissionAndPass(); // 권한 확인 후 이동 or 페이지 노출 결정
+
     } catch (error) {
-      setStep("permission");
       setShowAgreement(false);
+      // 에러가 나더라도 다음 단계 진행 시도
+      await checkPermissionAndPass();
     }
   };
 
   return (
     <div className="relative min-h-screen bg-white">
-      {/* 1. 기본 스텝 렌더링 */}
       {step === "splash" && <SplashStep onNext={() => setStep("login")} />}
       {step === "login" && <LoginStep />}
 
-      {/* 2. 약관 모달: 데이터가 로딩된(length > 0) 후에만 노출해서 디자인 깨짐 방지 */}
       {showAgreement && agreements.length > 0 && (
         <AgreementSheet
           agreements={agreements}
@@ -115,7 +141,6 @@ export default function OnBoardingPage() {
         />
       )}
 
-      {/* 3. 약관 상세 페이지 이동 로직 */}
       {currentTerm === "POLICY" && (
         <ServiceTerms 
           content={getTermContent("POLICY")} 
