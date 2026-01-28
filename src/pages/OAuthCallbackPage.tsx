@@ -22,6 +22,8 @@ export default function OAuthCallbackPage() {
       };
 
       console.log("백엔드로 보낼 데이터:", requestBody);
+      console.log("🚀 현재 도메인:", window.location.origin);
+      console.log("📡 환경변수 주소:", import.meta.env.VITE_REDIRECT_URL);
 
       axios
         .post(
