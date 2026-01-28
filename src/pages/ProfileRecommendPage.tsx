@@ -35,6 +35,8 @@ export default function ProfileRecommendPage() {
           <div className="relative">
             <div className="h-[585px]">
               <RecommendCard2
+                profileUrl={`/home/profile/${profile.id}`}
+                targetUserId={profile.id}
                 imageUrl={profile.imageUrl}
                 name={profile.name}
                 age={profile.age}
