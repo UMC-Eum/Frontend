@@ -48,20 +48,17 @@ const ResultPage = () => {
             )}
           </div>
         </div>
+
         <div className="mt-[24px] space-y-[20px]">
           {data &&
             data.map((user) => (
               <IdleCard
-                profileUrl={`/home/profilerecommend/${user.id}`}
-                targetUserId={user.id}
                 key={user.id}
-=======
                 targetUserId={user.id}
                 initialIsLiked={false}
                 initialHeartId={0}
-                profileUrl={`/profile/${user.id}`}
+                profileUrl={`/profile/${user.id}`} // 더 깔끔한 경로 선택
                 imageUrl={user.imageUrl}
->>>>>>> Stashed changes
                 name={user.name}
                 age={user.age}
                 distance={user.distance}
@@ -71,6 +68,7 @@ const ResultPage = () => {
               />
             ))}
         </div>
+
         <div className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-100">
           <Navbar />
         </div>
