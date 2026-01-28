@@ -40,7 +40,7 @@ export const postProfile = async (body: IProfileRequest) => {
 //v1/matches/recommendation(get)
 export const getRecommendations = async () => {
   const { data } = await api.get<ApiSuccessResponse<IRecommendationsResponse>>(
-    "/v1/matches/recommendations",
+    "/v1/matches/recommended",
   );
 
   return data.success.data;
