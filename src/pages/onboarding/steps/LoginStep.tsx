@@ -4,10 +4,10 @@ import kakaologin from "../../../assets/login_kakao.svg";
 export default function LoginStep() {
   const KAKAO_REST_API_KEY = import.meta.env.VITE_KAKAO_API_KEY;
 
-  const REDIRECT_URI = import.meta.env.VITE_REDIRECT_URI;
+  const REDIRECT_URL = import.meta.env.VITE_REDIRECT_URL;
 
   const handleLogin = () => {
-    const kakaoAuthUrl = `https://kauth.kakao.com/oauth/authorize?client_id=${KAKAO_REST_API_KEY}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&response_type=code`;
+    const kakaoAuthUrl = `https://kauth.kakao.com/oauth/authorize?client_id=${KAKAO_REST_API_KEY}&redirect_uri=${encodeURIComponent(REDIRECT_URL)}&response_type=code`;
 
     window.location.href = kakaoAuthUrl;
   };
