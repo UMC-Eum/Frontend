@@ -3,13 +3,14 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useUserStore } from "../../stores/useUserStore";
 import BackButton from "../../components/BackButton";
 
-// API (경로 확인해주세요)
+// API
 import { 
   getChatRoomDetail, 
   getChatMessages, 
   sendChatMessage, 
   readChatMessage,
   patchChatMessage,
+  // uploadFile // 🔥 [가정] 파일 업로드 API가 있다면 여기서 import
 } from "../../api/chats/chatsApi"; 
 
 import { 
@@ -26,8 +27,8 @@ type ApiMessageItem = IChatsRoomIdMessagesGetResponse["items"][number];
 
 // UI 컴포넌트
 import { MessageBubble } from "../../components/chats/MessageBubble";
-import { ChatInputBar } from "../../components/chats/ChatInputBar";
-import { ReportModal } from "../../components/chats/ReportModal"; // 위에서 수정한 파일
+import { ChatInputBar } from "../../components/chats/ChatInputBar"; // 🔥 수정된 InputBar import
+import { ReportModal } from "../../components/chats/ReportModal"; 
 import { formatTime } from "../../hooks/UseFormatTime"; 
 
 export default function ChatRoomPage() {
@@ -67,8 +68,6 @@ export default function ChatRoomPage() {
         
         // A. 방 정보 + 차단 상태 확인
         const roomDetail = await getChatRoomDetail(parsedRoomId);
-        console.log("🔥 서버 응답 전체:", roomDetail); 
-        console.log("🔥 상대방 정보(peer):", roomDetail?.peer);
         if (roomDetail) {
           setPeerInfo({
             userId: roomDetail.peer.userId,
@@ -78,7 +77,6 @@ export default function ChatRoomPage() {
             profileImageUrl: "https://via.placeholder.com/52"
           });
 
-          // 내 차단 목록 조회하여 상대방이 있는지 확인
           try {
             const blockRes = await getBlocks({ size: 100 });
             const targetBlock = blockRes.items.find(item => item.targetUserId === roomDetail.peer.userId);
@@ -114,7 +112,7 @@ export default function ChatRoomPage() {
     initChat();
   }, [roomId, myId]);
 
-  // 스크롤 핸들링 (기존 동일)
+  // 스크롤 핸들링
   useEffect(() => {
     if (isInitLoaded && bottomRef.current) {
       bottomRef.current.scrollIntoView({ behavior: "auto" });
@@ -166,16 +164,13 @@ export default function ChatRoomPage() {
 
   // --- [기능] 차단 / 차단 해제 ---
   const handleBlockToggle = async () => {
-    console.log("차단 로직 진입. 타겟 ID:", peerInfo?.userId);
     if (!peerInfo) return;
     try {
       if (blockId) {
-        // 차단 해제 (PATCH)
         await patchBlock(blockId);
         setBlockId(null);
         alert("차단이 해제되었습니다.");
       } else {
-        // 차단 하기 (POST)
         const res = await blockUser({
           targetUserId: peerInfo.userId,
           reason: "채팅방 차단"
@@ -191,7 +186,6 @@ export default function ChatRoomPage() {
 
   // --- [기능] 신고 하기 ---
   const handleReport = async () => {
-    console.log("신고 로직 진입. 타겟 ID:", peerInfo?.userId);
     if (!peerInfo || !roomId) return;
     const reason = prompt("신고 사유를 입력해주세요.");
     if (!reason) return;
@@ -199,7 +193,7 @@ export default function ChatRoomPage() {
     try {
       await createReport({
         targetUserId: peerInfo.userId,
-        category: "SPAM", // 기획에 맞춰 카테고리 변경 필요
+        category: "SPAM", 
         description: reason,
         chatRoomId: Number(roomId)
       });
@@ -213,21 +207,18 @@ export default function ChatRoomPage() {
   // --- [기능] 메시지 삭제 ---
   const handleDeleteMessage = async (messageId: number) => {
     if (!confirm("정말 이 메시지를 삭제하시겠습니까?")) return;
-
     try {
-      // 1. API 호출 (PATCH 메서드로 삭제 상태 변경 요청)
       await patchChatMessage(messageId);
-
-      // 2. UI 반영: 성공 시 리스트에서 해당 메시지 즉시 제거
       setMessages((prev) => prev.filter((msg) => msg.messageId !== messageId));
-      
     } catch (error) {
       console.error("삭제 실패", error);
       alert("메시지 삭제에 실패했습니다.");
     }
   };
 
-  // 메시지 전송
+  // ----------------------------------------------------------------------
+  // 🔥 [전송 기능] 텍스트
+  // ----------------------------------------------------------------------
   const handleSendText = async (text: string) => {
     if (!roomId) return;
     const parsedRoomId = Number(roomId);
@@ -242,12 +233,17 @@ export default function ChatRoomPage() {
     } catch (error) { console.error(error); }
   };
 
+  // ----------------------------------------------------------------------
+  // 🔥 [전송 기능] 음성
+  // ----------------------------------------------------------------------
   const handleSendVoice = async (file: File, duration: number) => {
     if (!roomId) return;
     const parsedRoomId = Number(roomId);
     const localAudioUrl = URL.createObjectURL(file);
     try {
-      const res = await sendChatMessage(parsedRoomId, { type: "AUDIO", text: null, mediaUrl: "temp_url", durationSec: duration });
+      // TODO: 실제로는 여기서 file을 S3 등에 업로드하고 그 URL을 보내야 합니다.
+      const res = await sendChatMessage(parsedRoomId, { type: "AUDIO", text: null, mediaUrl: "temp_audio_url", durationSec: duration });
+      
       const newMessage: ApiMessageItem = {
         messageId: res.messageId, senderUserId: myId, type: "AUDIO", text: null, mediaUrl: localAudioUrl, durationSec: duration,
         sendAt: res.sendAt, readAt: null, isMine: true
@@ -257,6 +253,50 @@ export default function ChatRoomPage() {
     } catch (error) { console.error(error); }
   };
 
+  // ----------------------------------------------------------------------
+  // 🔥 [전송 기능 - 추가됨] 이미지
+  // ----------------------------------------------------------------------
+  {/*const handleSendImage = async (file: File) => {
+    if (!roomId) return;
+    const parsedRoomId = Number(roomId);
+    
+    // 1. 사용자 경험을 위해 로컬 미리보기 URL 생성
+    const localImageUrl = URL.createObjectURL(file);
+
+    try {
+      // TODO: 백엔드 API에 따라 이미지를 먼저 업로드해서 URL을 받아와야 할 수 있습니다.
+      // const uploadRes = await uploadFile(file);
+      // const realImageUrl = uploadRes.url; 
+      
+      // 여기서는 임시 URL 혹은 업로드 로직이 있다고 가정하고 메시지 전송
+      const res = await sendChatMessage(parsedRoomId, { 
+        type: "IMAGE",  // DTO에 IMAGE 타입이 있다고 가정
+        text: null, 
+        mediaUrl: "temp_image_url", // 실제로는 업로드된 URL
+        durationSec: 0 
+      });
+
+      const newMessage: ApiMessageItem = {
+        messageId: res.messageId, 
+        senderUserId: myId, 
+        type: "IMAGE", // 타입 지정
+        text: null, 
+        mediaUrl: localImageUrl, // 내가 보낸 건 로컬 URL로 즉시 표시
+        durationSec: 0,
+        sendAt: res.sendAt, 
+        readAt: null, 
+        isMine: true
+      };
+
+      setMessages((prev) => [...prev, newMessage]);
+      setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
+      
+    } catch (error) { 
+      console.error("이미지 전송 실패:", error); 
+    }
+  };
+*/}
+
   const handlePlayAudio = (id: number) => {
     setPlayingId(playingId === id ? null : id);
   };
@@ -264,6 +304,7 @@ export default function ChatRoomPage() {
   return (
     <div className="w-full h-dvh flex flex-col bg-white relative overflow-hidden">
       
+      {/* 헤더 */}
       <header className="shrink-0 h-[45px] px-4 flex items-center justify-between bg-white z-10 border-b border-gray-100">
         <div className="-ml-5"><BackButton /></div>
         <div className="absolute top-0 left-1/2 -translate-x-1/2 px-4 py-2">
@@ -280,9 +321,11 @@ export default function ChatRoomPage() {
         </button>
       </header>
 
+      {/* 메시지 리스트 */}
       <div ref={scrollContainerRef} className="flex-1 overflow-y-auto px-4 py-4 scroll-smooth">
         <div ref={topObserverRef} className="h-2 w-full" />
 
+        {/* 프로필 카드 영역 */}
         <div className="flex flex-col items-center justify-center gap-3 pt-4">
           <div className="relative shrink-0 w-[100px] h-[100px] rounded-full overflow-hidden bg-gray-200">
             <img 
@@ -307,6 +350,7 @@ export default function ChatRoomPage() {
           </div>
         </div>
 
+        {/* 메시지 렌더링 */}
         <div className="flex flex-col mt-2 gap-3">
           {messages.map((msg) => (
             <MessageBubble
@@ -314,13 +358,14 @@ export default function ChatRoomPage() {
               isMe={msg.senderUserId === myId}  
               type={msg.type}
               content={msg.text}
+              // 👇 [수정] mediaUrl을 상황에 맞게 전달
               audioUrl={msg.mediaUrl}           
+              //imageUrl={msg.type === 'IMAGE' ? msg.mediaUrl : undefined} // MessageBubble에 imageUrl prop이 있다고 가정
               duration={msg.durationSec}
               timestamp={formatTime(msg.sendAt)}
               readAt={msg.readAt}
               isPlayingProp={playingId === msg.messageId}
               onPlay={() => handlePlayAudio(msg.messageId)}
-              // 👇 [핵심] 내가 보낸 메시지면 삭제 핸들러 전달, 아니면 undefined
               onDelete={msg.senderUserId === myId ? () => handleDeleteMessage(msg.messageId) : undefined}
             />
           ))}
@@ -328,9 +373,14 @@ export default function ChatRoomPage() {
         </div>
       </div>
 
-      <ChatInputBar onSendText={handleSendText} onSendVoice={handleSendVoice} />
+      {/* 🔥 [핵심 변경] ChatInputBar에 onSendImage 연결 */}
+      <ChatInputBar 
+        onSendText={handleSendText} 
+        onSendVoice={handleSendVoice} 
+        //onSendImage={handleSendImage} 
+      />
 
-      {/* 👇 [핵심] 수정된 모달에 핸들러와 차단 상태 전달 */}
+      {/* 신고/차단 모달 */}
       <ReportModal 
         isOpen={isMenuOpen} 
         isBlocked={blockId !== null} 
@@ -340,6 +390,7 @@ export default function ChatRoomPage() {
         onLeave={() => { setIsMenuOpen(false); setIsExitConfirmOpen(true); }}
       />
 
+      {/* 나가기 확인 모달 */}
       {isExitConfirmOpen && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-8">
            <div className="absolute inset-0 bg-black/60" onClick={() => setIsExitConfirmOpen(false)} />

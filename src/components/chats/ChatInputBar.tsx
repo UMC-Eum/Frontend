@@ -6,12 +6,20 @@ import RecordingControl from "../RecordingControl";
 interface ChatInputBarProps {
   onSendText: (text: string) => void;
   onSendVoice: (file: File, duration: number) => void;
+  // 🔥 [추가] 이미지가 선택되었을 때 부모에게 파일을 전달하는 함수
+  //onSendImage: (file: File) => void; 
 }
 
 export function ChatInputBar({ onSendText, onSendVoice }: ChatInputBarProps) {
   const [text, setText] = useState("");
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  
+  // 텍스트 입력 Ref
   const inputRef = useRef<HTMLInputElement>(null);
+  
+  // 🔥 [추가] 카메라/앨범 실행을 위한 hidden input Refs
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const albumInputRef = useRef<HTMLInputElement>(null);
 
   const { status, seconds, handleMicClick, isShort } = useMicRecording((file, duration) => {
     onSendVoice(file, duration);
@@ -34,19 +42,36 @@ export function ChatInputBar({ onSendText, onSendVoice }: ChatInputBarProps) {
     if (isMenuOpen) setIsMenuOpen(false);
   };
 
+  // 🔥 [추가] 파일 선택 시 처리 핸들러 (카메라/앨범 공통 사용)
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // 부모 컴포넌트로 파일 전달
+    //onSendImage(file);
+
+    // 같은 파일을 다시 선택할 수 있도록 초기화 & 메뉴 닫기
+    e.target.value = "";
+    setIsMenuOpen(false);
+  };
+
+  // 🔥 [추가] 메뉴 버튼 클릭 핸들러
+  const triggerCamera = () => {
+    console.log("📸 카메라 실행");
+    cameraInputRef.current?.click();
+  };
+
+  const triggerAlbum = () => {
+    console.log("🖼️ 앨범 실행");
+    albumInputRef.current?.click();
+  };
+
   return (
     <div className="relative w-full z-30">
       
-      {/* 입력바 영역 (흰색 박스) */}
-      {/* relative를 줘서 자식인 마이크가 이 박스를 기준으로 위치를 잡게 함 */}
+      {/* 입력바 영역 */}
       <div className="flex flex-col bg-white border-t border-gray-100 pb-safe relative z-20">
         
-        {/* 🎤 [수정 완료] 
-            absolute: 띄운다
-            bottom-full: 내 밑변을 부모(흰박스)의 윗변에 맞춘다 (딱 붙음)
-            mb-6: 거기서 24px만큼 더 위로 띄운다
-            flex flex-col items-center: 내부 정렬
-        */}
         <RecordingControl 
           status={status}
           seconds={seconds}
@@ -100,11 +125,34 @@ export function ChatInputBar({ onSendText, onSendVoice }: ChatInputBarProps) {
         {/* 하단 메뉴 영역 */}
         {isMenuOpen && (
           <ChatPlusMenu 
-            onCameraClick={() => console.log("카메라 클릭")} 
-            onAlbumClick={() => console.log("앨범 클릭")} 
+            onCameraClick={triggerCamera} // 🔥 함수 연결
+            onAlbumClick={triggerAlbum}   // 🔥 함수 연결
           />
         )}
       </div>
+
+      {/* 🔥 [추가] 숨겨진 File Inputs */}
+      {/* 1. 카메라용 (capture="environment"로 후면 카메라 우선 실행) */}
+      <input 
+        type="file" 
+        id="camera-input"
+        accept="image/*" 
+        capture="environment"  // 🔥 핵심: 이 속성이 있어야 바로 카메라가 켜짐
+        ref={cameraInputRef} 
+        onChange={handleFileSelect} 
+        className="hidden" 
+      />
+
+      {/* 2. 앨범용 (capture 속성 없음 -> 갤러리 열림) */}
+      <input 
+        type="file" 
+        id="album-input"
+        accept="image/*" 
+        // 🔥 여기는 capture를 빼야 앨범 선택창이 뜸
+        ref={albumInputRef} 
+        onChange={handleFileSelect} 
+        className="hidden" 
+      />
     </div>
   );
 }
