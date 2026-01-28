@@ -11,7 +11,7 @@ export default function OAuthCallbackPage() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const code = params.get("code");
-    const REDIRECT_URL = `${window.location.origin}/oauth/callback/kakao`;
+    const REDIRECT_URL = `${window.location.origin}/api/v1/auth/kakao/login`;
 
     if (code && hasRequested.current === false) {
       hasRequested.current = true;
