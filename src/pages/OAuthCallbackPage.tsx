@@ -11,7 +11,7 @@ export default function OAuthCallbackPage() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const code = params.get("code");
-    const REDIRECT_URL = `${window.location.origin}/api/v1/auth/kakao/login`;
+    const REDIRECT_URL = `${import.meta.env.VITE_REDIRECT_URL}`;
 
     if (code && hasRequested.current === false) {
       hasRequested.current = true;
@@ -20,10 +20,6 @@ export default function OAuthCallbackPage() {
         authorizationCode: code,
         redirectUri: REDIRECT_URL,
       };
-
-      console.log("백엔드로 보낼 데이터:", requestBody);
-      console.log("🚀 현재 도메인:", window.location.origin);
-      console.log("📡 환경변수 주소:", import.meta.env.VITE_REDIRECT_URL);
 
       axios
         .post(
