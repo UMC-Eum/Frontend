@@ -4,9 +4,11 @@ import kakaologin from "../../../assets/login_kakao.svg";
 export default function LoginStep() {
   const KAKAO_REST_API_KEY = import.meta.env.VITE_KAKAO_API_KEY;
 
-  const REDIRECT_URL = `${import.meta.env.VITE_REDIRECT_URL}`;
+  // 프론트엔드 콜백 URL (카카오가 사용자를 리다이렉트할 주소)
+  const REDIRECT_URL = `${window.location.origin}/oauth/callback/kakao`;
 
   const handleLogin = () => {
+    console.log("🔍 카카오로 보낼 Redirect URL:", REDIRECT_URL);
     const kakaoAuthUrl = `https://kauth.kakao.com/oauth/authorize?client_id=${KAKAO_REST_API_KEY}&redirect_uri=${encodeURIComponent(REDIRECT_URL)}&response_type=code`;
 
     window.location.href = kakaoAuthUrl;

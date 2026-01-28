@@ -11,7 +11,10 @@ export default function OAuthCallbackPage() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const code = params.get("code");
-    const REDIRECT_URL = `${import.meta.env.VITE_REDIRECT_URL}`;
+    // 프론트엔드 콜백 URL (백엔드에 같은 값을 보내야 함)
+    const REDIRECT_URL = `${window.location.origin}/oauth/callback/kakao`;
+
+    console.log("🔍 백엔드로 보낼 Redirect URL:", REDIRECT_URL);
 
     if (code && hasRequested.current === false) {
       hasRequested.current = true;
