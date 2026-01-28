@@ -24,7 +24,10 @@ export default function OAuthCallbackPage() {
       console.log("백엔드로 보낼 데이터:", requestBody);
 
       axios
-        .post("http://localhost:3000/api/v1/auth/kakao/login", requestBody)
+        .post(
+          `${import.meta.env.VITE_API_BASE_URL}/v1/auth/kakao/login`,
+          requestBody,
+        )
         .then((res) => {
           console.log("🎉 로그인 성공!", res.data);
 
