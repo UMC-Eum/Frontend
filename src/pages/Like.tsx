@@ -157,7 +157,8 @@ export default function Like() {
           {list.map((item) => (
             <div key={item.id} className="h-[243px]">
               <MiniCard
-                key={item.id}
+                profileUrl={`/home/profile/${item.id}`}
+                targetUserId={item.id}
                 imageUrl={item.imageUrl}
                 name={item.name}
                 age={item.age}

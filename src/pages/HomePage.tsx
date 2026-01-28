@@ -55,6 +55,8 @@ export default function HomePage() {
                             onClick={() => goProfile(user)}
                           >
                             <SmallButtonIdleCard
+                              profileUrl={`/home/profile/${user.id}`}
+                              targetUserId={user.id}
                               imageUrl={user.imageUrl}
                               name={user.name}
                               age={user.age}
@@ -111,6 +113,8 @@ export default function HomePage() {
                             onClick={() => goProfile(user)}
                           >
                             <RecommendCard
+                              profileUrl={`/home/profile/${user.id}`}
+                              targetUserId={user.id}
                               imageUrl={user.imageUrl}
                               name={user.name}
                               age={user.age}

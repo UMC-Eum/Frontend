@@ -34,7 +34,7 @@ export default function IdealRecordPage() {
 
       updateUser({
         introAudioUrl: mockResult.record,
-        keywords: mergedKeywords,
+        idealPersonalities: mergedKeywords,
       });
 
       setIsKeywordPage(true);
@@ -117,7 +117,7 @@ export default function IdealRecordPage() {
           )}
         </main>
       )}
-      {isKeywordPage && <IdealEditPage recommendedKeywords={["API 키워드 넣어야 해요"]}/>}
+      {isKeywordPage && <IdealEditPage/>}
     </>
   );
 }

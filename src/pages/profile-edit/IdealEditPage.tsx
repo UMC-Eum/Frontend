@@ -20,7 +20,7 @@ export default function IdealEditPage() {
     const mergedKeywords = Array.from(
       new Set([...(user?.idealPersonalities || []), ...selectedKeywords]),
     );
-    updateUser({ keywords: mergedKeywords });
+    updateUser({ idealPersonalities: mergedKeywords });
     navigate("/my/edit/");
   };
 

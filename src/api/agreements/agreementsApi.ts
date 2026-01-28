@@ -1,30 +1,33 @@
 import api from "../axiosInstance";
-import { ApiSuccessResponse } from "../../types/api/api";
 import {
   IAgreementsResponse,
-  IAgreements,
-  IMarketingAgreementRequest,
+  IAgreementItem,
+  UpdateMarketingRequest,
 } from "../../types/api/agreements/agreementsDTO";
-// 약관 조회
-export const getAgreements = async (): Promise<IAgreements[]> => {
-  const { data } = await api.get<ApiSuccessResponse<IAgreementsResponse>>(
-    "/agreements"
-  );
 
+/**
+ * 약관 조회 점검 완료
+ * 예시의 success.data.items 경로를 정확히 따릅니다.
+ */
+export const getAgreements = async (): Promise<IAgreementItem[]> => {
+  const { data } = await api.get<IAgreementsResponse>("/agreements");
+  
+  // 예시 구조: data { success: { data: { items: [...] } } }
   return data.success.data.items;
 };
-// 마케팅 약관 동의 상태 업데이트
+
+/**
+ * 마케팅 동의 업데이트 점검 완료
+ * 예시의 { "marketingAgreements": [...] } 바디 구조를 정확히 따릅니다.
+ */
 export const updateMarketingAgreements = async (
-  items: IMarketingAgreementRequest[]
+  items: UpdateMarketingRequest["marketingAgreements"]
 ) => {
-  const body = {
+  // 예시 구조: { "marketingAgreements": [ { "marketingAgreementId": 1, ... } ] }
+  const body: UpdateMarketingRequest = {
     marketingAgreements: items,
   };
 
-  const { data } = await api.post<ApiSuccessResponse<null>>(
-    "/users/me/agreements",
-    body
-  );
-
-  return data.success.data;
+  const { data } = await api.post("/users/me/agreements", body);
+  return data;
 };
