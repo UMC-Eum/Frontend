@@ -11,14 +11,14 @@ export default function OAuthCallbackPage() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const code = params.get("code");
-    const REDIRECT_URI = import.meta.env.VITE_REDIRECT_URI;
+    const REDIRECT_URL = import.meta.env.VITE_REDIRECT_URL;
 
     if (code && hasRequested.current === false) {
       hasRequested.current = true;
 
       const requestBody = {
         authorizationCode: code,
-        redirectUri: REDIRECT_URI,
+        redirectUri: REDIRECT_URL,
       };
 
       console.log("백엔드로 보낼 데이터:", requestBody);
