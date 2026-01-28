@@ -4,7 +4,7 @@ import { CardLocation } from "../blocks/CardLocation";
 import { CardDescription } from "../blocks/CardDescription";
 import { CardKeywords } from "../blocks/CardKeywords";
 import { ChatAction } from "../actions/ChatAction";
-import LikeAction from "../actions/LikeAction"; 
+import LikeAction from "../actions/LikeAction";
 import CloseAction from "../actions/CloseAction";
 
 // ✅ 훅 불러오기 (경로가 맞는지 확인해주세요)
@@ -14,7 +14,7 @@ import { useNavigate } from "react-router-dom";
 
 type SmallButtonIdleCardProps = {
   profileUrl: string;
-  targetUserId: number; 
+  targetUserId: number;
   imageUrl: string;
   name: string;
   age: number;
@@ -24,22 +24,21 @@ type SmallButtonIdleCardProps = {
   description: string;
   initialHeartId?: number; // ✅ 좋아요 취소용 ID
   initialIsLiked?: boolean; // ✅ 초기 좋아요 상태
-}
+};
 
-export default function SmallButtonIdleCard({ 
+export default function SmallButtonIdleCard({
   profileUrl,
-  targetUserId, 
-  imageUrl, 
-  name, 
-  age, 
-  distance, 
-  area, 
-  keywords, 
+  targetUserId,
+  imageUrl,
+  name,
+  age,
+  distance,
+  area,
+  keywords,
   description,
   initialHeartId, // ✅ 여기랑
-  initialIsLiked  // ✅ 여기에 추가해서 받아와야 함
+  initialIsLiked, // ✅ 여기에 추가해서 받아와야 함
 }: SmallButtonIdleCardProps) {
-  
   // ✅ 1. 채팅 이동 훅
   const { startChat } = useMoveToChat();
 
@@ -47,7 +46,7 @@ export default function SmallButtonIdleCard({
   const { isLiked, toggleLike } = useLike({
     targetUserId,
     initialIsLiked,
-    initialHeartId
+    initialHeartId,
   });
 
   // 배경이미지클릭시 프로필 화면으로 이동
@@ -58,7 +57,11 @@ export default function SmallButtonIdleCard({
   };
 
   return (
-    <CardShell imageUrl={imageUrl} onClick={handleBackgroundClick} className="cursor-pointer">
+    <CardShell
+      imageUrl={imageUrl}
+      onClick={handleBackgroundClick}
+      className="cursor-pointer"
+    >
       {/* 하단 그라데이션 */}
       <div className="absolute inset-x-0 bottom-0 h-80 bg-gradient-to-t from-black/80 via-black/40 to-transparent pointer-events-none" />
 
@@ -71,37 +74,32 @@ export default function SmallButtonIdleCard({
         </div>
 
         <div className="mt-2">
-          <CardDescription>
-            {description}
-          </CardDescription>
+          <CardDescription>{description}</CardDescription>
         </div>
 
         <div className="mt-3">
-          <CardKeywords
-            keywords={keywords}
-            mode="transparent"
-          />
+          <CardKeywords keywords={keywords} mode="transparent" />
         </div>
       </div>
 
       {/* 하단 액션 버튼 */}
-      <div onClick={(e) => e.stopPropagation()} className="absolute inset-x-0 bottom-4 flex items-center justify-center gap-13 z-20">
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="absolute inset-x-0 bottom-4 flex items-center justify-center gap-13 z-20"
+      >
         {/* X 버튼 */}
         <CloseAction size="md" onClose={() => console.log("닫기 클릭")} />
 
         {/* ✅ 채팅 버튼 */}
-        <ChatAction
-          onChat={() => startChat(targetUserId)} 
-          size="lg"
-        />
+        <ChatAction onChat={() => startChat(targetUserId)} size="lg" />
 
         {/* ✅ 좋아요 버튼 (이제 정상 작동함) */}
         <LikeAction
-          isLiked={isLiked}    // 훅 상태 연결
-          onLike={toggleLike}  // 훅 함수 연결
+          isLiked={isLiked} // 훅 상태 연결
+          onLike={toggleLike} // 훅 함수 연결
           size="md"
           variant="bigIcon"
-        /> 
+        />
       </div>
     </CardShell>
   );

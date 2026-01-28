@@ -19,20 +19,19 @@ type MiniCardProps = {
   age: number;
   distance: string;
   area: string;
-}
-  
-export default function MiniCard({ 
+};
+
+export default function MiniCard({
   targetUserId,
   initialIsLiked,
   initialHeartId,
   profileUrl,
-  imageUrl, 
-  name, 
-  age, 
-  distance, 
-  area 
+  imageUrl,
+  name,
+  age,
+  distance,
+  area,
 }: MiniCardProps) {
-
   // ✅ 3. 좋아요 로직 연결
   const { isLiked, toggleLike } = useLike({
     targetUserId,
@@ -48,15 +47,21 @@ export default function MiniCard({
   };
 
   return (
-    <div className="flex w-[173px] cursor-pointer" onClick={handleBackgroundClick}>
+    <div
+      className="flex w-[173px] cursor-pointer"
+      onClick={handleBackgroundClick}
+    >
       <RoundCardShell imageUrl={imageUrl}>
         {/* 하단 가독성용 그라데이션 */}
         <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-black/70 to-transparent pointer-events-none" />
 
         {/* 좋아요 버튼 (우상단) */}
-        <div onClick={(e) => e.stopPropagation()} className="absolute top-3 right-3 shrink-0 z-20">
+        <div
+          onClick={(e) => e.stopPropagation()}
+          className="absolute top-3 right-3 shrink-0 z-20"
+        >
           <LikeAction
-            isLiked={isLiked}   // ✅ 상태 연결
+            isLiked={isLiked} // ✅ 상태 연결
             onLike={toggleLike} // ✅ 함수 연결
             size="sm"
             variant="smallIcon"
@@ -65,10 +70,20 @@ export default function MiniCard({
 
         {/* 이름 + 위치 (좌하단) */}
         <div className="absolute left-4 bottom-2 text-white z-10">
-          <CardUserId name={name} age={age} isVerified={false} textsize="[18px]" bold="semi-bold" />
+          <CardUserId
+            name={name}
+            age={age}
+            isVerified={false}
+            textsize="[18px]"
+            bold="semi-bold"
+          />
 
           <div className="-mt-3">
-            <CardLocation distance={distance} area={area} textsize="text-[14px]" />
+            <CardLocation
+              distance={distance}
+              area={area}
+              textsize="text-[14px]"
+            />
           </div>
         </div>
       </RoundCardShell>

@@ -23,6 +23,8 @@ import LoginStep from "./pages/onboarding/steps/LoginStep";
 import OAuthCallbackPage from "./pages/OAuthCallbackPage";
 
 import ProfileRecommendPage from "./pages/ProfileRecommendPage";
+import Like from "./pages/Like";
+
 const router = createBrowserRouter([
   {
     path: "/",
@@ -41,6 +43,10 @@ const router = createBrowserRouter([
             element: <ResultPage />,
           },
         ],
+      },
+      {
+        path: "like",
+        element: <Like />,
       },
       {
         path: "profileset",
@@ -96,7 +102,7 @@ const router = createBrowserRouter([
     children: [
       { index: true, element: <HomePage /> },
       {
-        path: "profilerecommend",
+        path: "profile/:id",
         element: <ProfileRecommendPage />,
       },
     ],
@@ -105,14 +111,14 @@ const router = createBrowserRouter([
     path: "/message",
     children: [
       {
-        index: true, 
+        index: true,
         element: <ChatListPage />, // url: /chats
       },
       {
-        path: "room/:roomId", 
+        path: "room/:roomId",
         element: <ChatRoomPage />, // url: /message/room/{숫자}
-      }
-    ]
+      },
+    ],
   },
 ]);
 
