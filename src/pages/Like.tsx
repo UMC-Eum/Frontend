@@ -1,6 +1,7 @@
 import BackButton from "../components/BackButton";
 import Navbar from "../components/Navbar";
 import { useMemo, useState } from "react";
+import MiniCard from "../components/card/presets/MiniCard";
 
 type LikeCard = {
   id: number;
@@ -119,7 +120,7 @@ export default function Like() {
 
   const list = useMemo(
     () => (activeTab === "pressed" ? pressedList : gotList),
-    [activeTab]
+    [activeTab],
   );
 
   return (
@@ -151,19 +152,25 @@ export default function Like() {
           );
         })}
       </div>
-      <div className="flex-1 overflow-y-auto pt-[26px] px-[20px] pb-[120px]">
+      <main className="flex-1 overflow-y-auto pt-[26px] px-[20px] pb-[120px] no-scrollbar">
         <div className="grid grid-cols-2 gap-[20px]">
           {list.map((item) => (
             <div key={item.id} className="h-[243px]">
-              <img
-                src={item.imageUrl}
-                className="w-full h-full rounded-xl object-cover"
+              <MiniCard
+                key={item.id}
+                imageUrl={item.imageUrl}
+                name={item.name}
+                age={item.age}
+                area={item.location}
+                distance={`${item.distanceKm}km`}
               />
             </div>
           ))}
         </div>
+      </main>
+      <div className="shrink-0">
+        <Navbar />
       </div>
-      <Navbar />
     </div>
   );
 }

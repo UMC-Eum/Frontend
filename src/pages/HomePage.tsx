@@ -29,7 +29,7 @@ export default function HomePage() {
     <div className="flex justify-center min-h-screen">
       <div className="w-full max-w-[420px] h-screen bg-[#F8FAFB] flex flex-col overflow-hidden flex-1 relative">
         {/* 콘텐츠 영역: 여기가 h-full의 기준이 됩니다 */}
-        <main className="overflow-y-auto px-[20px] pb-[62px]">
+        <main className="overflow-y-auto px-[20px] pb-[120px] no-scrollbar">
           <header className="flex h-[45px] items-center text-[24px] mb-[10px] font-bold">
             환영합니다 {userNickname}님!
           </header>

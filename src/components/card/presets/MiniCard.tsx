@@ -4,15 +4,21 @@ import { CardLocation } from "../blocks/CardLocation";
 import LikeAction from "../actions/LikeAction";
 import { RoundCardShell } from "../shell/RoundCardShell";
 
-type MiniCardProps = {
+export type MiniCardProps = {
   imageUrl: string;
   name: string;
   age: number;
   distance: string;
   area: string;
-}
-  
-export default function MiniCard({ imageUrl, name, age, distance, area }: MiniCardProps) {
+};
+
+export default function MiniCard({
+  imageUrl,
+  name,
+  age,
+  distance,
+  area,
+}: MiniCardProps) {
   return (
     <div className="flex w-[173px]">
       <RoundCardShell imageUrl={imageUrl}>
@@ -30,10 +36,20 @@ export default function MiniCard({ imageUrl, name, age, distance, area }: MiniCa
 
         {/* 이름 + 위치 (좌하단) */}
         <div className="absolute left-4 bottom-2 text-white">
-          <CardUserId name={name} age={age} isVerified={false} textsize="[18px]" bold="semi-bold" />
+          <CardUserId
+            name={name}
+            age={age}
+            isVerified={false}
+            textsize="[18px]"
+            bold="semi-bold"
+          />
 
           <div className="-mt-3">
-            <CardLocation distance={distance} area={area} textsize="text-[14px]" />
+            <CardLocation
+              distance={distance}
+              area={area}
+              textsize="text-[14px]"
+            />
           </div>
         </div>
       </RoundCardShell>

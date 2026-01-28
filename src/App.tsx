@@ -23,6 +23,8 @@ import LoginStep from "./pages/onboarding/steps/LoginStep";
 import OAuthCallbackPage from "./pages/OAuthCallbackPage";
 
 import ProfileRecommendPage from "./pages/ProfileRecommendPage";
+import Like from "./pages/Like";
+
 const router = createBrowserRouter([
   {
     path: "/",
@@ -41,6 +43,10 @@ const router = createBrowserRouter([
             element: <ResultPage />,
           },
         ],
+      },
+      {
+        path: "like",
+        element: <Like />,
       },
       {
         path: "profileset",
