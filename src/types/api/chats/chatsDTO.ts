@@ -24,7 +24,7 @@ export interface ILastMessage {
 }
 export interface IChatsRoomItem {
   chatRoomId: number;
-  peer: IPeer;
+  peer: IPeer; // 위치정보 추가 필요
   lastMessage: ILastMessage;
   unreadCount: number;
 }
