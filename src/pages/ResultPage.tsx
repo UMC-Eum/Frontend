@@ -52,6 +52,7 @@ const ResultPage = () => {
           {data &&
             data.map((user) => (
               <IdleCard
+                profileUrl={`/home/profilerecommend/${user.id}`}
                 targetUserId={user.id}
                 key={user.id}
                 name={user.name}

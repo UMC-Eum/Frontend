@@ -4,11 +4,13 @@ import { CardDescription } from "../blocks/CardDescription";
 import { CardKeywords } from "../blocks/CardKeywords";
 import { CardRecommend } from "../blocks/CardRecommend";
 import { RoundCardShell } from "../shell/RoundCardShell";
+import { useNavigate } from "react-router-dom";
 
 type RecommendCardProps = {
   // ✅ 나중에 페이지 이동할 때 쓸 ID만 받아둡니다.
   targetUserId: number; 
 
+  profileUrl: string;
   imageUrl: string;
   name: string;
   age: number;
@@ -20,6 +22,7 @@ type RecommendCardProps = {
 
 export default function RecommendCard({ 
   targetUserId, 
+  profileUrl,
   imageUrl, 
   name, 
   age, 
@@ -29,14 +32,22 @@ export default function RecommendCard({
   keywords 
 }: RecommendCardProps) {
   
+  
+
+  // 배경이미지클릭시 프로필 화면으로 이동
+  const navigate = useNavigate();
+
+  const handleBackgroundClick = () => {
+    navigate(profileUrl);
+  };
   // ✅ 프로필 보러가기 버튼 핸들러
   const handleProfileClick = () => {
-    // 나중에 여기에 navigate(`/profile/${targetUserId}`) 같은 코드가 들어갑니다.
+    navigate(profileUrl);
     console.log(`[Navigation] 유저 ID ${targetUserId}번 상세 페이지로 이동합니다.`);
   };
 
   return (
-    <RoundCardShell imageUrl={imageUrl}>
+    <RoundCardShell imageUrl={imageUrl} onClick={handleBackgroundClick} className="cursor-pointer">
       
       {/* 배경 그라데이션 */}
       <div className="absolute inset-x-0 bottom-0 h-[70%] bg-gradient-to-t from-black/90 via-black/50 to-transparent z-10 pointer-events-none" />
@@ -72,7 +83,7 @@ export default function RecommendCard({
         </div>
 
         {/* ✅ 프로필 보러가기 버튼 (단순 클릭 이벤트만 연결) */}
-        <div className="-mt-1 mb-2">
+        <div onClick={(e) => e.stopPropagation()}className="-mt-1 mb-2">
           <CardRecommend
             onClick={handleProfileClick} 
           />

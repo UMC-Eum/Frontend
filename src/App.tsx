@@ -113,7 +113,7 @@ const router = createBrowserRouter([
         element: <ChatRoomPage />, // url: /message/room/{숫자}
       }
     ]
-  }
+  },
 ]);
 
 const App = () => {
