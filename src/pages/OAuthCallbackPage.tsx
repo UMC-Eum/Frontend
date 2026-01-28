@@ -7,17 +7,18 @@ export default function OAuthCallbackPage() {
   const navigate = useNavigate();
   const hasRequested = useRef(false);
   const { setIsLoggedIn } = useUserStore();
-  console.log(
-    "환경변수 체크 - Redirect URI:",
-    import.meta.env.VITE_REDIRECT_URI,
-  );
-  console.log(
-    "환경변수 체크 - API Base URL:",
-    import.meta.env.VITE_API_BASE_URL,
-  );
+
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const code = params.get("code");
+    console.log(
+      "환경변수 체크 - Redirect URI:",
+      import.meta.env.VITE_REDIRECT_URI,
+    );
+    console.log(
+      "환경변수 체크 - API Base URL:",
+      import.meta.env.VITE_API_BASE_URL,
+    );
     const REDIRECT_URI = import.meta.env.VITE_REDIRECT_URI;
 
     if (code && hasRequested.current === false) {
