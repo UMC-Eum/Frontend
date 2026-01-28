@@ -1,22 +1,14 @@
 import Navbar from "../components/Navbar";
-import { Outlet } from "react-router-dom";
+import { Outlet, useNavigate } from "react-router-dom";
 import pinkrectangle from "../assets/pink_rectangle.svg";
 import { useUserStore } from "../stores/useUserStore";
-import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { fetchAllMatchResults } from "../mock/mockFetch";
-import Card from "../components/Card";
-
-type ActivePerson = {
-  id: number;
-  name: string;
-  age: number;
-  distanceKm: number;
-  imageUrl: string;
-};
+import { fetchAllMatchResults, MockUser } from "../mock/mockFetch";
+import RecommendCard from "../components/card/presets/RecommendCard1";
+import SmallButtonIdleCard from "../components/card/presets/SmallButtonIdleCard";
 
 export default function HomePage() {
-  const { data } = useQuery({
+  const { data } = useQuery<MockUser[]>({
     queryKey: ["matchResults"],
     queryFn: fetchAllMatchResults,
   });
@@ -27,93 +19,17 @@ export default function HomePage() {
 
   const isProfileRegistered = false;
 
-  const activePeople: ActivePerson[] = [
-    {
-      id: 1,
-      name: "김영철",
-      age: 50,
-      distanceKm: 12,
-      imageUrl:
-        "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=500&h=800&fit=crop",
-    },
-    {
-      id: 2,
-      name: "김치천국",
-      age: 73,
-      distanceKm: 2,
-      imageUrl:
-        "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=500&h=800&fit=crop",
-    },
-    {
-      id: 3,
-      name: "소통해요",
-      age: 68,
-      distanceKm: 6,
-      imageUrl:
-        "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=500&h=800&fit=crop",
-    },
-    {
-      id: 4,
-      name: "퇴근1",
-      age: 54,
-      distanceKm: 9,
-      imageUrl:
-        "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=500&h=800&fit=crop",
-    },
-    {
-      id: 5,
-      name: "홍길동",
-      age: 61,
-      distanceKm: 3,
-      imageUrl:
-        "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=500&h=800&fit=crop",
-    },
-    {
-      id: 6,
-      name: "김영철",
-      age: 50,
-      distanceKm: 12,
-      imageUrl:
-        "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=500&h=800&fit=crop",
-    },
-    {
-      id: 7,
-      name: "김치천국",
-      age: 73,
-      distanceKm: 2,
-      imageUrl:
-        "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=500&h=800&fit=crop",
-    },
-    {
-      id: 8,
-      name: "소통해요",
-      age: 68,
-      distanceKm: 6,
-      imageUrl:
-        "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=500&h=800&fit=crop",
-    },
-    {
-      id: 9,
-      name: "퇴근1",
-      age: 54,
-      distanceKm: 9,
-      imageUrl:
-        "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=500&h=800&fit=crop",
-    },
-    {
-      id: 10,
-      name: "홍길동",
-      age: 61,
-      distanceKm: 3,
-      imageUrl:
-        "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=500&h=800&fit=crop",
-    },
-  ];
+  const goProfile = (u: MockUser) => {
+    navigate(`/home/profile/${u.id}`, { state: { profile: u } });
+  };
+
+  const activePeople = data ?? [];
+
   return (
     <div className="flex justify-center min-h-screen">
       <div className="w-full max-w-[420px] h-screen bg-[#F8FAFB] flex flex-col overflow-hidden flex-1 relative">
         {/* 콘텐츠 영역: 여기가 h-full의 기준이 됩니다 */}
-        <main className="overflow-y-auto px-[20px] pb-[62px]">
+        <main className="overflow-y-auto px-[20px] pb-[120px] no-scrollbar">
           <header className="flex h-[45px] items-center text-[24px] mb-[10px] font-bold">
             환영합니다 {userNickname}님!
           </header>
@@ -126,7 +42,7 @@ export default function HomePage() {
                       오늘의 이상형 추천
                     </h2>
                     <p className="text-[#636970] text-[14px] font-medium">
-                      루씨님이 말한 이상형으로 찾아봤어요!
+                      {userNickname}님이 말한 이상형으로 찾아봤어요!
                     </p>
                   </div>
                   <div className="rounded-2xl">
@@ -136,12 +52,16 @@ export default function HomePage() {
                           <div
                             key={user.id}
                             className="snap-center shrink-0 w-full pr-[12px] last:pr-0"
+                            onClick={() => goProfile(user)}
                           >
-                            <Card
+                            <SmallButtonIdleCard
+                              profileUrl={`/home/profile/${user.id}`}
+                              targetUserId={user.id}
+                              imageUrl={user.imageUrl}
                               name={user.name}
                               age={user.age}
-                              imageUrl={user.imageUrl}
                               distance={user.distance}
+                              area={user.area}
                               description={user.description}
                               keywords={user.keywords}
                             />
@@ -190,12 +110,16 @@ export default function HomePage() {
                           <div
                             key={user.id}
                             className="snap-center shrink-0 w-full pr-[12px] last:pr-0"
+                            onClick={() => goProfile(user)}
                           >
-                            <Card
+                            <RecommendCard
+                              profileUrl={`/home/profile/${user.id}`}
+                              targetUserId={user.id}
+                              imageUrl={user.imageUrl}
                               name={user.name}
                               age={user.age}
-                              imageUrl={user.imageUrl}
                               distance={user.distance}
+                              area={user.area}
                               description={user.description}
                               keywords={user.keywords}
                             />
