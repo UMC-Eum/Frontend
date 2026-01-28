@@ -44,7 +44,7 @@ const ResultPage = () => {
                 </span>
               ))
             ) : (
-              <span className="text-gray-400">이상형 키워드가 없습니다.</span>
+              <span className="text-gray-400">이상형 키워드가 없습니다. </span>
             )}
           </div>
         </div>
@@ -55,9 +55,15 @@ const ResultPage = () => {
                 profileUrl={`/home/profilerecommend/${user.id}`}
                 targetUserId={user.id}
                 key={user.id}
+=======
+                targetUserId={user.id}
+                initialIsLiked={false}
+                initialHeartId={0}
+                profileUrl={`/profile/${user.id}`}
+                imageUrl={user.imageUrl}
+>>>>>>> Stashed changes
                 name={user.name}
                 age={user.age}
-                imageUrl={user.imageUrl}
                 distance={user.distance}
                 area={user.area}
                 description={user.description}
