@@ -1,23 +1,20 @@
-import { useEffect, useState } from "react";
-import { useMutation } from "@tanstack/react-query";
-import { useLocation } from "react-router-dom";
+import { useEffect, useState, useCallback } from "react";
 
 // 경로에 맞게 import 확인해주세요
-import { MicStatus } from "../../hooks/useMicRecording";
+import { useMicRecording } from "../../hooks/useMicRecording";
 import RecordingControl from "../../components/RecordingControl";
-import { mockAnalyzeVoice } from "../../mock/mockApi";
 import { useUserStore } from "../../stores/useUserStore";
+import { useVoiceAnalysis } from "../../hooks/useVoiceAnalysis";
 
-// ✅ 인터페이스 이름 수정
 interface SpeechKeywordProps {
-  // 부모에게 데이터를 넘길 수도 있고, 스토어에 저장 후 그냥 넘어갈 수도 있습니다.
-  // 여기서는 기존 코드를 존중하여 데이터를 넘기도록 유지했습니다.
-  onNext: (rec: { record: string; keywords: string[] }) => void;
+  onNext: (data: { 
+    record: string; 
+    keywords: string[];
+    vibeVector: number[];
+  }) => void;
 }
 
 export default function SpeechKeyword({ onNext }: SpeechKeywordProps) {
-  const location = useLocation();
-  const isResultPage = location.pathname.includes("result");
 
   // ✅ 스토어에서 유저 정보와 업데이트 함수 가져오기
   const { user, updateUser } = useUserStore();
@@ -25,76 +22,44 @@ export default function SpeechKeyword({ onNext }: SpeechKeywordProps) {
   // ✅ 닉네임 가져오기 (없으면 기본값 '회원')
   const name = user?.nickname || "회원";
 
-  const [status, setStatus] = useState<MicStatus>("inactive");
-  const [seconds, setSeconds] = useState(0);
-  const [isShort, setIsShort] = useState(false);
+  // ✅ 목소리 분석 훅 사용
+  const { analyzeVoice } = useVoiceAnalysis();
 
-  const { mutate: simulateAnalysis } = useMutation({
-    mutationFn: mockAnalyzeVoice,
-    onSuccess: () => {
-      const mockResult = {
-        record: "가짜녹음파일.webm",
-        keywords: ["열정적인", "성실한", "등산"], // Mock 데이터 예시
-      };
+  // ✅ 녹음 완료 후 실행될 로직
+  const onRecordingComplete = useCallback(
+    async (file: File) => {
+      try {
+        const result = await analyzeVoice(file);
 
-      updateUser({
-        introAudioUrl: mockResult.record,
-        keywords: mockResult.keywords,
-      });
-
-      // ✅ 2. 다음 단계로 이동 (부모 컴포넌트 처리)
-      onNext(mockResult);
-    },
-  });
-
-  useEffect(() => {
-    if (status !== "recording") return;
-
-    const timer = setInterval(() => {
-      setSeconds((prev) => prev + 1);
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, [status]);
-
-  const handleMicClick = () => {
-    if (status === "inactive") {
-      setStatus("recording");
-      setSeconds(0);
-      setIsShort(false);
-      return;
-    }
-
-    if (status === "recording") {
-      const tooShort = seconds < 3; // 10초는 테스트하기 너무 기니까 3초 정도로 조정 추천
-
-      if (tooShort) {
-        setIsShort(true);
-        setTimeout(() => setIsShort(false), 2000);
-      } else {
-        setIsShort(false);
-        setStatus("loading");
-
-        // 분석 시뮬레이션 시작
-        setTimeout(() => {
-          simulateAnalysis();
-        }, 1500);
+        onNext({
+          record: result.audioUrl,
+          keywords: [...result.personalities, ...result.interests],
+          vibeVector: result.vibeVector,
+        });
+      } catch (error) {
+        console.error("음성 분석 오류:", error);
+        alert("분석 중 오류가 발생했습니다. 다시 시도해 주세요.");
+        resetStatus();
       }
-    }
-  };
+    },
+    [analyzeVoice, updateUser, onNext],
+  );
 
-  useEffect(() => {
-    if (isResultPage) {
-      setStatus("loading");
-    }
-  }, [isResultPage]);
+  const {
+    status,
+    seconds,
+    isShort,
+    handleMicClick,
+    resetStatus,
+  } = useMicRecording(onRecordingComplete);
+
+
 
   const RenderRecordingControl = (
     <RecordingControl
       status={status}
       seconds={seconds}
       isShort={isShort}
-      isResultPage={isResultPage}
       onMicClick={handleMicClick}
     />
   );

@@ -13,7 +13,9 @@ export default function SetKeywords({ onNext }: SetKeywordsProps) {
   const { user, updateUser } = useUserStore();
   const { getScores } = useScoreStore();
 
-  const [selectedKeywords, setSelectedKeywords] = useState<string[]>([]);
+  const [selectedKeywords, setSelectedKeywords] = useState<string[]>(
+    getScores().slice(0, MAX_SELECT),
+  );
 
   const handleNext = () => {
     updateUser({ keywords: selectedKeywords });
@@ -37,7 +39,8 @@ export default function SetKeywords({ onNext }: SetKeywordsProps) {
 
       <div className="pb-4 flex flex-wrap gap-3">
         <KeywordChips
-          keywords={getScores()}
+          allKeywords={getScores()}
+          selectedKeywords={selectedKeywords}
           maxSelect={MAX_SELECT}
           onChange={(ids) => setSelectedKeywords(ids)}
         />

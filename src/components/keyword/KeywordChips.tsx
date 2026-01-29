@@ -1,30 +1,32 @@
 import KeywordChip from "./KeywordChip";
 
 interface KeywordChipsProps {
-  keywords: string[];
+  allKeywords: string[];
+  selectedKeywords: string[];
   maxSelect: number;
   onChange: (keywords: string[]) => void;
 }
 
 const KeywordChips = ({
-  keywords,
+  allKeywords,
+  selectedKeywords,
   maxSelect,
   onChange,
 }: KeywordChipsProps) => {
   const toggle = (keyword: string) => {
-    const isSelected = keywords.includes(keyword);
-    if (!isSelected && keywords.length >= maxSelect) return;
+    const isSelected = selectedKeywords.includes(keyword);
+    if (!isSelected && selectedKeywords.length >= maxSelect) return;
 
     onChange(
-      isSelected ? keywords.filter((v) => v !== keyword) : [...keywords, keyword]
+      isSelected ? selectedKeywords.filter((v) => v !== keyword) : [...selectedKeywords, keyword]
     );
   };
 
   return (
     <>
-      {keywords.map((k) => {
-        const isSelected = keywords.includes(k);
-        const disabled = !isSelected && keywords.length >= maxSelect;
+      {allKeywords.map((k) => {
+        const isSelected = selectedKeywords.includes(k);
+        const disabled = !isSelected && selectedKeywords.length >= maxSelect;
 
         return (
           <KeywordChip
