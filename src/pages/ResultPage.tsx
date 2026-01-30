@@ -1,9 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
-import { fetchAllMatchResults } from "../mock/mockFetch";
 import Navbar from "../components/Navbar";
 import BackButton from "../components/BackButton";
 import IdleCard from "../components/card/presets/IdleCard";
 import { useUserStore } from "../stores/useUserStore";
+import { getRecommendations } from "../api/onboarding/onboardingApi";
 
 const ResultPage = () => {
   const nickname = useUserStore((state) => state.user?.nickname);
@@ -12,8 +12,9 @@ const ResultPage = () => {
   );
   const { data, isLoading, isError } = useQuery({
     queryKey: ["matchResults"],
-    queryFn: fetchAllMatchResults,
+    queryFn: getRecommendations,
   });
+  console.log("📡 백엔드 응답 데이터:", data);
 
   if (isLoading) return <div className="p-5">로딩 중...</div>;
   if (isError) return <div className="p-5">에러가 발생했습니다.</div>;
@@ -51,19 +52,21 @@ const ResultPage = () => {
 
         <div className="mt-[24px] space-y-[20px]">
           {data &&
-            data.map((user) => (
+            data?.items?.map((user, userIndex) => (
               <IdleCard
-                key={user.id}
-                targetUserId={user.id}
+                key={userIndex}
+                targetUserId={user.userId}
                 initialIsLiked={false}
-                initialHeartId={0}
-                profileUrl={`/profile/${user.id}`} // 더 깔끔한 경로 선택
-                imageUrl={user.imageUrl}
-                name={user.name}
+                initialHeartId={null}
+                profileUrl={`/profile/${user.userId}`}
+                imageUrl={
+                  user.introAudioUrl || "https://via.placeholder.com/400"
+                }
+                name={user.nickname}
                 age={user.age}
-                distance={user.distance}
-                area={user.area}
-                description={user.description}
+                distance={`${user.matchScore}% 매칭`}
+                area={user.areaName}
+                description={user.introText}
                 keywords={user.keywords}
               />
             ))}
