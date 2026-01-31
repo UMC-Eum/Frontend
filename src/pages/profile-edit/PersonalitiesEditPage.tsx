@@ -5,22 +5,25 @@ import { useUserStore } from "../../stores/useUserStore";
 import { useNavigate } from "react-router-dom";
 import { useScoreStore } from "../../stores/useScoreStore";
 
-export default function CharacterEditPage() {
+
+export default function PersonalitiesEditPage() {
   const MAX_SELECT = 5;
   const navigate = useNavigate();
   const { user, updateUser } = useUserStore();
-  const { getInterests } = useScoreStore();
+  const { getPersonalities } = useScoreStore();
 
   //선택된 키워드
-  const [selectedKeywords, setSelectedKeywords] = useState<string[]>([]);
-  //스토어에서 가져온 추천된 키워드(30개)
-  const recommendedKeywords = getInterests().slice(0, 30)
+  const [selectedKeywords, setSelectedKeywords] = useState<string[]>(user?.personalities || []);
 
   const handleSave = () => {
+<<<<<<< Updated upstream
     const mergedKeywords = Array.from(
       new Set([...(user?.personalities || []), ...selectedKeywords]),
     );
     updateUser({ personalities: mergedKeywords });
+=======
+    updateUser({ personalities: selectedKeywords });
+>>>>>>> Stashed changes
     navigate("/my/edit/");
   };
 
@@ -34,7 +37,8 @@ export default function CharacterEditPage() {
       <p>최대 5개까지 고를 수 있어요.</p>
       <div className="pb-4 flex flex-wrap gap-3">
         <KeywordChips
-          keywords={recommendedKeywords}
+          allKeywords={getPersonalities()}
+          selectedKeywords={selectedKeywords}
           maxSelect={MAX_SELECT}
           onChange={(ids) => setSelectedKeywords(ids)}
         />

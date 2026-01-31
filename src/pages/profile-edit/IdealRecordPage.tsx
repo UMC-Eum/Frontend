@@ -1,94 +1,44 @@
-import { useEffect, useState } from "react";
-import { useMutation } from "@tanstack/react-query";
-import { useLocation } from "react-router-dom";
-
-// 경로에 맞게 import 확인해주세요
-import { MicStatus } from "../../hooks/useMicRecording";
+import { useState, useCallback } from "react";
 import RecordingControl from "../../components/RecordingControl";
-import { mockAnalyzeVoice } from "../../mock/mockApi";
 import { useUserStore } from "../../stores/useUserStore";
 import IdealEditPage from "./IdealEditPage";
+import { useVoiceAnalysis } from "../../hooks/useVoiceAnalysis";
+import { useMicRecording } from "../../hooks/useMicRecording";
 
 export default function IdealRecordPage() {
-  const location = useLocation();
-  const isResultPage = location.pathname.includes("result");
   const [isKeywordPage, setIsKeywordPage] = useState(false);
+  const { user } = useUserStore();
+  const { analyzeVoice } = useVoiceAnalysis("ideal");
 
-  const { user, updateUser } = useUserStore();
-
-  const [status, setStatus] = useState<MicStatus>("inactive");
-  const [seconds, setSeconds] = useState(0);
-  const [isShort, setIsShort] = useState(false);
-
-  const { mutate: simulateAnalysis } = useMutation({
-    mutationFn: mockAnalyzeVoice,
-    onSuccess: () => {
-      const mockResult = {
-        record: "가짜녹음파일.webm",
-        keywords: ["미니멀", "소유중시", "반려식물"], // Mock 데이터 예시
-      };
-
-      const mergedKeywords = Array.from(
-        new Set([...(user?.idealPersonalities || []), ...mockResult.keywords]),
-      );
-
-      updateUser({
-        introAudioUrl: mockResult.record,
-        idealPersonalities: mergedKeywords,
-      });
-
-      setIsKeywordPage(true);
-    },
-  });
-
-  useEffect(() => {
-    if (status !== "recording") return;
-
-    const timer = setInterval(() => {
-      setSeconds((prev) => prev + 1);
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, [status]);
-
-  const handleMicClick = () => {
-    if (status === "inactive") {
-      setStatus("recording");
-      setSeconds(0);
-      setIsShort(false);
-      return;
-    }
-
-    if (status === "recording") {
-      const tooShort = seconds < 3; // 10초는 테스트하기 너무 기니까 3초 정도로 조정 추천
-
-      if (tooShort) {
-        setIsShort(true);
-        setTimeout(() => setIsShort(false), 2000);
-      } else {
-        setIsShort(false);
+  const onRecordingComplete = useCallback(
+    async (file: File) => {
+      try {
         setStatus("loading");
-
-        // 분석 시뮬레이션 시작
-        setTimeout(() => {
-          simulateAnalysis();
-        }, 1500);
+        await analyzeVoice(file);
+        setIsKeywordPage(true);
+      } catch (error) {
+        console.error("음성 분석 오류:", error);
+        alert("분석 중 오류가 발생했습니다. 다시 시도해 주세요.");
+        resetStatus();
       }
-    }
-  };
+    },
+    [analyzeVoice],
+  );
 
-  useEffect(() => {
-    if (isResultPage) {
-      setStatus("loading");
-    }
-  }, [isResultPage]);
+  const {
+    status,
+    setStatus,
+    seconds,
+    isShort,
+    handleMicClick,
+    resetStatus,
+  } = useMicRecording(onRecordingComplete);
 
   const RenderRecordingControl = (
     <RecordingControl
       status={status}
       seconds={seconds}
       isShort={isShort}
-      isResultPage={isResultPage}
       onMicClick={handleMicClick}
     />
   );
@@ -117,10 +67,11 @@ export default function IdealRecordPage() {
           )}
         </main>
       )}
-      {isKeywordPage && <IdealEditPage/>}
+      {isKeywordPage && <IdealEditPage />}
     </>
   );
 }
+
 type WhenInactiveProps = {
   name: string | undefined;
   RecordingControl: React.ReactNode;
@@ -129,13 +80,13 @@ type WhenInactiveProps = {
 function WhenInactive({ name, RecordingControl }: WhenInactiveProps) {
   return (
     <>
-      <div className="guide-container">
+      <div className="guide-container mt-5">
         <h1 className="text-[26px] font-bold text-black leading-tight">
           반갑습니다! {name}님. <br />
-          {name}님의 이야기를 들려주세요.
+          이상형에 대해 말씀해주세요.
         </h1>
         <p className="text-gray-500 text-[15px] mt-2 transition-opacity duration-500">
-          좋아하는 취미나 관심사, 일상에 대해 편하게 말해주세요.
+          원하는 성격이나 스타일, 가치관에 대해 편하게 말해주세요.
         </p>
       </div>
 
@@ -167,7 +118,7 @@ function WhenRecording({ name, RecordingControl }: WhenRecordingProps) {
     <>
       <div className="mt-5 mb-5 absolute w-full top-[20px] px-2 left-0">
         <h1 className="text-[26px] font-bold text-black leading-tight">
-          {name}님의 이야기를 듣고있어요..
+          {name}님의 이상형을 듣고있어요..
         </h1>
         <p className="text-gray-500 text-[15px] mt-2 transition-opacity duration-500">
           최대 60초 까지 녹음 가능해요!
@@ -200,7 +151,7 @@ function Whenloading({ name, RecordingControl }: WhenloadingProps) {
     <>
       <div className="mt-5 mb-5 absolute w-full top-[20px] px-2 left-0">
         <h1 className="text-[26px] font-bold text-black leading-tight">
-          AI가 {name}님의 이야기를 <br />
+          AI가 {name}님의 이상형을 <br />
           정리하고있어요!
         </h1>
       </div>

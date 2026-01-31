@@ -8,33 +8,29 @@ import { useScoreStore } from "../../stores/useScoreStore";
 export default function IdealEditPage() {
   const MAX_SELECT = 5;
   const navigate = useNavigate();
-  const { updateUser, user } = useUserStore();
-  const { getInterests } = useScoreStore();
+  const { user, updateUser } = useUserStore();
+  const { getPersonalities } = useScoreStore();
 
   //선택된 키워드
-  const [selectedKeywords, setSelectedKeywords] = useState<string[]>([]);
-  //스토어에서 가져온 추천된 키워드(30개)
-  const recommendedKeywords = getInterests().slice(0, 30)
+  const [selectedKeywords, setSelectedKeywords] = useState<string[]>(user?.idealPersonalities || []);
 
   const handleSave = () => {
-    const mergedKeywords = Array.from(
-      new Set([...(user?.idealPersonalities || []), ...selectedKeywords]),
-    );
-    updateUser({ idealPersonalities: mergedKeywords });
+    updateUser({ idealPersonalities: selectedKeywords });
     navigate("/my/edit/");
   };
 
   return (
     <>
       <BackButton
-        title="나는 이런 사람이에요."
+        title="나의 이상형"
         textClassName="text-[24px] font-semibold"
       />
       <h2>나를 나타내는 키워드들을 골라주세요. </h2>
       <p>최대 5개까지 고를 수 있어요.</p>
       <div className="pb-4 flex flex-wrap gap-3">
         <KeywordChips
-          keywords={recommendedKeywords}
+          allKeywords={getPersonalities()}
+          selectedKeywords={selectedKeywords}
           maxSelect={MAX_SELECT}
           onChange={(ids) => setSelectedKeywords(ids)}
         />

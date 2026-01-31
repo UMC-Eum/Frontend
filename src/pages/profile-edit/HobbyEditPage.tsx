@@ -12,15 +12,10 @@ export default function HobbyEditPage() {
   const { getInterests } = useScoreStore();
 
   //선택된 키워드
-  const [selectedKeywords, setSelectedKeywords] = useState<string[]>([]);
-  //스토어에서 가져온 추천된 키워드(30개)
-  const recommendedKeywords = getInterests().slice(0, 30)
+  const [selectedKeywords, setSelectedKeywords] = useState<string[]>(user?.keywords || []);
 
   const handleSave = () => {
-    const mergedKeywords = Array.from(
-      new Set([...(user?.keywords || []), ...selectedKeywords]),
-    );
-    updateUser({ keywords: mergedKeywords });
+    updateUser({ keywords: selectedKeywords });
     navigate("/my/edit/");
   };
   return (
@@ -33,7 +28,8 @@ export default function HobbyEditPage() {
       <p>최대 5개까지 고를 수 있어요.</p>
       <div className="pb-4 flex flex-wrap gap-3">
         <KeywordChips
-          keywords={recommendedKeywords}
+          allKeywords={getInterests()}
+          selectedKeywords={selectedKeywords}
           maxSelect={MAX_SELECT}
           onChange={(ids) => setSelectedKeywords(ids)}
         />

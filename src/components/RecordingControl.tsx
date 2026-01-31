@@ -6,7 +6,7 @@ interface RecordingControlProps {
   status: MicStatus;
   seconds: number;
   isShort: boolean;
-  isResultPage: boolean;
+  isResultPage?: boolean;
   onMicClick: () => void;
   className?: string;
   isChat?: boolean; 
@@ -16,7 +16,7 @@ const RecordingControl = ({
   status,
   seconds,
   isShort,
-  isResultPage,
+  isResultPage = false,
   onMicClick,
   // 👇 부모에서 className을 주면 이 기본값(bottom-[40px])은 무시됩니다.
   className = "bottom-[40px] absolute flex flex-col items-center"
