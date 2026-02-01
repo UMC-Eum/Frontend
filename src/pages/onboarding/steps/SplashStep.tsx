@@ -3,7 +3,6 @@ import { useEffect } from "react"
 import splashbackground from "../../../assets/splash_background.svg"
 
 
-
 interface SplashProps {
   onNext: () => void
 }
@@ -12,7 +11,7 @@ export default function SplashStep({ onNext }: SplashProps) {
   useEffect(() => {
     const timer = setTimeout(() => {
       onNext()
-    }, 1500)
+    }, 1000)
 
     return () => clearTimeout(timer)
   }, [onNext])
