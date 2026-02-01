@@ -4,71 +4,16 @@ import { useUserStore } from "../../stores/useUserStore";
 import PersonalitiesEditPage from "./PersonalitiesEditPage";
 import { useVoiceAnalysis } from "../../hooks/useVoiceAnalysis";
 import { useMicRecording } from "../../hooks/useMicRecording";
+import BackButton from "../../components/BackButton";
 
-export default function CharacterRecordPage() {
+export default function PersonalitiesRecordPage() {
   const [isKeywordPage, setIsKeywordPage] = useState(false);
   const { user } = useUserStore();
   const { analyzeVoice } = useVoiceAnalysis("personality");
 
-<<<<<<< Updated upstream
-  const { user, updateUser } = useUserStore();
-
-  const [status, setStatus] = useState<MicStatus>("inactive");
-  const [seconds, setSeconds] = useState(0);
-  const [isShort, setIsShort] = useState(false);
-
-  const { mutate: simulateAnalysis } = useMutation({
-    mutationFn: mockAnalyzeVoice,
-    onSuccess: () => {
-      const mockResult = {
-        record: "가짜녹음파일.webm",
-        keywords: ["미니멀", "소유중시", "반려식물"], // Mock 데이터 예시
-      };
-
-      const mergedKeywords = Array.from(
-        new Set([...(user?.personalities || []), ...mockResult.keywords]),
-      );
-
-      updateUser({
-        introAudioUrl: mockResult.record,
-        personalities: mergedKeywords,
-      });
-
-      setIsKeywordPage(true);
-    },
-  });
-
-  useEffect(() => {
-    if (status !== "recording") return;
-
-    const timer = setInterval(() => {
-      setSeconds((prev) => prev + 1);
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, [status]);
-
-  const handleMicClick = () => {
-    if (status === "inactive") {
-      setStatus("recording");
-      setSeconds(0);
-      setIsShort(false);
-      return;
-    }
-
-    if (status === "recording") {
-      const tooShort = seconds < 3; // 10초는 테스트하기 너무 기니까 3초 정도로 조정 추천
-
-      if (tooShort) {
-        setIsShort(true);
-        setTimeout(() => setIsShort(false), 2000);
-      } else {
-        setIsShort(false);
-=======
   const onRecordingComplete = useCallback(
     async (file: File) => {
       try {
->>>>>>> Stashed changes
         setStatus("loading");
         await analyzeVoice(file);
         setIsKeywordPage(true);
@@ -111,7 +56,6 @@ export default function CharacterRecordPage() {
           )}
           {status === "recording" && (
             <WhenRecording
-              name={user?.nickname}
               RecordingControl={RenderRecordingControl}
             />
           )}
@@ -123,11 +67,7 @@ export default function CharacterRecordPage() {
           )}
         </main>
       )}
-<<<<<<< Updated upstream
-      {isKeywordPage && <CharacterEditPage />}
-=======
       {isKeywordPage && <PersonalitiesEditPage />}
->>>>>>> Stashed changes
     </>
   );
 }
@@ -140,14 +80,20 @@ type WhenInactiveProps = {
 function WhenInactive({ name, RecordingControl }: WhenInactiveProps) {
   return (
     <>
-      <div className="guide-container mt-5">
+      <BackButton
+        title="재녹음"
+        textClassName="text-[24px] font-semibold"
+      />
+      <div className="mx-5 guide-container mt-5">
         <h1 className="text-[26px] font-bold text-black leading-tight">
-          반갑습니다! {name}님. <br />
-          {name}님의 성격에 대해 들려주세요.
+          {name}의 이야기를 들려주세요.
         </h1>
-        <p className="text-gray-500 text-[15px] mt-2 transition-opacity duration-500">
-          자신의 성격이나 장점, 특징들에 대해 편하게 말해주세요.
-        </p>
+        <div className="mt-5 flex flex-col gap-3 text-gray-500 text-[15px] transition-opacity duration-500">
+          <p>이렇게 말해도 좋아요!</p>
+          <p>저는 등산하는걸 좋아하는 사람이에요.</p>
+          <p>여러사람들과 다같이 즐겁게 놀고싶어요</p>
+          <p>심심할때마다 노래방을 즐겨가요.</p>
+        </div>
       </div>
 
       <div className="transition-opacity duration-500 h-full">
@@ -169,20 +115,26 @@ function WhenInactive({ name, RecordingControl }: WhenInactiveProps) {
 }
 
 type WhenRecordingProps = {
-  name: string | undefined;
   RecordingControl: React.ReactNode;
 };
 
-function WhenRecording({ name, RecordingControl }: WhenRecordingProps) {
+function WhenRecording({ RecordingControl }: WhenRecordingProps) {
   return (
     <>
-      <div className="mt-5 mb-5 absolute w-full top-[20px] px-2 left-0">
+      <BackButton
+        title="재녹음"
+        textClassName="text-[24px] font-semibold"
+      />
+      <div className="mx-5 guide-container mt-5">
         <h1 className="text-[26px] font-bold text-black leading-tight">
-          {name}님의 성격을 듣고있어요..
+          듣고있어요..
         </h1>
-        <p className="text-gray-500 text-[15px] mt-2 transition-opacity duration-500">
-          최대 60초 까지 녹음 가능해요!
-        </p>
+        <div className="mt-5 flex flex-col gap-3 text-gray-500 text-[15px] transition-opacity duration-500">
+          <p>이렇게 말해도 좋아요!</p>
+          <p>저는 등산하는걸 좋아하는 사람이에요.</p>
+          <p>여러사람들과 다같이 즐겁게 놀고싶어요</p>
+          <p>심심할때마다 노래방을 즐겨가요.</p>
+        </div>
       </div>
 
       <div className="absolute left-0 right-0 bottom-0 h-[210px] flex flex-col items-center pb-[12px]">
@@ -209,7 +161,12 @@ type WhenloadingProps = {
 function Whenloading({ name, RecordingControl }: WhenloadingProps) {
   return (
     <>
-      <div className="mt-5 mb-5 absolute w-full top-[20px] px-2 left-0">
+      <BackButton
+        title="재녹음"
+        textClassName="text-[24px] font-semibold"
+      />
+
+      <div className="mx-5 guide-container mt-5">
         <h1 className="text-[26px] font-bold text-black leading-tight">
           AI가 {name}님의 성격을 <br />
           정리하고있어요!

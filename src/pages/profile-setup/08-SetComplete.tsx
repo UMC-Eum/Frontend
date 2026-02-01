@@ -54,7 +54,7 @@ export default function SetComplete() {
           </p>
 
           <div className="flex flex-wrap justify-center gap-2">
-            {user?.keywords.map((k, i) => (
+            {[...(user?.personalities || []), ...(user?.keywords || [])].map((k, i) => (
               <KeywordLabel key={i} keyword={k} shape="pill" />
             ))}
           </div>

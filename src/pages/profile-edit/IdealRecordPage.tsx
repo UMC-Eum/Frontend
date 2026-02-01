@@ -4,6 +4,7 @@ import { useUserStore } from "../../stores/useUserStore";
 import IdealEditPage from "./IdealEditPage";
 import { useVoiceAnalysis } from "../../hooks/useVoiceAnalysis";
 import { useMicRecording } from "../../hooks/useMicRecording";
+import BackButton from "../../components/BackButton";
 
 export default function IdealRecordPage() {
   const [isKeywordPage, setIsKeywordPage] = useState(false);
@@ -55,7 +56,6 @@ export default function IdealRecordPage() {
           )}
           {status === "recording" && (
             <WhenRecording
-              name={user?.nickname}
               RecordingControl={RenderRecordingControl}
             />
           )}
@@ -80,14 +80,21 @@ type WhenInactiveProps = {
 function WhenInactive({ name, RecordingControl }: WhenInactiveProps) {
   return (
     <>
-      <div className="guide-container mt-5">
+      <BackButton
+        title="재녹음"
+        textClassName="text-[24px] font-semibold"
+      />
+      <div className="mx-5 guide-container mt-5">
         <h1 className="text-[26px] font-bold text-black leading-tight">
-          반갑습니다! {name}님. <br />
-          이상형에 대해 말씀해주세요.
+          {name}님의 <br />
+          이상형을 이야기해주세요 !
         </h1>
-        <p className="text-gray-500 text-[15px] mt-2 transition-opacity duration-500">
-          원하는 성격이나 스타일, 가치관에 대해 편하게 말해주세요.
-        </p>
+        <div className="mt-5 flex flex-col gap-3 text-gray-500 text-[15px] transition-opacity duration-500">
+          <p>이렇게 말해도 좋아요!</p>
+          <p>저는 등산하는걸 좋아하는 사람이에요.</p>
+          <p>여러사람들과 다같이 즐겁게 놀고싶어요</p>
+          <p>심심할때마다 노래방을 즐겨가요.</p>
+        </div>
       </div>
 
       <div className="transition-opacity duration-500 h-full">
@@ -109,20 +116,26 @@ function WhenInactive({ name, RecordingControl }: WhenInactiveProps) {
 }
 
 type WhenRecordingProps = {
-  name: string | undefined;
   RecordingControl: React.ReactNode;
 };
 
-function WhenRecording({ name, RecordingControl }: WhenRecordingProps) {
+function WhenRecording({ RecordingControl }: WhenRecordingProps) {
   return (
     <>
-      <div className="mt-5 mb-5 absolute w-full top-[20px] px-2 left-0">
+      <BackButton
+        title="재녹음"
+        textClassName="text-[24px] font-semibold"
+      />
+      <div className="mx-5 guide-container mt-5">
         <h1 className="text-[26px] font-bold text-black leading-tight">
-          {name}님의 이상형을 듣고있어요..
+          듣고있어요..
         </h1>
-        <p className="text-gray-500 text-[15px] mt-2 transition-opacity duration-500">
-          최대 60초 까지 녹음 가능해요!
-        </p>
+        <div className="mt-5 flex flex-col gap-3 text-gray-500 text-[15px] transition-opacity duration-500">
+          <p>이렇게 말해도 좋아요!</p>
+          <p>저는 등산하는걸 좋아하는 사람이에요.</p>
+          <p>여러사람들과 다같이 즐겁게 놀고싶어요</p>
+          <p>심심할때마다 노래방을 즐겨가요.</p>
+        </div>
       </div>
 
       <div className="absolute left-0 right-0 bottom-0 h-[210px] flex flex-col items-center pb-[12px]">
@@ -149,7 +162,12 @@ type WhenloadingProps = {
 function Whenloading({ name, RecordingControl }: WhenloadingProps) {
   return (
     <>
-      <div className="mt-5 mb-5 absolute w-full top-[20px] px-2 left-0">
+      <BackButton
+        title="재녹음"
+        textClassName="text-[24px] font-semibold"
+      />
+
+      <div className="mx-5 guide-container mt-5">
         <h1 className="text-[26px] font-bold text-black leading-tight">
           AI가 {name}님의 이상형을 <br />
           정리하고있어요!

@@ -8,7 +8,7 @@ import {
 
 export const kakaoLogin = async (body: IKakaoLoginRequest) => {
   const { data } = await api.post<ApiSuccessResponse<IKakaoLoginResponse>>(
-    "/auth/kakao/login",
+    "/v1/auth/kakao/login",
     body,
   );
 
@@ -17,7 +17,7 @@ export const kakaoLogin = async (body: IKakaoLoginRequest) => {
 
 //v1/auth/logout
 export const logout = async () => {
-  const { data } = await api.post<ApiSuccessResponse<null>>("/auth/logout");
+  const { data } = await api.post<ApiSuccessResponse<null>>("/v1/auth/logout");
 
   return data.success.data;
 };
