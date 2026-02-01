@@ -11,7 +11,7 @@ type RecommendCard2Props = {
   profileUrl: string;
   targetUserId: number; // API 호출을 위해 필수 (없으면 좋아요 불가)
   imageUrl?: string;
-  name?: string;
+  nickname?: string;
   age?: number;
   distance?: string;
   area?: string;
@@ -24,7 +24,7 @@ export default function RecommendCard2({
   profileUrl,
   targetUserId,
   imageUrl = "", // 기본값 처리
-  name = "알 수 없음",
+  nickname = "알 수 없음",
   age = 0,
   distance = "-",
   area = "위치 미지정",
@@ -58,7 +58,7 @@ export default function RecommendCard2({
       <div className="absolute inset-x-0 bottom-0 p-4 z-20 flex items-end justify-between gap-2">
         {/* 왼쪽: 유저 정보 */}
         <div className="flex flex-col gap-1 min-w-0">
-          <CardUserId name={name} age={age} isVerified />
+          <CardUserId name={nickname} age={age} isVerified />
 
           <div className="text-sm opacity-90">
             {/* 정보가 없어도 깨지지 않게 렌더링 */}

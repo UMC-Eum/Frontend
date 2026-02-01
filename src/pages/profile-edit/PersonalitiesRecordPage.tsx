@@ -10,65 +10,9 @@ export default function CharacterRecordPage() {
   const { user } = useUserStore();
   const { analyzeVoice } = useVoiceAnalysis("personality");
 
-<<<<<<< Updated upstream
-  const { user, updateUser } = useUserStore();
-
-  const [status, setStatus] = useState<MicStatus>("inactive");
-  const [seconds, setSeconds] = useState(0);
-  const [isShort, setIsShort] = useState(false);
-
-  const { mutate: simulateAnalysis } = useMutation({
-    mutationFn: mockAnalyzeVoice,
-    onSuccess: () => {
-      const mockResult = {
-        record: "가짜녹음파일.webm",
-        keywords: ["미니멀", "소유중시", "반려식물"], // Mock 데이터 예시
-      };
-
-      const mergedKeywords = Array.from(
-        new Set([...(user?.personalities || []), ...mockResult.keywords]),
-      );
-
-      updateUser({
-        introAudioUrl: mockResult.record,
-        personalities: mergedKeywords,
-      });
-
-      setIsKeywordPage(true);
-    },
-  });
-
-  useEffect(() => {
-    if (status !== "recording") return;
-
-    const timer = setInterval(() => {
-      setSeconds((prev) => prev + 1);
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, [status]);
-
-  const handleMicClick = () => {
-    if (status === "inactive") {
-      setStatus("recording");
-      setSeconds(0);
-      setIsShort(false);
-      return;
-    }
-
-    if (status === "recording") {
-      const tooShort = seconds < 3; // 10초는 테스트하기 너무 기니까 3초 정도로 조정 추천
-
-      if (tooShort) {
-        setIsShort(true);
-        setTimeout(() => setIsShort(false), 2000);
-      } else {
-        setIsShort(false);
-=======
   const onRecordingComplete = useCallback(
     async (file: File) => {
       try {
->>>>>>> Stashed changes
         setStatus("loading");
         await analyzeVoice(file);
         setIsKeywordPage(true);
@@ -123,11 +67,7 @@ export default function CharacterRecordPage() {
           )}
         </main>
       )}
-<<<<<<< Updated upstream
-      {isKeywordPage && <CharacterEditPage />}
-=======
       {isKeywordPage && <PersonalitiesEditPage />}
->>>>>>> Stashed changes
     </>
   );
 }

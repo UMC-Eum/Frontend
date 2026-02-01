@@ -12,7 +12,7 @@ type RecommendCardProps = {
 
   profileUrl: string;
   imageUrl: string;
-  name: string;
+  nickname: string;
   age: number;
   distance: string;
   area: string;
@@ -24,7 +24,7 @@ export default function RecommendCard({
   targetUserId, 
   profileUrl,
   imageUrl, 
-  name, 
+  nickname, 
   age, 
   distance, 
   area, 
@@ -59,7 +59,7 @@ export default function RecommendCard({
         <div className="flex flex-col gap-1 text-white">
          
           {/* 이름 & 나이 */}
-          <CardUserId name={name} age={age} isVerified />
+          <CardUserId name={nickname} age={age} isVerified />
 
           {/* 위치 */}
           <div className="-mt-2">

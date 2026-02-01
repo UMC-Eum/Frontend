@@ -19,7 +19,7 @@ type IdleCardProps = {
   // 기존 UI Props
   profileUrl: string;
   imageUrl: string;
-  name: string;
+  nickname: string;
   age: number;
   distance: string;
   area: string;
@@ -33,7 +33,7 @@ export default function IdleCard({
   initialHeartId, // ✅ 추가됨
   profileUrl,
   imageUrl,
-  name,
+  nickname,
   age,
   distance,
   area,
@@ -68,7 +68,7 @@ export default function IdleCard({
       {/* 하단 콘텐츠 영역 */}
       <div className="absolute inset-x-4 bottom-4 text-white z-10 space-y-3">
         {/* 유저 이름 */}
-        <CardUserId name={name} age={age} isVerified />
+        <CardUserId name={nickname} age={age} isVerified />
 
         {/* 위치 */}
         <CardLocation distance={distance} area={area} />

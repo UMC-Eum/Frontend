@@ -16,14 +16,7 @@ export default function PersonalitiesEditPage() {
   const [selectedKeywords, setSelectedKeywords] = useState<string[]>(user?.personalities || []);
 
   const handleSave = () => {
-<<<<<<< Updated upstream
-    const mergedKeywords = Array.from(
-      new Set([...(user?.personalities || []), ...selectedKeywords]),
-    );
-    updateUser({ personalities: mergedKeywords });
-=======
     updateUser({ personalities: selectedKeywords });
->>>>>>> Stashed changes
     navigate("/my/edit/");
   };
 
