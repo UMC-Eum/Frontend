@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { getAgreements, updateMarketingAgreements } from "../../api/agreements/agreementsApi";
+import { getAgreements, getAgreementStatus, updateMarketingAgreements } from "../../api/agreements/agreementsApi";
 import { IAgreementItem, AgreementType } from "../../types/api/agreements/agreementsDTO";
 
 import SplashStep from "./steps/SplashStep";
@@ -18,12 +18,18 @@ const DUMMY_DATA: IAgreementItem[] = [
   { agreementId: 2, body: "개인정보 처리방침 상세 내용더미...", type: "PERSONAL_INFORMATION" },
   { agreementId: 3, body: "마케팅 수신 동의 상세 내용더미...", type: "MARKETING" },
 ];
+const AGREEMENT_TYPE_MAP: Record<number, AgreementType> = {
+  1: "POLICY",                // ID 1번 -> 서비스 이용약관
+  2: "PERSONAL_INFORMATION",  // ID 2번 -> 개인정보 처리방침
+  3: "MARKETING",             // ID 3번 -> 마케팅 수신 동의
+};
 
 export default function OnBoardingPage() {
   const navigate = useNavigate();
   const [step, setStep] = useState<"splash" | "login" | "permission">("splash");
   const [agreements, setAgreements] = useState<IAgreementItem[]>([]);
 
+  const [hasAgreed, setHasAgreed] = useState(false);
   const [showAgreement, setShowAgreement] = useState(false);
   const [currentTerm, setCurrentTerm] = useState<AgreementType | null>(null);
   const [showAgeLimit, setShowAgeLimit] = useState(false);
@@ -58,7 +64,7 @@ export default function OnBoardingPage() {
         console.log("❌ 권한 부족 -> 권한 설정 페이지 노출");
         setStep("permission");
       }
-    } catch (error) {
+    } catch {
       // 브라우저 호환성 문제 등으로 확인 불가 시, 안전하게 권한 페이지 보여줌
       console.log("⚠️ 권한 확인 불가 -> 권한 설정 페이지 노출");
       setStep("permission");
@@ -79,7 +85,13 @@ export default function OnBoardingPage() {
     const fetchData = async () => {
       try {
         const items = await getAgreements();
-        const finalItems = items && items.length > 0 ? items : DUMMY_DATA;
+        const mappedItems = items?.map((item) => ({
+          ...item,
+          // 서버에서 type이 오면 그걸 쓰고, 없으면 ID를 보고 매핑 (ID가 문자열일 수 있으니 Number로 변환)
+          type: item.type || AGREEMENT_TYPE_MAP[Number(item.agreementId)] || "MARKETING"
+        }));
+
+        const finalItems = mappedItems && mappedItems.length > 0 ? mappedItems : DUMMY_DATA;
         setAgreements(finalItems);
 
         if (token) {
@@ -89,6 +101,11 @@ export default function OnBoardingPage() {
             // 1.API 호출
             const userData = await getMyProfile();
             
+            // 약관 동의 상태 확인 API 호출 
+            // 추후 수정 필요~~~~~~~~~!!!!@@@@#### 다시 살려줘야함!!!@@@@####$$$$
+            //const isPassed = await getAgreementStatus();
+            //setHasAgreed(isPassed);
+            setHasAgreed(true); // 상태 업데이트 이거 지워라!!!@@@####
             // 2. 나이 검사 //age필요
             if (userData?.birthDate) {
               const today = new Date();
@@ -110,7 +127,13 @@ export default function OnBoardingPage() {
                 setShowAgeLimit(true);
                 return; // 여기서 로직 종료
               }
-              else {
+              // 약관 동의 상태에 따라 모달을 보여줄지 말지 결정
+              if (hasAgreed) {
+                console.log("✅ 이미 약관에 동의한 유저 -> 모달 생략하고 권한 체크 진행");
+                setShowAgreement(false);
+                await checkPermissionAndPass(); // 바로 다음 단계로
+              } else {
+                console.log("📝 약관 동의 필요 -> 모달 노출");
                 setShowAgreement(true);
               }
             }
@@ -141,7 +164,9 @@ export default function OnBoardingPage() {
       const marketingItems = agreements
         .filter(a => a.type === "MARKETING" || a.agreementId === 3)
         .map(a => ({
-          marketingAgreementId: a.agreementId,
+
+          // 추후 수정 필요~~~~~~~~~!!!!@@@@####
+          marketingAgreementId: 1,//a.agreementId, // 임시로 1로 설정
           isAgreed: checkedTerms.MARKETING
         }));
 
@@ -155,7 +180,7 @@ export default function OnBoardingPage() {
       // setStep("permission");  <-- 기존 코드 주석 처리
       await checkPermissionAndPass(); // 권한 확인 후 이동 or 페이지 노출 결정
 
-    } catch (error) {
+    } catch {
       setShowAgreement(false);
       // 에러가 나더라도 다음 단계 진행 시도
       await checkPermissionAndPass();
