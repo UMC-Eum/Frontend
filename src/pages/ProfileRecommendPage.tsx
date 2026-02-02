@@ -30,10 +30,10 @@ export default function ProfileRecommendPage() {
   return (
     <div className="flex justify-center min-h-screen">
       <div className="w-full max-w-[420px] h-screen bg-[#F8FAFB] flex flex-col overflow-hidden flex-1 relative">
-        <main className="flex-1 overflow-y-auto pb-[62px]">
+        <main className="flex-1 overflow-y-auto pb-[72px]">
           {/* 프로필 이미지 및 백버튼 */}
           <div className="relative">
-            <div className="h-[585px]">
+            <div className="relative w-full h-[585px] overflow-hidden">
               <RecommendCard2
                 profileUrl={`/home/profile/${profile.id}`}
                 targetUserId={profile.id}
