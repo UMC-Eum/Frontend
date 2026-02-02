@@ -147,12 +147,14 @@ export default function ChatListPage() {
                   {room.peer.nickname}
                 </span>
                 <span className="text-[14px] text-[#999]">
-                   성수동 · {formatTime(room.lastMessage.sentAt)}
+                   성수동 · {room.lastMessage?.sentAt ? formatTime(room.lastMessage.sentAt) : ""}
                 </span>
               </div>
               
               <p className="text-[16px] text-[#555] truncate leading-snug">
-                {room.lastMessage.type === "AUDIO" ? (
+                {!room.lastMessage ? (
+                  "대화를 시작해보세요!" 
+                ) : room.lastMessage.type === "AUDIO" ? (
                   <span className="flex items-center gap-1">
                     음성메시지를 보냈어요
                   </span>

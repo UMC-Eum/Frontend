@@ -187,14 +187,14 @@ export default function ChatRoomPage() {
   // --- [기능] 신고 하기 ---
   const handleReport = async () => {
     if (!peerInfo || !roomId) return;
-    const reason = prompt("신고 사유를 입력해주세요.");
-    if (!reason) return;
+    const description = prompt("신고 사유를 입력해주세요.");
+    if (!description) return;
 
     try {
       await createReport({
         targetUserId: peerInfo.userId,
-        category: "SPAM", 
-        description: reason,
+        category: "HARASSMENT", 
+        reason: description,
         chatRoomId: Number(roomId)
       });
       alert("신고가 접수되었습니다.");
