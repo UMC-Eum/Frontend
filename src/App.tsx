@@ -110,7 +110,7 @@ const router = createBrowserRouter([
         element: <ChatListPage />, // url: /chats
       },
       {
-        path: "room/:roomId", 
+        path: "room/:chatRoomId", 
         element: <ChatRoomPage />, // url: /message/room/{숫자}
       }
     ]

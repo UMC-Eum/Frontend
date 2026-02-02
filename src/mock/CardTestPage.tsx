@@ -36,8 +36,6 @@ export default function CardTestPage() {
             <IdleCard
               {...DUMMY_BASE}
               targetUserId={1} // 🔥 API 호출 시 사용될 ID
-              initialIsLiked={false}
-              initialHeartId={null}
             />
           </div>
         </div>
@@ -51,8 +49,6 @@ export default function CardTestPage() {
               {...DUMMY_BASE}
               targetUserId={2}
               imageUrl="https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?w=600&q=80"
-              initialIsLiked={true} // 이미 좋아요 누른 상태 테스트
-              initialHeartId={999}  // 취소 테스트용 가짜 ID
             />
           </div>
         </div>
@@ -77,7 +73,6 @@ export default function CardTestPage() {
               {...DUMMY_BASE}
               targetUserId={4}
               imageUrl="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=800&q=80"
-              initialIsLiked={false}
             />
           </div>
         </div>
@@ -90,7 +85,6 @@ export default function CardTestPage() {
               {...DUMMY_BASE}
               targetUserId={5}
               imageUrl="https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=800&q=80"
-              initialIsLiked={false}
             />
           </div>
         </div>

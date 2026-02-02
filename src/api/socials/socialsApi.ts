@@ -4,7 +4,7 @@ import * as DTO from "../../types/api/socials/socialsDTO";
 // 마음 보내기 (POST)
 export const sendHeart = async (body: DTO.IHeartsRequest):Promise<DTO.IHeartsResponse> => {
   const { data } = await api.post<ApiSuccessResponse<DTO.IHeartsResponse>>(
-    "/hearts",
+    "/v1/hearts",
     body
   );
   return data.success.data;
@@ -16,7 +16,7 @@ export const getSentHearts = async (params: {
   size: number;
 }) => {
   const { data } = await api.get<ApiSuccessResponse<DTO.IHeartsentResponse>>(
-    "/hearts/sent",
+    "/v1/hearts/sent",
     {
       params,
     }
@@ -31,7 +31,7 @@ export const getReceivedHearts = async (params: {
 }) => {
   const { data } = await api.get<
     ApiSuccessResponse<DTO.IHeartreceivedResponse>
-  >("/hearts/received", {
+  >("/v1/hearts/received", {
     params,
   });
   return data.success.data;
@@ -40,7 +40,7 @@ export const getReceivedHearts = async (params: {
 // 마음 상태 수정 (PATCH) -> ★ 데이터가 없으므로 <null>
 export const patchHeart = async (heartId: number) => {
   const { data } = await api.patch<ApiSuccessResponse<null>>(
-    `/hearts/${heartId}`
+    `/v1/hearts/${heartId}`
   );
   return data.success.data;
 };
@@ -50,7 +50,7 @@ export const patchHeart = async (heartId: number) => {
 // 차단하기 (POST)
 export const blockUser = async (body: DTO.IBlocksRequest) => {
   const { data } = await api.post<ApiSuccessResponse<DTO.IBlocksResponse>>(
-    "/blocks",
+    "/v1/blocks",
     body
   );
   return data.success.data;
@@ -62,7 +62,7 @@ export const getBlocks = async (params: {
   size: number;
 }) => {
   const { data } = await api.get<ApiSuccessResponse<DTO.IBlocksGetResponse>>(
-    "/blocks",
+    "/v1/blocks",
     {
       params,
     }
@@ -73,7 +73,7 @@ export const getBlocks = async (params: {
 // 차단 해제/수정 (PATCH) -> ★ 데이터가 없으므로 <null>
 export const patchBlock = async (blockId: number) => {
   const { data } = await api.patch<ApiSuccessResponse<null>>(
-    `/blocks/${blockId}`
+    `/v1/blocks/${blockId}`
   );
   return data.success.data;
 };
@@ -83,7 +83,7 @@ export const patchBlock = async (blockId: number) => {
 // 신고하기 (POST)
 export const createReport = async (body: DTO.IReportsRequest) => {
   const { data } = await api.post<ApiSuccessResponse<DTO.IReportsResponse>>(
-    "/reports",
+    "/v1/reports",
     body
   );
   return data.success.data;
