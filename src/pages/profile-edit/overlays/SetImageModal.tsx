@@ -2,6 +2,8 @@ import { useCallback, useRef, useState } from "react";
 import { useUserStore } from "../../../stores/useUserStore";
 import Cropper, { Area } from "react-easy-crop";
 import getCroppedImg from "../../../utils/cropImage";
+import { postPresign, uploadFileToS3 } from "../../../api/onboarding/onboardingApi";
+import { updateMyProfile } from "../../../api/users/usersApi";
 
 type SetImageModalProps = {
   onClose: () => void;
@@ -11,6 +13,8 @@ export default function SetImageModal({ onClose }: SetImageModalProps) {
   const [rawImageURL, setRawImageURL] = useState<string | null>(null);
   const { updateUser } = useUserStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [isLoading, setIsLoading] = useState(false);
 
   const onUpload = () => {
     fileInputRef.current?.click(); //onChange 실행
@@ -26,11 +30,26 @@ export default function SetImageModal({ onClose }: SetImageModalProps) {
     e.target.value = "";
   };
 
+  const handleImageSave = async (imageUrl: string) => {
+    setIsLoading(true);
+    try {
+      await updateMyProfile({
+        profileImageUrl: imageUrl,
+      });
+      updateUser({ profileImageUrl: imageUrl });
+      onClose();
+    } catch (error) {
+      console.error("Failed to update profile image:", error);
+      alert("프로필 이미지 업데이트에 실패했습니다.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const onDefault = () => {
     const defaultUrl =
       "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee";
-    updateUser({ profileImageUrl: defaultUrl });
-    onClose();
+    handleImageSave(defaultUrl);
   };
 
   return (
@@ -46,14 +65,16 @@ export default function SetImageModal({ onClose }: SetImageModalProps) {
           >
             <div className="bg-white text-center rounded-2xl divide-y-2 divide-gray-100 overflow-hidden">
               <button
-                className="w-full py-4 text-lg font-medium active:bg-gray-100"
+                className={`w-full py-4 text-lg font-medium active:bg-gray-100 ${isLoading ? "text-gray-400" : ""}`}
                 onClick={onUpload}
+                disabled={isLoading}
               >
-                촬영 또는 앨범에서 선택
+                {isLoading ? "처리 중..." : "촬영 또는 앨범에서 선택"}
               </button>
               <button
-                className="w-full py-4 text-lg font-medium active:bg-gray-100"
+                className={`w-full py-4 text-lg font-medium active:bg-gray-100 ${isLoading ? "text-gray-400" : ""}`}
                 onClick={onDefault}
+                disabled={isLoading}
               >
                 기본 프로필 선택
               </button>
@@ -62,6 +83,7 @@ export default function SetImageModal({ onClose }: SetImageModalProps) {
               <button
                 className="w-full py-4 text-lg font-medium active:bg-gray-100"
                 onClick={onClose}
+                disabled={isLoading}
               >
                 취소
               </button>
@@ -87,10 +109,35 @@ export default function SetImageModal({ onClose }: SetImageModalProps) {
             setRawImageURL(null); // 크롭 취소 시
             onClose(); // 전체 모달 닫기
           }}
-          onComplete={(croppedImg) => {
-            updateUser({ profileImageUrl: croppedImg });
-            setRawImageURL(null);
-            onClose(); // 완료 후 닫기
+          onComplete={async (croppedImg) => {
+            setIsLoading(true);
+            try {
+              // 1. DataURL(Base64)을 Blob 파일로 변환
+              const response = await fetch(croppedImg);
+              const blob = await response.blob();
+              const file = new File([blob], `profile_${Date.now()}.jpg`, { type: "image/jpeg" });
+
+              // 2. S3 Presigned URL 요청
+              const presignResult = await postPresign({
+                fileName: file.name,
+                contentType: file.type,
+                purpose: "profile-image",
+              });
+
+              const { uploadUrl, fileUrl } = presignResult.data;
+
+              // 3. S3 직접 업로드
+              await uploadFileToS3(uploadUrl, file);
+
+              // 4. 서버 유저 정보 업데이트 (PATCH /v1/users/me)
+              await handleImageSave(fileUrl);
+            } catch (error) {
+              console.error("Image upload failed:", error);
+              alert("이미지 업로드 중 오류가 발생했습니다.");
+            } finally {
+              setIsLoading(false);
+              setRawImageURL(null);
+            }
           }}
         />
       )}

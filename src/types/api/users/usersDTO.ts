@@ -1,7 +1,14 @@
 export interface IPatchUserProfileRequest {
-  nickname: string;
-  areaCode: string;
-  introText: string;
+  nickname?: string;
+  gender?: "M" | "F" | string;
+  birthDate?: string;
+  areaCode?: string;
+  introText?: string;
+  keywords?: string[];
+  personalities?: string[];
+  idealPersonalities?: string[];
+  introAudioUrl?: string;
+  profileImageUrl?: string;
 }
 
 export interface IKeywordsRequest {

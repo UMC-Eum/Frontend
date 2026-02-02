@@ -11,14 +11,17 @@ interface SetKeywordsProps {
 
 export default function SetKeywords({ onNext }: SetKeywordsProps) {
   const { user, updateUser } = useUserStore();
-  const { getScores } = useScoreStore();
+  const { getScores, getPersonalities, getInterests } = useScoreStore();
 
   const [selectedKeywords, setSelectedKeywords] = useState<string[]>(
     getScores().slice(0, MAX_SELECT),
   );
 
   const handleNext = () => {
-    updateUser({ keywords: selectedKeywords });
+    const personalities = selectedKeywords.filter((k) => getPersonalities().includes(k));
+    const keywords = selectedKeywords.filter((k) => getInterests().includes(k));
+
+    updateUser({ keywords, personalities });
     onNext();
   };
 
