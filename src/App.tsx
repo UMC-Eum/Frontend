@@ -16,7 +16,7 @@ import ProfileEditSecond from "./pages/profile-edit/ProfileEditSecond";
 import HobbyEditPage from "./pages/profile-edit/HobbyEditPage";
 import PersonalitiesEditPage from "./pages/profile-edit/PersonalitiesEditPage";
 import IdealEditPage from "./pages/profile-edit/IdealEditPage";
-import CharacterRecordPage from "./pages/profile-edit/PersonalitiesRecordPage";
+// import CharacterRecordPage from "./pages/profile-edit/PersonalitiesRecordPage";
 import IdealRecordPage from "./pages/profile-edit/IdealRecordPage";
 
 import LoginStep from "./pages/onboarding/steps/LoginStep";
@@ -97,7 +97,7 @@ const router = createBrowserRouter([
     children: [
       { index: true, element: <HomePage /> },
       {
-        path: "profilerecommend",
+        path: "profile/:id",
         element: <ProfileRecommendPage />,
       },
     ],
@@ -106,15 +106,15 @@ const router = createBrowserRouter([
     path: "/message",
     children: [
       {
-        index: true, 
+        index: true,
         element: <ChatListPage />, // url: /chats
       },
       {
-        path: "room/:roomId", 
+        path: "room/:roomId",
         element: <ChatRoomPage />, // url: /message/room/{숫자}
-      }
-    ]
-  }
+      },
+    ],
+  },
 ]);
 
 const App = () => {
