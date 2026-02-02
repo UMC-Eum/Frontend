@@ -89,6 +89,61 @@ export default function CardTestPage() {
           </div>
         </div>
 
+        <div className="flex flex-col items-center gap-4">
+          <h2 className="text-lg font-bold text-blue-600">5. SmallButtonIdleCard (ID: 5)</h2>
+          <div className="w-[340px] h-[500px] relative shadow-2xl rounded-[20px]">
+            <SmallButtonIdleCard
+              {...DUMMY_BASE}
+              targetUserId={6}
+              imageUrl="https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=800&q=80"
+            />
+          </div>
+        </div>
+
+        <div className="flex flex-col items-center gap-4">
+          <h2 className="text-lg font-bold text-blue-600">5. SmallButtonIdleCard (ID: 5)</h2>
+          <div className="w-[340px] h-[500px] relative shadow-2xl rounded-[20px]">
+            <SmallButtonIdleCard
+              {...DUMMY_BASE}
+              targetUserId={7}
+              imageUrl="https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=800&q=80"
+            />
+          </div>
+        </div>
+
+        <div className="flex flex-col items-center gap-4">
+          <h2 className="text-lg font-bold text-blue-600">5. SmallButtonIdleCard (ID: 5)</h2>
+          <div className="w-[340px] h-[500px] relative shadow-2xl rounded-[20px]">
+            <SmallButtonIdleCard
+              {...DUMMY_BASE}
+              targetUserId={8}
+              imageUrl="https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=800&q=80"
+            />
+          </div>
+        </div>
+
+        <div className="flex flex-col items-center gap-4">
+          <h2 className="text-lg font-bold text-blue-600">5. SmallButtonIdleCard (ID: 5)</h2>
+          <div className="w-[340px] h-[500px] relative shadow-2xl rounded-[20px]">
+            <SmallButtonIdleCard
+              {...DUMMY_BASE}
+              targetUserId={9}
+              imageUrl="https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=800&q=80"
+            />
+          </div>
+        </div>
+
+        <div className="flex flex-col items-center gap-4">
+          <h2 className="text-lg font-bold text-blue-600">5. SmallButtonIdleCard (ID: 5)</h2>
+          <div className="w-[340px] h-[500px] relative shadow-2xl rounded-[20px]">
+            <SmallButtonIdleCard
+              {...DUMMY_BASE}
+              targetUserId={10}
+              imageUrl="https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=800&q=80"
+            />
+          </div>
+        </div>
+
       </div>
     </div>
   );
