@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import { useEffect } from "react";
 
 interface ToastProps {
   message: string | null; // 메시지가 있으면 보여주고, 없으면 숨김
