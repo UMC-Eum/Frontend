@@ -8,7 +8,7 @@ import {
 } from "../../types/api/users/usersDTO";
 //v1/users/me
 export const getMyProfile = async () => {
-  const { data } = await api.get<ApiSuccessResponse<IUserProfile>>("v1/users/me");
+  const { data } = await api.get<ApiSuccessResponse<IUserProfile>>("/v1/users/me");
 
   return data.success.data;
 };
@@ -16,20 +16,20 @@ export const getMyProfile = async () => {
 //v1/users/me(patch)
 
 export const updateMyProfile = async (body: IPatchUserProfileRequest) => {
-  const { data } = await api.patch<ApiSuccessResponse<null>>("v1/users/me", body);
+  const { data } = await api.patch<ApiSuccessResponse<null>>("/v1/users/me", body);
 
   return data.success.data;
 };
-//v1/users/me(patch)
+//v1/users/me/deactivate(patch)
 export const deactivateUser = async () => {
-  const { data } = await api.patch<ApiSuccessResponse<null>>("v1/users/me");
+  const { data } = await api.patch<ApiSuccessResponse<null>>("/v1/users/me/deactivate");
 
   return data.success.data;
 };
 //v1/users/me/interests(put)
 export const putInterestKeywords = async (body: IKeywordsRequest) => {
   const { data } = await api.put<ApiSuccessResponse<null>>(
-    "v1/users/me/interests",
+    "/v1/users/me/interests",
     body,
   );
 
@@ -39,7 +39,7 @@ export const putInterestKeywords = async (body: IKeywordsRequest) => {
 //v1/users/me/personalities(put)
 export const putPersonalities = async (body: IKeywordsRequest) => {
   const { data } = await api.put<ApiSuccessResponse<null>>(
-    "v1/users/me/personalities",
+    "/v1/users/me/personalities",
     body,
   );
 
@@ -48,7 +48,7 @@ export const putPersonalities = async (body: IKeywordsRequest) => {
 //v1/users/me/ideal-personalities(put)
 export const putIdealPersonalities = async (body: IKeywordsRequest) => {
   const { data } = await api.put<ApiSuccessResponse<null>>(
-    "v1/users/me/ideal-personalities",
+    "/v1/users/me/ideal-personalities",
     body,
   );
 
