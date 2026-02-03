@@ -1,403 +1,180 @@
-import { useEffect, useState, useRef, useLayoutEffect } from "react";
+import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useUserStore } from "../../stores/useUserStore";
+
+// Hooks
+import { useChatRoomInfo } from "../../hooks/chat/useChatRoomInfo";
+import { useChatMessages } from "../../hooks/chat/useChatMessages";
+import { useChatScroll } from "../../hooks/chat/useChatScroll";
+
+// Components
 import BackButton from "../../components/BackButton";
+import { MessageBubble } from "../../components/chat/MessageBubble";
+import { ChatInputBar } from "../../components/chat/ChatInputBar";
+import { ReportModal } from "../../components/chat/ReportModal";
+import { formatTime } from "../../hooks/UseFormatTime";
+import ConfirmModal from "../../components/common/ConfirmModal"; 
+import ToastNotification from "../../components/common/ToastNotification";
+import { createReport } from "../../api/socials/socialsApi";
+import ReportScreen from "../../components/chat/ReportScreen";
 
-// API
-import { 
-  getChatRoomDetail, 
-  getChatMessages, 
-  sendChatMessage, 
-  readChatMessage,
-  patchChatMessage,
-  // uploadFile // 🔥 [가정] 파일 업로드 API가 있다면 여기서 import
-} from "../../api/chats/chatsApi"; 
-
-import { 
-  blockUser, 
-  getBlocks, 
-  patchBlock, 
-  createReport 
-} from "../../api/socials/socialsApi"; 
-
-// DTO
-import { IChatsRoomIdMessagesGetResponse } from "../../types/api/chats/chatsDTO";
-
-type ApiMessageItem = IChatsRoomIdMessagesGetResponse["items"][number];
-
-// UI 컴포넌트
-import { MessageBubble } from "../../components/chats/MessageBubble";
-import { ChatInputBar } from "../../components/chats/ChatInputBar"; 
-import { ReportModal } from "../../components/chats/ReportModal"; 
-import { formatTime } from "../../hooks/UseFormatTime"; 
+// 모달 타입 정의
+type ModalType = "NONE" | "BLOCK" | "EXIT";
 
 export default function ChatRoomPage() {
-  //url에서 roomId 가져오기
   const { roomId } = useParams();
-
   const navigate = useNavigate();
-  //userStore에서 userId 가져오기
-  const { user } = useUserStore(); 
+  const { user } = useUserStore();
   const myId = user?.userId ?? 0;
+  const parsedRoomId = Number(roomId);
 
-  // 메세지 관리
-  const [messages, setMessages] = useState<ApiMessageItem[]>([]);
-  //상대 정보
-  const [peerInfo, setPeerInfo] = useState<{ userId: number; nickname: string; age: number; areaName: string; profileImageUrl: string } | null>(null);
-  //메세지 더 가져오기 위한 커서
-  const [nextCursor, setNextCursor] = useState<string | null>(null);
-  //로딩 상태
-  const [isLoading, setIsLoading] = useState(false);
-  //초기 로딩 상태
-  const [isInitLoaded, setIsInitLoaded] = useState(false);
-
-  // 차단 상태 (null = 차단안함, 숫자 = 차단ID)
-  const [blockId, setBlockId] = useState<number | null>(null);
-
-  // UI 상태
-  //모달 열었는지
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  //채팅방 나가기 모달 열었는지
-  const [isExitConfirmOpen, setIsExitConfirmOpen] = useState(false);
-  //음악 재생 상태 (음성파일이 1개만 재생되도록)
+  // 상대방 관련 정보 관리
+  const { peerInfo, blockId, isMenuOpen, setIsMenuOpen, handleBlockToggle } = useChatRoomInfo(parsedRoomId);
+  // 채팅방 메세지 관리
+  const { messages, nextCursor, isLoading, isInitLoaded, loadPrevMessages, handleSendText, handleSendVoice, handleDeleteMessage } 
+    = useChatMessages(parsedRoomId, myId);
+  // 채팅방 스크롤 관리
+  const { scrollContainerRef, topObserverRef, bottomRef } 
+    = useChatScroll({ isInitLoaded, isLoading, nextCursor, messagesLength: messages.length, loadPrevMessages });
+  
+  // 모달 관리
+  const [activeModal, setActiveModal] = useState<ModalType>("NONE");
+  // 음성 메세지 재생 관리
   const [playingId, setPlayingId] = useState<number | null>(null);
+  // 토스트 메시지 상태 관리
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  // 신고하기 화면(ReportScreen) 상태 관리
+  const [isReportScreenOpen, setIsReportScreenOpen] = useState(false);
 
-  // Refs(알필요 x -> 스크롤 관련(채팅시))
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const topObserverRef = useRef<HTMLDivElement>(null);
-  const bottomRef = useRef<HTMLDivElement>(null);
-  const prevScrollHeightRef = useRef<number>(0);
+  // 텍스트 입력창 래퍼
+  const onSendTextWrapper = async (text: string) => {
+    const success = await handleSendText(text);
+    if(success) setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
+  };
+  // 음성 입력창 래퍼
+  const onSendVoiceWrapper = async (file: File, duration: number) => {
+    const success = await handleSendVoice(file, duration);
+    if(success) setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
+  };
 
-  // 1. [초기 로딩]
-  useEffect(() => {
-    if (!roomId) return;
+  // 토스트 메시지 표시 함수
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+  };
 
-    const initChat = async () => {
+  // 메뉴에서 [신고하기] 클릭 시 실행
+  const handleReportMenuClick = () => {
+    setIsMenuOpen(false); // 메뉴 닫고
+    setIsReportScreenOpen(true); // 신고 전체화면 열기
+  };
+
+  // 메뉴에서 [차단하기] 클릭 시 실행
+  const handleBlockRequest = async () => {
+    // 차단 해제 로직 (이미 차단된 상태일 때)
+    if (blockId) {
       try {
-        const parsedRoomId = Number(roomId);
+        // 1. API 호출 시도
+        await handleBlockToggle(); 
         
-        // A. 방 정보 + 차단 상태 확인
-        const roomDetail = await getChatRoomDetail(parsedRoomId);
-        if (roomDetail) {
-          setPeerInfo({
-            userId: roomDetail.peer.userId,
-            nickname: roomDetail.peer.nickname,
-            age: roomDetail.peer.age,
-            areaName: roomDetail.peer.areaName,
-            profileImageUrl: "https://via.placeholder.com/52"
-          });
-
-          try {
-            const blockRes = await getBlocks({ size: 100 });
-            const targetBlock = blockRes.items.find(item => item.targetUserId === roomDetail.peer.userId);
-            if (targetBlock) {
-              // 차단한 적 있으면 차단 해제 가능하게 blockId 저장
-              setBlockId(targetBlock.blockId);
-            }
-          } catch (e) {
-            console.error("차단 목록 조회 실패", e);
-          }
-        }
-
-        // B. 메시지 조회
-        const msgResponse = await getChatMessages(parsedRoomId, { size: 20 });
-        if (msgResponse && msgResponse.items) {
-          // 최신순 정렬
-          const sorted = [...msgResponse.items].sort((a, b) => 
-            new Date(a.sendAt).getTime() - new Date(b.sendAt).getTime()
-          );
-          setMessages(sorted);
-          //다음 페이지 커서 저장
-          setNextCursor(msgResponse.nextCursor);
-          //로딩 끝 신호와 동시에 화면 맨 아래로 스크롤
-          setIsInitLoaded(true);
-
-          sorted.forEach((item) => {
-            // 내가 보낸 메세지 제외하고 읽음 처리
-            if (item.senderUserId !== myId && !item.readAt) {
-              readChatMessage(item.messageId).catch(console.error);
-            }
-          });
-        }
+        // 2. 성공했을 때만 토스트 띄우기
+        showToast("차단이 해제되었어요.");
       } catch (error) {
-        console.error("채팅방 입장 실패:", error);
+        // 3. 실패 시 처리 (토스트 안 띄움)
+        console.error("차단 해제 실패", error);
+        alert("요청 처리에 실패했습니다. 잠시 후 다시 시도해주세요.");
       }
-    };
-
-    initChat();
-  }, [roomId, myId]);
-
-  // 스크롤 핸들링 -> 초기 로딩 완료되면 맨 아래로
-  useEffect(() => {
-    if (isInitLoaded && bottomRef.current) {
-      bottomRef.current.scrollIntoView({ behavior: "auto" });
-    }
-  }, [isInitLoaded]);
- //스크롤 핸들링 -> 맨 위로 스크롤하면 이전 메세지 불러오기
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      async (entries) => {
-        //감시 조건 -> 맨 위로 스크롤 && 다음 페이지 커서 있음 && 로딩중 아님 && 초기 로딩 완료
-        if (entries[0].isIntersecting && nextCursor && !isLoading && isInitLoaded) {
-          if (scrollContainerRef.current) {
-            //이전 메세지 불러오기 전 스크롤 높이 저장
-            prevScrollHeightRef.current = scrollContainerRef.current.scrollHeight;
-          }
-          //이전 메세지 불러오기
-          await loadPrevMessages();
-        }
-      },
-      { threshold: 0.5 }
-    );
-    if (topObserverRef.current) observer.observe(topObserverRef.current);
-    return () => observer.disconnect();
-  }, [nextCursor, isLoading, isInitLoaded]);
-
-  //이전 메세지 불러오기 
-  const loadPrevMessages = async () => {
-    //roomId 또는 nextCursor가 없으면 return
-    if (!roomId || !nextCursor) return;
-    //로딩 시작
-    setIsLoading(true);
-    try {
-      const response = await getChatMessages(Number(roomId), { size: 20, cursor: nextCursor });
-      if (response && response.items.length > 0) {
-        //오래된 순서대로 정렬
-        const oldMessages = [...response.items].sort((a, b) => 
-          new Date(a.sendAt).getTime() - new Date(b.sendAt).getTime()
-        );
-        //기존 메세지 + 이전 메세지 합치기
-        setMessages((prev) => [...oldMessages, ...prev]);
-        //다음 페이지 커서 저장
-        setNextCursor(response.nextCursor);
-      } else {
-        setNextCursor(null);
-      }
-    } catch (error) { console.error(error); } 
-    finally { setIsLoading(false); }
-  };
-
-  //이전 메세지 불러오면서 -> 스크롤 위치 유지
-  useLayoutEffect(() => {
-    if (isLoading) return;
-    if (scrollContainerRef.current && prevScrollHeightRef.current > 0) {
-      const currentScrollHeight = scrollContainerRef.current.scrollHeight;
-      scrollContainerRef.current.scrollTop = currentScrollHeight - prevScrollHeightRef.current;
-      prevScrollHeightRef.current = 0;
-    }
-  }, [messages, isLoading]);
-
-  // --- [기능] 차단 / 차단 해제 ---
-  const handleBlockToggle = async () => {
-    if (!peerInfo) return;
-    try {
-      if (blockId) {
-        //차단 해제
-        await patchBlock(blockId);
-        setBlockId(null);
-        alert("차단이 해제되었습니다.");
-      } else {
-        //차단
-        const res = await blockUser({
-          targetUserId: peerInfo.userId,
-          reason: "채팅방 차단"
-        });
-        setBlockId(res.blockId);
-        alert("차단되었습니다.");
-      }
-    } catch (error) {
-      console.error("차단 요청 실패", error);
-      alert("요청 처리에 실패했습니다.");
+    } 
+    // 차단 시도 로직 (차단 안 된 상태일 때)
+    else {
+      setIsMenuOpen(false); // 메뉴 닫기
+      setTimeout(() => {
+        setActiveModal("BLOCK"); // 차단 확인 모달 열기
+      }, 100);
     }
   };
 
-  // --- [기능] 신고 하기 ---
-  const handleReport = async () => {
-    if (!peerInfo || !roomId) return;
-    const description = prompt("신고 사유를 입력해주세요.");
-    if (!description) return;
-
+  // 차단 모달에서 [예] 클릭 시 실행
+  const handleRealBlock = async () => {
     try {
-      await createReport({
-        targetUserId: peerInfo.userId,
-        category: "HARASSMENT", 
-        reason: description,
-        chatRoomId: Number(roomId)
-      });
-      alert("신고가 접수되었습니다.");
-    } catch (error) {
-      console.error("신고 실패", error);
-      alert("신고 접수에 실패했습니다.");
-    }
-  };
-
-  // --- [기능] 메시지 삭제 ---
-  const handleDeleteMessage = async (messageId: number) => {
-    if (!confirm("정말 이 메시지를 삭제하시겠습니까?")) return;
-    try {
-      await patchChatMessage(messageId);
-      //화면에서 삭제
-      setMessages((prev) => prev.filter((msg) => msg.messageId !== messageId));
-    } catch (error) {
-      console.error("삭제 실패", error);
-      alert("메시지 삭제에 실패했습니다.");
-    }
-  };
-
-  // ----------------------------------------------------------------------
-  // 🔥 [전송 기능] 텍스트
-  // ----------------------------------------------------------------------
-  const handleSendText = async (text: string) => {
-    if (!roomId) return;
-    const parsedRoomId = Number(roomId);
-    try {
-      //벡에 메세지 전송
-      const res = await sendChatMessage(parsedRoomId, { type: "TEXT", text, mediaUrl: "", durationSec: 0 });
-      //프론트에 메세지 추가(낙관적 업데이트)
-      const newMessage: ApiMessageItem = {
-        messageId: res.messageId, senderUserId: myId, type: "TEXT", text, mediaUrl: "", durationSec: 0,
-        sendAt: res.sendAt, readAt: null, isMine: true
-      };
-      //메세지 추가 후 맨 아래로 스크롤
-      setMessages((prev) => [...prev, newMessage]);
-      setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
-    } catch (error) { console.error(error); }
-  };
-
-  // ----------------------------------------------------------------------
-  // 🔥 [전송 기능] 음성
-  // ----------------------------------------------------------------------
-  const handleSendVoice = async (file: File, duration: number) => {
-    if (!roomId) return;
-    const parsedRoomId = Number(roomId);
-    const localAudioUrl = URL.createObjectURL(file);
-    try {
-      // TODO: 실제로는 여기서 file을 S3 등에 업로드하고 그 URL을 보내야 합니다.
-      const res = await sendChatMessage(parsedRoomId, { type: "AUDIO", text: null, mediaUrl: "temp_audio_url", durationSec: duration });
-      //프론트에 음성 메세지 추가(낙관적 업데이트)
-      const newMessage: ApiMessageItem = {
-        messageId: res.messageId, senderUserId: myId, type: "AUDIO", text: null, mediaUrl: localAudioUrl, durationSec: duration,
-        sendAt: res.sendAt, readAt: null, isMine: true
-      };
-      //음성 메세지 추가 후 맨 아래로 스크롤
-      setMessages((prev) => [...prev, newMessage]);
-      setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
-    } catch (error) { console.error(error); }
-  };
-
-  // ----------------------------------------------------------------------
-  // 🔥 [전송 기능 - 추가됨] 이미지
-  // ----------------------------------------------------------------------
-  {/*const handleSendImage = async (file: File) => {
-    if (!roomId) return;
-    const parsedRoomId = Number(roomId);
-    
-    // 1. 사용자 경험을 위해 로컬 미리보기 URL 생성
-    const localImageUrl = URL.createObjectURL(file);
-
-    try {
-      // TODO: 백엔드 API에 따라 이미지를 먼저 업로드해서 URL을 받아와야 할 수 있습니다.
-      // const uploadRes = await uploadFile(file);
-      // const realImageUrl = uploadRes.url; 
+      // 1. API 호출 시도
+      await handleBlockToggle(); 
       
-      // 여기서는 임시 URL 혹은 업로드 로직이 있다고 가정하고 메시지 전송
-      const res = await sendChatMessage(parsedRoomId, { 
-        type: "IMAGE",  // DTO에 IMAGE 타입이 있다고 가정
-        text: null, 
-        mediaUrl: "temp_image_url", // 실제로는 업로드된 URL
-        durationSec: 0 
-      });
-
-      const newMessage: ApiMessageItem = {
-        messageId: res.messageId, 
-        senderUserId: myId, 
-        type: "IMAGE", // 타입 지정
-        text: null, 
-        mediaUrl: localImageUrl, // 내가 보낸 건 로컬 URL로 즉시 표시
-        durationSec: 0,
-        sendAt: res.sendAt, 
-        readAt: null, 
-        isMine: true
-      };
-
-      setMessages((prev) => [...prev, newMessage]);
-      setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
+      // --- 🎉 성공 시 실행되는 로직 ---
       
-    } catch (error) { 
-      console.error("이미지 전송 실패:", error); 
+      // 2. 모달 상태 변경 (차단 모달 닫기 -> 나가기 모달 열기)
+      setActiveModal("NONE");
+      setTimeout(() => {
+        setActiveModal("EXIT"); 
+      }, 300);
+
+      // 3. 성공했을 때만 토스트 띄우기
+      showToast(`${peerInfo?.nickname || "상대방"}님을 차단했어요.`);
+
+    } catch (error) {
+      // 실패 시 실행되는 로직
+      console.error("차단 실패", error);
+      alert("차단에 실패했습니다. 네트워크 상태를 확인해주세요.");
+      
+      // 실패했으면 모달을 닫아주거나, 그대로 둬서 다시 누르게 할 수 있습니다.
+      setActiveModal("NONE"); 
     }
   };
-*/}
+  const handleRealReport = async (category: string, description: string) => {
+    if (!roomId || !peerInfo) return;
 
-  const handlePlayAudio = (id: number) => {
-    setPlayingId(playingId === id ? null : id);
+    // API 호출
+    await createReport({
+      targetUserId: peerInfo.userId,
+      category: "HARASSMENT", // 추후에 신고 사유에 맞는 category백에서 받아와서 대응되도록 변경
+      reason: `${category} - ${description}`, // 위 내용 변경과 동시에 변경
+      chatRoomId: Number(roomId)
+    });
   };
 
   return (
     <div className="w-full h-dvh flex flex-col bg-white relative overflow-hidden">
       
-      {/* 헤더 */}
       <header className="shrink-0 h-[45px] px-4 flex items-center justify-between bg-white z-10 border-b border-gray-100">
+        {/* 뒤로가기 버튼 */}
         <div className="-ml-5"><BackButton /></div>
+        {/* 상대방 닉네임 */}
         <div className="absolute top-0 left-1/2 -translate-x-1/2 px-4 py-2">
-          <span className="font-bold text-[24px] text-[#111]">
-            {peerInfo?.nickname}
-          </span>
+          <span className="font-bold text-[24px] text-[#111]">{peerInfo?.nickname}</span>
         </div>
+        {/* 더보기 버튼 */}
         <button onClick={() => setIsMenuOpen(true)} className="p-2 -mr-2">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-            <circle cx="12" cy="5" r="2" fill="#111" />
-            <circle cx="12" cy="12" r="2" fill="#111" />
-            <circle cx="12" cy="19" r="2" fill="#111" />
-          </svg>
+           <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="5" r="2" fill="#111" /><circle cx="12" cy="12" r="2" fill="#111" /><circle cx="12" cy="19" r="2" fill="#111" /></svg>
         </button>
       </header>
 
-      {/* 메시지 리스트 */}
       <div ref={scrollContainerRef} className="flex-1 overflow-y-auto px-4 py-4 scroll-smooth">
-        <div ref={topObserverRef} className="h-2 w-full" />
-
-        {/* 프로필 카드 영역 */}
-        <div className="flex flex-col items-center justify-center gap-3 pt-4">
+        <div ref={topObserverRef} className="h-2 w-full" /> 
+        <div className="flex flex-col items-center justify-center gap-3 pt-4 pb-4">
+          {/* 상대방 프로필 이미지 */}
           <div className="relative shrink-0 w-[100px] h-[100px] rounded-full overflow-hidden bg-gray-200">
-            <img 
-              src={peerInfo?.profileImageUrl || "https://via.placeholder.com/100"} 
-              alt={peerInfo?.nickname}
-              className="w-full h-full object-cover"
-            />
+            <img src={peerInfo?.profileImageUrl} alt="profile" className="w-full h-full object-cover"/>
           </div>
-          <div className="flex flex-col items-center justify-center">
-            <span className="font-semibold text-[18px] text-[#636970]">
-              {peerInfo?.nickname}
-            </span>
-            {peerInfo && (
-              <span className="text-[14px] text-[#636970]">
-                {peerInfo.age}세 · {peerInfo.areaName}
-              </span>
-            )}
+          {/* 최초 메세지 대화시의 상대방 닉네임, 나이, 지역 */}
+          <div className="text-center">
+            <span className="font-semibold text-[18px] text-[#636970] block">{peerInfo?.nickname}</span>
+            <span className="text-[14px] text-[#636970]">{peerInfo?.age}세 · {peerInfo?.areaName}</span>
           </div>
-          <div className="mt-10 mb-6 text-[18px] text-[#636970] flex flex-col items-center justify-center">
-            <span>서로 알아가는 첫 이야기,</span>
-            <span>편하게 시작해볼까요?</span>
-          </div>
+          <p className="mt-6 mb-2 text-[18px] text-[#636970] text-center">서로 알아가는 첫 이야기,<br/>편하게 시작해볼까요?</p>
         </div>
-
-        {/* 메시지 렌더링 */}
-        <div className="flex flex-col mt-2 gap-3">
+        {/* 메세지들 */}
+        <div className="flex flex-col gap-3">
           {messages.map((msg) => (
             <MessageBubble
               key={msg.messageId}
-              isMe={msg.senderUserId === myId}  
+              isMe={msg.senderUserId === myId}
               type={msg.type}
               content={msg.text}
-              // 👇 [수정] mediaUrl을 상황에 맞게 전달
-              audioUrl={msg.mediaUrl}           
-              //imageUrl={msg.type === 'IMAGE' ? msg.mediaUrl : undefined} // MessageBubble에 imageUrl prop이 있다고 가정
+              audioUrl={msg.mediaUrl}
               duration={msg.durationSec}
               timestamp={formatTime(msg.sendAt)}
               readAt={msg.readAt}
               isPlayingProp={playingId === msg.messageId}
-              onPlay={() => handlePlayAudio(msg.messageId)}
+              onPlay={() => setPlayingId(playingId === msg.messageId ? null : msg.messageId)}
               onDelete={msg.senderUserId === myId ? () => handleDeleteMessage(msg.messageId) : undefined}
             />
           ))}
@@ -405,37 +182,58 @@ export default function ChatRoomPage() {
         </div>
       </div>
 
-      {/* 🔥 [핵심 변경] ChatInputBar에 onSendImage 연결 */}
-      <ChatInputBar 
-        onSendText={handleSendText} 
-        onSendVoice={handleSendVoice} 
-        //onSendImage={handleSendImage} 
+      {/* 공용 토스트 컴포넌트 배치 */}
+      <ToastNotification 
+        message={toastMessage}
+        isVisible={!!toastMessage} // 메시지가 있으면 true
+        onClose={() => setToastMessage(null)} // 시간 지나면 메시지 비움
       />
 
-      {/* 신고/차단 모달 */}
+      {/* 채팅 입력창 */}
+      <ChatInputBar onSendText={onSendTextWrapper} onSendVoice={onSendVoiceWrapper} isBlocked={blockId !== null} />
+
+      {/* 메뉴 버튼 클릭 시 실행 */}
       <ReportModal 
         isOpen={isMenuOpen} 
         isBlocked={blockId !== null} 
         onClose={() => setIsMenuOpen(false)} 
-        onReport={handleReport}     
-        onBlock={handleBlockToggle} 
-        onLeave={() => { setIsMenuOpen(false); setIsExitConfirmOpen(true); }}
+        onReport={handleReportMenuClick} 
+        onBlock={handleBlockRequest} 
+        onLeave={() => { setIsMenuOpen(false); setActiveModal("EXIT"); }} 
+      />
+
+      {/* 신고 버튼 클릭 시 실행 */}
+      <ReportScreen 
+        isOpen={isReportScreenOpen}
+        onClose={() => setIsReportScreenOpen(false)}
+        targetName={peerInfo?.nickname || "상대방"}
+        onReport={handleRealReport}
+      />
+
+      {/* 차단 확인 모달 */}
+      <ConfirmModal
+        isOpen={activeModal === "BLOCK"} 
+        title="상대방을 차단할까요?"
+        description={`차단하면 ${peerInfo?.nickname || "상대방"}님과 대화를 할 수 없어요.\n차단하시겠어요?`}
+        confirmText="예"
+        cancelText="아니요"
+        isDanger={true}
+        onCancel={() => setActiveModal("NONE")} 
+        onConfirm={handleRealBlock} // 여기서 () => handleRealBlock() 하지 말고 함수 이름만 넣으세요!
       />
 
       {/* 나가기 확인 모달 */}
-      {isExitConfirmOpen && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-8">
-           <div className="absolute inset-0 bg-black/60" onClick={() => setIsExitConfirmOpen(false)} />
-           <div className="relative bg-white rounded-[14px] p-6 w-full max-w-[322px]">
-              <h3 className="font-semibold text-[20px] mb-2 text-[#111]">대화방을 나갈까요?</h3>
-              <p className="text-[#636970] text-[14px] mb-6">나가면 대화가 불가능합니다.</p>
-              <div className="flex gap-3">
-                <button onClick={() => setIsExitConfirmOpen(false)} className="flex-1 py-3 bg-[#E9ECED] rounded-[14px] font-semibold text-[#636970]">아니요</button>
-                <button onClick={() => navigate(-1)} className="flex-1 py-3 bg-[#FC3367] rounded-[14px] font-semibold text-white">예</button>
-              </div>
-           </div>
-        </div>
-      )}
+      <ConfirmModal
+        isOpen={activeModal === "EXIT"}
+        title="대화방을 나갈까요?"
+        description="나가면 대화가 불가능합니다."
+        confirmText="예"
+        cancelText="아니요"
+        isDanger={true}
+        onCancel={() => setActiveModal("NONE")} 
+        onConfirm={() => navigate(-1)}
+      />
+
     </div>
   );
 }
