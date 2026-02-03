@@ -8,34 +8,34 @@ interface ReportScreenProps {
   onReport: (reason: string, description: string) => Promise<void>; // API 호출 함수
 }
 
-const REPORT_REASONS = [
-  "불쾌하거나 부적절한 발언",
-  "성희롱 / 성적 표현",
-  "사기 또는 금전 요구 의심",
-  "욕설 / 비하 / 혐오 표현",
-  "스팸 / 광고 목적 이용",
-  "기타"
+const REPORT_CATEGORIES = [
+  { code: "INAPPROPRIATE", label: "불쾌하거나 부적절한 발언" },
+  { code: "SEXUAL",        label: "성희롱 / 성적 표현" },
+  { code: "FRAUD",         label: "사기 / 금전 요구" },
+  { code: "ABUSIVE",       label: "욕설 / 비하 / 혐오" },
+  { code: "SPAM",          label: "스팸 / 광고" },
+  { code: "OTHER",         label: "기타" },
 ];
 
 export default function ReportScreen({ isOpen, onClose, targetName, onReport }: ReportScreenProps) {
   const [step, setStep] = useState<"FORM" | "SUCCESS">("FORM");
-  const [selectedReason, setSelectedReason] = useState<string | null>(null);
+  const [selectedCode, setSelectedCode] = useState<string | null>(null);
   const [customReason, setCustomReason] = useState("");
 
   // 닫을 때 상태 초기화
   const handleClose = () => {
     setStep("FORM");
-    setSelectedReason(null);
+    setSelectedCode(null);
     setCustomReason("");
     onClose();
   };
 
   const handleSubmit = async () => {
-    if (!selectedReason) return;
+    if (!selectedCode) return;
 
     try {
       // API 호출 (부모에게 위임)
-      await onReport(selectedReason, customReason);
+      await onReport(selectedCode, customReason);
       setStep("SUCCESS"); // 성공 화면으로 전환
     } catch (error) {
       console.error(error);
@@ -65,15 +65,15 @@ export default function ReportScreen({ isOpen, onClose, targetName, onReport }: 
 
             {/* 사유 목록 */}
             <div className="flex flex-col gap-0">
-              {REPORT_REASONS.map((reason) => (
+              {REPORT_CATEGORIES.map((item) => (
                 <button
-                  key={reason}
-                  onClick={() => setSelectedReason(reason)}
+                  key={item.code}
+                  onClick={() => setSelectedCode(item.code)} // 클릭 시 영어 코드 저장
                   className={`py-4 text-left text-[18px] border-t border-gray-300 transition-colors
-                    ${selectedReason === reason ? "text-[#FC3367] font-semibold" : "text-[#333]"}
+                    ${selectedCode === item.code ? "text-[#FC3367] font-semibold" : "text-gray-500"}
                   `}
                 >
-                  {reason}
+                  {item.label} {/* 화면엔 한글 표시 */}
                 </button>
               ))}
             </div>
@@ -96,10 +96,10 @@ export default function ReportScreen({ isOpen, onClose, targetName, onReport }: 
           {/* 하단 버튼 */}
           <div className="p-4 pb-8 mb-5">
             <button
-              disabled={!selectedReason}
+              disabled={!selectedCode}
               onClick={handleSubmit}
               className={`w-full py-4 rounded-[14px] font-bold text-[16px] text-white transition-colors
-                ${selectedReason ? "bg-[#FC3367] text-white" : "bg-[#DEE3E5] text-[#A6AFB6]"} 
+                ${selectedCode ? "bg-[#FC3367] text-white" : "bg-[#DEE3E5] text-[#A6AFB6]"} 
               `}
             >
               신고하기

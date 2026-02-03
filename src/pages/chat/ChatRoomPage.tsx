@@ -119,14 +119,14 @@ export default function ChatRoomPage() {
       setActiveModal("NONE"); 
     }
   };
-  const handleRealReport = async (category: string, description: string) => {
+  const handleRealReport = async (categoryCode: string, description: string) => {
     if (!roomId || !peerInfo) return;
 
     // API 호출
     await createReport({
       targetUserId: peerInfo.userId,
-      category: "HARASSMENT", // 추후에 신고 사유에 맞는 category백에서 받아와서 대응되도록 변경
-      reason: `${category} - ${description}`, // 위 내용 변경과 동시에 변경
+      category: categoryCode,
+      reason: `${description}`, // 위 내용 변경과 동시에 변경
       chatRoomId: Number(roomId)
     });
   };
