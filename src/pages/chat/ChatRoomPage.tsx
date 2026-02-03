@@ -18,7 +18,7 @@ import ToastNotification from "../../components/common/ToastNotification";
 import { createReport } from "../../api/socials/socialsApi";
 import ReportScreen from "../../components/chat/ReportScreen";
 
-// 모달 타입 정의
+// 모달 타입 정의 (어떤 모달 띄울지)
 type ModalType = "NONE" | "BLOCK" | "EXIT";
 
 export default function ChatRoomPage() {
@@ -47,6 +47,7 @@ export default function ChatRoomPage() {
   const [isReportScreenOpen, setIsReportScreenOpen] = useState(false);
 
   // 텍스트 입력창 래퍼
+  
   const onSendTextWrapper = async (text: string) => {
     const success = await handleSendText(text);
     if(success) setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
