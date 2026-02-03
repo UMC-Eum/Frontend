@@ -158,7 +158,7 @@ export default function OnBoardingPage() {
     try {
       const marketingItems = agreements
         .filter(a => a.type === "MARKETING" || a.agreementId === 3)
-        .map(a => ({
+        .map(() => ({
           marketingAgreementId: 1,
           isAgreed: checkedTerms.MARKETING
         }));
