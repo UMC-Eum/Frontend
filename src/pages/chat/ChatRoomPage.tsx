@@ -27,32 +27,42 @@ type ApiMessageItem = IChatsRoomIdMessagesGetResponse["items"][number];
 
 // UI 컴포넌트
 import { MessageBubble } from "../../components/chats/MessageBubble";
-import { ChatInputBar } from "../../components/chats/ChatInputBar"; // 🔥 수정된 InputBar import
+import { ChatInputBar } from "../../components/chats/ChatInputBar"; 
 import { ReportModal } from "../../components/chats/ReportModal"; 
 import { formatTime } from "../../hooks/UseFormatTime"; 
 
 export default function ChatRoomPage() {
+  //url에서 roomId 가져오기
   const { roomId } = useParams();
+
   const navigate = useNavigate();
+  //userStore에서 userId 가져오기
   const { user } = useUserStore(); 
   const myId = user?.userId ?? 0;
 
-  // 상태
+  // 메세지 관리
   const [messages, setMessages] = useState<ApiMessageItem[]>([]);
+  //상대 정보
   const [peerInfo, setPeerInfo] = useState<{ userId: number; nickname: string; age: number; areaName: string; profileImageUrl: string } | null>(null);
+  //메세지 더 가져오기 위한 커서
   const [nextCursor, setNextCursor] = useState<string | null>(null);
+  //로딩 상태
   const [isLoading, setIsLoading] = useState(false);
+  //초기 로딩 상태
   const [isInitLoaded, setIsInitLoaded] = useState(false);
 
   // 차단 상태 (null = 차단안함, 숫자 = 차단ID)
   const [blockId, setBlockId] = useState<number | null>(null);
 
   // UI 상태
+  //모달 열었는지
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  //채팅방 나가기 모달 열었는지
   const [isExitConfirmOpen, setIsExitConfirmOpen] = useState(false);
+  //음악 재생 상태 (음성파일이 1개만 재생되도록)
   const [playingId, setPlayingId] = useState<number | null>(null);
 
-  // Refs
+  // Refs(알필요 x -> 스크롤 관련(채팅시))
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const topObserverRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -81,6 +91,7 @@ export default function ChatRoomPage() {
             const blockRes = await getBlocks({ size: 100 });
             const targetBlock = blockRes.items.find(item => item.targetUserId === roomDetail.peer.userId);
             if (targetBlock) {
+              // 차단한 적 있으면 차단 해제 가능하게 blockId 저장
               setBlockId(targetBlock.blockId);
             }
           } catch (e) {
@@ -91,14 +102,18 @@ export default function ChatRoomPage() {
         // B. 메시지 조회
         const msgResponse = await getChatMessages(parsedRoomId, { size: 20 });
         if (msgResponse && msgResponse.items) {
+          // 최신순 정렬
           const sorted = [...msgResponse.items].sort((a, b) => 
             new Date(a.sendAt).getTime() - new Date(b.sendAt).getTime()
           );
           setMessages(sorted);
+          //다음 페이지 커서 저장
           setNextCursor(msgResponse.nextCursor);
+          //로딩 끝 신호와 동시에 화면 맨 아래로 스크롤
           setIsInitLoaded(true);
 
           sorted.forEach((item) => {
+            // 내가 보낸 메세지 제외하고 읽음 처리
             if (item.senderUserId !== myId && !item.readAt) {
               readChatMessage(item.messageId).catch(console.error);
             }
@@ -112,20 +127,23 @@ export default function ChatRoomPage() {
     initChat();
   }, [roomId, myId]);
 
-  // 스크롤 핸들링
+  // 스크롤 핸들링 -> 초기 로딩 완료되면 맨 아래로
   useEffect(() => {
     if (isInitLoaded && bottomRef.current) {
       bottomRef.current.scrollIntoView({ behavior: "auto" });
     }
   }, [isInitLoaded]);
-
+ //스크롤 핸들링 -> 맨 위로 스크롤하면 이전 메세지 불러오기
   useEffect(() => {
     const observer = new IntersectionObserver(
       async (entries) => {
+        //감시 조건 -> 맨 위로 스크롤 && 다음 페이지 커서 있음 && 로딩중 아님 && 초기 로딩 완료
         if (entries[0].isIntersecting && nextCursor && !isLoading && isInitLoaded) {
           if (scrollContainerRef.current) {
+            //이전 메세지 불러오기 전 스크롤 높이 저장
             prevScrollHeightRef.current = scrollContainerRef.current.scrollHeight;
           }
+          //이전 메세지 불러오기
           await loadPrevMessages();
         }
       },
@@ -135,16 +153,22 @@ export default function ChatRoomPage() {
     return () => observer.disconnect();
   }, [nextCursor, isLoading, isInitLoaded]);
 
+  //이전 메세지 불러오기 
   const loadPrevMessages = async () => {
+    //roomId 또는 nextCursor가 없으면 return
     if (!roomId || !nextCursor) return;
+    //로딩 시작
     setIsLoading(true);
     try {
       const response = await getChatMessages(Number(roomId), { size: 20, cursor: nextCursor });
       if (response && response.items.length > 0) {
+        //오래된 순서대로 정렬
         const oldMessages = [...response.items].sort((a, b) => 
           new Date(a.sendAt).getTime() - new Date(b.sendAt).getTime()
         );
+        //기존 메세지 + 이전 메세지 합치기
         setMessages((prev) => [...oldMessages, ...prev]);
+        //다음 페이지 커서 저장
         setNextCursor(response.nextCursor);
       } else {
         setNextCursor(null);
@@ -153,6 +177,7 @@ export default function ChatRoomPage() {
     finally { setIsLoading(false); }
   };
 
+  //이전 메세지 불러오면서 -> 스크롤 위치 유지
   useLayoutEffect(() => {
     if (isLoading) return;
     if (scrollContainerRef.current && prevScrollHeightRef.current > 0) {
@@ -167,10 +192,12 @@ export default function ChatRoomPage() {
     if (!peerInfo) return;
     try {
       if (blockId) {
+        //차단 해제
         await patchBlock(blockId);
         setBlockId(null);
         alert("차단이 해제되었습니다.");
       } else {
+        //차단
         const res = await blockUser({
           targetUserId: peerInfo.userId,
           reason: "채팅방 차단"
@@ -209,6 +236,7 @@ export default function ChatRoomPage() {
     if (!confirm("정말 이 메시지를 삭제하시겠습니까?")) return;
     try {
       await patchChatMessage(messageId);
+      //화면에서 삭제
       setMessages((prev) => prev.filter((msg) => msg.messageId !== messageId));
     } catch (error) {
       console.error("삭제 실패", error);
@@ -223,11 +251,14 @@ export default function ChatRoomPage() {
     if (!roomId) return;
     const parsedRoomId = Number(roomId);
     try {
+      //벡에 메세지 전송
       const res = await sendChatMessage(parsedRoomId, { type: "TEXT", text, mediaUrl: "", durationSec: 0 });
+      //프론트에 메세지 추가(낙관적 업데이트)
       const newMessage: ApiMessageItem = {
         messageId: res.messageId, senderUserId: myId, type: "TEXT", text, mediaUrl: "", durationSec: 0,
         sendAt: res.sendAt, readAt: null, isMine: true
       };
+      //메세지 추가 후 맨 아래로 스크롤
       setMessages((prev) => [...prev, newMessage]);
       setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
     } catch (error) { console.error(error); }
@@ -243,11 +274,12 @@ export default function ChatRoomPage() {
     try {
       // TODO: 실제로는 여기서 file을 S3 등에 업로드하고 그 URL을 보내야 합니다.
       const res = await sendChatMessage(parsedRoomId, { type: "AUDIO", text: null, mediaUrl: "temp_audio_url", durationSec: duration });
-      
+      //프론트에 음성 메세지 추가(낙관적 업데이트)
       const newMessage: ApiMessageItem = {
         messageId: res.messageId, senderUserId: myId, type: "AUDIO", text: null, mediaUrl: localAudioUrl, durationSec: duration,
         sendAt: res.sendAt, readAt: null, isMine: true
       };
+      //음성 메세지 추가 후 맨 아래로 스크롤
       setMessages((prev) => [...prev, newMessage]);
       setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
     } catch (error) { console.error(error); }

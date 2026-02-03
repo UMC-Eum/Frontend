@@ -24,7 +24,9 @@ export default function ChatListPage() {
     // State인 isLoading 대신 Ref를 확인하여 함수가 재생성되지 않게 함
     if (loadingRef.current) return;
     
+    // 로딩 상태를 true로 하여 함수 재 호출 되지 않도록 함
     loadingRef.current = true;
+    // UI 표시용 State
     setIsLoading(true);
 
     try {
@@ -76,9 +78,10 @@ export default function ChatListPage() {
       loadingRef.current = false;
       setIsLoading(false);
     }
+    // 의존성 배열을 빈 배열로 설정해서 fetchRooms 함수가 초기 1번만 생성되고 재생성되지 않도록 함
   }, []); //
 
-  // 1. 초기 진입 usecallback이라 1번만 실행 됨
+  // 1. 초기 진입 usecallback이라 1번만 실행 됨(변하지 않기에)
   useEffect(() => {
     fetchRooms(null);
   }, [fetchRooms]);
