@@ -126,7 +126,7 @@ export default function ChatRoomPage() {
     await createReport({
       targetUserId: peerInfo.userId,
       category: categoryCode,
-      reason: `${description}`, // 위 내용 변경과 동시에 변경
+      reason: `${description}`, // 위 g내용 변경과 동시에 변경
       chatRoomId: Number(roomId)
     });
   };
