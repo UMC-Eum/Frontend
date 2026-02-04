@@ -16,8 +16,8 @@ import ProfileEditSecond from "./pages/profile-edit/ProfileEditSecond";
 import HobbyEditPage from "./pages/profile-edit/HobbyEditPage";
 import PersonalitiesEditPage from "./pages/profile-edit/PersonalitiesEditPage";
 import IdealEditPage from "./pages/profile-edit/IdealEditPage";
-// import CharacterRecordPage from "./pages/profile-edit/PersonalitiesRecordPage";
 import IdealRecordPage from "./pages/profile-edit/IdealRecordPage";
+import LocationEditPage from "./pages/profile-edit/LocationEditPage";
 
 import LoginStep from "./pages/onboarding/steps/LoginStep";
 import OAuthCallbackPage from "./pages/OAuthCallbackPage";
@@ -79,6 +79,10 @@ const router = createBrowserRouter([
       {
         path: "my/edit/ideal-record",
         element: <IdealRecordPage />,
+      },
+      {
+        path: "my/edit/location",
+        element: <LocationEditPage />,
       },
       {
         path: "like",
