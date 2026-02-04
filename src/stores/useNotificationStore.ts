@@ -10,6 +10,10 @@ interface NotificationState {
   hasUnread: boolean;
   nextCursor: string | null;
 
+  isModalOpen: boolean;
+  selectedNotificationId: INotification | null;
+  closeModal: () => void;
+
   // 알림 새로고침 (폴링용)
   refreshNotifications: () => Promise<void>;
   // 알림 읽음 처리
@@ -20,13 +24,30 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
   notifications: [],
   hasUnread: false,
   nextCursor: null,
+  isModalOpen: false,
+  selectedNotificationId: null,
+  closeModal: () => set({ isModalOpen: false, selectedNotificationId: null }),
 
   // 최신 알림 목록을 가져와서 스토어 업데이트
   refreshNotifications: async () => {
     try {
       // 폴링 시에는 최신 10개 정도만 확인
       const data = await getNotifications({ size: 10 });
+      const prevNotifications = get().notifications;
+      // 새 알림이 왔는지 체크 (ID 비교)
+      if (prevNotifications.length > 0 && data.items.length > 0) {
+        const latestNew = data.items[0];
+        const isNew =
+          latestNew.notificationId !== prevNotifications[0].notificationId;
 
+        if (isNew) {
+          // 새 알림이 오면 바로 모달 상태 업데이트
+          set({
+            isModalOpen: true,
+            selectedNotificationId: latestNew,
+          });
+        }
+      }
       set({
         notifications: data.items,
         nextCursor: data.nextCursor,

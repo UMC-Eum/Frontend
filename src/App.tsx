@@ -79,39 +79,38 @@ const router = createBrowserRouter([
         path: "my/edit/ideal-record",
         element: <IdealRecordPage />,
       },
-    ],
-  },
-
-  {
-    path: "/login",
-    element: <LoginStep />,
-  },
-
-  {
-    path: "/oauth/callback/:provider",
-    element: <OAuthCallbackPage />,
-  },
-
-  {
-    path: "/home",
-    children: [
-      { index: true, element: <HomePage /> },
       {
-        path: "profile/:id",
-        element: <ProfileRecommendPage />,
+        path: "/login",
+        element: <LoginStep />,
       },
-    ],
-  },
-  {
-    path: "/message",
-    children: [
+
       {
-        index: true,
-        element: <ChatListPage />, // url: /chats
+        path: "/oauth/callback/:provider",
+        element: <OAuthCallbackPage />,
+      },
+
+      {
+        path: "/home",
+        children: [
+          { index: true, element: <HomePage /> },
+          {
+            path: "profile/:id",
+            element: <ProfileRecommendPage />,
+          },
+        ],
       },
       {
-        path: "room/:roomId",
-        element: <ChatRoomPage />, // url: /message/room/{숫자}
+        path: "/message",
+        children: [
+          {
+            index: true,
+            element: <ChatListPage />, // url: /chats
+          },
+          {
+            path: "room/:roomId",
+            element: <ChatRoomPage />, // url: /message/room/{숫자}
+          },
+        ],
       },
     ],
   },
