@@ -24,6 +24,7 @@ import OAuthCallbackPage from "./pages/OAuthCallbackPage";
 
 import ProfileRecommendPage from "./pages/ProfileRecommendPage";
 import PersonalitiesRecordPage from "./pages/profile-edit/PersonalitiesRecordPage";
+import Like from "./pages/Like";
 const router = createBrowserRouter([
   {
     path: "/",
@@ -78,6 +79,10 @@ const router = createBrowserRouter([
       {
         path: "my/edit/ideal-record",
         element: <IdealRecordPage />,
+      },
+      {
+        path: "like",
+        element: <Like />,
       },
     ],
   },
