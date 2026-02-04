@@ -1,13 +1,94 @@
 import { useState } from "react";
-import maleBtnInactive from "../../assets/male_btn_inactive.png";
-import femaleBtnInactive from "../../assets/female_btn_inactive.png";
-import maleBtnActive from "../../assets/male_btn_active.png";
-import femaleBtnActive from "../../assets/female_btn_active.png";
 import { useUserStore } from "../../stores/useUserStore";
 
 interface SetGenderProps {
   onNext: () => void;
 }
+const MaleIcon = ({ active }: { active: boolean }) => (
+  <svg
+    width="150"
+    height="150"
+    viewBox="0 0 150 150"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    className="transition-all duration-300"
+  >
+    <circle
+      cx="75"
+      cy="75"
+      r="72.5"
+      fill={active ? "#FFF0F3" : "white"}
+      stroke={active ? "#FC3367" : "#EAEEF2"}
+      strokeWidth="3"
+    />
+    <circle
+      cx="70"
+      cy="64"
+      r="16"
+      stroke={active ? "#FC3367" : "#A6AFB6"}
+      strokeWidth="5"
+    />
+    <path
+      d="M82 52L92 42M92 42H82M92 42V52"
+      stroke={active ? "#FC3367" : "#A6AFB6"}
+      strokeWidth="5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+    <text
+      x="75"
+      y="112"
+      textAnchor="middle"
+      fill={active ? "#FC3367" : "#A6AFB6"}
+      className="text-[16px] font-semibold"
+    >
+      남성
+    </text>
+  </svg>
+);
+
+const FemaleIcon = ({ active }: { active: boolean }) => (
+  <svg
+    width="150"
+    height="150"
+    viewBox="0 0 150 150"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    className="transition-all duration-300"
+  >
+    <circle
+      cx="75"
+      cy="75"
+      r="72.5"
+      fill={active ? "#FFF0F3" : "white"}
+      stroke={active ? "#FC3367" : "#EAEEF2"}
+      strokeWidth="3"
+    />
+    <circle
+      cx="75"
+      cy="53"
+      r="16"
+      stroke={active ? "#FC3367" : "#A6AFB6"}
+      strokeWidth="5"
+    />
+    <path
+      d="M75 69V87M69 81H82"
+      stroke={active ? "#FC3367" : "#A6AFB6"}
+      strokeWidth="5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+    <text
+      x="75"
+      y="112"
+      textAnchor="middle"
+      fill={active ? "#FC3367" : "#A6AFB6"}
+      className="text-[16px] font-semibold"
+    >
+      여성
+    </text>
+  </svg>
+);
 
 export default function SetGender({ onNext }: SetGenderProps) {
   const [gender, setGender] = useState<"M" | "F" | null>(null);
@@ -32,20 +113,14 @@ export default function SetGender({ onNext }: SetGenderProps) {
         </p>
       </div>
 
-      <div className="mt-30 flex flex-col items-center gap-10">
-        <img
-          src={gender === "M" ? maleBtnActive : maleBtnInactive}
-          className="cursor-pointer"
-          onClick={() => setGender("M")}
-          alt="Male"
-        />
+      <div className="mt-20 flex flex-col items-center gap-10">
+        <div className="cursor-pointer" onClick={() => setGender("M")}>
+          <MaleIcon active={gender === "M"} />
+        </div>
 
-        <img
-          src={gender === "F" ? femaleBtnActive : femaleBtnInactive}
-          className="cursor-pointer"
-          onClick={() => setGender("F")}
-          alt="Female"
-        />
+        <div className="cursor-pointer" onClick={() => setGender("F")}>
+          <FemaleIcon active={gender === "F"} />
+        </div>
       </div>
 
       <div className="mt-auto pb-10">
@@ -64,3 +139,4 @@ export default function SetGender({ onNext }: SetGenderProps) {
     </div>
   );
 }
+
