@@ -81,6 +81,11 @@ const router = createBrowserRouter([
         element: <IdealRecordPage />,
       },
       {
+        path: "my/edit/location",
+        element: <LocationEditPage />,
+      },
+
+      {
         path: "/login",
         element: <LoginStep />,
       },
@@ -99,6 +104,10 @@ const router = createBrowserRouter([
             element: <ProfileRecommendPage />,
           },
         ],
+      },
+      {
+        path: "/likes",
+        element: <Like />,
       },
       {
         path: "/message",
