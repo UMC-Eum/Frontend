@@ -28,3 +28,18 @@ export interface UpdateMarketingRequest {
     isAgreed: boolean;
   }[];
 }
+
+// GET /me/agreements 응답 전체 구조
+export interface IAgreementStatusResponse {
+  resultType: string;
+  success: {
+    data: {
+      hasPassed: boolean;
+    };
+  };
+  error: null | string;
+  meta: {
+    timestamp: string;
+    path: string;
+  };
+}

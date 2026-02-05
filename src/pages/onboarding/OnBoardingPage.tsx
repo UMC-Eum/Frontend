@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { getAgreements, updateMarketingAgreements } from "../../api/agreements/agreementsApi";
+import { getAgreements, getAgreementStatus, updateMarketingAgreements } from "../../api/agreements/agreementsApi";
 import { IAgreementItem, AgreementType } from "../../types/api/agreements/agreementsDTO";
 
 import SplashStep from "./steps/SplashStep";
@@ -13,17 +13,24 @@ import MarketingTerms from "./terms/MarketingTerms";
 import { getMyProfile } from "../../api/users/usersApi";
 import AgeLimitModal from "./overlays/AgeLimitModal";
 
+// ... (DUMMY_DATA 및 AGREEMENT_TYPE_MAP 상수는 그대로 유지) ...
 const DUMMY_DATA: IAgreementItem[] = [
   { agreementId: 1, body: "서비스 이용약관 상세 내용더미...", type: "POLICY" },
   { agreementId: 2, body: "개인정보 처리방침 상세 내용더미...", type: "PERSONAL_INFORMATION" },
   { agreementId: 3, body: "마케팅 수신 동의 상세 내용더미...", type: "MARKETING" },
 ];
+const AGREEMENT_TYPE_MAP: Record<number, AgreementType> = {
+  1: "POLICY",
+  2: "PERSONAL_INFORMATION",
+  3: "MARKETING",
+};
 
 export default function OnBoardingPage() {
   const navigate = useNavigate();
   const [step, setStep] = useState<"splash" | "login" | "permission">("splash");
   const [agreements, setAgreements] = useState<IAgreementItem[]>([]);
 
+  // hasAgreed state는 렌더링 용도 외에 로직 흐름 제어에서는 제거하거나 보조적으로 사용
   const [showAgreement, setShowAgreement] = useState(false);
   const [currentTerm, setCurrentTerm] = useState<AgreementType | null>(null);
   const [showAgeLimit, setShowAgeLimit] = useState(false);
@@ -34,104 +41,115 @@ export default function OnBoardingPage() {
     MARKETING: false,
   });
 
-  // ----------------------------------------------------------------------
-  // 권한 상태를 확인하고 페이지를 이동시키는 함수
-  // ----------------------------------------------------------------------
+  // 권한 체크 함수 (기존 유지)
   const checkPermissionAndPass = async () => {
     try {
-      // 1. 알림 권한 (동기적 확인)
       const isNotiGranted = Notification.permission === "granted";
-
-      // 2. 카메라/마이크 권한 (비동기적 확인)
-      const cameraStatus = await navigator.permissions.query({ name: "camera" as any });
-      const micStatus = await navigator.permissions.query({ name: "microphone" as any });
+      // navigator.permissions.query는 일부 브라우저 호환성 문제 가능성 있음. 
+      // 필요시 try-catch로 감싸거나 navigator.mediaDevices 등 다른 API 사용 고려
+      const cameraStatus = await navigator.permissions.query({ name: "camera" as any }).catch(() => ({ state: 'prompt' }));
+      const micStatus = await navigator.permissions.query({ name: "microphone" as any }).catch(() => ({ state: 'prompt' }));
 
       const isCameraGranted = cameraStatus.state === "granted";
       const isMicGranted = micStatus.state === "granted";
 
-      // 3. 판단: 필수 권한(카메라, 마이크) + 알림이 모두 있다면 바로 이동
       if (isCameraGranted && isMicGranted && isNotiGranted) {
-        console.log("✅ 모든 권한 허용됨 -> 바로 프로필 설정으로 이동");
         navigate("/profileset", { replace: true });
       } else {
-        // 하나라도 없으면 권한 페이지 보여주기
-        console.log("❌ 권한 부족 -> 권한 설정 페이지 노출");
         setStep("permission");
       }
-    } catch (error) {
-      // 브라우저 호환성 문제 등으로 확인 불가 시, 안전하게 권한 페이지 보여줌
-      console.log("⚠️ 권한 확인 불가 -> 권한 설정 페이지 노출");
+    } catch {
       setStep("permission");
     }
   };
 
-  // 나이 제한 모달 닫기 핸들러 (로그아웃 처리)
- 
   const handleAgeLimitClose = () => {
-    // 가입 대상이 아니므로 토큰을 지우고 스플래시로 돌려보냄
     localStorage.removeItem("accessToken");
     setShowAgeLimit(false);
     setStep("splash");
   };
+
+  // 약관 데이터 가져오는 함수 (필요할 때만 호출하기 위해 분리)
+  const fetchAgreementsData = async () => {
+    try {
+      const items = await getAgreements();
+      const mappedItems = items?.map((item) => ({
+        ...item,
+        type: item.type || AGREEMENT_TYPE_MAP[Number(item.agreementId)] || "MARKETING"
+      }));
+      const finalItems = mappedItems && mappedItems.length > 0 ? mappedItems : DUMMY_DATA;
+      setAgreements(finalItems);
+    } catch (error) {
+      console.error("약관 로드 실패:", error);
+      setAgreements(DUMMY_DATA);
+    }
+  };
+
   useEffect(() => {
     const token = localStorage.getItem("accessToken");
 
-    const fetchData = async () => {
+    // 토큰이 없으면 스플래시 유지 (혹은 로직 종료)
+    if (!token) return;
+
+    // 토큰이 있으면 로그인 단계로 간주하고 로직 시작
+    setStep("login");
+
+    const initializeUser = async () => {
       try {
-        const items = await getAgreements();
-        const finalItems = items && items.length > 0 ? items : DUMMY_DATA;
-        setAgreements(finalItems);
+        // 1. 유저 프로필과 약관 동의 여부를 먼저 가져옵니다. (병렬 처리 추천)
+        const [userData, isPassed] = await Promise.all([
+            getMyProfile(),
+            getAgreementStatus()
+        ]);
+        
+        // 2. 나이 검사 로직
+        if (userData?.birthDate) {
+          const today = new Date();
+          const birthDate = new Date(userData.birthDate);
 
-        if (token) {
-          setStep("login");
+          let age = today.getFullYear() - birthDate.getFullYear();
+          const monthDiff = today.getMonth() - birthDate.getMonth();
 
-          try {
-            // 1.API 호출
-            const userData = await getMyProfile();
-            
-            // 2. 나이 검사 //age필요
-            if (userData?.birthDate) {
-              const today = new Date();
-              const birthDate = new Date(userData.birthDate);
+          if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+            age--;
+          }
 
-              let age = today.getFullYear() - birthDate.getFullYear();
-              const monthDiff = today.getMonth() - birthDate.getMonth();
+          console.log(`🎂 만 나이: ${age}세 / 약관 동의 여부(API): ${isPassed}`);
 
-              // 생일이 아직 안 지났으면 1살 차감
-              if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-                age--;
-              }
-
-              console.log(`🎂 사용자 생년월일: ${userData.birthDate}, 만 나이: ${age}세`);
-
-              // 나이 검사 (만 50세 미만 or 만 100세 초과)
-              if (age < 50 || age >200) {
-                setShowAgreement(false);
-                setShowAgeLimit(true);
-                return; // 여기서 로직 종료
-              }
-              else {
-                setShowAgreement(true);
-              }
-            }
-          } catch (err) {
-            console.error("유저 정보 조회 실패:", err);
-            // 에러 발생 시 정책 결정 필요 (여기서는 일단 진행하도록 둠)
+          // 나이 제한 걸림
+          if (age < 50 || age > 200) {
+            setShowAgreement(false);
+            setShowAgeLimit(true);
+            return; // 종료
           }
         }
-      } catch (error) {
-        console.error("약관 로드 실패:", error);
-        setAgreements(DUMMY_DATA);
-        if (token) {
-          setStep("login");
+
+        // 3. 약관 동의 여부 분기 처리 (여기서 state인 hasAgreed가 아닌 변수 isPassed를 사용!)
+        if (isPassed) {
+          // 이미 동의함 -> 권한 체크로 바로 이동
+          console.log("✅ 이미 약관 동의 완료 -> 권한 체크로 이동");
+          setShowAgreement(false);
+          await checkPermissionAndPass();
+        } else {
+          // 동의 안함 -> 약관 데이터 가져오고 모달 띄우기
+          console.log("📝 약관 동의 필요 -> 약관 데이터 로드 및 모달 노출");
+          await fetchAgreementsData(); // 이 시점에 약관 내용을 로딩
           setShowAgreement(true);
         }
+
+      } catch (err) {
+        console.error("초기화 실패:", err);
+        // 에러 시 안전하게 약관을 띄우거나, 에러 페이지로 이동
+        // 여기서는 기존 로직대로 약관을 띄우도록 처리
+        await fetchAgreementsData();
+        setShowAgreement(true);
       }
     };
 
-    fetchData();
-  }, []);
+    initializeUser();
+  }, []); // 의존성 배열 비움
 
+  // ... (getTermContent, handleConfirm 및 return 문은 기존과 동일) ...
   const getTermContent = (type: AgreementType) => {
     return agreements.find((a) => a.type === type)?.body || "";
   };
@@ -140,24 +158,17 @@ export default function OnBoardingPage() {
     try {
       const marketingItems = agreements
         .filter(a => a.type === "MARKETING" || a.agreementId === 3)
-        .map(a => ({
-          marketingAgreementId: a.agreementId,
+        .map(() => ({
+          marketingAgreementId: 1,
           isAgreed: checkedTerms.MARKETING
         }));
 
       await updateMarketingAgreements(marketingItems);
-      
       setShowAgreement(false);
+      await checkPermissionAndPass();
 
-      // ----------------------------------------------------------------------
-      // 🔥 [수정됨] 무조건 setStep("permission") 하던 것을 함수 호출로 변경
-      // ----------------------------------------------------------------------
-      // setStep("permission");  <-- 기존 코드 주석 처리
-      await checkPermissionAndPass(); // 권한 확인 후 이동 or 페이지 노출 결정
-
-    } catch (error) {
+    } catch {
       setShowAgreement(false);
-      // 에러가 나더라도 다음 단계 진행 시도
       await checkPermissionAndPass();
     }
   };
@@ -171,6 +182,7 @@ export default function OnBoardingPage() {
         <AgeLimitModal onClose={handleAgeLimitClose} />
       )}
 
+      {/* agreements가 로드되었을 때만 렌더링 */}
       {showAgreement && agreements.length > 0 && (
         <AgreementSheet
           agreements={agreements}
@@ -187,7 +199,8 @@ export default function OnBoardingPage() {
           onConfirm={handleConfirm}
         />
       )}
-
+      
+      {/* ... (Terms 컴포넌트들) ... */}
       {currentTerm === "POLICY" && (
         <ServiceTerms 
           content={getTermContent("POLICY")} 
