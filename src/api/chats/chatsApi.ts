@@ -8,7 +8,7 @@ import * as DTO from "../../types/api/chats/chatsDTO";
 export const createChatRoom = async (body: DTO.IChatsRoomsPostRequest) => {
   const { data } = await api.post<
     ApiSuccessResponse<DTO.IChatsRoomsPostResponse>
-  >("/chats/rooms", body);
+  >("/v1/chats/rooms", body);
   return data.success.data;
 };
 
@@ -19,7 +19,7 @@ export const getChatRooms = async (params: {
 }) => {
   const { data } = await api.get<
     ApiSuccessResponse<DTO.IChatsRoomsGetResponse>
-  >("/chats/rooms", { params });
+  >("/v1/chats/rooms", { params });
   return data.success.data;
 };
 
@@ -27,7 +27,7 @@ export const getChatRooms = async (params: {
 export const getChatRoomDetail = async (chatRoomId: number) => {
   const { data } = await api.get<
     ApiSuccessResponse<DTO.IChatsRoomIdGetResponse>
-  >(`/chats/rooms/${chatRoomId}`);
+  >(`/v1/chats/rooms/${chatRoomId}`);
   return data.success.data;
 };
 
@@ -45,7 +45,7 @@ export const getChatMessages = async (
 
   const { data } = await api.get<
     ApiSuccessResponse<DTO.IChatsRoomIdMessagesGetResponse>
-  >(`/chats/rooms/${chatRoomId}/messages`, { params: requestParams });
+  >(`/v1/chats/rooms/${chatRoomId}/messages`, { params: requestParams });
 
   return data.success.data;
 };
@@ -57,14 +57,14 @@ export const sendChatMessage = async (
 ) => {
   const { data } = await api.post<
     ApiSuccessResponse<DTO.IChatsRoomIdMessagesPostResponse>
-  >(`/chats/rooms/${chatRoomId}/messages`, body);
+  >(`/v1/chats/rooms/${chatRoomId}/messages`, body);
   return data.success.data;
 };
 
 /** 메시지 읽음 처리 (PATCH) */
 export const readChatMessage = async (messageId: number) => {
   const { data } = await api.patch<ApiSuccessResponse<null>>(
-    `/chats/messages/${messageId}/read`,
+    `/v1/chats/messages/${messageId}/read`,
   );
   return data.success.data;
 };
@@ -72,7 +72,7 @@ export const readChatMessage = async (messageId: number) => {
 /** 메시지 수정/삭제 등 (PATCH) */
 export const patchChatMessage = async (messageId: number) => {
   const { data } = await api.patch<ApiSuccessResponse<null>>(
-    `/chats/messages/${messageId}`,
+    `/v1/chats/messages/${messageId}`,
   );
   return data.success.data;
 };
