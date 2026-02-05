@@ -106,8 +106,13 @@ const router = createBrowserRouter([
         ],
       },
       {
-        path: "/likes",
-        element: <Like />,
+        path: "/like",
+        children: [
+          {
+            index: true,
+            element: <Like />,
+          },
+        ],
       },
       {
         path: "/message",

@@ -12,9 +12,9 @@ const ResultPage = () => {
   );
   const { data, isLoading, isError } = useQuery({
     queryKey: ["matchResults"],
-    queryFn: getRecommendations,
+    queryFn: () => getRecommendations({ size: 20 }),
   });
-  console.log("📡 백엔드 응답 데이터:", data);
+  console.log("📡 백엔드 응답 데이터:", data?.items);
 
   if (isLoading) return <div className="p-5">로딩 중...</div>;
   if (isError) return <div className="p-5">에러가 발생했습니다.</div>;
@@ -52,24 +52,36 @@ const ResultPage = () => {
 
         <div className="mt-[24px] space-y-[20px]">
           {data &&
-            data?.items?.map((user, userIndex) => (
+          data.items &&
+          Array.isArray(data.items) &&
+          data.items.length > 0 ? (
+            data.items.map((user, userIndex) => (
               <IdleCard
-                key={userIndex}
+                key={user.userId || userIndex}
                 targetUserId={user.userId}
                 initialIsLiked={false}
                 initialHeartId={null}
-                profileUrl={`/profile/${user.userId}`}
+                profileUrl={`/home/profile/${user.userId}`}
                 imageUrl={
-                  user.introAudioUrl || "https://via.placeholder.com/400"
+                  user.profileImageUrl || "https://via.placeholder.com/400"
                 }
                 name={user.nickname}
                 age={user.age}
-                distance={`${user.matchScore}% 매칭`}
-                area={user.areaName}
-                description={user.introText}
-                keywords={user.keywords}
+                distance={
+                  user.matchScore
+                    ? `${user.matchScore}% 매칭`
+                    : "매칭 정보 없음"
+                }
+                area={user.areaName || "지역 정보 없음"}
+                description={user.introText || "자기소개가 없습니다."}
+                keywords={user.keywords || []}
               />
-            ))}
+            ))
+          ) : (
+            <p className="text-gray-500 text-center py-10">
+              추천된 사용자가 없습니다.
+            </p>
+          )}
         </div>
 
         <div className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-100">
