@@ -52,7 +52,6 @@ export default function HomePage() {
                           <div
                             key={user.id}
                             className="snap-center shrink-0 w-full pr-[12px] last:pr-0"
-                            onClick={() => goProfile(user)}
                           >
                             <SmallButtonIdleCard
                               profileUrl={`/home/profile/${user.id}`}
@@ -64,6 +63,7 @@ export default function HomePage() {
                               area={user.area}
                               description={user.description}
                               keywords={user.keywords}
+                              onGoProfile={() => goProfile(user)}
                             />
                           </div>
                         ))}
@@ -110,7 +110,6 @@ export default function HomePage() {
                           <div
                             key={user.id}
                             className="snap-center shrink-0 w-full pr-[12px] last:pr-0"
-                            onClick={() => goProfile(user)}
                           >
                             <RecommendCard
                               profileUrl={`/home/profile/${user.id}`}
@@ -122,6 +121,7 @@ export default function HomePage() {
                               area={user.area}
                               description={user.description}
                               keywords={user.keywords}
+                              onGoProfile={() => goProfile(user)}
                             />
                           </div>
                         ))}
@@ -143,7 +143,11 @@ export default function HomePage() {
               <div className="flex overflow-x-auto -mr-[20px] pr-[20px]">
                 <div className="flex w-max gap-[9px]">
                   {activePeople.map((p) => (
-                    <div key={p.id} className="flex flex-col gap-[8px]">
+                    <div
+                      key={p.id}
+                      className="flex flex-col gap-[8px]"
+                      onClick={() => goProfile(p)}
+                    >
                       <div className="w-[84px] h-[84px] shrink-0">
                         <img
                           className="w-full h-full rounded-xl object-cover"

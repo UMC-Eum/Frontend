@@ -6,11 +6,12 @@ import RecordingControl from "../RecordingControl";
 interface ChatInputBarProps {
   onSendText: (text: string) => void;
   onSendVoice: (file: File, duration: number) => void;
+  isBlocked?: boolean;
   // 🔥 [추가] 이미지가 선택되었을 때 부모에게 파일을 전달하는 함수
   //onSendImage: (file: File) => void; 
 }
 
-export function ChatInputBar({ onSendText, onSendVoice }: ChatInputBarProps) {
+export function ChatInputBar({ onSendText, onSendVoice, isBlocked }: ChatInputBarProps) {
   const [text, setText] = useState("");
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   
@@ -65,6 +66,32 @@ export function ChatInputBar({ onSendText, onSendVoice }: ChatInputBarProps) {
     console.log("🖼️ 앨범 실행");
     albumInputRef.current?.click();
   };
+
+  // ✅ 차단 상태일 때 보여줄 UI (입력창 덮어쓰기)
+  if (isBlocked) {
+    return (
+      <div className="shrink-0 min-h-[60px] px-4 py-2 bg-white border-t border-gray-100 flex items-center justify-center">
+        {/* + 버튼 (비활성화) */}
+        <button disabled className="mr-3 p-2 text-gray-300">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M12 5V19M5 12H19" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        </button>
+
+        {/* 회색 입력바 */}
+        <div className="flex-1 bg-[#F2F4F6] rounded-[20px] px-4 py-3 text-[14px] text-[#979797] flex items-center">
+          차단한 사용자와는 대화할 수 없어요.
+        </div>
+
+        {/* 전송 버튼 (비활성화) */}
+        <button disabled className="ml-3 p-2 text-gray-300">
+           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M22 2L11 13M22 2L15 22L11 13M11 13L2 9L22 2" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="relative w-full z-30">

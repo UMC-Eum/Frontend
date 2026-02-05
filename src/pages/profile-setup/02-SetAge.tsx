@@ -6,7 +6,7 @@ interface SetAgeProps {
 }
 
 export default function SetAge({ onNext }: SetAgeProps) {
-  const [age, setAge] = useState(1);
+  const [age, setAge] = useState(50);
 
   const { updateUser } = useUserStore();
 
@@ -53,8 +53,8 @@ const WheelPicker = ({ onChange }: WheelPickerProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [activeIndex, setActiveIndex] = useState(0);
 
-  // 1부터 100까지
-  const ageList = Array.from({ length: 100 }, (_, i) => i + 1);
+  // 50부터 100까지
+  const ageList = Array.from({ length: 51 }, (_, i) => i + 50);
 
   const ITEM_HEIGHT = 60;
   const CONTAINER_HEIGHT = 420;
@@ -68,7 +68,7 @@ const WheelPicker = ({ onChange }: WheelPickerProps) => {
 
     if (safeIndex !== activeIndex) {
       setActiveIndex(safeIndex); // 여기서 렌더링 시점 결정
-      onChange(safeIndex + 1);
+      onChange(ageList[safeIndex]);
     }
   };
 

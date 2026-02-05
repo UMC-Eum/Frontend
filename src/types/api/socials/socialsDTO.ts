@@ -72,8 +72,8 @@ export interface IBlocksGetResponse {
 //v1/reports(post)
 export interface IReportsRequest {
   targetUserId: number;
+  reason: string;
   category: string;
-  description: string;
   chatRoomId: number;
 }
 export interface IReportsResponse {

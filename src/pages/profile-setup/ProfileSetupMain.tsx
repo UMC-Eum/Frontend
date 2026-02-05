@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+import { motion } from "framer-motion";
 import SetName from "./01-SetName";
 import SetAge from "./02-SetAge";
 import SetGender from "./03-SetGender";
@@ -83,7 +84,17 @@ export default function ProfileSetupMain() {
         {step === 4 && <SetLocation onNext={handleNext} />}
         {step === 5 && <SetImage onNext={handleNext} />}
         {step === 6 && <SpeechKeyword onNext={handleSpeechKeywordNext} />}
-        {step === 7 && <SetKeywords onNext={handleSubmitProfile} />}
+        {step === 7 && (
+          <motion.div
+            initial={{ x: "100%" }}
+            animate={{ x: 0 }}
+            exit={{ x: "-100%" }}
+            transition={{ type: "spring", stiffness: 300, damping: 30 }}
+            className="flex-1 flex flex-col"
+          >
+            <SetKeywords onNext={handleSubmitProfile} />
+          </motion.div>
+        )}
         {step === 8 && <SetComplete />}
       </main>
     </div>

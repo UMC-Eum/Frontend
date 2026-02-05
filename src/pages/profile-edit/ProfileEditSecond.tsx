@@ -216,13 +216,15 @@ const ProfileEditSecond = () => {
             </div>
 
             <div className="flex w-full justify-between tems-center gap-[28px]">
-              <dt className="text-[16px] font-medium leading-[1.2] text-gray-700 tracking-normal">
-                지역
-              </dt>
-              <dd className="text-[16px] font-medium leading-[1.2] text-gray-700 tracking-normal">
-                {user?.area.name}
-              </dd>
-              <NextArrow navigateTo="./ideal" />
+              <div className="flex items-center gap-[28px]">
+                <dt className="text-[16px] font-medium leading-[1.2] text-gray-700 tracking-normal">
+                  지역
+                </dt>
+                <dd className="text-[16px] font-medium leading-[1.2] text-gray-700 tracking-normal">
+                  {user?.area.name}
+                </dd>
+              </div>
+              <NextArrow navigateTo="./location" />
             </div>
           </div>
         </div>
