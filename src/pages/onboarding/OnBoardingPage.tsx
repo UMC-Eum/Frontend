@@ -203,13 +203,11 @@ export default function OnBoardingPage() {
       {/* ... (Terms 컴포넌트들) ... */}
       {currentTerm === "POLICY" && (
         <ServiceTerms 
-          content={getTermContent("POLICY")} 
           onBack={() => { setCurrentTerm(null); setShowAgreement(true); }} 
         />
       )}
       {currentTerm === "PERSONAL_INFORMATION" && (
         <PrivacyPolicy 
-          content={getTermContent("PERSONAL_INFORMATION")} 
           onBack={() => { setCurrentTerm(null); setShowAgreement(true); }} 
         />
       )}
