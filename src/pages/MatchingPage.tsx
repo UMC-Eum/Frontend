@@ -15,8 +15,6 @@ const MatchingPage = () => {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const isResultPage = location.pathname.includes("result");
 
-  // 1. API 요청 설정 (Mutation)
-  // 녹음 파일이 생기면 이 함수(analyze)를 실행해서 서버로 보냅니다.
   const { mutate: analyze } = useMutation({
     mutationFn: (file: File) => processVoiceAnalysis({ file }), // 임시 userId
     onSuccess: (data) => {
@@ -27,13 +25,10 @@ const MatchingPage = () => {
       // 2. 콘솔에 예쁘게 출력
       if (keywords.length > 0) {
         console.log("✨ 추출된 이상형 키워드들:", keywords.join(", "));
-        // 테이블 형태로 보고 싶다면 아래 주석을 해제하세요
-        // console.table(data.keywordsCandidates);
       } else {
         console.log("ℹ️ 추출된 키워드가 없습니다.");
       }
 
-      // Zustand 업데이트 및 페이지 이동
       updateIdealPersonalities({ idealPersonalities: keywords });
       navigate("/matching/result", { state: { result: data } });
     },
@@ -43,16 +38,13 @@ const MatchingPage = () => {
     },
   });
 
-  // 2. 마이크 훅 설정 (하나로 통합!)
-  // 녹음이 끝나고 파일이 생성되면 -> analyze(file) 실행
-  const { status, setStatus, seconds, isShort, handleMicClick, resetStatus } =
+  const { status, setStatus, seconds, isShort, handleMicClick } =
     useMicRecording((file) => {
       if (file) {
-        analyze(file); // 👈 여기서 Mutation 실행!
+        analyze(file);
       }
     });
 
-  // 3. 결과 페이지 진입 시 상태 처리
   useEffect(() => {
     if (isResultPage) {
       setStatus("loading");
@@ -64,7 +56,6 @@ const MatchingPage = () => {
       <BackButton />
       <div className="h-[10px]" />
 
-      {/* 상단 텍스트 영역 */}
       <div className="h-[78px] px-[20px]">
         {status === "inactive" && !isResultPage && (
           <h1 className="text-[28px] font-[700] leading-[140%] text-[#202020]">
@@ -78,12 +69,6 @@ const MatchingPage = () => {
             <h1 className="text-[28px] font-[700] leading-[140%] text-[#202020]">
               듣고 있어요 ...
             </h1>
-            <button
-              onClick={resetStatus}
-              className="bg-pink-200 px-2 py-1 rounded-md text-sm mt-2"
-            >
-              재녹음
-            </button>
           </>
         )}
         {(status === "loading" || isResultPage) && (

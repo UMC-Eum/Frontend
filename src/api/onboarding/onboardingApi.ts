@@ -6,6 +6,7 @@ import {
   IPresignResponse,
   IProfileRequest,
   IProfileResponse,
+  IRecommendationsRequest,
   IRecommendationsResponse,
 } from "../../types/api/onboarding/onboardingDTO";
 
@@ -19,7 +20,7 @@ export const postPresign = async (body: IPresignRequest) => {
   return data.success.data;
 };
 
-//!!!S3 Direct Upload (PUT)
+//S3 Direct Upload (PUT)
 export const uploadFileToS3 = async (uploadUrl: string, file: File) => {
   await axios.put(uploadUrl, file, {
     headers: {
@@ -38,9 +39,10 @@ export const postProfile = async (body: IProfileRequest) => {
   return data.success.data;
 };
 //v1/matches/recommendation(get)
-export const getRecommendations = async () => {
+export const getRecommendations = async (body: IRecommendationsRequest) => {
   const { data } = await api.get<ApiSuccessResponse<IRecommendationsResponse>>(
     "/v1/matches/recommended",
+    { params: body },
   );
 
   return data.success.data;
