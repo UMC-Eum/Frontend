@@ -1,12 +1,14 @@
 import { useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
-import { useUserStore } from "../stores/useUserStore";
+import { ApiSuccessResponse } from "../types/api/api";
+import { IKakaoLoginResponse } from "../types/api/auth/authDTO";
+import useCompleteLogin from "../hooks/useCompleteLogin";
 
 export default function OAuthCallbackPage() {
   const navigate = useNavigate();
   const hasRequested = useRef(false);
-  const { setIsLoggedIn } = useUserStore();
+  const { completeLogin } = useCompleteLogin();
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -25,7 +27,7 @@ export default function OAuthCallbackPage() {
       };
 
       axios
-        .post(
+        .post<ApiSuccessResponse<IKakaoLoginResponse>>(
           `${import.meta.env.VITE_API_BASE_URL}/v1/auth/kakao/login`,
           requestBody,
         )
@@ -42,16 +44,21 @@ export default function OAuthCallbackPage() {
             localStorage.setItem("accessToken", accessToken);
             console.log("✅ 토큰 저장 완료:", accessToken);
 
-            // 2. 로그인 상태 설정
-            setIsLoggedIn(true);
-            console.log("✅ 로그인 상태 업데이트 완료");
-
-            // 3. 페이지 이동 로직 (온보딩 필요하면 거기로 감)
-            if (needsOnboarding) {
-              navigate("/onboarding"); // 온보딩 페이지 경로가 맞는지 확인하세요!
-            } else {
-              navigate("/");
-            }
+            // 2. 로그인 완료 처리 (프로필 로드 및 상태 업데이트)
+            completeLogin()
+              .then(() => {
+                // 3. 페이지 이동 로직 (온보딩 필요하면 거기로 감)
+                if (needsOnboarding) {
+                  navigate("/onboarding");
+                } else {
+                  navigate("/");
+                }
+              })
+              .catch((err) => {
+                console.error("🚨 로그인 완료 처리 실패:", err);
+                alert("로그인 처리 중 문제가 발생했습니다. 다시 시도해주세요.");
+                navigate("/login");
+              });
           } else {
             console.error("🚨 토큰이 응답에 없습니다!");
             navigate("/login");
@@ -63,7 +70,7 @@ export default function OAuthCallbackPage() {
           navigate("/login");
         });
     }
-  }, [navigate, setIsLoggedIn]);
+  }, [navigate, completeLogin]);
 
   return <div>로그인 처리 중입니다...</div>;
 }

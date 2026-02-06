@@ -38,6 +38,7 @@ export default function useCompleteLogin() {
 
       // store에 저장
       updateUser(userWithAge);
+      console.log("✅ 사용자 프로필 로드 및 상태 업데이트 완료:", userWithAge);
       setIsLoggedIn(true);
 
       return userWithAge;
