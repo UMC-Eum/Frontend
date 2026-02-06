@@ -60,8 +60,16 @@ export interface IItemRecommendation {
   keywords: string[];
   introText: string;
   introAudioUrl: string;
+  profileImageUrl: string;
   matchScore: number;
   matchReasons: string[];
+  isLiked: boolean;
+}
+export interface IRecommendationsRequest {
+  cursor?: string;
+  size?: number;
+  ageMin?: number;
+  ageMax?: number;
 }
 export interface IRecommendationsResponse {
   nextCursor: string | null;

@@ -8,13 +8,13 @@ export interface IHeartsResponse {
 
 //v1/hearts/sent(get)
 export interface IHeartsentResponse {
-  nextCursor: "opaque_cursor" | null;
+  nextCursor: string | null;
   items: { heartId: number; targetUserId: number; createdAt: string }[];
 }
 
 //v1/hearts/received(get)
 export interface IHeartreceivedResponse {
-  nextCursor: "opaque_cursor" | null;
+  nextCursor: string | null;
   items: {
     heartId: number;
     fromUserId: number;
@@ -72,8 +72,8 @@ export interface IBlocksGetResponse {
 //v1/reports(post)
 export interface IReportsRequest {
   targetUserId: number;
+  reason: string;
   category: string;
-  description: string;
   chatRoomId: number;
 }
 export interface IReportsResponse {

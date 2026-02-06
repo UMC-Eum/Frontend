@@ -10,7 +10,6 @@ import CloseAction from "../actions/CloseAction";
 // ✅ 훅 불러오기 (경로가 맞는지 확인해주세요)
 import { useMoveToChat } from "../../../hooks/UseMoveToChat"; // 파일명 대소문자 주의
 import { useLike } from "../../../hooks/useLike";
-import { useNavigate } from "react-router-dom";
 
 type SmallButtonIdleCardProps = {
   profileUrl: string;
@@ -24,10 +23,11 @@ type SmallButtonIdleCardProps = {
   description: string;
   initialHeartId?: number; // ✅ 좋아요 취소용 ID
   initialIsLiked?: boolean; // ✅ 초기 좋아요 상태
+  onGoProfile: () => void;
 };
 
 export default function SmallButtonIdleCard({
-  profileUrl,
+  // profileUrl,
   targetUserId,
   imageUrl,
   nickname,
@@ -38,6 +38,7 @@ export default function SmallButtonIdleCard({
   description,
   initialHeartId, // ✅ 여기랑
   initialIsLiked, // ✅ 여기에 추가해서 받아와야 함
+  onGoProfile,
 }: SmallButtonIdleCardProps) {
   // ✅ 1. 채팅 이동 훅
   const { startChat } = useMoveToChat();
@@ -49,11 +50,8 @@ export default function SmallButtonIdleCard({
     initialHeartId,
   });
 
-  // 배경이미지클릭시 프로필 화면으로 이동
-  const navigate = useNavigate();
-
   const handleBackgroundClick = () => {
-    navigate(profileUrl);
+    onGoProfile();
   };
 
   return (

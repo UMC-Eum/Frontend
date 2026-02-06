@@ -58,7 +58,7 @@ export default function MiniCard({
         {/* 좋아요 버튼 (우상단) */}
         <div
           onClick={(e) => e.stopPropagation()}
-          className="absolute top-3 right-3 shrink-0 z-20"
+          className="absolute top-[12px] right-[6px] shrink-0 z-20"
         >
           <LikeAction
             isLiked={isLiked} // ✅ 상태 연결

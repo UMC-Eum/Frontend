@@ -3,7 +3,7 @@ import Navbar from "../components/Navbar";
 import chatpinkbox from "../assets/chat_pinkbox.svg";
 import KeywordLabel from "../components/keyword/KeywordLabel";
 import RecommendCard2 from "../components/card/presets/RecommendCard2";
-import { useLocation } from "react-router-dom";
+import { useLocation, useParams } from "react-router-dom";
 
 type Profile = {
   id: number;
@@ -14,11 +14,29 @@ type Profile = {
   area: string;
 };
 
+const FALLBACK_IMAGE =
+  "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=500&h=800&fit=crop";
+
 export default function ProfileRecommendPage() {
   const location = useLocation();
-  const profile = (location.state as { profile: Profile })?.profile;
+  const { id } = useParams<{ id: string }>();
 
-  // 🔒 방어 처리 (직접 URL 접근 대비)
+  const stateProfile = (location.state as { profile?: Profile } | null)
+    ?.profile;
+
+  const profile: Profile | null =
+    stateProfile ??
+    (id
+      ? {
+          id: Number(id),
+          name: `유저 ${id}`,
+          age: 0,
+          imageUrl: FALLBACK_IMAGE,
+          distance: 0,
+          area: "",
+        }
+      : null);
+
   if (!profile) {
     return (
       <div className="flex justify-center min-h-screen items-center">
@@ -30,10 +48,10 @@ export default function ProfileRecommendPage() {
   return (
     <div className="flex justify-center min-h-screen">
       <div className="w-full max-w-[420px] h-screen bg-[#F8FAFB] flex flex-col overflow-hidden flex-1 relative">
-        <main className="flex-1 overflow-y-auto pb-[62px]">
+        <main className="flex-1 overflow-y-auto pb-[72px]">
           {/* 프로필 이미지 및 백버튼 */}
           <div className="relative">
-            <div className="h-[585px]">
+            <div className="relative w-full h-[585px] overflow-hidden">
               <RecommendCard2
                 profileUrl={`/home/profile/${profile.id}`}
                 targetUserId={profile.id}

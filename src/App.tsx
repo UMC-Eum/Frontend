@@ -16,13 +16,15 @@ import ProfileEditSecond from "./pages/profile-edit/ProfileEditSecond";
 import HobbyEditPage from "./pages/profile-edit/HobbyEditPage";
 import PersonalitiesEditPage from "./pages/profile-edit/PersonalitiesEditPage";
 import IdealEditPage from "./pages/profile-edit/IdealEditPage";
-import CharacterRecordPage from "./pages/profile-edit/PersonalitiesRecordPage";
 import IdealRecordPage from "./pages/profile-edit/IdealRecordPage";
+import LocationEditPage from "./pages/profile-edit/LocationEditPage";
 
 import LoginStep from "./pages/onboarding/steps/LoginStep";
 import OAuthCallbackPage from "./pages/OAuthCallbackPage";
 
 import ProfileRecommendPage from "./pages/ProfileRecommendPage";
+import PersonalitiesRecordPage from "./pages/profile-edit/PersonalitiesRecordPage";
+import Like from "./pages/Like";
 import CardTestPage from "./mock/CardTestPage";
 const router = createBrowserRouter([
   {
@@ -73,52 +75,65 @@ const router = createBrowserRouter([
       },
       {
         path: "my/edit/character-record",
-        element: <CharacterRecordPage />,
+        element: <PersonalitiesRecordPage />,
       },
       {
         path: "my/edit/ideal-record",
         element: <IdealRecordPage />,
       },
-    ],
-  },
-
-  {
-    path: "/login",
-    element: <LoginStep />,
-  },
-
-  {
-    path: "/oauth/callback/:provider",
-    element: <OAuthCallbackPage />,
-  },
-
-  {
-    path: "/home",
-    children: [
-      { index: true, element: <HomePage /> },
       {
-        path: "profilerecommend",
-        element: <ProfileRecommendPage />,
+        path: "my/edit/location",
+        element: <LocationEditPage />,
       },
-    ],
-  },
-  {
-    path: "/message",
-    children: [
+
       {
-        index: true, 
-        element: <ChatListPage />, // url: /chats
+        path: "/login",
+        element: <LoginStep />,
+      },
+
+      {
+        path: "/oauth/callback/:provider",
+        element: <OAuthCallbackPage />,
+      },
+
+      {
+        path: "/home",
+        children: [
+          { index: true, element: <HomePage /> },
+          {
+            path: "profile/:id",
+            element: <ProfileRecommendPage />,
+          },
+        ],
       },
       {
-        path: "room/:chatRoomId", 
-        element: <ChatRoomPage />, // url: /message/room/{숫자}
-      }
-    ]
+        path: "/like",
+        children: [
+          {
+            index: true,
+            element: <Like />,
+          },
+        ],
+      },
+      {
+        path: "/message",
+        children: [
+          {
+            index: true,
+            element: <ChatListPage />, // url: /chats
+          },
+          {
+            path: "room/:roomId",
+            element: <ChatRoomPage />, // url: /message/room/{숫자}
+          },
+        ],
+      },
+    ],
   },
   {
     path: "/cardtest",
     element: <CardTestPage />,
-  }
+  },
 ]);
 
 const App = () => {

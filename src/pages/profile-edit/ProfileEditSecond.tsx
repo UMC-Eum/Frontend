@@ -11,6 +11,7 @@ import IntroTextEditModal from "./overlays/IntroTextEditModal";
 import SetImageModal from "./overlays/SetImageModal";
 import NextArrow from "../../components/NextArrow";
 import { useNavigate } from "react-router-dom";
+import Navbar from "../../components/Navbar";
 
 const ProfileEditSecond = () => {
   const { user } = useUserStore();
@@ -23,207 +24,296 @@ const ProfileEditSecond = () => {
     <>
       <BackButton title="내 프로필" textClassName="text-[24px] font-semibold" />
 
-      {/* 내 프로필 */}
-      <div className="flex items-center">
-        {/* 내 프로필 - 프로필사진 */}
-        <div className="relative w-20 h-20 rounded-full p-[2px] bg-gradient-to-tr from-[#FFBD66] via-[#FF3D77] to-[#FF3D77]">
-          <img
-            className="w-full h-full rounded-full"
-            src={user?.profileImageUrl}
-          />
-          <button
-            onClick={() => setIsImageModalOpen(true)}
-            className="w-7 h-7 absolute -bottom-1 -right-1 flex items-center justify-center"
-          >
-            <img src={camera_btn} />
-          </button>
-        </div>
-        {/* 내 프로필 - 이름 상자 */}
-        <div className="flex flex-col">
-          <span>
-            {user?.nickname} {user?.age}
-          </span>
-          <span>{user?.area.name}</span>
-        </div>
-      </div>
-      {/* 내 프로필 - 프로필 변경 */}
-      {isImageModalOpen && (
-        <SetImageModal onClose={() => setIsImageModalOpen(false)} />
-      )}
-
-      {/* 나의 소개 */}
-      <div>
-        <h2>나의 소개</h2>
-        <p
-          onClick={() => setIsIntroModalOpen(true)}
-          className="m-5 p-4 border border-gray-200 rounded-xl bg-gray-100 text-sm text-gray-600 leading-tight"
-        >
-          {user?.introText ||
-            "안녕하세요. 특별한 사람이라기보다는, 평범한 하루를 함께 나눌 수 있는 인연을 찾고 있습니다. 부담 없이 대화부터 시작해보고 싶어요... 평소 등산하는 것을 좋아합니다."}
-        </p>
-        {/* 나의 소개 - 음성 녹음 */}
-        <IntroPlayer />
-      </div>
-      {/* 나의 소개 - 모달창 */}
-      {isIntroModalOpen && (
-        <IntroTextEditModal onClose={() => setIsIntroModalOpen(false)} />
-      )}
-
-      {/* 나의 관심사 */}
-      <div>
-        <div className="flex justify-between items-center">
-          <h2>나의 관심사</h2>
-          <NextArrow navigateTo="./hobby" />
-        </div>
-        <div className="m-5 flex flex-wrap gap-2">
-          {user?.keywords.map((k, i) => {
-            return (
-                <KeywordChip
-                  key={i}
-                  keyword={k}
-                  isSelected={false}
-                  disabled
-                  onToggle={() => {}}
-                />
-            );
-          })}
-        </div>
-      </div>
-
-      {/* 나는 이런 사람이에요. */}
-      <div>
-        <div className="flex justify-between items-center">
-          <h2>나는 이런 사람이에요.</h2>
-          <NextArrow navigateTo="./character" />
-        </div>
-        <div className="m-5 flex flex-wrap gap-2">
-          {user?.personalities.map((k, i) => {
-            return (
-                <KeywordChip
-                  key={i}
-                  keyword={k}
-                  isSelected={false}
-                  disabled
-                  onToggle={() => {}}
-                />
-            );
-          })}
-        </div>
-
-        <div className="flex items-center justify-center">
-          <button
-            onClick={() => navigate("./character-record")}
-            className="mx-5 p-3 w-full flex items-center justify-center rounded-xl bg-[#FF3D77]"
-          >
-            <img className="h-4" src={white_mic} />
-            <span className="text-white">재녹음</span>
-          </button>
-        </div>
-      </div>
-
-      {/* 나의 이상형 */}
-      <div>
-        <div className="flex justify-between items-center">
-          <h2>나의 이상형</h2>
-          <NextArrow navigateTo="./ideal" />
-        </div>
-        <div className="m-5 flex flex-wrap gap-2">
-          {user?.idealPersonalities.map((k, i) => {
-            return (
-                <KeywordChip
-                  key={i}
-                  keyword={k}
-                  isSelected={false}
-                  disabled
-                  onToggle={() => {}}
-                />
-            );
-          })}
-        </div>
-        {user?.idealPersonalities.length === 0 && (
-          <div className="mx-5 p-3 flex items-center justify-between rounded-xl bg-gradient-to-r from-[#FEC4D1] to-[#FFF0E5]">
-            <span className="">
-              지금 바로 <span className="text-[#FF3D77]">이상형 등록</span>하고{" "}
-              <br /> 내 취향에 맞는 프로필을 보러가요!
-            </span>
+      <div className="h-[calc(100vh-120px)] overflow-y-auto">
+        {/* 내 프로필 */}
+        <div className="ml-5 mt-2 flex items-center gap-3">
+          {/* 내 프로필 - 프로필사진 */}
+          <div className="relative w-20 h-20 rounded-full p-[2px] bg-gradient-to-tr from-[#FFBD66] via-[#FF3D77] to-[#FF3D77]">
+            <img
+              className="w-full h-full rounded-full"
+              src={user?.profileImageUrl}
+            />
             <button
-              onClick={() => navigate("./ideal-record")}
-              className="px-3 rounded-full bg-white text-[#FF3D77]"
+              onClick={() => setIsImageModalOpen(true)}
+              className="w-7 h-7 absolute -bottom-1 -right-1 flex items-center justify-center"
             >
-              바로가기
+              <img src={camera_btn} />
             </button>
           </div>
+          {/* 내 프로필 - 이름 상자 */}
+          <div className="flex flex-col gap-2">
+            <span className="text-[20px] font-semibold leading-[1.2] text-gray-900">
+              {user?.nickname} {user?.age}
+            </span>
+            <span className="text-[14px] font-medium leading-[1.2] text-gray-600">
+              {user?.area.name}
+            </span>
+          </div>
+        </div>
+        {/* 내 프로필 - 프로필 변경 */}
+        {isImageModalOpen && (
+          <SetImageModal onClose={() => setIsImageModalOpen(false)} />
         )}
-        {user?.idealPersonalities.length !== 0 && (
+
+        {/* 나의 소개 */}
+        <div className="mt-5 mb-6">
+          <h2 className="px-5 pt-3 pb-4 text-[20px] font-semibold leading-[1.2]">
+            나의 소개
+          </h2>
+          <div className="flex flex-col gap-3">
+            <p
+              onClick={() => setIsIntroModalOpen(true)}
+              className="mx-5 p-[14px] border border-gray-200 rounded-xl bg-gray-100 text-[14px] font-medium leading-[1.2] text-gray-600 tracking-normal break-all [overflow-wrap:anywhere] whitespace-pre-wrap"
+            >
+              {user?.introText ||
+                "안녕하세요. 특별한 사람이라기보다는, 평범한 하루를 함께 나눌 수 있는 인연을 찾고 있습니다. 부담 없이 대화부터 시작해보고 싶어요... 평소 등산하는 것을 좋아합니다."}
+            </p>
+            {/* 나의 소개 - 음성 녹음 */}
+            <IntroPlayer />
+          </div>
+        </div>
+        {/* 나의 소개 - 모달창 */}
+        {isIntroModalOpen && (
+          <IntroTextEditModal onClose={() => setIsIntroModalOpen(false)} />
+        )}
+
+        {/* 나의 관심사 */}
+        <div className="flex flex-col gap-[10px] mb-6">
+          <div className="px-5 pt-3 pb-4 flex w-full justify-between items-center">
+            <h2 className="text-[20px] font-semibold leading-[1.2]">
+              나의 관심사
+            </h2>
+            <NextArrow navigateTo="./hobby" />
+          </div>
+          <div className="mx-5 flex flex-wrap gap-2">
+            {user?.keywords.map((k, i) => {
+              return (
+                <KeywordChip
+                  key={i}
+                  keyword={k}
+                  isSelected={false}
+                  disabled
+                  onToggle={() => {}}
+                />
+              );
+            })}
+          </div>
+        </div>
+
+        {/* 나는 이런 사람이에요. */}
+        <div className="flex flex-col gap-[20px] mb-6">
+          <div className="px-5 pt-3 pb-4 flex w-full justify-between items-center">
+            <h2 className="text-[20px] font-semibold leading-[1.2]">
+              나는 이런 사람이에요.
+            </h2>
+            <NextArrow navigateTo="./character" />
+          </div>
+          <div className="mx-5 flex flex-wrap gap-2">
+            {user?.personalities.map((k, i) => {
+              return (
+                <KeywordChip
+                  key={i}
+                  keyword={k}
+                  isSelected={false}
+                  disabled
+                  onToggle={() => {}}
+                />
+              );
+            })}
+          </div>
+
           <div className="flex items-center justify-center">
             <button
-              onClick={() => navigate("./ideal-record")}
-              className="mx-5 p-3 w-full flex items-center justify-center rounded-xl bg-[#FF3D77]"
+              onClick={() => navigate("./character-record")}
+              className="mx-5 p-4 w-full flex items-center justify-center rounded-2xl bg-[#FF3D77] gap-1"
             >
               <img className="h-4" src={white_mic} />
-              <span className="text-white">재녹음</span>
+              <span className="text-white text-[18px] font-semibold leading-[1.2] tracking-normal">
+                재녹음
+              </span>
             </button>
           </div>
-        )}
+        </div>
+
+        {/* 나의 이상형 */}
+        <div className="flex flex-col gap-[20px] mb-6">
+          <div className="px-5 pt-3 pb-4 flex w-full justify-between items-center">
+            <h2 className="text-[20px] font-semibold leading-[1.2]">
+              나의 이상형
+            </h2>
+            <NextArrow navigateTo="./ideal" />
+          </div>
+          {user?.idealPersonalities.length === 0 && (
+            <div className="mx-5 py-[15px] px-5 flex items-center justify-between rounded-2xl bg-gradient-to-r from-[#FEC4D1] to-[#FFF0E5]">
+              <span className="text-[16px] font-medium leading-[1.4] tracking-normal text-gray-800">
+                지금 바로{" "}
+                <span className="font-semibold text-[#FF3D77]">
+                  이상형 등록
+                </span>
+                하고 <br /> 내 취향에 맞는 프로필을 보러가요!
+              </span>
+              <button
+                onClick={() => navigate("./ideal-record")}
+                className="px-[9px] py-[3px] rounded-full bg-white text-[#FF3D77] text-[13px] font-semibold leading-[1.2] tracking-normal"
+              >
+                바로가기
+              </button>
+            </div>
+          )}
+          {user?.idealPersonalities.length !== 0 && (
+            <>
+              <div className="mx-5 flex flex-wrap gap-2">
+                {user?.idealPersonalities.map((k, i) => {
+                  return (
+                    <KeywordChip
+                      key={i}
+                      keyword={k}
+                      isSelected={false}
+                      disabled
+                      onToggle={() => {}}
+                    />
+                  );
+                })}
+              </div>
+              <div className="flex items-center justify-center">
+                <button
+                  onClick={() => navigate("./ideal-record")}
+                  className="mx-5 p-4 w-full flex items-center justify-center rounded-2xl bg-[#FF3D77] gap-1"
+                >
+                  <img className="h-4" src={white_mic} />
+                  <span className="text-white text-[18px] font-semibold leading-[1.2] tracking-normal">
+                    재녹음
+                  </span>
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* 기본 정보 */}
+        <div className="flex flex-col gap-2 mb-6">
+          <h2 className="px-5 pt-3 pb-4 text-[20px] font-semibold leading-[1.2]">
+            기본 정보
+          </h2>
+
+          <div className="px-5 flex flex-col gap-3">
+            <div className="flex items-center gap-[28px]">
+              <dt className="text-[16px] font-medium leading-[1.2] text-gray-700 tracking-normal">
+                성별
+              </dt>
+              <dd className="text-[16px] font-medium leading-[1.2] text-gray-500 tracking-normal">
+                {user?.gender}
+              </dd>
+            </div>
+
+            <div className="flex items-center gap-[28px]">
+              <dt className="text-[16px] font-medium leading-[1.2] text-gray-700 tracking-normal">
+                나이
+              </dt>
+              <dd className="text-[16px] font-medium leading-[1.2] text-gray-500 tracking-normal">
+                {user?.birthDate} ({user?.age})
+              </dd>
+            </div>
+
+            <div className="flex w-full justify-between tems-center gap-[28px]">
+              <div className="flex items-center gap-[28px]">
+                <dt className="text-[16px] font-medium leading-[1.2] text-gray-700 tracking-normal">
+                  지역
+                </dt>
+                <dd className="text-[16px] font-medium leading-[1.2] text-gray-700 tracking-normal">
+                  {user?.area.name}
+                </dd>
+              </div>
+              <NextArrow navigateTo="./location" />
+            </div>
+          </div>
+        </div>
       </div>
-
-      {/* 기본 정보 */}
-      <div>
-        <h2>기본 정보</h2>
-
-        <div className="flex items-center">
-          <dt>성별</dt>
-          <dd>{user?.gender}</dd>
-        </div>
-
-        <div className="flex items-center">
-          <dt>나이</dt>
-          <dd>
-            {user?.birthDate} ({user?.age})
-          </dd>
-        </div>
-
-        <div className="flex items-center">
-          <dt>지역</dt>
-          <dd>{user?.area.name}</dd>
-        </div>
-      </div>
+      <Navbar />
     </>
   );
 };
 
 export default ProfileEditSecond;
 
-// todo list
-// - 재생 버튼 누르면 버튼 바뀌기
-// - 재생 버튼 누르면 멈추기
-// - 녹음된 소리 나오기
-// - 음량 조절 가능하게 만들기
-
 const IntroPlayer = () => {
+  const { user } = useUserStore();
   const [isPlaying, setIsPlaying] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  const playIcon = `
-    w-0 h-0 
-    border-t-[6px] border-t-transparent
-    border-b-[6px] border-b-transparent 
-    border-l-[9px] border-l-white 
-    ml-1`;
+  useEffect(() => {
+    if (user?.introAudioUrl) {
+      audioRef.current = new Audio(user.introAudioUrl);
 
-  const pauseIcon = `
-    w-[10px] h-[12px] 
-    border-l-[3px] border-r-[3px] border-white
-  `;
+      const handleEnded = () => {
+        setIsPlaying(false);
+        if (audioRef.current) {
+          audioRef.current.currentTime = 0;
+        }
+      };
+
+      audioRef.current.addEventListener("ended", handleEnded);
+
+      return () => {
+        if (audioRef.current) {
+          audioRef.current.pause();
+          audioRef.current.removeEventListener("ended", handleEnded);
+          audioRef.current = null;
+        }
+      };
+    }
+  }, [user?.introAudioUrl]);
+
+  const togglePlay = () => {
+    if (!audioRef.current) return;
+
+    if (isPlaying) {
+      audioRef.current.pause();
+    } else {
+      audioRef.current.play().catch((err) => {
+        console.error("Audio play failed:", err);
+      });
+    }
+    setIsPlaying(!isPlaying);
+  };
+
+  // Play 아이콘
+  const playIcon = (
+    <svg
+      width="12"
+      height="14"
+      viewBox="0 0 12 14"
+      fill="none"
+      className="ml-1"
+    >
+      <path
+        d="M10.5 5.6L3 1.1C1.7 0.3 0 1.3 0 2.9V11.1C0 12.7 1.7 13.7 3 12.9L10.5 8.4C11.8 7.7 11.8 6.3 10.5 5.6Z"
+        fill="white"
+      />
+    </svg>
+  );
+
+  // Pause 아이콘
+  const pauseIcon = (
+    <div className="flex gap-[3px]">
+      <div className="w-[3px] h-[12px] bg-white rounded-full" />
+      <div className="w-[3px] h-[12px] bg-white rounded-full" />
+    </div>
+  );
 
   return (
-    <div className="m-5 p-2 gap-4 flex items-center border border-gray-300 rounded-full">
+    <div className="mx-5 pl-[10px] py-2 gap-3 flex items-center border border-gray-300 rounded-full">
       <button
-        onClick={() => setIsPlaying(!isPlaying)}
-        className="flex items-center justify-center w-8 h-8 rounded-[19px] bg-[#FF3D77]"
+        onClick={togglePlay}
+        disabled={!user?.introAudioUrl}
+        className={`flex items-center justify-center w-8 h-8 rounded-[19px] bg-[#FF3D77] ${!user?.introAudioUrl ? "opacity-50 cursor-not-allowed" : ""}`}
       >
-        <div className={isPlaying ? pauseIcon : playIcon} />
+        {isPlaying ? pauseIcon : playIcon}
       </button>
-      <Waveform paused={!isPlaying} />
+      <Waveform
+        paused={!isPlaying}
+        reset={!isPlaying && audioRef.current?.currentTime === 0}
+      />
       <img src={volume_btn} />
     </div>
   );
@@ -236,15 +326,17 @@ interface WaveformProps {
   minHeight?: number;
   maxHeight?: number;
   paused?: boolean;
+  reset?: boolean;
 }
 
 const Waveform = ({
-  width = 180,
+  width = 200,
   barCount = 30,
   barWidth = 2,
   minHeight = 5,
   maxHeight = 15,
   paused = false,
+  reset = false,
 }: WaveformProps) => {
   const barsRef = useRef<HTMLDivElement[]>([]);
   const rafRef = useRef<number | null>(null);
@@ -253,6 +345,13 @@ const Waveform = ({
   // ⏱ 타이머 상태
   const [seconds, setSeconds] = useState(0);
   const timerRef = useRef<number | null>(null);
+
+  // reset이 true로 들어오면 시간 초기화
+  useEffect(() => {
+    if (reset) {
+      setSeconds(0);
+    }
+  }, [reset]);
 
   // gap 계산
   const gap = useMemo(() => {
@@ -325,7 +424,7 @@ const Waveform = ({
   }, [seconds]);
 
   return (
-    <div className="flex items-center gap-8">
+    <div className="flex items-center gap-[26px]">
       {/* Waveform */}
       <div
         style={{

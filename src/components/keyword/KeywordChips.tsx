@@ -24,7 +24,7 @@ const KeywordChips = ({
 
   return (
     <>
-      {allKeywords.map((k) => {
+      {[...new Set(allKeywords)].map((k) => {
         const isSelected = selectedKeywords.includes(k);
         const disabled = !isSelected && selectedKeywords.length >= maxSelect;
 
