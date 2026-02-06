@@ -23,7 +23,7 @@ import LoginStep from "./pages/onboarding/steps/LoginStep";
 import OAuthCallbackPage from "./pages/OAuthCallbackPage";
 
 import ProfileRecommendPage from "./pages/ProfileRecommendPage";
-import CardTestPage from "./mock/cardTestPage";
+import CardTestPage from "./mock/CardTestPage";
 const router = createBrowserRouter([
   {
     path: "/",
