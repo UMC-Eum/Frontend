@@ -10,35 +10,32 @@ import CloseAction from "../actions/CloseAction";
 // ✅ 훅 불러오기 (경로가 맞는지 확인해주세요)
 import { useMoveToChat } from "../../../hooks/UseMoveToChat"; // 파일명 대소문자 주의
 import { useLike } from "../../../hooks/useLike";
+import { useNavigate } from "react-router-dom";
 
 type SmallButtonIdleCardProps = {
   profileUrl: string;
   targetUserId: number;
   imageUrl: string;
-  name: string;
+  nickname: string;
   age: number;
-  distance: string;
   area: string;
   keywords: string[];
   description: string;
-  initialHeartId?: number; // ✅ 좋아요 취소용 ID
+  initialHeartId?: number | null; // ✅ 좋아요 취소용 ID
   initialIsLiked?: boolean; // ✅ 초기 좋아요 상태
-  onGoProfile: () => void;
 };
 
 export default function SmallButtonIdleCard({
-  // profileUrl,
   targetUserId,
   imageUrl,
-  name,
+  nickname,
   age,
-  distance,
   area,
   keywords,
   description,
   initialHeartId, // ✅ 여기랑
   initialIsLiked, // ✅ 여기에 추가해서 받아와야 함
-  onGoProfile,
+  profileUrl
 }: SmallButtonIdleCardProps) {
   // ✅ 1. 채팅 이동 훅
   const { startChat } = useMoveToChat();
@@ -50,8 +47,10 @@ export default function SmallButtonIdleCard({
     initialHeartId,
   });
 
+  const navigate = useNavigate();
+
   const handleBackgroundClick = () => {
-    onGoProfile();
+    navigate(profileUrl);
   };
 
   return (
@@ -65,10 +64,10 @@ export default function SmallButtonIdleCard({
 
       {/* 텍스트 정보 영역 */}
       <div className="absolute left-4 right-4 bottom-28 text-white z-10">
-        <CardUserId name={name} age={age} isVerified />
+        <CardUserId name={nickname} age={age} isVerified />
 
         <div className="mt-1">
-          <CardLocation distance={distance} area={area} />
+          <CardLocation area={area} />
         </div>
 
         <div className="mt-2">

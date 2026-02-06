@@ -15,9 +15,8 @@ type MiniCardProps = {
 
   profileUrl: string;
   imageUrl: string;
-  name: string;
+  nickname: string;
   age: number;
-  distance: string;
   area: string;
 };
 
@@ -27,9 +26,8 @@ export default function MiniCard({
   initialHeartId,
   profileUrl,
   imageUrl,
-  name,
+  nickname,
   age,
-  distance,
   area,
 }: MiniCardProps) {
   // ✅ 3. 좋아요 로직 연결
@@ -71,7 +69,7 @@ export default function MiniCard({
         {/* 이름 + 위치 (좌하단) */}
         <div className="absolute left-4 bottom-2 text-white z-10">
           <CardUserId
-            name={name}
+            name={nickname}
             age={age}
             isVerified={false}
             textsize="[18px]"
@@ -80,7 +78,6 @@ export default function MiniCard({
 
           <div className="-mt-3">
             <CardLocation
-              distance={distance}
               area={area}
               textsize="text-[14px]"
             />

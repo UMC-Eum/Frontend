@@ -53,6 +53,8 @@ export interface IProfileResponse {
 export interface IItemRecommendation {
   userId: number;
   nickname: string;
+  //profileImageUrl: string;//필요함
+  //isHearted: boolean;//필요함
   age: number;
   areaName: string;
   keywords: string[];
