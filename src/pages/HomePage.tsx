@@ -57,13 +57,13 @@ export default function HomePage() {
                               profileUrl={`/home/profile/${user.id}`}
                               targetUserId={user.id}
                               imageUrl={user.imageUrl}
-                              name={user.name}
+                              nickname={user.name}
                               age={user.age}
-                              distance={user.distance}
                               area={user.area}
                               description={user.description}
                               keywords={user.keywords}
-                              onGoProfile={() => goProfile(user)}
+                              //initialHeartId={user.heartId}
+                              //initialIsLiked={user.isLiked}
                             />
                           </div>
                         ))}
@@ -115,9 +115,8 @@ export default function HomePage() {
                               profileUrl={`/home/profile/${user.id}`}
                               targetUserId={user.id}
                               imageUrl={user.imageUrl}
-                              name={user.name}
+                              nickname={user.name}
                               age={user.age}
-                              distance={user.distance}
                               area={user.area}
                               description={user.description}
                               keywords={user.keywords}

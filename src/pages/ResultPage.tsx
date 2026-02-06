@@ -65,13 +65,8 @@ const ResultPage = () => {
                 imageUrl={
                   user.profileImageUrl || "https://via.placeholder.com/400"
                 }
-                name={user.nickname}
+                nickname={user.nickname}
                 age={user.age}
-                distance={
-                  user.matchScore
-                    ? `${user.matchScore}% 매칭`
-                    : "매칭 정보 없음"
-                }
                 area={user.areaName || "지역 정보 없음"}
                 description={user.introText || "자기소개가 없습니다."}
                 keywords={user.keywords || []}

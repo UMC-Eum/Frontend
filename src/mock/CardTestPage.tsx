@@ -104,7 +104,9 @@ export default function RecommendTestPage() {
                 
                 // ✅ 하트 ID: API에서 아직 안 주면 undefined/null로 들어감
                 initialIsLiked={getItem(0).isLiked}
-                initialHeartId={getItem(0).matchId || null} 
+                // api 변경 후 위에 코드로 부활시켜야함!!!!!!!
+                //initialHeartId={getItem(0).matchId || null} 
+                initialHeartId={null}
 
                 profileUrl={`/profile/${getItem(0).userId}`}
                 imageUrl={getItem(0).profileImageUrl}
@@ -130,11 +132,12 @@ export default function RecommendTestPage() {
                   <MiniCard
                     targetUserId={item.userId}
                     initialIsLiked={item.isLiked}
-                    initialHeartId={item.matchId || null}
-
+                    // api 변경 후 위에 코드로 부활시켜야함!!!!!!!
+                    //initialHeartId={getItem(0).matchId || null} 
+                    initialHeartId={null}
                     profileUrl={`/profile/${item.userId}`}
                     imageUrl={item.profileImageUrl}
-                    name={item.nickname}
+                    nickname={item.nickname}
                     age={item.age}
                     area={item.areaName}
                     // ❌ distance 제거됨
@@ -175,7 +178,9 @@ export default function RecommendTestPage() {
               <RecommendCard2
                 targetUserId={getItem(5).userId}
                 initialIsLiked={getItem(5).isLiked}
-                initialHeartId={getItem(5).matchId || null}
+                // api 변경 후 위에 코드로 부활시켜야함!!!!!!!
+                //initialHeartId={getItem(0).matchId || null} 
+                initialHeartId={null}
 
                 profileUrl={`/profile/${getItem(5).userId}`}
                 imageUrl={getItem(5).profileImageUrl}
@@ -196,7 +201,9 @@ export default function RecommendTestPage() {
               <SmallButtonIdleCard
                 targetUserId={getItem(6).userId}
                 initialIsLiked={getItem(6).isLiked}
-                initialHeartId={getItem(6).matchId || null}
+                // api 변경 후 위에 코드로 부활시켜야함!!!!!!!
+                //initialHeartId={getItem(0).matchId || null} 
+                initialHeartId={null}
 
                 profileUrl={`/profile/${getItem(6).userId}`}
                 imageUrl={getItem(6).profileImageUrl}
@@ -206,7 +213,6 @@ export default function RecommendTestPage() {
                 // ❌ distance 제거됨
                 description={getItem(6).introText}
                 keywords={getItem(6).keywords}
-                onGoProfile={() => navigate(`/profile/${getItem(6).userId}`)}
               />
             </div>
           </div>

@@ -10,7 +10,6 @@ type Profile = {
   name: string;
   age: number;
   imageUrl: string;
-  distance: number;
   area: string;
 };
 
@@ -32,7 +31,6 @@ export default function ProfileRecommendPage() {
           name: `유저 ${id}`,
           age: 0,
           imageUrl: FALLBACK_IMAGE,
-          distance: 0,
           area: "",
         }
       : null);
@@ -56,9 +54,8 @@ export default function ProfileRecommendPage() {
                 profileUrl={`/home/profile/${profile.id}`}
                 targetUserId={profile.id}
                 imageUrl={profile.imageUrl}
-                name={profile.name}
+                nickname={profile.name}
                 age={profile.age}
-                distance={`${profile.distance}`}
                 area={profile.area}
               />
             </div>

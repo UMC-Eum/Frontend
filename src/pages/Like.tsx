@@ -144,10 +144,9 @@ export default function Like() {
                   profileUrl={`/home/profile/${item.id}`}
                   targetUserId={item.id}
                   imageUrl={item.imageUrl}
-                  name={item.name}
+                  nickname={item.name}
                   age={item.age}
                   area={item.location}
-                  distance={`${item.distanceKm}km`}
                   initialIsLiked={tab === "sent"}
                   initialHeartId={
                     tab === "sent" ? (item.heartId ?? null) : null
