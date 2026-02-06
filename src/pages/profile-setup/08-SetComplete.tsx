@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router-dom"; // 페이지 이동용
 import { useUserStore } from "../../stores/useUserStore";
+import useCompleteLogin from "../../hooks/useCompleteLogin";
 import KeywordLabel from "../../components/keyword/KeywordLabel";
 import locationIcon from "../../assets/location.svg";
 
@@ -8,20 +9,21 @@ export default function SetComplete() {
   const navigate = useNavigate();
 
   const { user } = useUserStore();
+  const { completeLogin, loading } = useCompleteLogin();
 
   const handleStart = async () => {
     try {
-      // 💡 여기서 백엔드에 최종 회원가입 요청(POST)을 보낼 수 있습니다.
-      // await signupApi(user);
-
       console.log("최종 가입 정보:", user);
+
+      // 로그인 완료 처리 (프로필 로드 및 로그린 상태 업데이트)
+      await completeLogin();
 
       // 메인 페이지로 이동
       navigate("/home");
     } catch (error) {
       console.error("가입 실패", error);
     }
-  };
+  }; 
 
 return (
   <div className="flex-1 flex flex-col px-2">
@@ -86,9 +88,10 @@ return (
       <p className="text-center text-gray-500 text-[14px] mb-5">프로필은 설정에서 언제든지 수정할 수 있어요.</p>
       <button
         onClick={handleStart}
-        className="w-full py-5 rounded-[20px] text-[18px] font-semibold transition-all bg-[#FC3367] text-white active:bg-pink-300"
+        disabled={loading}
+        className="w-full py-5 rounded-[20px] text-[18px] font-semibold transition-all bg-[#FC3367] text-white active:bg-pink-300 disabled:opacity-60 disabled:cursor-not-allowed"
       >
-        시작하기
+        {loading ? "로딩 중..." : "시작하기"}
       </button>
     </div>
   </div>
