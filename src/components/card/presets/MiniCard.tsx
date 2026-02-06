@@ -17,7 +17,6 @@ type MiniCardProps = {
   imageUrl: string;
   nickname: string;
   age: number;
-  distance: string;
   area: string;
 };
 
@@ -29,7 +28,6 @@ export default function MiniCard({
   imageUrl,
   nickname,
   age,
-  distance,
   area,
 }: MiniCardProps) {
   // ✅ 3. 좋아요 로직 연결
@@ -80,7 +78,6 @@ export default function MiniCard({
 
           <div className="-mt-3">
             <CardLocation
-              distance={distance}
               area={area}
               textsize="text-[14px]"
             />

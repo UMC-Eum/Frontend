@@ -13,7 +13,6 @@ type RecommendCard2Props = {
   imageUrl?: string;
   nickname?: string;
   age?: number;
-  distance?: string;
   area?: string;
   // 기존에 좋아요를 누른 상태인지, 그 ID는 무엇인지 (피드 API에서 받아와야 함)
   initialIsLiked?: boolean;
@@ -26,7 +25,6 @@ export default function RecommendCard2({
   imageUrl = "", // 기본값 처리
   nickname = "알 수 없음",
   age = 0,
-  distance = "-",
   area = "위치 미지정",
   initialIsLiked = false,
   initialHeartId = null,
@@ -62,7 +60,7 @@ export default function RecommendCard2({
 
           <div className="text-sm opacity-90">
             {/* 정보가 없어도 깨지지 않게 렌더링 */}
-            <CardLocation distance={distance} area={area} showIcon={true} />
+            <CardLocation area={area} showIcon={true} />
           </div>
         </div>
 

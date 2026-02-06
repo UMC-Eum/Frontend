@@ -13,7 +13,6 @@ type RecommendCardProps = {
   imageUrl: string;
   nickname: string;
   age: number;
-  distance: string;
   area: string;
   description: string;
   keywords: string[];
@@ -25,7 +24,6 @@ export default function RecommendCard({
   imageUrl,
   nickname,
   age,
-  distance,
   area,
   description,
   keywords,
@@ -61,7 +59,7 @@ export default function RecommendCard({
 
           {/* 위치 */}
           <div className="-mt-2">
-            <CardLocation distance={distance} area={area} showIcon={true} />
+            <CardLocation area={area} showIcon={true} />
           </div>
 
           {/* 한줄 소개 */}

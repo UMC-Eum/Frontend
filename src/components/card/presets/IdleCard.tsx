@@ -1,4 +1,3 @@
-import { useEffect } from "react";
 import { CardUserId } from "../blocks/CardUserId";
 import { CardLocation } from "../blocks/CardLocation";
 import { CardDescription } from "../blocks/CardDescription";
@@ -8,19 +7,19 @@ import { RoundCardShell } from "../shell/RoundCardShell";
 
 import { useMoveToChat } from "../../../hooks/UseMoveToChat";
 import { useLike } from "../../../hooks/useLike";
-import { useHeartStatus } from "../../../hooks/useHeartStatus"; // 1단계 훅
 import { useNavigate } from "react-router-dom";
 
 type IdleCardProps = {
-  // 🔥 [변경] 이제 상태 관련 Props는 싹 다 필요 없음. 오직 ID만!
+  // ✅ 1. 부모(리스트)에서 받아올 데이터 추가
   targetUserId: number; 
+  initialIsLiked?: boolean;     // 추가: 이미 좋아요 눌렀는지?
+  initialHeartId?: number | null; // 추가: 좋아요 취소할 때 쓸 ID
 
-  // UI 관련 Props는 유지
+  // UI 관련 Props
   profileUrl: string;
   imageUrl: string;
   nickname: string;
   age: number;
-  distance: string;
   area: string;
   description: string;
   keywords: string[];
@@ -28,35 +27,24 @@ type IdleCardProps = {
 
 export default function IdleCard({
   targetUserId,
+  initialIsLiked, // ✅ Props로 받음
+  initialHeartId, // ✅ Props로 받음
   profileUrl,
   imageUrl,
   nickname,
   age,
-  distance,
   area,
   description,
   keywords,
 }: IdleCardProps) {
 
-  // 1️⃣ API 조회 (서버에 물어봄: "얘 좋아요 눌렀냐?")
-  const { isLiked: apiIsLiked, heartId: apiHeartId, isLoading } = useHeartStatus(targetUserId);
-
-  // 2️⃣ 좋아요 기능 (일단 기본값 false로 초기화해두고 대기)
-  const { isLiked, toggleLike, setIsLiked, setHeartId } = useLike({
+  // ✅ 2. useLike 훅에 바로 꽂아넣기
+  // useEffect로 기다릴 필요 없이, 처음부터 완성된 상태로 시작합니다.
+  const { isLiked, toggleLike } = useLike({
     targetUserId,
-    initialIsLiked: false, // 일단 false로 시작
-    initialHeartId: null,
+    initialIsLiked, 
+    initialHeartId,
   });
-
-  // 3️⃣ [동기화] API 응답이 오면 useLike 상태를 업데이트 (덮어쓰기)
-  useEffect(() => {
-    // 로딩 끝났고, 데이터가 유효하면 상태 갱신
-    if (!isLoading && apiIsLiked !== undefined) {
-      setIsLiked(apiIsLiked);
-      if (apiHeartId !== null) setHeartId(apiHeartId);
-    }
-  }, [isLoading, apiIsLiked, apiHeartId, setIsLiked, setHeartId]);
-
 
   // --- 이하 UI 로직 동일 ---
   const { startChat } = useMoveToChat();
@@ -72,14 +60,13 @@ export default function IdleCard({
 
       <div className="absolute inset-x-4 bottom-4 text-white z-10 space-y-3">
         <CardUserId name={nickname} age={age} isVerified />
-        <CardLocation distance={distance} area={area} />
+        <CardLocation area={area} />
         <CardDescription>{description}</CardDescription>
         <div className="pb-1">
           <CardKeywords keywords={keywords} />
         </div>
 
         <div onClick={(e) => e.stopPropagation()}>
-          {/* 로딩 중일 때 버튼 비활성화나 스켈레톤 처리가 필요하면 여기서 isLoading 사용 */}
           <CardActions
             isLiked={isLiked} 
             onLike={toggleLike}

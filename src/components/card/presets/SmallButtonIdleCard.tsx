@@ -17,7 +17,6 @@ type SmallButtonIdleCardProps = {
   imageUrl: string;
   nickname: string;
   age: number;
-  distance: string;
   area: string;
   keywords: string[];
   description: string;
@@ -32,7 +31,6 @@ export default function SmallButtonIdleCard({
   imageUrl,
   nickname,
   age,
-  distance,
   area,
   keywords,
   description,
@@ -68,7 +66,7 @@ export default function SmallButtonIdleCard({
         <CardUserId name={nickname} age={age} isVerified />
 
         <div className="mt-1">
-          <CardLocation distance={distance} area={area} />
+          <CardLocation area={area} />
         </div>
 
         <div className="mt-2">
