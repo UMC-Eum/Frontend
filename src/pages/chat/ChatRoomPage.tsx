@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useUserStore } from "../../stores/useUserStore";
 
@@ -6,6 +6,7 @@ import { useUserStore } from "../../stores/useUserStore";
 import { useChatRoomInfo } from "../../hooks/chat/useChatRoomInfo";
 import { useChatMessages } from "../../hooks/chat/useChatMessages";
 import { useChatScroll } from "../../hooks/chat/useChatScroll";
+import { useSocketStore } from "../../stores/useSocketStore"; // ✅ Store 사용
 
 // Components
 import BackButton from "../../components/BackButton";
@@ -20,8 +21,12 @@ import ReportScreen from "../../components/chat/ReportScreen";
 import { DateSeparator } from "../../components/chat/DateSeparator";
 import { getFormattedDate } from "../../hooks/useFormatDate";
 
+// Types
+import { MessageNewData } from "../../types/api/socket"; 
+import { IChatsRoomIdMessagesGetResponse } from "../../types/api/chats/chatsDTO"; 
 
-// 모달 타입 정의 (어떤 모달 띄울지)
+type IMessageItem = IChatsRoomIdMessagesGetResponse['items'][number];
+
 type ModalType = "NONE" | "BLOCK" | "EXIT";
 
 export default function ChatRoomPage() {
@@ -31,155 +36,183 @@ export default function ChatRoomPage() {
   const myId = user?.userId ?? 0;
   const parsedRoomId = Number(roomId);
 
-  // 🔥 [추가 1] 임시 메시지를 담을 로컬 state 생성
   const [tempMessages, setTempMessages] = useState<any[]>([]);
-  // 상대방 관련 정보 관리
+  const [socketMessages, setSocketMessages] = useState<IMessageItem[]>([]);
+
+  // 🔥 [Store 사용] 스토어에서 함수들 가져오기
+  const { socket, connect, joinRoom, sendMessage } = useSocketStore();
+
   const { peerInfo, blockId, isMenuOpen, setIsMenuOpen, handleBlockToggle } = useChatRoomInfo(parsedRoomId);
-  // 채팅방 메세지 관리
-  const { messages, nextCursor, isLoading, isInitLoaded, loadPrevMessages, handleSendText, handleSendVoice, handleDeleteMessage } 
-    = useChatMessages(parsedRoomId, myId);
-  // 채팅방 스크롤 관리
-  const { scrollContainerRef, topObserverRef, bottomRef } 
-    = useChatScroll({ isInitLoaded, isLoading, nextCursor, messagesLength: messages.length, loadPrevMessages });
   
-  // 모달 관리
+  const { messages, nextCursor, isLoading, isInitLoaded, loadPrevMessages, handleDeleteMessage } 
+    = useChatMessages(parsedRoomId, myId);
+
+  const allMessagesLength = messages.length + socketMessages.length + tempMessages.length;
+  const { scrollContainerRef, topObserverRef, bottomRef } 
+    = useChatScroll({ isInitLoaded, isLoading, nextCursor, messagesLength: allMessagesLength, loadPrevMessages });
+  
   const [activeModal, setActiveModal] = useState<ModalType>("NONE");
-  // 음성 메세지 재생 관리
   const [playingId, setPlayingId] = useState<number | null>(null);
-  // 토스트 메시지 상태 관리
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-  // 신고하기 화면(ReportScreen) 상태 관리
   const [isReportScreenOpen, setIsReportScreenOpen] = useState(false);
 
-  // 텍스트 입력창 래퍼
-  
-  // 텍스트 전송 래퍼
+  // 소켓 연결 및 방 입장
+  useEffect(() => {
+    connect(); // 소켓 연결 시도
+    if (parsedRoomId) {
+      joinRoom(parsedRoomId); // 연결 후 방 입장
+    }
+    // 컴포넌트 언마운트 시 연결을 끊을지 말지는 기획에 따라 결정 (보통 스토어 방식은 유지함)
+  }, [parsedRoomId, connect, joinRoom]);
+
+  // 메시지 수신 리스너 등록 (socket.on)
+  useEffect(() => {
+    if (!socket) return;
+
+    // 수신 핸들러
+    const handleMessageNew = (response: any) => {
+      // 1. 데이터 파싱 (서버 응답 구조에 따라 success.data 혹은 response 자체 사용)
+      const newMsgData: MessageNewData = response.success?.data || response;
+
+      // 2. 내가 보낸 메시지 무시
+      if (newMsgData.senderUserId === myId) return;
+
+      // 3. 타입 변환 (IMAGE -> PHOTO) 및 UI 포맷팅
+      // DTO 타입과 소켓 타입 불일치 해결
+      let uiType: any = newMsgData.type;
+      if (newMsgData.type === "IMAGE") {
+        uiType = "PHOTO";
+      }
+
+      const newMsg: IMessageItem = {
+        messageId: newMsgData.messageId,
+        senderUserId: newMsgData.senderUserId,
+        type: uiType,
+        text: newMsgData.text,
+        mediaUrl: newMsgData.mediaUrl || "",
+        durationSec: newMsgData.durationSec,
+        sendAt: newMsgData.sentAt, // 소켓(sentAt) -> UI(sendAt)
+        readAt: null,
+        isMine: false,
+      };
+
+      // 4. 상태 업데이트 & 스크롤
+      setSocketMessages((prev) => [...prev, newMsg]);
+      setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
+    };
+
+    // 리스너 등록
+    socket.on("message.new", handleMessageNew);
+
+    // 클린업 (페이지 나갈 때 리스너 해제)
+    return () => {
+      socket.off("message.new", handleMessageNew);
+    };
+  }, [socket, myId, bottomRef]); // 의존성 배열
+
+  // 전송 래퍼 함수 (Store의 sendMessage 사용)
+
   const onSendTextWrapper = async (text: string) => {
-    // 🔥 [추가 2] API 요청 보내기 전에 "가짜 메시지" 만들어서 화면에 즉시 투입
+    // 1. 낙관적 업데이트
     const tempMsg = {
-      messageId: Date.now(), // 임시 ID (현재 시간)
+      messageId: Date.now(),
       senderUserId: myId,
       type: "TEXT",
       text: text,
       mediaUrl: null,
       durationSec: 0,
       sendAt: new Date().toISOString(),
-      readAt: null, // 안 읽음 처리
+      readAt: null,
+      isMine: true,
     };
     setTempMessages((prev) => [...prev, tempMsg]);
-    
-    // 스크롤 즉시 내리기
     setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
 
-    // 원래 API 호출 (실패하더라도 화면엔 이미 떴음)
-    await handleSendText(text);
+    // 2. 스토어 함수로 전송
+    sendMessage(parsedRoomId, "TEXT", text);
   };
-  // 음성 입력창 래퍼
-  // 음성 전송 래퍼
+
   const onSendVoiceWrapper = async (file: File, duration: number) => {
-    // 🔥 [추가 3] 음성도 가짜 메시지 투입 (blob URL 사용)
+    // 1. 낙관적 업데이트
     const tempMsg = {
       messageId: Date.now(),
       senderUserId: myId,
-      type: "VOICE",
-      text: "",
-      mediaUrl: URL.createObjectURL(file), // 💡 내 파일로 바로 재생 가능한 URL 생성
+      type: "AUDIO", 
+      text: null,
+      mediaUrl: URL.createObjectURL(file),
       durationSec: duration,
       sendAt: new Date().toISOString(),
       readAt: null,
+      isMine: true,
     };
     setTempMessages((prev) => [...prev, tempMsg]);
-    
     setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
 
-    await handleSendVoice(file, duration);
+    // 2. 파일 업로드 로직 (구현 필요)
+    try {
+      console.log("⚠️ 파일 업로드 API 연결 필요");
+      // const res = await uploadApi(file);
+      // sendMessage(parsedRoomId, "AUDIO", res.url, duration);
+    } catch (e) {
+      console.error("전송 실패", e);
+    }
   };
 
-  // 토스트 메시지 표시 함수
-  const showToast = (msg: string) => {
-    setToastMessage(msg);
-  };
+  const showToast = (msg: string) => setToastMessage(msg);
 
-  // 메뉴에서 [신고하기] 클릭 시 실행
   const handleReportMenuClick = () => {
-    setIsMenuOpen(false); // 메뉴 닫고
-    setIsReportScreenOpen(true); // 신고 전체화면 열기
+    setIsMenuOpen(false); 
+    setIsReportScreenOpen(true);
   };
 
-  // 메뉴에서 [차단하기] 클릭 시 실행
   const handleBlockRequest = async () => {
-    // 차단 해제 로직 (이미 차단된 상태일 때)
     if (blockId) {
       try {
-        // 1. API 호출 시도
         await handleBlockToggle(); 
-        
-        // 2. 성공했을 때만 토스트 띄우기
         showToast("차단이 해제되었어요.");
       } catch (error) {
-        // 3. 실패 시 처리 (토스트 안 띄움)
         console.error("차단 해제 실패", error);
         alert("요청 처리에 실패했습니다. 잠시 후 다시 시도해주세요.");
       }
-    } 
-    // 차단 시도 로직 (차단 안 된 상태일 때)
-    else {
-      setIsMenuOpen(false); // 메뉴 닫기
-      setTimeout(() => {
-        setActiveModal("BLOCK"); // 차단 확인 모달 열기
-      }, 100);
+    } else {
+      setIsMenuOpen(false);
+      setTimeout(() => setActiveModal("BLOCK"), 100);
     }
   };
 
-  // 차단 모달에서 [예] 클릭 시 실행
   const handleRealBlock = async () => {
     try {
-      // 1. API 호출 시도
       await handleBlockToggle(); 
-      
-      // --- 🎉 성공 시 실행되는 로직 ---
-      
-      // 2. 모달 상태 변경 (차단 모달 닫기 -> 나가기 모달 열기)
       setActiveModal("NONE");
-      setTimeout(() => {
-        setActiveModal("EXIT"); 
-      }, 300);
-
-      // 3. 성공했을 때만 토스트 띄우기
+      setTimeout(() => setActiveModal("EXIT"), 300);
       showToast(`${peerInfo?.nickname || "상대방"}님을 차단했어요.`);
-
     } catch (error) {
-      // 실패 시 실행되는 로직
       console.error("차단 실패", error);
-      alert("차단에 실패했습니다. 네트워크 상태를 확인해주세요.");
-      
-      // 실패했으면 모달을 닫아주거나, 그대로 둬서 다시 누르게 할 수 있습니다.
+      alert("차단에 실패했습니다.");
       setActiveModal("NONE"); 
     }
   };
+
   const handleRealReport = async (categoryCode: string, description: string) => {
     if (!roomId || !peerInfo) return;
-
-    // API 호출
     await createReport({
       targetUserId: peerInfo.userId,
       category: categoryCode,
-      reason: `${description}`, // 위 g내용 변경과 동시에 변경
+      reason: `${description}`,
       chatRoomId: Number(roomId)
     });
   };
+
+  const combinedMessages = [...messages, ...socketMessages, ...tempMessages];
 
   return (
     <div className="w-full h-dvh flex flex-col bg-white relative overflow-hidden">
       
       <header className="shrink-0 h-[45px] px-4 flex items-center justify-between bg-white z-10 border-b border-gray-100">
-        {/* 뒤로가기 버튼 */}
         <div className="-ml-5"><BackButton /></div>
-        {/* 상대방 닉네임 */}
         <div className="absolute top-0 left-1/2 -translate-x-1/2 px-4 py-2">
           <span className="font-bold text-[24px] text-[#111]">{peerInfo?.nickname}</span>
         </div>
-        {/* 더보기 버튼 */}
         <button onClick={() => setIsMenuOpen(true)} className="p-2 -mr-2">
            <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="5" r="2" fill="#111" /><circle cx="12" cy="12" r="2" fill="#111" /><circle cx="12" cy="19" r="2" fill="#111" /></svg>
         </button>
@@ -191,37 +224,26 @@ export default function ChatRoomPage() {
       >
         <div ref={topObserverRef} className="h-2 w-full" /> 
         <div className="flex flex-col items-center justify-center gap-3 pt-4 pb-4">
-          {/* 상대방 프로필 이미지 */}
           <div className="relative shrink-0 w-[100px] h-[100px] rounded-full overflow-hidden bg-gray-200">
             <img src={peerInfo?.profileImageUrl} alt="profile" className="w-full h-full object-cover"/>
           </div>
-          {/* 최초 메세지 대화시의 상대방 닉네임, 나이, 지역 */}
           <div className="text-center">
             <span className="font-semibold text-[18px] text-[#636970] block">{peerInfo?.nickname}</span>
             <span className="text-[14px] text-[#636970]">{peerInfo?.age}세 · {peerInfo?.areaName}</span>
           </div>
           <p className="mt-6 mb-2 text-[18px] text-[#636970] text-center">서로 알아가는 첫 이야기,<br/>편하게 시작해볼까요?</p>
         </div>
-        {/* 메세지들 */}
+        
         <div className="flex flex-col gap-3">
           
-          
-          {[...messages, ...tempMessages].map((msg, index) => {
-            
-            // 1. 현재 메시지 날짜
+          {combinedMessages.map((msg, index) => {
             const currentDate = getFormattedDate(msg.sendAt);
-            
-            // 2. 이전 메시지 날짜 가져오기 (첫 번째 메시지면 null)
-            const prevMsg = index > 0 ? [...messages, ...tempMessages][index - 1] : null;
+            const prevMsg = index > 0 ? combinedMessages[index - 1] : null;
             const prevDate = prevMsg ? getFormattedDate(prevMsg.sendAt) : null;
-
-            // 3. 날짜가 달라졌는지 확인 (첫 메시지거나, 이전과 다르면 true)
             const showDateSeparator = !prevDate || currentDate !== prevDate;
 
             return (
-              <div key={msg.messageId}> {/* Fragment 대신 div로 감싸는게 안전함 */}
-                
-                {/* ✅ 조건부 렌더링: 날짜가 바뀌었으면 구분선 표시 */}
+              <div key={msg.messageId || index}>
                 {showDateSeparator && <DateSeparator date={currentDate} />}
 
                 <MessageBubble
@@ -243,16 +265,13 @@ export default function ChatRoomPage() {
         </div>
       </div>
 
-      {/* 공용 토스트 컴포넌트 배치 */}
       <ToastNotification 
         message={toastMessage}
-        isVisible={!!toastMessage} // 메시지가 있으면 true
-        onClose={() => setToastMessage(null)} // 시간 지나면 메시지 비움
+        isVisible={!!toastMessage} 
+        onClose={() => setToastMessage(null)} 
       />
 
-      {/* 채팅 입력창 */}
       <div className="absolute bottom-0 w-full z-40">
-
         <div className="absolute bottom-0 left-0 right-0 h-[300px] -z-10 pointer-events-none
             bg-gradient-to-t from-white from-20% via-white/50 to-transparent
             backdrop-blur-[3px]
@@ -265,7 +284,6 @@ export default function ChatRoomPage() {
         />
       </div>
 
-      {/* 메뉴 버튼 클릭 시 실행 */}
       <ReportModal 
         isOpen={isMenuOpen} 
         isBlocked={blockId !== null} 
@@ -275,7 +293,6 @@ export default function ChatRoomPage() {
         onLeave={() => { setIsMenuOpen(false); setActiveModal("EXIT"); }} 
       />
 
-      {/* 신고 버튼 클릭 시 실행 */}
       <ReportScreen 
         isOpen={isReportScreenOpen}
         onClose={() => setIsReportScreenOpen(false)}
@@ -283,7 +300,6 @@ export default function ChatRoomPage() {
         onReport={handleRealReport}
       />
 
-      {/* 차단 확인 모달 */}
       <ConfirmModal
         isOpen={activeModal === "BLOCK"} 
         title="상대방을 차단할까요?"
@@ -292,10 +308,9 @@ export default function ChatRoomPage() {
         cancelText="아니요"
         isDanger={true}
         onCancel={() => setActiveModal("NONE")} 
-        onConfirm={handleRealBlock} // 여기서 () => handleRealBlock() 하지 말고 함수 이름만 넣으세요!
+        onConfirm={handleRealBlock} 
       />
 
-      {/* 나가기 확인 모달 */}
       <ConfirmModal
         isOpen={activeModal === "EXIT"}
         title="대화방을 나갈까요?"
