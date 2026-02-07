@@ -1,24 +1,23 @@
-<svg width="98" height="98" viewBox="0 0 98 98" fill="none" xmlns="http://www.w3.org/2000/svg">
-<g filter="url(#filter0_d_345_1270)">
-<circle cx="49" cy="53" r="34" fill="url(#paint0_linear_345_1270)"/>
-</g>
-<path d="M58.4639 50.9141C59.2173 50.9141 59.8281 51.5249 59.8281 52.2783C59.8281 57.8438 55.6619 62.4319 50.2783 63.1035V65.8877H55.0293C55.7826 65.8879 56.3936 66.4986 56.3936 67.252C56.3936 68.0053 55.7826 68.616 55.0293 68.6162H42.7998C42.0464 68.6162 41.4355 68.0054 41.4355 67.252C41.4355 66.4985 42.0464 65.8877 42.7998 65.8877H47.5498V63.1035C42.1663 62.4319 38 57.8438 38 52.2783C38 51.5249 38.6108 50.9141 39.3643 50.9141C40.1177 50.9141 40.7285 51.5249 40.7285 52.2783C40.7285 56.7991 44.3933 60.4638 48.9141 60.4639C53.4349 60.4639 57.0996 56.7991 57.0996 52.2783C57.0996 51.5249 57.7105 50.9142 58.4639 50.9141ZM48.915 40C51.9287 40.0003 54.372 42.4434 54.3721 45.457V52.2783C54.3721 55.292 51.9287 57.7351 48.915 57.7354C45.9012 57.7353 43.458 55.2922 43.458 52.2783V45.457C43.458 42.4432 45.9012 40 48.915 40ZM48.915 42.7285C47.4081 42.7285 46.1866 43.9501 46.1865 45.457V52.2783C46.1865 53.7853 47.4081 55.0068 48.915 55.0068C50.4218 55.0066 51.6436 53.7851 51.6436 52.2783V45.457C51.6435 43.9503 50.4217 42.7288 48.915 42.7285Z" fill="white"/>
-<defs>
-<filter id="filter0_d_345_1270" x="0" y="0" width="98" height="98" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
-<feFlood flood-opacity="0" result="BackgroundImageFix"/>
-<feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
-<feOffset dy="-4"/>
-<feGaussianBlur stdDeviation="7.5"/>
-<feComposite in2="hardAlpha" operator="out"/>
-<feColorMatrix type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.04 0"/>
-<feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow_345_1270"/>
-<feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow_345_1270" result="shape"/>
-</filter>
-<linearGradient id="paint0_linear_345_1270" x1="83" y1="117.955" x2="49.5073" y2="24.5821" gradientUnits="userSpaceOnUse">
-<stop stop-color="white"/>
-<stop offset="0.275557" stop-color="#FFCA7A"/>
-<stop offset="0.560305" stop-color="#FE7E71"/>
-<stop offset="1" stop-color="#FC3367"/>
-</linearGradient>
-</defs>
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" viewBox="0 0 68 68">
+  <!-- Generator: Adobe Illustrator 30.3.0, SVG Export Plug-In . SVG Version: 2.1.1 Build 104)  -->
+  <defs>
+    <style>
+      .st0 {
+        fill: url(#linear-gradient);
+      }
+
+      .st1 {
+        fill: #fff;
+      }
+    </style>
+    <linearGradient id="linear-gradient" x1="58.52" y1="-42.47" x2="25.03" y2="50.91" gradientTransform="translate(0 59.89) scale(1 -1)" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#fff"/>
+      <stop offset=".28" stop-color="#ffca7a"/>
+      <stop offset=".56" stop-color="#fe7e71"/>
+      <stop offset="1" stop-color="#fc3367"/>
+    </linearGradient>
+  </defs>
+  <circle class="st0" cx="34" cy="34" r="34"/>
+  <path class="st1" d="M43.46,31.91c.75,0,1.36.61,1.36,1.36,0,5.57-4.17,10.15-9.55,10.83v2.78h4.75c.75,0,1.36.61,1.36,1.36s-.61,1.36-1.36,1.36h-12.23c-.75,0-1.36-.61-1.36-1.36s.61-1.36,1.36-1.36h4.75v-2.78c-5.38-.67-9.55-5.26-9.55-10.83,0-.75.61-1.36,1.36-1.36s1.36.61,1.36,1.36c0,4.52,3.66,8.19,8.19,8.19,4.52,0,8.19-3.66,8.19-8.19,0-.75.61-1.36,1.36-1.36ZM33.92,21c3.01,0,5.46,2.44,5.46,5.46v6.82c0,3.01-2.44,5.46-5.46,5.46-3.01,0-5.46-2.44-5.46-5.46v-6.82c0-3.01,2.44-5.46,5.46-5.46ZM33.92,23.73c-1.51,0-2.73,1.22-2.73,2.73v6.82c0,1.51,1.22,2.73,2.73,2.73,1.51,0,2.73-1.22,2.73-2.73v-6.82c0-1.51-1.22-2.73-2.73-2.73Z"/>
 </svg>
