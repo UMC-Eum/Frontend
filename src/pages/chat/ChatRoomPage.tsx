@@ -17,6 +17,8 @@ import ConfirmModal from "../../components/common/ConfirmModal";
 import ToastNotification from "../../components/common/ToastNotification";
 import { createReport } from "../../api/socials/socialsApi";
 import ReportScreen from "../../components/chat/ReportScreen";
+import { DateSeparator } from "../../components/chat/DateSeparator";
+import { getFormattedDate } from "../../hooks/useFormatDate";
 
 
 // 모달 타입 정의 (어떤 모달 띄울지)
@@ -202,22 +204,41 @@ export default function ChatRoomPage() {
         </div>
         {/* 메세지들 */}
         <div className="flex flex-col gap-3">
-          {[...messages, ...tempMessages].map((msg) => (
-            <MessageBubble
-              key={msg.messageId} // 임시 ID 사용
-              isMe={msg.senderUserId === myId}
-              type={msg.type}
-              content={msg.text}
-              audioUrl={msg.mediaUrl}
-              duration={msg.durationSec}
-              timestamp={formatTime(msg.sendAt)}
-              readAt={msg.readAt}
-              isPlayingProp={playingId === msg.messageId}
-              onPlay={() => setPlayingId(playingId === msg.messageId ? null : msg.messageId)}
-              // 임시 메시지는 삭제 기능 막거나, 원하면 로컬에서만 지우게 처리 가능
-              onDelete={msg.senderUserId === myId ? () => handleDeleteMessage(msg.messageId) : undefined}
-            />
-          ))}
+          
+          
+          {[...messages, ...tempMessages].map((msg, index) => {
+            
+            // 1. 현재 메시지 날짜
+            const currentDate = getFormattedDate(msg.sendAt);
+            
+            // 2. 이전 메시지 날짜 가져오기 (첫 번째 메시지면 null)
+            const prevMsg = index > 0 ? [...messages, ...tempMessages][index - 1] : null;
+            const prevDate = prevMsg ? getFormattedDate(prevMsg.sendAt) : null;
+
+            // 3. 날짜가 달라졌는지 확인 (첫 메시지거나, 이전과 다르면 true)
+            const showDateSeparator = !prevDate || currentDate !== prevDate;
+
+            return (
+              <div key={msg.messageId}> {/* Fragment 대신 div로 감싸는게 안전함 */}
+                
+                {/* ✅ 조건부 렌더링: 날짜가 바뀌었으면 구분선 표시 */}
+                {showDateSeparator && <DateSeparator date={currentDate} />}
+
+                <MessageBubble
+                  isMe={msg.senderUserId === myId}
+                  type={msg.type}
+                  content={msg.text}
+                  audioUrl={msg.mediaUrl}
+                  duration={msg.durationSec}
+                  timestamp={formatTime(msg.sendAt)}
+                  readAt={msg.readAt}
+                  isPlayingProp={playingId === msg.messageId}
+                  onPlay={() => setPlayingId(playingId === msg.messageId ? null : msg.messageId)}
+                  onDelete={msg.senderUserId === myId ? () => handleDeleteMessage(msg.messageId) : undefined}
+                />
+              </div>
+            );
+          })}
           <div ref={bottomRef} />
         </div>
       </div>
