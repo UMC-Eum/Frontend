@@ -17,6 +17,9 @@ import ConfirmModal from "../../components/common/ConfirmModal";
 import ToastNotification from "../../components/common/ToastNotification";
 import { createReport } from "../../api/socials/socialsApi";
 import ReportScreen from "../../components/chat/ReportScreen";
+import { DateSeparator } from "../../components/chat/DateSeparator";
+import { getFormattedDate } from "../../hooks/useFormatDate";
+
 
 // 모달 타입 정의 (어떤 모달 띄울지)
 type ModalType = "NONE" | "BLOCK" | "EXIT";
@@ -28,6 +31,8 @@ export default function ChatRoomPage() {
   const myId = user?.userId ?? 0;
   const parsedRoomId = Number(roomId);
 
+  // 🔥 [추가 1] 임시 메시지를 담을 로컬 state 생성
+  const [tempMessages, setTempMessages] = useState<any[]>([]);
   // 상대방 관련 정보 관리
   const { peerInfo, blockId, isMenuOpen, setIsMenuOpen, handleBlockToggle } = useChatRoomInfo(parsedRoomId);
   // 채팅방 메세지 관리
@@ -48,14 +53,46 @@ export default function ChatRoomPage() {
 
   // 텍스트 입력창 래퍼
   
+  // 텍스트 전송 래퍼
   const onSendTextWrapper = async (text: string) => {
-    const success = await handleSendText(text);
-    if(success) setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
+    // 🔥 [추가 2] API 요청 보내기 전에 "가짜 메시지" 만들어서 화면에 즉시 투입
+    const tempMsg = {
+      messageId: Date.now(), // 임시 ID (현재 시간)
+      senderUserId: myId,
+      type: "TEXT",
+      text: text,
+      mediaUrl: null,
+      durationSec: 0,
+      sendAt: new Date().toISOString(),
+      readAt: null, // 안 읽음 처리
+    };
+    setTempMessages((prev) => [...prev, tempMsg]);
+    
+    // 스크롤 즉시 내리기
+    setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
+
+    // 원래 API 호출 (실패하더라도 화면엔 이미 떴음)
+    await handleSendText(text);
   };
   // 음성 입력창 래퍼
+  // 음성 전송 래퍼
   const onSendVoiceWrapper = async (file: File, duration: number) => {
-    const success = await handleSendVoice(file, duration);
-    if(success) setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
+    // 🔥 [추가 3] 음성도 가짜 메시지 투입 (blob URL 사용)
+    const tempMsg = {
+      messageId: Date.now(),
+      senderUserId: myId,
+      type: "VOICE",
+      text: "",
+      mediaUrl: URL.createObjectURL(file), // 💡 내 파일로 바로 재생 가능한 URL 생성
+      durationSec: duration,
+      sendAt: new Date().toISOString(),
+      readAt: null,
+    };
+    setTempMessages((prev) => [...prev, tempMsg]);
+    
+    setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
+
+    await handleSendVoice(file, duration);
   };
 
   // 토스트 메시지 표시 함수
@@ -148,7 +185,10 @@ export default function ChatRoomPage() {
         </button>
       </header>
 
-      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto px-4 py-4 scroll-smooth">
+      <div 
+        ref={scrollContainerRef} 
+        className="w-full h-full overflow-y-auto px-4 pt-4 pb-[160px] scroll-smooth"
+      >
         <div ref={topObserverRef} className="h-2 w-full" /> 
         <div className="flex flex-col items-center justify-center gap-3 pt-4 pb-4">
           {/* 상대방 프로필 이미지 */}
@@ -164,21 +204,41 @@ export default function ChatRoomPage() {
         </div>
         {/* 메세지들 */}
         <div className="flex flex-col gap-3">
-          {messages.map((msg) => (
-            <MessageBubble
-              key={msg.messageId}
-              isMe={msg.senderUserId === myId}
-              type={msg.type}
-              content={msg.text}
-              audioUrl={msg.mediaUrl}
-              duration={msg.durationSec}
-              timestamp={formatTime(msg.sendAt)}
-              readAt={msg.readAt}
-              isPlayingProp={playingId === msg.messageId}
-              onPlay={() => setPlayingId(playingId === msg.messageId ? null : msg.messageId)}
-              onDelete={msg.senderUserId === myId ? () => handleDeleteMessage(msg.messageId) : undefined}
-            />
-          ))}
+          
+          
+          {[...messages, ...tempMessages].map((msg, index) => {
+            
+            // 1. 현재 메시지 날짜
+            const currentDate = getFormattedDate(msg.sendAt);
+            
+            // 2. 이전 메시지 날짜 가져오기 (첫 번째 메시지면 null)
+            const prevMsg = index > 0 ? [...messages, ...tempMessages][index - 1] : null;
+            const prevDate = prevMsg ? getFormattedDate(prevMsg.sendAt) : null;
+
+            // 3. 날짜가 달라졌는지 확인 (첫 메시지거나, 이전과 다르면 true)
+            const showDateSeparator = !prevDate || currentDate !== prevDate;
+
+            return (
+              <div key={msg.messageId}> {/* Fragment 대신 div로 감싸는게 안전함 */}
+                
+                {/* ✅ 조건부 렌더링: 날짜가 바뀌었으면 구분선 표시 */}
+                {showDateSeparator && <DateSeparator date={currentDate} />}
+
+                <MessageBubble
+                  isMe={msg.senderUserId === myId}
+                  type={msg.type}
+                  content={msg.text}
+                  audioUrl={msg.mediaUrl}
+                  duration={msg.durationSec}
+                  timestamp={formatTime(msg.sendAt)}
+                  readAt={msg.readAt}
+                  isPlayingProp={playingId === msg.messageId}
+                  onPlay={() => setPlayingId(playingId === msg.messageId ? null : msg.messageId)}
+                  onDelete={msg.senderUserId === myId ? () => handleDeleteMessage(msg.messageId) : undefined}
+                />
+              </div>
+            );
+          })}
           <div ref={bottomRef} />
         </div>
       </div>
@@ -191,7 +251,19 @@ export default function ChatRoomPage() {
       />
 
       {/* 채팅 입력창 */}
-      <ChatInputBar onSendText={onSendTextWrapper} onSendVoice={onSendVoiceWrapper} isBlocked={blockId !== null} />
+      <div className="absolute bottom-0 w-full z-40">
+
+        <div className="absolute bottom-0 left-0 right-0 h-[300px] -z-10 pointer-events-none
+            bg-gradient-to-t from-white from-20% via-white/50 to-transparent
+            backdrop-blur-[3px]
+            [mask-image:linear-gradient(to_bottom,transparent_10%,black_80%)]"
+          />
+        <ChatInputBar 
+          onSendText={onSendTextWrapper} 
+          onSendVoice={onSendVoiceWrapper} 
+          isBlocked={blockId !== null} 
+        />
+      </div>
 
       {/* 메뉴 버튼 클릭 시 실행 */}
       <ReportModal 

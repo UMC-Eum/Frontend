@@ -24,14 +24,18 @@ export interface ILastMessage {
 }
 export interface IChatsRoomItem {
   chatRoomId: number;
-  peer: IPeer; // 위치정보 추가 필요
+  peer: {
+    userId: number;
+    nickname: string;
+    profileImageUrl: string;
+    areaName: string;
+  },
   lastMessage: ILastMessage;
   unreadCount: number;
 }
 export interface IChatsRoomsGetResponse {
   nextCursor: string | null;
   items: IChatsRoomItem[];
-  unreadCount: 1 | 0;
 }
 
 //v1/chats/rooms/{chatRoomId}(get)
@@ -42,6 +46,7 @@ export interface IChatsRoomIdGetResponse {
     nickname: string;
     age: number;
     areaName: string;
+    profileImageUrl: string;
   };
 }
 

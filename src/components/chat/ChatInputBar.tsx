@@ -17,6 +17,9 @@ export function ChatInputBar({ onSendText, onSendVoice, isBlocked }: ChatInputBa
   
   // 텍스트 입력 Ref
   const inputRef = useRef<HTMLInputElement>(null);
+
+  //입력창 포커스 관리
+  const [isFocused, setIsFocused] = useState(false);
   
   // 🔥 [추가] 카메라/앨범 실행을 위한 hidden input Refs
   const cameraInputRef = useRef<HTMLInputElement>(null);
@@ -25,6 +28,18 @@ export function ChatInputBar({ onSendText, onSendVoice, isBlocked }: ChatInputBa
   const { status, seconds, handleMicClick, isShort } = useMicRecording((file, duration) => {
     onSendVoice(file, duration);
   }, true);
+
+  // 입력창 포커스시 포커스 상태 변경 및 메뉴 닫기
+  const handleInputFocus = () => {
+    setIsFocused(true);
+    if (isMenuOpen) setIsMenuOpen(false);
+  };
+
+
+  // 포커스 해제 핸들러
+  const handleInputBlur = () => {
+    setIsFocused(false);
+  };
 
   const handleTextSend = () => {
     if (!text.trim()) return;
@@ -37,10 +52,6 @@ export function ChatInputBar({ onSendText, onSendVoice, isBlocked }: ChatInputBa
     if (!isMenuOpen) {
       inputRef.current?.blur();
     }
-  };
-
-  const handleInputFocus = () => {
-    if (isMenuOpen) setIsMenuOpen(false);
   };
 
   // 🔥 [추가] 파일 선택 시 처리 핸들러 (카메라/앨범 공통 사용)
@@ -66,6 +77,9 @@ export function ChatInputBar({ onSendText, onSendVoice, isBlocked }: ChatInputBa
     console.log("🖼️ 앨범 실행");
     albumInputRef.current?.click();
   };
+
+  //마이크 숨김 여부 계산
+  const shouldHideMic = status === "inactive" && (isMenuOpen || isFocused || text.length > 0);
 
   // ✅ 차단 상태일 때 보여줄 UI (입력창 덮어쓰기)
   if (isBlocked) {
@@ -94,10 +108,11 @@ export function ChatInputBar({ onSendText, onSendVoice, isBlocked }: ChatInputBa
   }
 
   return (
-    <div className="relative w-full z-30">
+    <div className="w-full">
       
       {/* 입력바 영역 */}
       <div className="flex flex-col bg-white border-t border-gray-100 pb-safe relative z-20">
+        
         
         <RecordingControl 
           status={status}
@@ -105,7 +120,11 @@ export function ChatInputBar({ onSendText, onSendVoice, isBlocked }: ChatInputBa
           isShort={isShort}
           isResultPage={false}
           onMicClick={handleMicClick}
-          className="absolute bottom-full mb-6 flex flex-col items-center" 
+          isChat={true}
+          // ✅ [수정] 클래스에 조건부 투명도(opacity) 적용
+          // transition-opacity duration-200: 부드럽게 사라지고 나타남
+          className={`absolute bottom-full mb-6 flex flex-col items-center transition-opacity duration-200 
+            ${shouldHideMic ? "opacity-0 pointer-events-none" : "opacity-100 pointer-events-auto"}`} 
         />
 
         {/* ----------------- 기존 입력창 내용 ----------------- */}
@@ -132,6 +151,7 @@ export function ChatInputBar({ onSendText, onSendVoice, isBlocked }: ChatInputBa
               value={text}
               onChange={(e) => setText(e.target.value)}
               onFocus={handleInputFocus} 
+              onBlur={handleInputBlur}
               disabled={status === "recording"}
               onKeyDown={(e) => e.key === "Enter" && !e.nativeEvent.isComposing && handleTextSend()}
             />

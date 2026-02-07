@@ -45,13 +45,13 @@ export default function ChatListPage() {
           fetchedItems = [
             {
               chatRoomId: 55,
-              peer: { userId: 9, nickname: "루시", profileImageUrl: "https://cdn.example.com/files/u9.jpg" },
+              peer: { userId: 9, nickname: "루시", profileImageUrl: "https://cdn.example.com/files/u9.jpg", areaName: "서울" },
               lastMessage: { type: "TEXT", textPreview: "이것은 테스트 메시지입니다.", sentAt: new Date().toISOString() },
               unreadCount: 3,
             },
             {
               chatRoomId: 555,
-              peer: { userId: 2, nickname: "개발자", profileImageUrl: "https://via.placeholder.com/52" },
+              peer: { userId: 2, nickname: "개발자", profileImageUrl: "https://via.placeholder.com/52", areaName: "서울" },
               lastMessage: { type: "AUDIO", textPreview: "", sentAt: new Date().toISOString() },
               unreadCount: 0,
             }
@@ -150,7 +150,7 @@ export default function ChatListPage() {
                   {room.peer.nickname}
                 </span>
                 <span className="text-[14px] text-[#999]">
-                   성수동 · {room.lastMessage?.sentAt ? formatTime(room.lastMessage.sentAt) : ""}
+                   {room.peer.areaName ? room.peer.areaName : "성수동"} · {room.lastMessage?.sentAt ? formatTime(room.lastMessage.sentAt) : ""}
                 </span>
               </div>
               

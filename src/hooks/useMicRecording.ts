@@ -79,7 +79,9 @@ export const useMicRecording = (
   // 3. 녹음 종료 함수 (2초 타이머 로직 + Ref 기반 10초 체크)
   const stopRecording = useCallback(() => {
     if (mediaRecorderRef.current && status === "recording") {
-      if (secondsRef.current < 10) {
+
+      const minDuration = isChat ? 0 : 10;
+      if (secondsRef.current < minDuration) {
         setIsShort(true);
         // ✨ 우리가 만든 자동 닫기 로직 유지
         setTimeout(() => {
@@ -90,7 +92,7 @@ export const useMicRecording = (
       setStatus("loading");
       mediaRecorderRef.current.stop();
     }
-  }, [status]);
+  }, [status, isChat]);
 
   // 4. 마이크 클릭 핸들러 (의존성 최적화)
   const handleMicClick = useCallback(() => {

@@ -16,6 +16,7 @@ const RecordingControl = ({
   status,
   seconds,
   isShort,
+  isChat = false,
   isResultPage = false,
   onMicClick,
   // 👇 부모에서 className을 주면 이 기본값(bottom-[40px])은 무시됩니다.
@@ -37,7 +38,7 @@ const RecordingControl = ({
       {isShort && (
         <div className="flex w-[232px] h-[36px] bg-pink-100 items-center justify-center rounded-[7px]">
           <p className="text-[14px] font-[500] text-[#FF88A6]">
-            너무 짧아요! 10초 이상 말해주세요!
+            {isChat ? "음성 메세지를 보냈습니다." : "너무 짧아요! 10초 이상 말해주세요!"}
           </p>
         </div>
       )}
