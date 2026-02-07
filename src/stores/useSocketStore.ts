@@ -2,7 +2,8 @@ import { create } from 'zustand';
 import { io, Socket } from 'socket.io-client';
 
 // 타입들 불러오기
-import { SocketResponse, MessageSendData, JoinData } from '../types/api/socket';
+import { MessageSendData, JoinData } from '../types/api/socket';
+import { ApiSuccessResponse } from '../types/api/api';
 
 // 배포 서버 주소로 변경
 const SOCKET_URL = import.meta.env.VITE_API_URL+"/chats";
@@ -68,7 +69,7 @@ export const useSocketStore = create<SocketStore>((set, get) => ({
   joinRoom: (roomId: number) => {
     const socket = get().socket;
     if (socket) {
-      socket.emit("room.join", { chatRoomId: roomId }, (res: SocketResponse<JoinData>) => {
+      socket.emit("room.join", { chatRoomId: roomId }, (res: ApiSuccessResponse<JoinData>) => {
         console.log(`🚪 ${roomId}번 방 입장 시도:`, res);
       });
     }
@@ -86,7 +87,7 @@ export const useSocketStore = create<SocketStore>((set, get) => ({
       durationSec
     };
 
-    socket.emit("message.send", payload, (res: SocketResponse<MessageSendData>) => {
+    socket.emit("message.send", payload, (res: ApiSuccessResponse<MessageSendData>) => {
       console.log("📤 전송 결과:", res);
     });
   }
