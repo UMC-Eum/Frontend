@@ -24,9 +24,11 @@ import { getFormattedDate } from "../../hooks/useFormatDate";
 // Types
 import { MessageNewData } from "../../types/api/socket"; 
 import { IChatsRoomIdMessagesGetResponse } from "../../types/api/chats/chatsDTO"; 
+import { readChatMessage } from "../../api/chats/chatsApi";
 
 type IMessageItem = IChatsRoomIdMessagesGetResponse['items'][number];
 
+// 어떤 모달 보여줄지 정하기 위한 모달 타입
 type ModalType = "NONE" | "BLOCK" | "EXIT";
 
 export default function ChatRoomPage() {
@@ -99,7 +101,16 @@ export default function ChatRoomPage() {
       // 4. 상태 업데이트 & 스크롤
       setSocketMessages((prev) => [...prev, newMsg]);
       setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
+      // 5. 읽음 처리
+      try {
+        readChatMessage(newMsgData.messageId); 
+        console.log(`👀 메시지 ${newMsgData.messageId} 읽음 처리 완료`);
+      } catch (e) {
+        console.error("읽음 처리 실패", e);
+      }
+
     };
+    
 
     // 리스너 등록
     socket.on("message.new", handleMessageNew);
@@ -109,6 +120,36 @@ export default function ChatRoomPage() {
       socket.off("message.new", handleMessageNew);
     };
   }, [socket, myId, bottomRef]); // 의존성 배열
+
+  // 방에 들어왔을 때(혹은 과거 메시지 로딩 시) 안 읽은 거 싹 다 읽음 처리
+  useEffect(() => {
+    // 1. 메시지가 없으면 패스
+    if (!messages || messages.length === 0) return;
+
+    // 2. "상대방이 보냈고" + "아직 안 읽은(readAt === null)" 메시지만 골라내기
+    const unreadMessages = messages.filter(
+      (msg) => !msg.isMine && msg.readAt === null
+    );
+
+    // 3. 안 읽은 게 있으면 읽음 처리 API 호출
+    if (unreadMessages.length > 0) {
+      console.log(`📚 안 읽은 메시지 ${unreadMessages.length}개 발견! 읽음 처리 시작`);
+      
+      // 방법 A: 하나씩 다 호출 (API가 단건 처리만 지원할 때)
+      unreadMessages.forEach((msg) => {
+        readChatMessage(msg.messageId);
+      });
+
+      // 💡 팁: 보통은 가장 마지막 메시지 하나만 읽음 처리하면,
+      // 백엔드가 알아서 그 이전 것들도 다 읽음으로 바꿔주는 경우가 많습니다.
+      // 백엔드 개발자에게 "마지막 거 하나만 보내도 되나요?" 라고 물어보세요.
+      // 만약 된다면 아래 코드가 더 효율적입니다.
+      /*
+      const lastUnread = unreadMessages[unreadMessages.length - 1];
+      readChatMessage(lastUnread.messageId);
+      */
+    }
+  }, [messages]); // messages 배열이 로딩될 때마다 실행됨
 
   // 전송 래퍼 함수 (Store의 sendMessage 사용)
 
