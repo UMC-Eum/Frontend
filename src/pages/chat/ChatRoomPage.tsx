@@ -18,6 +18,7 @@ import ToastNotification from "../../components/common/ToastNotification";
 import { createReport } from "../../api/socials/socialsApi";
 import ReportScreen from "../../components/chat/ReportScreen";
 
+
 // 모달 타입 정의 (어떤 모달 띄울지)
 type ModalType = "NONE" | "BLOCK" | "EXIT";
 
@@ -28,6 +29,8 @@ export default function ChatRoomPage() {
   const myId = user?.userId ?? 0;
   const parsedRoomId = Number(roomId);
 
+  // 🔥 [추가 1] 임시 메시지를 담을 로컬 state 생성
+  const [tempMessages, setTempMessages] = useState<any[]>([]);
   // 상대방 관련 정보 관리
   const { peerInfo, blockId, isMenuOpen, setIsMenuOpen, handleBlockToggle } = useChatRoomInfo(parsedRoomId);
   // 채팅방 메세지 관리
@@ -48,14 +51,46 @@ export default function ChatRoomPage() {
 
   // 텍스트 입력창 래퍼
   
+  // 텍스트 전송 래퍼
   const onSendTextWrapper = async (text: string) => {
-    const success = await handleSendText(text);
-    if(success) setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
+    // 🔥 [추가 2] API 요청 보내기 전에 "가짜 메시지" 만들어서 화면에 즉시 투입
+    const tempMsg = {
+      messageId: Date.now(), // 임시 ID (현재 시간)
+      senderUserId: myId,
+      type: "TEXT",
+      text: text,
+      mediaUrl: null,
+      durationSec: 0,
+      sendAt: new Date().toISOString(),
+      readAt: null, // 안 읽음 처리
+    };
+    setTempMessages((prev) => [...prev, tempMsg]);
+    
+    // 스크롤 즉시 내리기
+    setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
+
+    // 원래 API 호출 (실패하더라도 화면엔 이미 떴음)
+    await handleSendText(text);
   };
   // 음성 입력창 래퍼
+  // 음성 전송 래퍼
   const onSendVoiceWrapper = async (file: File, duration: number) => {
-    const success = await handleSendVoice(file, duration);
-    if(success) setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
+    // 🔥 [추가 3] 음성도 가짜 메시지 투입 (blob URL 사용)
+    const tempMsg = {
+      messageId: Date.now(),
+      senderUserId: myId,
+      type: "VOICE",
+      text: "",
+      mediaUrl: URL.createObjectURL(file), // 💡 내 파일로 바로 재생 가능한 URL 생성
+      durationSec: duration,
+      sendAt: new Date().toISOString(),
+      readAt: null,
+    };
+    setTempMessages((prev) => [...prev, tempMsg]);
+    
+    setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
+
+    await handleSendVoice(file, duration);
   };
 
   // 토스트 메시지 표시 함수
@@ -148,7 +183,10 @@ export default function ChatRoomPage() {
         </button>
       </header>
 
-      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto px-4 py-4 scroll-smooth">
+      <div 
+        ref={scrollContainerRef} 
+        className="w-full h-full overflow-y-auto px-4 pt-4 pb-[160px] scroll-smooth"
+      >
         <div ref={topObserverRef} className="h-2 w-full" /> 
         <div className="flex flex-col items-center justify-center gap-3 pt-4 pb-4">
           {/* 상대방 프로필 이미지 */}
@@ -164,9 +202,9 @@ export default function ChatRoomPage() {
         </div>
         {/* 메세지들 */}
         <div className="flex flex-col gap-3">
-          {messages.map((msg) => (
+          {[...messages, ...tempMessages].map((msg) => (
             <MessageBubble
-              key={msg.messageId}
+              key={msg.messageId} // 임시 ID 사용
               isMe={msg.senderUserId === myId}
               type={msg.type}
               content={msg.text}
@@ -176,6 +214,7 @@ export default function ChatRoomPage() {
               readAt={msg.readAt}
               isPlayingProp={playingId === msg.messageId}
               onPlay={() => setPlayingId(playingId === msg.messageId ? null : msg.messageId)}
+              // 임시 메시지는 삭제 기능 막거나, 원하면 로컬에서만 지우게 처리 가능
               onDelete={msg.senderUserId === myId ? () => handleDeleteMessage(msg.messageId) : undefined}
             />
           ))}
@@ -191,7 +230,30 @@ export default function ChatRoomPage() {
       />
 
       {/* 채팅 입력창 */}
-      <ChatInputBar onSendText={onSendTextWrapper} onSendVoice={onSendVoiceWrapper} isBlocked={blockId !== null} />
+      <div className="absolute bottom-0 w-full z-40">
+
+        <div className="absolute bottom-0 left-0 right-0 h-[300px] -z-10 pointer-events-none
+            
+            {/* 1. 배경색 그라데이션 (기존 유지): 하단으로 갈수록 완전 흰색이 되어 글씨를 가림 */}
+            bg-gradient-to-t from-white from-20% via-white/50 to-transparent
+
+            {/* 2. 블러 최대 강도 조절: 너무 강하면 [2px] or [3px]로 줄여보세요. */}
+            backdrop-blur-[3px]
+
+            {/* 3. [핵심] 블러 마스크: 
+                to_bottom: 위에서 아래로
+                transparent_10%: 상단 10% 지점까지는 투명 (블러 강도 0)
+                black_80%: 하단 80% 지점부터는 완전 검정 (블러 강도 최대)
+                -> 이 사이 구간에서 블러가 0에서 최대치로 부드럽게 변함
+            */}
+            [mask-image:linear-gradient(to_bottom,transparent_10%,black_80%)]"
+          />
+        <ChatInputBar 
+          onSendText={onSendTextWrapper} 
+          onSendVoice={onSendVoiceWrapper} 
+          isBlocked={blockId !== null} 
+        />
+      </div>
 
       {/* 메뉴 버튼 클릭 시 실행 */}
       <ReportModal 

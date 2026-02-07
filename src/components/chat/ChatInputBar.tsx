@@ -94,10 +94,11 @@ export function ChatInputBar({ onSendText, onSendVoice, isBlocked }: ChatInputBa
   }
 
   return (
-    <div className="relative w-full z-30">
+    <div className="w-full">
       
       {/* 입력바 영역 */}
       <div className="flex flex-col bg-white border-t border-gray-100 pb-safe relative z-20">
+        
         
         <RecordingControl 
           status={status}
