@@ -233,19 +233,8 @@ export default function ChatRoomPage() {
       <div className="absolute bottom-0 w-full z-40">
 
         <div className="absolute bottom-0 left-0 right-0 h-[300px] -z-10 pointer-events-none
-            
-            {/* 1. 배경색 그라데이션 (기존 유지): 하단으로 갈수록 완전 흰색이 되어 글씨를 가림 */}
             bg-gradient-to-t from-white from-20% via-white/50 to-transparent
-
-            {/* 2. 블러 최대 강도 조절: 너무 강하면 [2px] or [3px]로 줄여보세요. */}
             backdrop-blur-[3px]
-
-            {/* 3. [핵심] 블러 마스크: 
-                to_bottom: 위에서 아래로
-                transparent_10%: 상단 10% 지점까지는 투명 (블러 강도 0)
-                black_80%: 하단 80% 지점부터는 완전 검정 (블러 강도 최대)
-                -> 이 사이 구간에서 블러가 0에서 최대치로 부드럽게 변함
-            */}
             [mask-image:linear-gradient(to_bottom,transparent_10%,black_80%)]"
           />
         <ChatInputBar 
