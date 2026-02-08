@@ -26,7 +26,6 @@ import ProfileRecommendPage from "./pages/ProfileRecommendPage";
 import PersonalitiesRecordPage from "./pages/profile-edit/PersonalitiesRecordPage";
 import Like from "./pages/Like";
 import CardTestPage from "./mock/CardTestPage";
-import LikePopup from "./components/LikePopup";
 const router = createBrowserRouter([
   {
     path: "/",
@@ -134,10 +133,6 @@ const router = createBrowserRouter([
   {
     path: "/cardtest",
     element: <CardTestPage />,
-  },
-  {
-    path: "/likepopup",
-    element: <LikePopup />,
   },
 ]);
 
