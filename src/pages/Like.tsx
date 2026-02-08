@@ -108,7 +108,7 @@ export default function Like() {
       <BackButton title="마음" />
 
       {/* 탭 */}
-      <div className="shrink-0 border-b border-[#DEE3E5] px-[20px] h-[45px] flex">
+      <div className="shrink-0 border-b border-[#DEE3E5] px-[20px] h-[48px] flex">
         <button
           type="button"
           onClick={() => setTab("sent")}
