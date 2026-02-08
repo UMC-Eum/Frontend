@@ -95,6 +95,12 @@ export default tseslint.config({
 - 선택 이유 : 인터셉터로 토큰 주입/401 처리/refresh 로직 구성에 유리함
 - 기대 효과 : 인증/에러 처리 공통화, API 모듈화로 유지보수성 향상
 
+### socket.io-client
+
+- 역할 : 실시간 양방향 통신
+- 선택 이유 : WebSocket을 쉽게 사용할 수 있고, 서버와 동일한 프로토콜을 사용
+- 기대 효과 : 실시간 채팅, 알림 등 실시간 기능 구현 용이
+
 ## 서버 상태 관리
 
 ### @tanstack/react-query
