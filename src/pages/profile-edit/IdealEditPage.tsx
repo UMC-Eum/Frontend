@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import BackButton from "../../components/BackButton";
 import KeywordChips from "../../components/keyword/KeywordChips";
 import { useUserStore } from "../../stores/useUserStore";
@@ -10,29 +10,45 @@ export default function IdealEditPage() {
   const MAX_SELECT = 5;
   const navigate = useNavigate();
   const { user, updateUser } = useUserStore();
-  const { getPersonalities } = useScoreStore();
+
+  const ideal = useScoreStore((s) => s.keywords.ideal);
+
+  const allKeywords = useMemo(
+    () => (ideal || []).map((p) => p.text),
+    [ideal]
+  );
 
   //선택된 키워드
-  const [selectedKeywords, setSelectedKeywords] = useState<string[]>(user?.idealPersonalities || []);
+  const [selectedKeywords, setSelectedKeywords] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
+  const initialized = useRef(false);
+  useEffect(() => {
+    if (initialized.current) return;
+    if (!user?.idealPersonalities) return;
+    setSelectedKeywords([...user.idealPersonalities]);
+    initialized.current = true;
+  }, [user]);
+
   // 변경사항 감지; 1. 개수 비교 2. 내용 비교
-  const isChanged =
-    selectedKeywords.length !== (user?.idealPersonalities || []).length ||
-    !selectedKeywords.every((kw) => (user?.idealPersonalities || []).includes(kw));
+  const isChanged = useMemo(() => {
+    const original = user?.idealPersonalities || [];
+    if (selectedKeywords.length !== original.length) return true;
+    return !selectedKeywords.every((kw) => original.includes(kw));
+  }, [selectedKeywords, user?.idealPersonalities]);
 
   const handleSave = async () => {
     if (!isChanged || !user) return;
     
-    setIsLoading(true);
+    setIsLoading(true); 
     try {
       await updateMyProfile({
         idealPersonalities: selectedKeywords,
       });
-      updateUser({ idealPersonalities: selectedKeywords });
+      updateUser({ idealPersonalities: [...selectedKeywords] });
       navigate("/my/edit/");
     } catch (error) {
-      console.error("Failed to update ideal personalities:", error);
+      console.error("Failed to update ideal:", error);
       alert("이상형 키워드 저장 중 오류가 발생했습니다.");
     } finally {
       setIsLoading(false);
@@ -47,21 +63,20 @@ export default function IdealEditPage() {
       />
       <div className="p-5 flex flex-col gap-[10px] flex-1">
         <h2 className="text-[22px] font-semibold leading-[1.4] tracking-normal text-gray-900 align-middle">
-          나의 이상형을 선택해주세요!
+          나의 이상형을 골라주세요.
         </h2>
         <p className="text-[14px] font-medium leading-[1.4] tracking-normal text-gray-500">
           최대 5개까지 고를 수 있어요.
         </p>
         <div className="pt-5 flex flex-wrap gap-3">
           <KeywordChips
-            allKeywords={getPersonalities()}
+            allKeywords={allKeywords}
             selectedKeywords={selectedKeywords}
             maxSelect={MAX_SELECT}
             onChange={(ids) => setSelectedKeywords(ids)}
           />
         </div>
       </div>
-
       <div className="flex items-center justify-center">
         <button
           className={`m-5 px-[149px] py-4 w-full flex items-center justify-center rounded-xl text-[18px] font-semibold leading-[1.2] tracking-normal transition-all ${

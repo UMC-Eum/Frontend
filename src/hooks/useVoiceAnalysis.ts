@@ -5,19 +5,17 @@ import { useState, useCallback } from "react";
 import { postPresign, uploadFileToS3 } from "../api/onboarding/onboardingApi";
 import { postVoiceAnalyze } from "../api/onboarding/voiceAnalyze";
 import { useScoreStore } from "../stores/useScoreStore";
-import { useUserStore } from "../stores/useUserStore";
 
 export type VoiceAnalysisTheme = "intro" | "hobby" | "personality" | "ideal";
 
 export const useVoiceAnalysis = (theme: VoiceAnalysisTheme = "intro") => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const { updateUser } = useUserStore();
+
   const { 
     setScores, 
     setPersonalities, 
     setInterests, 
-    getPersonalities, 
-    getInterests 
+    setIdeal
   } = useScoreStore();
 
   /**
@@ -32,8 +30,8 @@ export const useVoiceAnalysis = (theme: VoiceAnalysisTheme = "intro") => {
         // 1. Presign URL 발급
         const presignData = await postPresign({
           fileName: file.name,
-          contentType: file.type || "audio/wav",
-          purpose: theme === "intro" ? "PROFILE_INTRO_AUDIO" : "TEMP_RECORDING",
+          contentType: file.type,
+          purpose: "PROFILE_INTRO_AUDIO",
         });
 
         // 2. S3 업로드
@@ -47,42 +45,22 @@ export const useVoiceAnalysis = (theme: VoiceAnalysisTheme = "intro") => {
 
         // 4. 결과 매핑 및 스토어 저장
         const { keywordCandidates } = analysisResult;
+        const currentPersonalities = keywordCandidates.personalities || [];
+        const currentInterests = keywordCandidates.interests || [];
 
         // 테마에 따라 필요한 키워드군만 별도로 업데이트하여 데이터 오염 방지
         if (theme === "intro") {
           setScores([keywordCandidates]);
         } else if (theme === "hobby") {
-          setInterests(keywordCandidates.interests);
-        } else {
-          // personality 또는 ideal
-          setPersonalities(keywordCandidates.personalities);
-        }
-
-        const personalities = getPersonalities();
-        const interests = getInterests();
-
-        // 테마에 따른 유저 프로필 업데이트 분기
-        if (theme === "ideal") {
-          updateUser({
-            idealPersonalities: personalities,
-          });
+          setInterests(currentInterests);
         } else if (theme === "personality") {
-          updateUser({
-            personalities: personalities,
-          });
-        } else if (theme === "hobby") {
-          updateUser({
-            keywords: interests,
-          });
-        } else {
-          // "intro" 테마
-          updateUser({
-            introAudioUrl: presignData.data.fileUrl,
-            introText: analysisResult.summary,
-            keywords: interests,
-            personalities: personalities,
-          });
+          setPersonalities(currentPersonalities);
+        } else if (theme === "ideal") {
+          setIdeal(currentPersonalities);
         }
+
+        const personalities = (keywordCandidates.personalities || []).map(p => p.text);
+        const interests = (keywordCandidates.interests || []).map(i => i.text);
 
         return {
           audioUrl: presignData.data.fileUrl,
@@ -99,7 +77,7 @@ export const useVoiceAnalysis = (theme: VoiceAnalysisTheme = "intro") => {
         setIsAnalyzing(false);
       }
     },
-    [theme, setScores, setPersonalities, setInterests, getPersonalities, getInterests, updateUser],
+    [theme, setScores, setPersonalities, setInterests],
   );
 
   return {

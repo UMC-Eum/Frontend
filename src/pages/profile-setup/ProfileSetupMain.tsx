@@ -34,7 +34,7 @@ export default function ProfileSetupMain() {
     handleNext();
   };
   // 7번 페이지 전용
-  const handleSubmitProfile = async () => {
+  const handleSubmitProfile = async (selectedData?: { personalities: string[], keywords: string[] }) => {
     if (!user) return;
     try {
       const requestBody = {
@@ -45,7 +45,7 @@ export default function ProfileSetupMain() {
         areaCode: user.area?.code || "",
         introText: user.introText,
         introAudioUrl: user.introAudioUrl,
-        selectedKeywords: [...user.personalities, ...user.keywords],
+        selectedKeywords: [...(selectedData?.personalities || []), ...(selectedData?.keywords || [])],
         vibeVector: vibeVectorRef.current,
       };
 
@@ -83,7 +83,7 @@ export default function ProfileSetupMain() {
         {step === 3 && <SetGender onNext={handleNext} />}
         {step === 4 && <SetLocation onNext={handleNext} />}
         {step === 5 && <SetImage onNext={handleNext} />}
-        {step === 6 && <SpeechKeyword onNext={handleSpeechKeywordNext} />}
+        {step === 6 && <SpeechKeyword onNext={handleSpeechKeywordNext} />}  
         {step === 7 && (
           <motion.div
             initial={{ x: "100%" }}
@@ -92,7 +92,9 @@ export default function ProfileSetupMain() {
             transition={{ type: "spring", stiffness: 300, damping: 30 }}
             className="flex-1 flex flex-col"
           >
-            <SetKeywords onNext={handleSubmitProfile} />
+            <SetKeywords onNext={(data: { personalities: string[]; keywords: string[] }) => {
+              handleSubmitProfile(data);
+            }} />
           </motion.div>
         )}
         {step === 8 && <SetComplete />}

@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 
 // 경로에 맞게 import 확인해주세요
 import { useMicRecording } from "../../hooks/useMicRecording";
@@ -17,7 +17,7 @@ interface SpeechKeywordProps {
 export default function SpeechKeyword({ onNext }: SpeechKeywordProps) {
 
   // ✅ 스토어에서 유저 정보와 업데이트 함수 가져오기
-  const { user, updateUser } = useUserStore();
+  const { user } = useUserStore();
 
   // ✅ 닉네임 가져오기 (없으면 기본값 '회원')
   const name = user?.nickname || "회원";
@@ -25,11 +25,31 @@ export default function SpeechKeyword({ onNext }: SpeechKeywordProps) {
   // ✅ 목소리 분석 훅 사용
   const { analyzeVoice } = useVoiceAnalysis();
 
-  // ✅ 녹음 완료 후 실행될 로직
+  const recordingCompleteRef = useRef<(file: File) => void>();
+
+  const {
+    status,
+    seconds,
+    isShort,
+    handleMicClick,
+    resetStatus,
+  } = useMicRecording((file) => recordingCompleteRef.current?.(file));
+
+  const RenderRecordingControl = (
+    <RecordingControl
+      status={status}
+      seconds={seconds}
+      isShort={isShort}
+      onMicClick={handleMicClick}
+    />
+  );
+
   const onRecordingComplete = useCallback(
     async (file: File) => {
       try {
         const result = await analyzeVoice(file);
+
+        console.log(result);
 
         onNext({
           record: result.audioUrl,
@@ -42,27 +62,12 @@ export default function SpeechKeyword({ onNext }: SpeechKeywordProps) {
         resetStatus();
       }
     },
-    [analyzeVoice, updateUser, onNext],
+    [analyzeVoice, onNext, resetStatus],
   );
 
-  const {
-    status,
-    seconds,
-    isShort,
-    handleMicClick,
-    resetStatus,
-  } = useMicRecording(onRecordingComplete);
-
-
-
-  const RenderRecordingControl = (
-    <RecordingControl
-      status={status}
-      seconds={seconds}
-      isShort={isShort}
-      onMicClick={handleMicClick}
-    />
-  );
+  useEffect(() => {
+    recordingCompleteRef.current = onRecordingComplete;
+  }, [onRecordingComplete]);
 
   return (
     <main className="flex-1 flex flex-col px-2 relative h-full">
