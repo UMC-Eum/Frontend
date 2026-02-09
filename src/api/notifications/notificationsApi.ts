@@ -20,3 +20,30 @@ export const readNotification = async (notificationId: number) => {
   );
   return data.success.data;
 };
+//v1/notifications/hearts(get)
+export const getNotificationHearts = async (params: {
+  cursor?: string | null;
+  size: number;
+}) => {
+  const { data } = await api.get<
+    ApiSuccessResponse<DTO.INotificationHeartGetResponse>
+  >("/v1/notifications/hearts", { params });
+  return data.success.data;
+};
+//v1/notifications/chats(get)
+export const getNotificationChats = async (params: {
+  cursor?: string | null;
+  size: number;
+}) => {
+  const { data } = await api.get<
+    ApiSuccessResponse<DTO.INotificationChatGetResponse>
+  >("/v1/notifications/chats", { params });
+  return data.success.data;
+};
+//v1/notifications/{notificationId} (delete)
+export const deleteNotification = async (notificationId: number) => {
+  const { data } = await api.delete<ApiSuccessResponse<null>>(
+    `/v1/notifications/${notificationId}`,
+  );
+  return data.success.data;
+};
