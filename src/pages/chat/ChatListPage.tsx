@@ -116,13 +116,13 @@ export default function ChatListPage() {
     };
 
     // 2) 읽음 처리 (message.read) - 뱃지 카운트 갱신용
-    const handleRead = (response: any) => {
+    const handleRead = () => {
       // 내 방 목록에 있는 방의 읽음 이벤트라면 갱신
       handleRefresh();
     };
 
     // 3) 삭제 처리 (message.deleted) - 미리보기 갱신용
-    const handleDelete = (response: any) => {
+    const handleDelete = () => {
       handleRefresh();
     };
 

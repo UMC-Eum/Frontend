@@ -1,78 +1,41 @@
-import { create } from "zustand";
-import {
-  getNotifications,
-  readNotification,
-} from "../api/notifications/notificationsApi";
-import { INotification } from "../types/api/notifications/notificationsDTO";
+import { create } from 'zustand';
 
-interface NotificationState {
-  notifications: INotification[];
-  hasUnread: boolean; 
-  nextCursor: string | null;
+interface ToastState {
+  message: string | null;
+  type: 'info' | 'success' | 'error' | 'warning'; // 타입 확장 가능
+  isVisible: boolean;
+  link: string | null; // 클릭 시 이동할 경로 (옵션)
 
-  // 폴링 관련
-  lastKnownId: number; 
-  hasNewBadge: boolean; 
-  clearNewBadge: () => void; 
-
-  // 모달 관련
-  isModalOpen: boolean;
-  selectedNotificationId: INotification | null;
-  closeModal: () => void;
-
-  // 🔥 [추가] 토스트 알림 상태 (UI용)
-  toastMessage: string | null;
-  isToastVisible: boolean;
-  toastLink: string | null;
-
-  // 🔥 [추가] 토스트 제어 함수
-  showToast: (message: string, link?: string | null) => void;
+  // 액션
+  showToast: (message: string, type?: 'info' | 'success' | 'error' | 'warning', link?: string | null) => void;
   hideToast: () => void;
-
-  refreshNotifications: () => Promise<void>;
-  markAsRead: (notificationId: number) => Promise<void>;
 }
 
-export const useNotificationStore = create<NotificationState>((set, get) => ({
-  notifications: [],
-  hasUnread: false,
-  nextCursor: null,
+export const useToastStore = create<ToastState>((set) => ({
+  message: null,
+  type: 'info',
+  isVisible: false,
+  link: null,
 
-  lastKnownId: 0,
-  hasNewBadge: false,
-  isModalOpen: false,
-  selectedNotificationId: null,
-
-  // 🔥 [추가] 토스트 초기값
-  toastMessage: null,
-  isToastVisible: false,
-  toastLink: null,
-
-  closeModal: () => set({ isModalOpen: false, selectedNotificationId: null }),
-  clearNewBadge: () => set({ hasNewBadge: false }),
-
-  // 🔥 [추가] 토스트 띄우기 함수
-  showToast: (message, link = null) => {
+  showToast: (message, type = 'info', link = null) => {
     set({ 
-      toastMessage: message, 
-      isToastVisible: true, 
-      toastLink: link 
+      message, 
+      type, 
+      isVisible: true, 
+      link 
     });
 
-    // 3초 뒤 자동 닫기
+    // 3초 뒤에 자동으로 닫기
     setTimeout(() => {
-      set({ isToastVisible: false });
+      set({ isVisible: false });
+      // 애니메이션 시간을 고려해 데이터 초기화는 약간 늦게 해도 됨
       setTimeout(() => {
-        set({ toastMessage: null, toastLink: null });
-      }, 300); // 애니메이션 시간 고려
+        set({ message: null, link: null });
+      }, 300); 
     }, 3000);
   },
 
   hideToast: () => {
-    set({ isToastVisible: false });
+    set({ isVisible: false });
   },
-
-  // ... (refreshNotifications, markAsRead 등 기존 로직 그대로 유지) ...
-  refreshNotifications: async () => { /* 기존 코드 */ },
-  markAsRead: async (notificationId: number) => { /* 기존 코드 */ },
 }));

@@ -45,7 +45,6 @@ export default function OnBoardingPage() {
   const checkPermissionAndPass = async () => {
     try {
       // 알림 권한 상태 가져오기 (변수는 유지하되, 조건문에서만 뺍니다)
-      const isNotiGranted = Notification.permission === "granted";
       
       // 카메라/마이크 권한 상태 확인
       const cameraStatus = await navigator.permissions.query({ name: "camera" as any }).catch(() => ({ state: 'prompt' }));
