@@ -128,8 +128,10 @@ export default function OnBoardingPage() {
         if (isPassed) {
           // 이미 동의함 -> 권한 체크로 바로 이동
           console.log("✅ 이미 약관 동의 완료 -> 권한 체크로 이동");
-          setShowAgreement(false);
-          await checkPermissionAndPass();
+          await fetchAgreementsData(); // 이 시점에 약관 내용을 로딩
+          setShowAgreement(true);
+          //setShowAgreement(false);
+          //await checkPermissionAndPass();
         } else {
           // 동의 안함 -> 약관 데이터 가져오고 모달 띄우기
           console.log("📝 약관 동의 필요 -> 약관 데이터 로드 및 모달 노출");

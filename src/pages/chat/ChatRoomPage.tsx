@@ -42,7 +42,7 @@ export default function ChatRoomPage() {
  // 메세지 저장 관리
   const [tempMessages, setTempMessages] = useState<IMessageItem[]>([]);
   const [socketMessages, setSocketMessages] = useState<IMessageItem[]>([]);
-
+ 
   // [Store 사용] 스토어에서 함수들 가져오기
   const { socket, connect, joinRoom, sendMessage } = useSocketStore();
 
@@ -86,6 +86,11 @@ export default function ChatRoomPage() {
 
       if (newMsgData.senderUserId === myId) return;
 
+      if (blockId) {
+        console.log("🚫 차단된 사용자의 메시지를 무시했습니다.");
+        return; 
+      }
+
       let uiType: any = newMsgData.type;
       if (newMsgData.type === "IMAGE") {
         uiType = "PHOTO";
@@ -118,7 +123,7 @@ export default function ChatRoomPage() {
     return () => {
       socket.off("message.new", handleMessageNew);
     };
-  }, [socket, myId, bottomRef]);
+  }, [socket, myId, bottomRef, blockId]);
 
   // 읽음 처리 로직
   useEffect(() => {
@@ -258,7 +263,9 @@ export default function ChatRoomPage() {
 
   // [수정] 데이터 표준화(Normalization) + 중복 제거 + 정렬
   const combinedMessages = useMemo(() => {
+    // 1. 모든 메시지 합치기 (필터링 없이 그대로 가져옴)
     const rawList = [...messages, ...socketMessages, ...tempMessages];
+
     const uniqueMap = new Map();
 
     rawList.forEach((msg: any) => {
@@ -284,8 +291,8 @@ export default function ChatRoomPage() {
       const validTimeB = isNaN(timeB) ? 0 : timeB;
       return validTimeA - validTimeB;
     });
+    // 의존성 배열에서 blockId, peerInfo는 빼도 됩니다 (필터링을 안 하니까)
   }, [messages, socketMessages, tempMessages]);
-
   return (
     <div className="w-full h-dvh flex flex-col bg-white relative overflow-hidden">
       
