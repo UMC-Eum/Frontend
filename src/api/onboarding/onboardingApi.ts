@@ -47,3 +47,15 @@ export const getRecommendations = async (body: IRecommendationsRequest) => {
 
   return data.success.data;
 };
+
+//v1/onboarding/ideal-personalities (PUT)
+export const putIdealPersonalities = async (body: {
+  personalityIds: string[];
+}) => {
+  const { data } = await api.put<ApiSuccessResponse<null>>(
+    "/v1/onboarding/ideal-personalities",
+    body,
+  );
+
+  return data.success.data;
+};

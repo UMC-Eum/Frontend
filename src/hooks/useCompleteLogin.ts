@@ -29,7 +29,9 @@ export default function useCompleteLogin() {
     setError(null);
 
     try {
+      //여기서 문제 터짐. DB랑 얘기해봐야함
       const user = await getMyProfile(); // IUserProfile
+      console.log("가져온 유저 정보", user);
 
       const userWithAge: IUserProfileExtend = {
         ...user,
