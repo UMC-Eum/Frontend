@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react"; // useEffect 추가
 import { useMicRecording } from "../../hooks/useMicRecording"; 
 import { ChatPlusMenu } from "./ChatPlusMenu"; 
 import RecordingControl from "../RecordingControl"; 
@@ -7,22 +7,25 @@ interface ChatInputBarProps {
   onSendText: (text: string) => void;
   onSendVoice: (file: File, duration: number) => void;
   isBlocked?: boolean;
-  onSelectImage: (file: File) => void;
-  // 🔥 [추가] 이미지가 선택되었을 때 부모에게 파일을 전달하는 함수
-  //onSendImage: (file: File) => void; 
+  onSelectImage: (file: File) => void; 
 }
 
-export function ChatInputBar({ onSendText, onSendVoice, isBlocked, onSelectImage }: ChatInputBarProps) {
+export function ChatInputBar({ 
+  onSendText, 
+  onSendVoice, 
+  isBlocked, 
+  onSelectImage 
+}: ChatInputBarProps) {
   const [text, setText] = useState("");
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   
-  // 텍스트 입력 Ref
-  const inputRef = useRef<HTMLInputElement>(null);
+  // 🔥 [추가] 파일 선택 상태 및 미리보기 URL 관리
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
-  //입력창 포커스 관리
+  const inputRef = useRef<HTMLInputElement>(null);
   const [isFocused, setIsFocused] = useState(false);
   
-  // 🔥 [추가] 카메라/앨범 실행을 위한 hidden input Refs
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const albumInputRef = useRef<HTMLInputElement>(null);
 
@@ -30,22 +33,35 @@ export function ChatInputBar({ onSendText, onSendVoice, isBlocked, onSelectImage
     onSendVoice(file, duration);
   }, true);
 
-  // 입력창 포커스시 포커스 상태 변경 및 메뉴 닫기
+  // 🔥 [추가] 컴포넌트 언마운트 시 or 파일 변경 시 미리보기 URL 메모리 해제
+  useEffect(() => {
+    return () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+    };
+  }, [previewUrl]);
+
   const handleInputFocus = () => {
     setIsFocused(true);
     if (isMenuOpen) setIsMenuOpen(false);
   };
 
-
-  // 포커스 해제 핸들러
   const handleInputBlur = () => {
     setIsFocused(false);
   };
 
-  const handleTextSend = () => {
-    if (!text.trim()) return;
-    onSendText(text);
-    setText("");
+  // 🔥 [수정] 전송 버튼 클릭 핸들러 (텍스트 or 파일 전송)
+  const handleSend = () => {
+    // 1. 파일이 있으면 파일 전송
+    if (selectedFile) {
+      onSelectImage(selectedFile);
+      handleRemoveFile(); // 전송 후 미리보기 초기화
+    }
+
+    // 2. 텍스트가 있으면 텍스트 전송
+    if (text.trim()) {
+      onSendText(text);
+      setText("");
+    }
   };
 
   const handlePlusClick = () => {
@@ -55,53 +71,54 @@ export function ChatInputBar({ onSendText, onSendVoice, isBlocked, onSelectImage
     }
   };
 
+  // 🔥 [수정] 파일 선택 시 -> 바로 전송하지 않고 '미리보기 상태'로 저장
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // 🔥 여기서 부모(ChatRoomPage)에게 파일을 넘겨줍니다!
-    onSelectImage(file);
+    // 기존 미리보기 URL 해제 (메모리 누수 방지)
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+
+    // 미리보기 URL 생성
+    const url = URL.createObjectURL(file);
+    
+    setSelectedFile(file);
+    setPreviewUrl(url);
 
     // 초기화 & 메뉴 닫기
     e.target.value = "";
     setIsMenuOpen(false);
   };
 
-  // 🔥 [추가] 메뉴 버튼 클릭 핸들러
+  // 🔥 [추가] 미리보기 삭제 (X 버튼)
+  const handleRemoveFile = () => {
+    setSelectedFile(null);
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    setPreviewUrl(null);
+  };
+
   const triggerCamera = () => {
-    console.log("📸 카메라 실행");
     cameraInputRef.current?.click();
   };
 
   const triggerAlbum = () => {
-    console.log("🖼️ 앨범 실행");
     albumInputRef.current?.click();
   };
 
-  //마이크 숨김 여부 계산
-  const shouldHideMic = status === "inactive" && (isMenuOpen || isFocused || text.length > 0);
+  const shouldHideMic = status === "inactive" && (isMenuOpen || isFocused || text.length > 0 || selectedFile !== null);
 
-  // ✅ 차단 상태일 때 보여줄 UI (입력창 덮어쓰기)
+  // 차단 상태 UI (기존 동일)
   if (isBlocked) {
     return (
       <div className="shrink-0 min-h-[60px] px-4 py-2 bg-white border-t border-gray-100 flex items-center justify-center">
-        {/* + 버튼 (비활성화) */}
         <button disabled className="mr-3 p-2 text-gray-300">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M12 5V19M5 12H19" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 5V19M5 12H19" strokeLinecap="round" strokeLinejoin="round"/></svg>
         </button>
-
-        {/* 회색 입력바 */}
         <div className="flex-1 bg-[#F2F4F6] rounded-[20px] px-4 py-3 text-[14px] text-[#979797] flex items-center">
           차단한 사용자와는 대화할 수 없어요.
         </div>
-
-        {/* 전송 버튼 (비활성화) */}
         <button disabled className="ml-3 p-2 text-gray-300">
-           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M22 2L11 13M22 2L15 22L11 13M11 13L2 9L22 2" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
+           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 2L11 13M22 2L15 22L11 13M11 13L2 9L22 2" strokeLinecap="round" strokeLinejoin="round"/></svg>
         </button>
       </div>
     );
@@ -109,10 +126,7 @@ export function ChatInputBar({ onSendText, onSendVoice, isBlocked, onSelectImage
 
   return (
     <div className="w-full">
-      
-      {/* 입력바 영역 */}
       <div className="flex flex-col bg-white border-t border-gray-100 pb-safe relative z-20">
-        
         
         <RecordingControl 
           status={status}
@@ -121,28 +135,44 @@ export function ChatInputBar({ onSendText, onSendVoice, isBlocked, onSelectImage
           isResultPage={false}
           onMicClick={handleMicClick}
           isChat={true}
-          // ✅ [수정] 클래스에 조건부 투명도(opacity) 적용
-          // transition-opacity duration-200: 부드럽게 사라지고 나타남
           className={`absolute bottom-full mb-6 flex flex-col items-center transition-opacity duration-200 
             ${shouldHideMic ? "opacity-0 pointer-events-none" : "opacity-100 pointer-events-auto"}`} 
         />
 
-        {/* ----------------- 기존 입력창 내용 ----------------- */}
+        {/* 🔥 [추가] 파일 미리보기 영역 (파일이 선택되었을 때만 보임) */}
+        {selectedFile && previewUrl && (
+          <div className="px-4 pt-3 pb-1 flex">
+            <div className="relative inline-block">
+              {/* 이미지/비디오 구분하여 렌더링 */}
+              {selectedFile.type.startsWith('video') ? (
+                 <video src={previewUrl} className="h-20 w-auto rounded-lg border border-gray-200 object-cover" />
+              ) : (
+                 <img src={previewUrl} alt="preview" className="h-20 w-auto rounded-lg border border-gray-200 object-cover" />
+              )}
+              
+              {/* X 버튼 (삭제) */}
+              <button 
+                onClick={handleRemoveFile}
+                className="absolute -top-2 -right-2 bg-gray-500 text-white rounded-full p-1 hover:bg-gray-700 transition-colors"
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+              </button>
+            </div>
+          </div>
+        )}
+
         <div className="flex items-center gap-2 px-4 py-3 shrink-0">
           
-          {/* (+) 버튼 */}
           <button 
             onClick={handlePlusClick} 
             className={`p-2 transition-transform duration-200 ${isMenuOpen ? "rotate-45 text-gray-800" : "text-gray-400 rotate-0"}`}
           >
-            {isMenuOpen ? (
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-            ) : (
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-            )}
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
           </button>
           
-          {/* 텍스트 입력 칸 */}
           <div className="flex-1 bg-gray-100 rounded-[24px] px-4 py-2.5 flex items-center">
             <input 
               ref={inputRef}
@@ -153,13 +183,14 @@ export function ChatInputBar({ onSendText, onSendVoice, isBlocked, onSelectImage
               onFocus={handleInputFocus} 
               onBlur={handleInputBlur}
               disabled={status === "recording"}
-              onKeyDown={(e) => e.key === "Enter" && !e.nativeEvent.isComposing && handleTextSend()}
+              // 🔥 [수정] 엔터 키 누르면 handleSend 호출 (파일도 같이 전송되게)
+              onKeyDown={(e) => e.key === "Enter" && !e.nativeEvent.isComposing && handleSend()}
             />
           </div>
 
-          {/* 전송 버튼 */}
-          {text.length > 0 ? (
-            <button onClick={handleTextSend} className="p-2 font-bold text-[#FC3367] text-sm whitespace-nowrap">전송</button>
+          {/* 🔥 [수정] 텍스트가 있거나 OR 파일이 선택되었으면 전송 버튼 활성화 */}
+          {(text.length > 0 || selectedFile) ? (
+            <button onClick={handleSend} className="p-2 font-bold text-[#FC3367] text-sm whitespace-nowrap">전송</button>
           ) : (
             <div className="w-[37px] h-[37px] bg-[#E9ECED] rounded-full flex items-center justify-center">
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 22 16" fill="none">
@@ -169,33 +200,28 @@ export function ChatInputBar({ onSendText, onSendVoice, isBlocked, onSelectImage
           )}
         </div>
 
-        {/* 하단 메뉴 영역 */}
         {isMenuOpen && (
           <ChatPlusMenu 
-            onCameraClick={triggerCamera} // 🔥 함수 연결
-            onAlbumClick={triggerAlbum}   // 🔥 함수 연결
+            onCameraClick={triggerCamera} 
+            onAlbumClick={triggerAlbum}   
           />
         )}
       </div>
 
-      {/* 🔥 [추가] 숨겨진 File Inputs */}
-      {/* 1. 카메라용 (capture="environment"로 후면 카메라 우선 실행) */}
       <input 
         type="file" 
         id="camera-input"
         accept="image/*" 
-        capture="environment"  // 🔥 핵심: 이 속성이 있어야 바로 카메라가 켜짐
+        capture="environment"  
         ref={cameraInputRef} 
         onChange={handleFileSelect} 
         className="hidden" 
       />
 
-      {/* 2. 앨범용 (capture 속성 없음 -> 갤러리 열림) */}
       <input 
         type="file" 
         id="album-input"
-        accept="image/*" 
-        // 🔥 여기는 capture를 빼야 앨범 선택창이 뜸
+        accept="image/*,video/*" 
         ref={albumInputRef} 
         onChange={handleFileSelect} 
         className="hidden" 

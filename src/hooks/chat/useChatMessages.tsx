@@ -90,5 +90,5 @@ export function useChatMessages(roomId: number | undefined, myId: number) {
     } catch (e) { console.error(e); }
   };
 
-  return { messages, nextCursor, isLoading, isInitLoaded, loadPrevMessages, handleSendText, handleSendVoice, handleDeleteMessage };
+  return { messages, setMessages, nextCursor, isLoading, isInitLoaded, loadPrevMessages, handleSendText, handleSendVoice, handleDeleteMessage };
 }

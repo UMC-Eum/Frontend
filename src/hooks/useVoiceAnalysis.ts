@@ -10,7 +10,7 @@ export const useVoiceAnalysis = (theme: VoiceAnalysisTheme = "intro") => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
 
   // ✅ user 객체 가져오기 (여기에 userId가 들어있음)
-  const { user, updateUser } = useUserStore();
+  const { user } = useUserStore();
 
   const { 
     setScores, 
@@ -44,6 +44,7 @@ export const useVoiceAnalysis = (theme: VoiceAnalysisTheme = "intro") => {
           userId: Number(user.userId), // Store에 있는 ID 사용
           audioUrl: presignData.data.fileUrl,
           language: "ko-KR",
+          analysisType: "profile"
         });
 
         // 4. 결과 매핑 및 스토어 저장
