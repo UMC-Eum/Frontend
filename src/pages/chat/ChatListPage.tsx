@@ -4,39 +4,39 @@ import Navbar from "../../components/Navbar";
 import { getChatRooms } from "../../api/chats/chatsApi"; 
 import { IChatsRoomItem } from "../../types/api/chats/chatsDTO";
 import { getBlocks } from "../../api/socials/socialsApi";
+// 🔥 [1] 소켓 스토어 추가
+import { useSocketStore } from "../../stores/useSocketStore";
 
 export default function ChatListPage() {
 
   const navigate = useNavigate();
+  // 🔥 [2] 소켓 객체 가져오기
+  const { socket } = useSocketStore();
+
   // 채팅방 목록 저장
   const [rooms, setRooms] = useState<IChatsRoomItem[]>([]);
-  // 커서(채팅 룸이 많다면 필요함, 아래로 내릴 때 )
+  // 커서
   const [nextCursor, setNextCursor] = useState<string | null>(null);
-  // UI 표시용 State(채팅방 목록 로딩 중인지)
+  // UI 표시용 State
   const [isLoading, setIsLoading] = useState(false); 
-  // 마지막 페이지 여부(커서를 받아오기 위해서), lastpage있으면 cursor 있음
+  // 마지막 페이지 여부
   const [isLastPage, setIsLastPage] = useState(false);
 
-  // 로딩 상태를 즉시 확인하기 위한 Ref (무한루프 방지용)
+  // 로딩 상태 Ref
   const loadingRef = useRef(false);
-  // 무한 스크롤을 위한 Ref (화면 최하단을 감시함)
+  // 무한 스크롤 Ref
   const observerTarget = useRef<HTMLDivElement>(null);
-  //차단 대상 사용자 ID 목록 (차단시 채팅방 목록에서 )
+  // 차단 대상 사용자 ID 목록
   const [blockedUserIds, setBlockedUserIds ] = useState<Set<number>>(new Set());
 
-  // 🔥 [3] 페이지 진입 시 차단 목록을 서버에서 가져오기 -> 차단시 그 사람만 렌더링 제외 및 ui 변경
+  // 페이지 진입 시 차단 목록 가져오기
   useEffect(() => {
     const fetchBlockedList = async () => {
       try {
-        // 차단 목록을 넉넉하게 가져옵니다 
         const items = await getBlocks({ size: 100 });
-        
         if (items) {
-          // items 안에서 상대방 ID를 뽑아내야 합니다.
-          // ⚠️ 중요: getBlocks의 응답 item 안에 'userId'가 들어있는지, 'targetUserId'인지 확인 필요
-          // 보통 user 객체 안에 있거나, 바로 userId 필드가 있습니다. 아래는 userId라고 가정한 코드입니다.
+          // targetUserId 혹은 userId 확인 필요 (여기선 기존 로직 유지)
           const ids = new Set(items.items.map((item: any) => item.userId));
-          
           setBlockedUserIds(ids);
           console.log("🚫 차단 목록 로드 완료:", ids);
         }
@@ -46,15 +46,16 @@ export default function ChatListPage() {
     };
     fetchBlockedList();
   }, []);
+
   // 채팅방 목록을 가져오는 함수
-  const fetchRooms = useCallback(async (cursor: string | null) => {
-    // State인 isLoading 대신 Ref를 확인하여 함수가 재생성되지 않게 함
+  // 🔥 [3] isBackground 추가: 소켓으로 갱신될 때는 로딩바를 보여주지 않기 위함
+  const fetchRooms = useCallback(async (cursor: string | null, isBackground = false) => {
     if (loadingRef.current) return;
     
-    // 로딩 상태를 true로 하여 함수 재 호출 되지 않도록 함
     loadingRef.current = true;
-    // UI 표시용 State
-    setIsLoading(true);
+    
+    // 배경 갱신(소켓)이 아닐 때만 UI 로딩바 표시
+    if (!isBackground) setIsLoading(true);
 
     try {
       const response = await getChatRooms({ 
@@ -63,20 +64,18 @@ export default function ChatListPage() {
       });
 
       if (response) {
-        // 🚨 [핵심 수정 2] response.items를 변수에 담고, 더미 데이터 로직을 적용
        const fetchedItems = response.items;
 
-
-        // 커서 값이 있다면 추가 로딩된 데이터를 기존 데이터에 추가
+        // 커서가 없으면(첫 로딩 or 소켓 갱신) 덮어쓰기
         if (!cursor) {
           setRooms(fetchedItems);
         } else {
+          // 커서가 있으면(더보기) 이어붙이기
           setRooms((prev) => [...prev, ...fetchedItems]);
         }
         
         setNextCursor(response.nextCursor);
         
-        // 다음 커서가 없고, 가져온 아이템도(더미포함) 없으면 마지막 페이지
         if (!response.nextCursor && fetchedItems.length === 0) {
           setIsLastPage(true);
         }
@@ -85,23 +84,66 @@ export default function ChatListPage() {
       console.error("채팅방 목록 불러오기 실패:", error);
     } finally {
       loadingRef.current = false;
-      setIsLoading(false);
+      // 배경 갱신이 아닐 때만 로딩바 해제
+      if (!isBackground) setIsLoading(false);
     }
-    // 의존성 배열을 빈 배열로 설정해서 fetchRooms 함수가 초기 1번만 생성되고 재생성되지 않도록 함
-  }, []); //
+  }, []); 
 
-  // 1. 초기 진입 usecallback이라 1번만 왜냐 fetchrooms가 변하지 않기에 실행 됨
+  // 1. 초기 진입 (로딩바 있음)
   useEffect(() => {
-    fetchRooms(null);
+    fetchRooms(null, false);
   }, [fetchRooms]);
 
-  // 2. 무한 스크롤 Observer 알필요 없긴함
+  // 🔥 [4] 소켓 이벤트 리스너 (알림, 읽음, 삭제 감지 -> 렌더링)
+  useEffect(() => {
+    if (!socket) return;
+
+    // 목록 새로고침 핸들러 (커서 null로 초기화하여 처음부터 다시 로드)
+    const handleRefresh = () => {
+      console.log("♻️ [ChatList] 변경사항 감지! 목록 갱신");
+      loadingRef.current = false; // 강제 리셋
+      fetchRooms(null, true); // true = 로딩바 없이 조용히 갱신
+    };
+
+    // 1) 알림 수신 (notification.new) - 사진의 Payload 활용
+    const handleNotification = (response: any) => {
+      const payload = response.success?.data || response;
+      // data 객체 안에 chatRoomId가 있다면 채팅 관련 알림임 -> 목록 갱신
+      if (payload.data?.chatRoomId) {
+        console.log("🔔 채팅 알림 수신:", payload.title);
+        handleRefresh();
+      }
+    };
+
+    // 2) 읽음 처리 (message.read) - 뱃지 카운트 갱신용
+    const handleRead = (response: any) => {
+      // 내 방 목록에 있는 방의 읽음 이벤트라면 갱신
+      handleRefresh();
+    };
+
+    // 3) 삭제 처리 (message.deleted) - 미리보기 갱신용
+    const handleDelete = (response: any) => {
+      handleRefresh();
+    };
+
+    socket.on("notification.new", handleNotification);
+    socket.on("message.read", handleRead);
+    socket.on("message.deleted", handleDelete);
+
+    return () => {
+      socket.off("notification.new", handleNotification);
+      socket.off("message.read", handleRead);
+      socket.off("message.deleted", handleDelete);
+    };
+  }, [socket, fetchRooms]);
+
+
+  // 2. 무한 스크롤 Observer
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
-        // 로딩중이 아니고, 마지막 페이지 아니고, 다음 커서가 있을 때만 실행
         if (entries[0].isIntersecting && !loadingRef.current && !isLastPage && nextCursor) {
-          fetchRooms(nextCursor);
+          fetchRooms(nextCursor, false); // 더보기는 로딩바 표시
         }
       },
       { threshold: 1.0 } 
@@ -112,9 +154,9 @@ export default function ChatListPage() {
     }
 
     return () => observer.disconnect();
-  }, [nextCursor, isLastPage, fetchRooms]); // isLoading 제거
+  }, [nextCursor, isLastPage, fetchRooms]);
 
-  // 마지막 메세지 언제 왔는지 계산
+  // 시간 포맷 함수
   const formatTime = (isoString: string) => {
     if (!isoString) return "";
     const date = new Date(isoString);
@@ -140,23 +182,16 @@ export default function ChatListPage() {
           </div>
         )}
         
-// 
-{rooms.map((room) => {
-  // 1. 차단 목록(blockedUserIds)에 이 방 상대방이 있는지 확인
-  const isBlocked = blockedUserIds.has(room.peer.userId);
-
-  // 2. 🔥 [핵심] 차단됐다면 0으로 강제 고정
-  // 새로고침 해도 blockedUserIds만 잘 불러와지면 무조건 0으로 뜸
-  const displayUnreadCount = isBlocked ? 0 : room.unreadCount;
-  
-  // 3. 🔥 [핵심] 메시지 내용도 숨김
-  const displayLastMessage = isBlocked 
-    ? "차단된 사용자와의 대화입니다." 
-    : (room.lastMessage?.textPreview || "대화를 시작해보세요!");
+        {rooms.map((room) => {
+          const isBlocked = blockedUserIds.has(room.peer.userId);
+          const displayUnreadCount = isBlocked ? 0 : room.unreadCount;
           
-          // 차단되면 시간도 안 보여주거나, 기존 시간 유지
+          const displayLastMessage = isBlocked 
+            ? "차단된 사용자와의 대화입니다." 
+            : (room.lastMessage?.textPreview || "대화를 시작해보세요!");
+          
           const displayTime = isBlocked 
-             ? "" // 혹은 room.lastMessage?.sentAt (마지막 시점 고정)
+             ? "" 
              : (room.lastMessage?.sentAt ? formatTime(room.lastMessage.sentAt) : "");
 
           return (
@@ -169,7 +204,7 @@ export default function ChatListPage() {
                 <img 
                   src={room.peer.profileImageUrl} 
                   alt={room.peer.nickname}
-                  className={`w-full h-full object-cover ${isBlocked ? "opacity-50 grayscale" : ""}`} // 차단 시 프로필 흐리게(선택사항)
+                  className={`w-full h-full object-cover ${isBlocked ? "opacity-50 grayscale" : ""}`}
                 />
               </div>
 
@@ -184,7 +219,6 @@ export default function ChatListPage() {
                 </div>
                 
                 <p className="text-[16px] text-[#555] truncate leading-snug">
-                  {/* 🔥 변조된 메시지 내용 표시 */}
                   {!room.lastMessage && !isBlocked ? (
                     "대화를 시작해보세요!" 
                   ) : room.lastMessage?.type === "AUDIO" && !isBlocked ? (
@@ -199,7 +233,6 @@ export default function ChatListPage() {
                 </p>
               </div>
 
-              {/* 🔥 차단 안 된 경우에만 뱃지 표시 (0보다 클 때) */}
               {displayUnreadCount > 0 && (
                 <div className="shrink-0 w-6 h-6 rounded-full bg-[#FC3367] flex items-center justify-center">
                   <span className="text-[14px] text-white">
