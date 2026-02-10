@@ -23,7 +23,8 @@ const MatchingPage = () => {
   const isResultPage = location.pathname.includes("result");
 
   const { mutate: analyze } = useMutation({
-    mutationFn: (file: File) => processVoiceAnalysis({ file }),
+    mutationFn: (file: File) =>
+      processVoiceAnalysis({ file, analysisType: "ideal-type" }),
 
     // ✅ 군더더기 싹 뺀 PATCH 로직
     onSuccess: async (data) => {
