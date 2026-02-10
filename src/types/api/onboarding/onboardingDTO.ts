@@ -68,8 +68,6 @@ export interface IItemRecommendation {
 export interface IRecommendationsRequest {
   cursor?: string;
   size?: number;
-  ageMin?: number;
-  ageMax?: number;
 }
 export interface IRecommendationsResponse {
   nextCursor: string | null;
