@@ -27,6 +27,7 @@ const NotificationsPage = () => {
     setSearchParams({ tab: newTab }, { replace: true });
   };
 
+  // 1. 데이터 조회 (Infinite Query)
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } =
     useInfiniteQuery({
       queryKey: ["notifications", currentTab],
@@ -36,7 +37,19 @@ const NotificationsPage = () => {
           : getNotificationChats({ cursor: pageParam, size: 20 }),
       initialPageParam: null as string | null,
       getNextPageParam: (lastPage) => lastPage.nextCursor,
+      refetchInterval: 1000 * 30,
+      staleTime: 1000 * 60 * 3,
+      gcTime: 1000 * 60 * 5,
     });
+
+  const allNotifications = data?.pages.flatMap((page) => page.items) || [];
+
+  // 2. 필터링 로직 (HEART와 CHAT만 정확히 매칭)
+  const filteredNotifications = allNotifications.filter((noti) => {
+    return noti.type === currentTab;
+  });
+
+  // 3. 읽음 처리 Mutation
   const { mutate: markAsRead } = useMutation({
     mutationFn: readNotification,
     onMutate: async (notificationId: number) => {
@@ -47,6 +60,7 @@ const NotificationsPage = () => {
         "notifications",
         currentTab,
       ]);
+
       queryClient.setQueryData<InfiniteData<DTO.INotificationsGetResponse>>(
         ["notifications", currentTab],
         (old) => {
@@ -78,39 +92,42 @@ const NotificationsPage = () => {
       });
     },
   });
-  const allNotifications = data?.pages.flatMap((page) => page.items) || [];
 
   return (
-    <div className="flex flex-col min-h-screen bg-white">
+    <div className="flex flex-col h-screen bg-white overflow-hidden">
       <BackButton title="알림" />
       <LikeOrMessage tab={currentTab} setTab={setTab} />
 
-      {isLoading ? (
-        <div className="flex justify-center mt-20 text-gray-400">
-          로딩 중...
-        </div>
-      ) : allNotifications.length > 0 ? (
-        <div className="flex flex-col">
-          {allNotifications.map((noti) => (
-            <NotificationLabel
-              key={noti.notificationId}
-              notification={noti}
-              onClick={(id) => markAsRead(id)}
-            />
-          ))}
+      {/* 🟢 스크롤이 가능하도록 이 영역을 감싸고 overflow-y-auto를 줍니다. */}
+      <main className="flex-1 overflow-y-auto scrollbar-hide">
+        {isLoading ? (
+          <div className="flex justify-center mt-20 text-gray-400">
+            로딩 중...
+          </div>
+        ) : filteredNotifications.length > 0 ? (
+          <div className="flex flex-col">
+            {filteredNotifications.map((noti) => (
+              <NotificationLabel
+                key={noti.notificationId}
+                notification={noti}
+                onClick={(id) => markAsRead(id)}
+              />
+            ))}
 
-          {hasNextPage && (
-            <div
-              onClick={() => fetchNextPage()}
-              className="p-4 text-center text-sm text-gray-400 cursor-pointer"
-            >
-              {isFetchingNextPage ? "더 불러오는 중..." : "더보기"}
-            </div>
-          )}
-        </div>
-      ) : (
-        <EmptyNotification selected={currentTab} />
-      )}
+            {/* 더보기 버튼 (무한 스크롤 트리거) */}
+            {hasNextPage && (
+              <div
+                onClick={() => fetchNextPage()}
+                className="p-4 text-center text-sm text-gray-400 cursor-pointer"
+              >
+                {isFetchingNextPage ? "더 불러오는 중..." : "더보기"}
+              </div>
+            )}
+          </div>
+        ) : (
+          <EmptyNotification selected={currentTab} />
+        )}
+      </main>
     </div>
   );
 };
