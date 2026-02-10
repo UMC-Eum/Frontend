@@ -12,12 +12,11 @@ export const useVoiceAnalysis = (theme: VoiceAnalysisTheme = "intro") => {
   // ✅ user 객체 가져오기 (여기에 userId가 들어있음)
   const { user, updateUser } = useUserStore();
 
-  const {
-    setScores,
-    setPersonalities,
-    setInterests,
-    getPersonalities,
-    getInterests,
+  const { 
+    setScores, 
+    setPersonalities, 
+    setInterests, 
+    setIdeal
   } = useScoreStore();
 
   const analyzeVoice = useCallback(
@@ -32,8 +31,8 @@ export const useVoiceAnalysis = (theme: VoiceAnalysisTheme = "intro") => {
         // 1. Presign URL 발급
         const presignData = await postPresign({
           fileName: file.name,
-          contentType: file.type || "audio/wav",
-          purpose: theme === "intro" ? "PROFILE_INTRO_AUDIO" : "TEMP_RECORDING",
+          contentType: file.type,
+          purpose: "PROFILE_INTRO_AUDIO",
         });
 
         // 2. S3 업로드
@@ -49,56 +48,29 @@ export const useVoiceAnalysis = (theme: VoiceAnalysisTheme = "intro") => {
 
         // 4. 결과 매핑 및 스토어 저장
         const { keywordCandidates } = analysisResult;
+        const currentPersonalities = keywordCandidates.personalities || [];
+        const currentInterests = keywordCandidates.interests || [];
 
         // (옵션) ScoreStore에는 원본 객체({text, score})를 저장해도 됨 (점수 계산용이면)
         if (theme === "intro") {
           setScores([keywordCandidates]);
         } else if (theme === "hobby") {
-          setInterests(keywordCandidates.interests);
-        } else {
-          setPersonalities(keywordCandidates.personalities);
-        }
-
-        // ✅ UserStore 업데이트용 데이터 변환 (객체 -> 문자열)
-        // Store의 updateUser는 string[]을 기대하므로 .text만 뽑아야 함
-        const currentPersonalities = getPersonalities().map(
-          (p: any) => p.text || p,
-        );
-        const currentInterests = getInterests().map((i: any) => i.text || i);
-
-        // 5. 테마에 따른 유저 프로필 업데이트
-        if (theme === "ideal") {
-          updateUser({
-            idealPersonalities: currentPersonalities,
-          });
+          setInterests(currentInterests);
         } else if (theme === "personality") {
-          updateUser({
-            personalities: currentPersonalities,
-          });
-        } else if (theme === "hobby") {
-          updateUser({
-            keywords: currentInterests,
-          });
-        } else {
-          // "intro" 테마
-          updateUser({
-            introAudioUrl: presignData.data.fileUrl,
-            introText: analysisResult.summary,
-            keywords: currentInterests,
-            personalities: currentPersonalities,
-          });
+          setPersonalities(currentPersonalities);
+        } else if (theme === "ideal") {
+          setIdeal(currentPersonalities);
         }
 
-        // 6. 결과 리턴 (컴포넌트에서 쓸 수 있도록 원본/변환 데이터 모두 리턴)
+        const personalities = (keywordCandidates.personalities || []).map(p => p.text);
+        const interests = (keywordCandidates.interests || []).map(i => i.text);
+
         return {
-          audioUrl: presignData.data.fileUrl,
+          audioUrl: presignData.data.fileUrl, 
           summary: analysisResult.summary,
-          vibeVector: analysisResult.vibeVector || [], // 없으면 빈배열
-
-          // 컴포넌트 편의를 위해 여기서도 객체 그대로 리턴 (컴포넌트에서 .map 처리했으므로 호환됨)
-          personalities: keywordCandidates.personalities,
-          interests: keywordCandidates.interests,
-
+          vibeVector: analysisResult.vibeVector,
+          personalities,
+          interests,
           originalResponse: analysisResult,
         };
       } catch (error) {
@@ -108,16 +80,7 @@ export const useVoiceAnalysis = (theme: VoiceAnalysisTheme = "intro") => {
         setIsAnalyzing(false);
       }
     },
-    [
-      theme,
-      user, // ✅ user 의존성 추가
-      setScores,
-      setPersonalities,
-      setInterests,
-      getPersonalities,
-      getInterests,
-      updateUser,
-    ],
+    [theme, user, setScores, setPersonalities, setInterests],
   );
 
   return {

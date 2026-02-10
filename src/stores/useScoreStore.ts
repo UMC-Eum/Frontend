@@ -7,19 +7,15 @@ interface ScoreState {
   keywords: {
     personalities: IPersonality[];
     interests: IInterest[];
+    ideal: IPersonality[]; //setScores에는 포함 X
   };
 }
 
-//상태 참조보다 get 사용하는게 쓰기 편해요
 interface ScoreActions {
-  //set
   setScores: (candidates: IKeywordscandidate[]) => void;
   setPersonalities: (personalities: IPersonality[]) => void;
   setInterests: (interests: IInterest[]) => void;
-  //get
-  getScores: () => string[];
-  getPersonalities: () => string[];
-  getInterests: () => string[];
+  setIdeal: (ideal: IPersonality[]) => void;
   clearScores: () => void;
 }
 
@@ -30,24 +26,37 @@ const sortByScore = <T extends { score: number }>(arr: T[]): T[] => {
 export const useScoreStore = create<ScoreState & ScoreActions>()(
   devtools(
     persist(
-      immer((set, get) => ({ 
+      immer((set) => ({ 
         keywords: {
           personalities: [],
           interests: [],
+          ideal: []
         },
 
         setScores: (candidates) =>
           set((state) => {
-            const allPersonalities: IPersonality[] = [];
-            const allInterests: IInterest[] = [];
+            const personalityMap = new Map<string, IPersonality>();
+            const interestMap = new Map<string, IInterest>();
 
             candidates.forEach((candidate) => {
-              if (candidate.personalities) allPersonalities.push(...candidate.personalities);
-              if (candidate.interests) allInterests.push(...candidate.interests);
+              if (candidate.personalities) {
+                candidate.personalities.forEach((p) => {
+                  if (!personalityMap.has(p.text) || personalityMap.get(p.text)!.score < p.score) {
+                    personalityMap.set(p.text, p);
+                  }
+                });
+              }
+              if (candidate.interests) {
+                candidate.interests.forEach((i) => {
+                  if (!interestMap.has(i.text) || interestMap.get(i.text)!.score < i.score) {
+                    interestMap.set(i.text, i);
+                  }
+                });
+              }
             });
 
-            state.keywords.personalities = sortByScore(allPersonalities);
-            state.keywords.interests = sortByScore(allInterests);
+            state.keywords.personalities = sortByScore(Array.from(personalityMap.values()));
+            state.keywords.interests = sortByScore(Array.from(interestMap.values()));
           }),
 
         setPersonalities: (personalities) =>
@@ -60,25 +69,16 @@ export const useScoreStore = create<ScoreState & ScoreActions>()(
             state.keywords.interests = sortByScore(interests);
           }),
 
-        getPersonalities: () => {
-          return get().keywords.personalities.map((p) => p.text);
-        },
-
-        getInterests: () => {
-          return get().keywords.interests.map((i) => i.text);
-        },
-
-        getScores: () => {
-          const { personalities, interests } = get().keywords;
-          return [...personalities, ...interests]
-            .sort((a, b) => b.score - a.score)
-            .map((item) => item.text);
-        },
+        setIdeal: (ideal) =>
+          set((state) => {
+            state.keywords.ideal = sortByScore(ideal);
+          }),
 
         clearScores: () =>
           set((state) => {
             state.keywords.personalities = [];
             state.keywords.interests = [];
+            state.keywords.ideal = [];
           }),
       })),
       {

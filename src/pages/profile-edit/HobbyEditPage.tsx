@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import BackButton from "../../components/BackButton";
 import KeywordChips from "../../components/keyword/KeywordChips";
 import { useUserStore } from "../../stores/useUserStore";
@@ -10,16 +10,33 @@ export default function HobbyEditPage() {
   const MAX_SELECT = 5;
   const navigate = useNavigate();
   const { user, updateUser } = useUserStore();
-  const { getInterests } = useScoreStore();
+
+  const interests = useScoreStore((s) => s.keywords.interests);
+
+  const allKeywords = useMemo(
+    () => (interests || []).map((p) => p.text),
+    [interests]
+  );
 
   //선택된 키워드
-  const [selectedKeywords, setSelectedKeywords] = useState<string[]>(user?.keywords || []);
+  const [selectedKeywords, setSelectedKeywords] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
+  const initialized = useRef(false);
+  useEffect(() => {
+    if (initialized.current) return;
+    if (!user?.keywords) return;
+
+    setSelectedKeywords([...user.keywords]);
+    initialized.current = true;
+  }, [user]);
+
   // 변경사항 감지; 1. 개수 비교 2. 내용 비교
-  const isChanged =
-    selectedKeywords.length !== (user?.keywords || []).length ||
-    !selectedKeywords.every((kw) => (user?.keywords || []).includes(kw));
+  const isChanged = useMemo(() => {
+    const original = user?.keywords || [];
+    if (selectedKeywords.length !== original.length) return true;
+    return !selectedKeywords.every((kw) => original.includes(kw));
+  }, [selectedKeywords, user?.keywords]);
 
   const handleSave = async () => {
     if (!isChanged || !user) return;
@@ -29,7 +46,7 @@ export default function HobbyEditPage() {
       await updateMyProfile({
         keywords: selectedKeywords,
       });
-      updateUser({ keywords: selectedKeywords });
+      updateUser({ keywords: [...selectedKeywords] });
       navigate("/my/edit/");
     } catch (error) {
       console.error("Failed to update hobbies:", error);
@@ -53,7 +70,7 @@ export default function HobbyEditPage() {
         </p>
         <div className="pt-5 flex flex-wrap gap-3">
           <KeywordChips
-            allKeywords={getInterests()}
+            allKeywords={allKeywords}
             selectedKeywords={selectedKeywords}
             maxSelect={MAX_SELECT}
             onChange={(ids) => setSelectedKeywords(ids)}

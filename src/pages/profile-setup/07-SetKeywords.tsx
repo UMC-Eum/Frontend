@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useUserStore } from "../../stores/useUserStore";
 import KeywordChips from "../../components/keyword/KeywordChips";
 import { useScoreStore } from "../../stores/useScoreStore";
@@ -6,23 +6,55 @@ import { useScoreStore } from "../../stores/useScoreStore";
 const MAX_SELECT = 5;
 
 interface SetKeywordsProps {
-  onNext: () => void;
+  onNext: (data: { personalities: string[]; keywords: string[] }) => void;
 }
 
 export default function SetKeywords({ onNext }: SetKeywordsProps) {
   const { user, updateUser } = useUserStore();
-  const { getScores, getPersonalities, getInterests } = useScoreStore();
 
-  const [selectedKeywords, setSelectedKeywords] = useState<string[]>(
-    getScores().slice(0, MAX_SELECT),
+  const personalities = useScoreStore((s) => s.keywords.personalities);
+  const interests = useScoreStore((s) => s.keywords.interests)
+
+  const allKeywords = useMemo(
+    () =>
+      [...personalities, ...interests]
+        .sort((a, b) => b.score - a.score)
+        .map((k) => k.text),
+    [personalities, interests]
   );
 
-  const handleNext = () => {
-    const personalities = selectedKeywords.filter((k) => getPersonalities().includes(k));
-    const keywords = selectedKeywords.filter((k) => getInterests().includes(k));
+  const [selectedKeywords, setSelectedKeywords] = useState<string[]>([]);
 
-    updateUser({ keywords, personalities });
-    onNext();
+  const isInitialized = useRef(false);
+  useEffect(() => {
+    if (isInitialized.current || allKeywords.length === 0) return;
+    setSelectedKeywords(allKeywords.slice(0, MAX_SELECT));
+    isInitialized.current = true;
+  }, [allKeywords]);
+
+  const handleNext = () => {  
+
+    const personalitySet = new Set(personalities.map((p) => p.text));
+    // const interestSet = new Set(interests.map((i) => i.text));
+
+    const selectedPers: string[] = [];
+    const selectedInts: string[] = [];
+
+    selectedKeywords.forEach((k) => {
+      //성격이면
+      if (personalitySet.has(k)) {
+        selectedPers.push(k);
+      //관심사면
+      } else {
+        selectedInts.push(k);
+      }
+    })
+
+    console.log(selectedPers);
+    console.log(selectedInts);
+
+    updateUser({ keywords: selectedInts, personalities: selectedPers });
+    onNext({ personalities: selectedPers, keywords: selectedInts });
   };
 
   const isValid = selectedKeywords.length > 0;
@@ -43,7 +75,7 @@ export default function SetKeywords({ onNext }: SetKeywordsProps) {
 
   <div className="pb-4 flex flex-wrap gap-3">
     <KeywordChips
-      allKeywords={getScores()}
+      allKeywords={allKeywords}
       selectedKeywords={selectedKeywords}
       maxSelect={MAX_SELECT}
       onChange={(ids) => setSelectedKeywords(ids)}

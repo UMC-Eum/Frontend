@@ -42,8 +42,8 @@ export default function ProfileSetupMain() {
     vibeVectorRef.current = data.vibeVector;
     handleNext();
   };
-
-  const handleSubmitProfile = async () => {
+  // 7번 페이지 전용
+  const handleSubmitProfile = async (selectedData?: { personalities: string[], keywords: string[] }) => {
     if (!user) return;
 
     try {
@@ -56,7 +56,7 @@ export default function ProfileSetupMain() {
         areaCode: user.area?.code || "",
         introText: user.introText,
         introAudioUrl: user.introAudioUrl,
-        selectedKeywords: [...user.personalities, ...user.keywords],
+        selectedKeywords: [...(selectedData?.personalities || []), ...(selectedData?.keywords || [])],
         vibeVector: vibeVectorRef.current,
       };
 

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import BackButton from "../../components/BackButton";
 import KeywordChips from "../../components/keyword/KeywordChips";
 import { useUserStore } from "../../stores/useUserStore";
@@ -10,16 +10,33 @@ export default function PersonalitiesEditPage() {
   const MAX_SELECT = 5;
   const navigate = useNavigate();
   const { user, updateUser } = useUserStore();
-  const { getPersonalities } = useScoreStore();
+
+  const personalities = useScoreStore((s) => s.keywords.personalities);
+
+  const allKeywords = useMemo(
+    () => (personalities || []).map((p) => p.text),
+    [personalities]
+  );
 
   //선택된 키워드
-  const [selectedKeywords, setSelectedKeywords] = useState<string[]>(user?.personalities || []);
+  const [selectedKeywords, setSelectedKeywords] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
+  const initialized = useRef(false);
+  useEffect(() => {
+    if (initialized.current) return;
+    if (!user?.personalities) return;
+
+    setSelectedKeywords([...user.personalities]);
+    initialized.current = true;
+  }, [user]);
+
   // 변경사항 감지; 1. 개수 비교 2. 내용 비교
-  const isChanged =
-    selectedKeywords.length !== (user?.personalities || []).length ||
-    !selectedKeywords.every((kw) => (user?.personalities || []).includes(kw));
+  const isChanged = useMemo(() => {
+    const original = user?.personalities || [];
+    if (selectedKeywords.length !== original.length) return true;
+    return !selectedKeywords.every((kw) => original.includes(kw));
+  }, [selectedKeywords, user?.personalities]);
 
   const handleSave = async () => {
     if (!isChanged || !user) return;
@@ -29,7 +46,7 @@ export default function PersonalitiesEditPage() {
       await updateMyProfile({
         personalities: selectedKeywords,
       });
-      updateUser({ personalities: selectedKeywords });
+      updateUser({ personalities: [...selectedKeywords] });
       navigate("/my/edit/");
     } catch (error) {
       console.error("Failed to update personalities:", error);
@@ -50,7 +67,7 @@ export default function PersonalitiesEditPage() {
         <p className="text-[14px] font-medium leading-[1.4] tracking-normal text-gray-500">최대 5개까지 고를 수 있어요.</p>
         <div className="pt-5 flex flex-wrap gap-3">
           <KeywordChips
-            allKeywords={getPersonalities()}
+            allKeywords={allKeywords}
             selectedKeywords={selectedKeywords}
             maxSelect={MAX_SELECT}
             onChange={(ids) => setSelectedKeywords(ids)}

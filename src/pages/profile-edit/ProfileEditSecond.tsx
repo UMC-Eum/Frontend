@@ -12,9 +12,10 @@ import SetImageModal from "./overlays/SetImageModal";
 import NextArrow from "../../components/NextArrow";
 import { useNavigate } from "react-router-dom";
 import Navbar from "../../components/Navbar";
-
+  
 const ProfileEditSecond = () => {
   const { user } = useUserStore();
+  console.log("🚀 ProfileEditSecond - user data:", user);
 
   const [isImageModalOpen, setIsImageModalOpen] = useState(false); // 프로필 변경 모달창
   const [isIntroModalOpen, setIsIntroModalOpen] = useState(false); // 나의 소개 모달창
@@ -151,9 +152,9 @@ const ProfileEditSecond = () => {
                   이상형 등록
                 </span>
                 하고 <br /> 내 취향에 맞는 프로필을 보러가요!
-              </span>
+              </span> 
               <button
-                onClick={() => navigate("./ideal-record")}
+                onClick={() => navigate("/matching")}
                 className="px-[9px] py-[3px] rounded-full bg-white text-[#FF3D77] text-[13px] font-semibold leading-[1.2] tracking-normal"
               >
                 바로가기
