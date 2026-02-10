@@ -90,7 +90,11 @@ const MatchingPage = () => {
 
   return (
     <div className="relative h-full overflow-hidden">
-      <BackButton />
+      <BackButton
+        onClick={() => {
+          navigate("/home");
+        }}
+      />
       <div className="h-[10px]" />
 
       <div className="h-[78px] px-[20px]">
