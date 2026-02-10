@@ -12,7 +12,7 @@ import RecordingControl from "../components/RecordingControl";
 import BackButton from "../components/BackButton";
 
 // ✅ PATCH 함수
-import { updateMyProfile } from "../api/users/usersApi";
+import { putIdealPersonalities } from "../api/users/usersApi";
 
 const MatchingPage = () => {
   const user = useUserStore((state) => state.user);
@@ -43,8 +43,8 @@ const MatchingPage = () => {
           // area, nickname, userId 등은 다 필요 없습니다.
           // PATCH는 '바꿀 것'만 보내면 됩니다.
           // 이렇게 보내면 데이터 형식이 틀릴 일이 없어서 503/422를 예방합니다.
-          await updateMyProfile({
-            idealPersonalities: newIdealPersonalities,
+          await putIdealPersonalities({
+            personalityKeywords: newIdealPersonalities,
           } as any);
 
           console.log("✅ 이상형 업데이트 성공!");
@@ -54,11 +54,7 @@ const MatchingPage = () => {
 
           navigate("/matching/result", { state: { result: data } });
         } catch (error) {
-          // 🚨 503 에러가 나도 앱은 멈추지 않아야 함
-          console.error(
-            "❌ 서버 에러(503) 발생 (백엔드 로그 확인 필요):",
-            error,
-          );
+          console.error("❌ 서버  발생 (백엔드 로그 확인 필요):", error);
           alert(
             "결과 저장 중 서버 오류가 발생했지만, 분석 결과 페이지로 이동합니다.",
           );
