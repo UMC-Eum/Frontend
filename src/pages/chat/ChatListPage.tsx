@@ -24,19 +24,18 @@ export default function ChatListPage() {
   //차단 대상 사용자 ID 목록 (차단시 채팅방 목록에서 )
   const [blockedUserIds, setBlockedUserIds ] = useState<Set<number>>(new Set());
 
-  // 🔥 [3] 페이지 진입 시 차단 목록을 서버에서 가져오기
+  // 🔥 [3] 페이지 진입 시 차단 목록을 서버에서 가져오기 -> 차단시 그 사람만 렌더링 제외 및 ui 변경
   useEffect(() => {
     const fetchBlockedList = async () => {
       try {
-        // 차단 목록을 넉넉하게 가져옵니다 (size: 100)
-        // 만약 차단한 사람이 100명이 넘으면 더 큰 숫자를 쓰거나 반복 호출해야 합니다.
+        // 차단 목록을 넉넉하게 가져옵니다 
         const items = await getBlocks({ size: 100 });
         
         if (items) {
           // items 안에서 상대방 ID를 뽑아내야 합니다.
           // ⚠️ 중요: getBlocks의 응답 item 안에 'userId'가 들어있는지, 'targetUserId'인지 확인 필요
           // 보통 user 객체 안에 있거나, 바로 userId 필드가 있습니다. 아래는 userId라고 가정한 코드입니다.
-          const ids = new Set(items.items.map((item: any) => item.userId || item.targetUserId));
+          const ids = new Set(items.items.map((item: any) => item.userId));
           
           setBlockedUserIds(ids);
           console.log("🚫 차단 목록 로드 완료:", ids);
@@ -47,7 +46,7 @@ export default function ChatListPage() {
     };
     fetchBlockedList();
   }, []);
-
+  // 채팅방 목록을 가져오는 함수
   const fetchRooms = useCallback(async (cursor: string | null) => {
     // State인 isLoading 대신 Ref를 확인하여 함수가 재생성되지 않게 함
     if (loadingRef.current) return;
@@ -91,12 +90,12 @@ export default function ChatListPage() {
     // 의존성 배열을 빈 배열로 설정해서 fetchRooms 함수가 초기 1번만 생성되고 재생성되지 않도록 함
   }, []); //
 
-  // 1. 초기 진입 usecallback이라 1번만 실행 됨(변하지 않기에)
+  // 1. 초기 진입 usecallback이라 1번만 왜냐 fetchrooms가 변하지 않기에 실행 됨
   useEffect(() => {
     fetchRooms(null);
   }, [fetchRooms]);
 
-  // 2. 무한 스크롤 Observer
+  // 2. 무한 스크롤 Observer 알필요 없긴함
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
@@ -105,7 +104,7 @@ export default function ChatListPage() {
           fetchRooms(nextCursor);
         }
       },
-      { threshold: 1.0 }
+      { threshold: 1.0 } 
     );
 
     if (observerTarget.current) {
@@ -115,6 +114,7 @@ export default function ChatListPage() {
     return () => observer.disconnect();
   }, [nextCursor, isLastPage, fetchRooms]); // isLoading 제거
 
+  // 마지막 메세지 언제 왔는지 계산
   const formatTime = (isoString: string) => {
     if (!isoString) return "";
     const date = new Date(isoString);
@@ -139,6 +139,8 @@ export default function ChatListPage() {
             진행 중인 대화가 없습니다.
           </div>
         )}
+        
+// 
 {rooms.map((room) => {
   // 1. 차단 목록(blockedUserIds)에 이 방 상대방이 있는지 확인
   const isBlocked = blockedUserIds.has(room.peer.userId);
