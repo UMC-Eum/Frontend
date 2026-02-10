@@ -4,21 +4,20 @@ import { MessageSendData, JoinData } from '../types/api/socket';
 import { ApiSuccessResponse } from '../types/api/api';
 
 // [Namespace] 
-// ⚠️ 주의: 백엔드 네임스페이스가 '/chats'라면 주소 뒤에 붙여야 합니다.
-// 예: "https://back.eum-dating.com/chats"
 const NAMESPACE = "https://back.eum-dating.com/chats"; 
 
 interface SocketStore {
   socket: Socket | null;
   isConnected: boolean;
+  joinedRoomIds: Set<number>; // 🔥 [추가] 이미 입장한 방 목록 (중복 Join 방지)
+
   connect: () => void;
   disconnect: () => void;
   joinRoom: (roomId: number) => void;
   
-  // 🔥 [수정] 인자 구조 변경: text와 mediaUrl 분리
   sendMessage: (
     roomId: number, 
-    type: "TEXT" | "IMAGE" | "AUDIO" | "VIDEO", // VIDEO 추가
+    type: "TEXT" | "IMAGE" | "AUDIO" | "VIDEO", 
     text: string | null, 
     mediaUrl?: string | null, 
     durationSec?: number | null
@@ -28,6 +27,7 @@ interface SocketStore {
 export const useSocketStore = create<SocketStore>((set, get) => ({
   socket: null,
   isConnected: false,
+  joinedRoomIds: new Set(), // 🔥 [추가] 초기화
 
   connect: () => {
     const token = localStorage.getItem("accessToken");
@@ -36,20 +36,18 @@ export const useSocketStore = create<SocketStore>((set, get) => ({
         return;
     }
 
+    // 이미 연결되어 있다면 재연결 하지 않음
     if (get().socket?.connected) return;
 
     console.log(`🔌 소켓 연결 시도: ${NAMESPACE}`);
 
     const newSocket = io(NAMESPACE, {
-      // [Path] 백엔드 설정에 맞게 유지 (아까 /ws가 되었다면 유지)
-      // 보통 NestJS 기본값은 /socket.io 이지만, 설정에 따라 다름
       path: "/ws", 
-      
       transports: ["websocket"],
-      
       auth: { 
         token: token,
       },
+      reconnection: true, // 자동 재연결 활성화
     });
 
     newSocket.on("connect", () => {
@@ -64,6 +62,9 @@ export const useSocketStore = create<SocketStore>((set, get) => ({
     newSocket.on("disconnect", (reason) => {
       console.log("❌ [Store] 연결 끊김:", reason);
       set({ isConnected: false });
+      // 주의: 자동 재연결 시에는 joinedRoomIds를 유지해야 할 수도 있으나,
+      // 완전히 끊겼을 때를 대비해 보통 여기서 초기화하거나, 재연결 로직에서 처리합니다.
+      // 일단 여기서는 유지합니다 (잠깐 끊겨도 목록은 유지되도록).
     });
 
     set({ socket: newSocket });
@@ -71,32 +72,44 @@ export const useSocketStore = create<SocketStore>((set, get) => ({
 
   disconnect: () => {
     get().socket?.disconnect();
-    set({ socket: null, isConnected: false });
+    // 🔥 [수정] 연결 끊을 때 목록도 초기화
+    set({ socket: null, isConnected: false, joinedRoomIds: new Set() });
   },
 
   joinRoom: (roomId: number) => {
-    const socket = get().socket;
-    if (socket) {
+    const { socket, joinedRoomIds } = get();
+
+    // 🔥 [핵심 수정] 소켓이 있고, "아직 이 방에 안 들어갔을 때만" 요청!
+    if (socket && !joinedRoomIds.has(roomId)) {
+      
       socket.emit("room.join", { chatRoomId: roomId }, (res: ApiSuccessResponse<JoinData>) => {
-        console.log(`🚪 방 입장 결과:`, res);
+        console.log(`🚪 ${roomId}번 방 입장 결과:`, res);
       });
+
+      // 🔥 [추가] Set에 방 ID 추가 (불변성 유지)
+      const newSet = new Set(joinedRoomIds);
+      newSet.add(roomId);
+      set({ joinedRoomIds: newSet });
+      
+      console.log(`📌 [Local] ${roomId}번 방 입장 처리 완료 (중복 방지용)`);
+    } else {
+      // 이미 들어간 방이면 로그만 찍고 무시 (서버 부하 감소)
+      // console.log(`⚠️ 이미 입장한 방입니다: ${roomId}`);
     }
   },
 
-  // 🔥 [수정] ChatRoomPage에서 보내주는 5개 인자를 그대로 받아서 처리
   sendMessage: (roomId, type, text, mediaUrl, durationSec) => {
     const socket = get().socket;
     if (socket) {
-      // 백엔드 DTO(JSON) 규격에 맞게 조립
       const payload = {
         chatRoomId: roomId,
         type: type,
-        text: text,          // null이면 null로 전송
-        mediaUrl: mediaUrl,  // null이면 null로 전송
-        durationSec: durationSec || null // undefined 방지
+        text: text,          
+        mediaUrl: mediaUrl,  
+        durationSec: durationSec || null 
       };
 
-      console.log("📤 소켓 전송 페이로드:", payload); // 디버깅용 로그
+      console.log("📤 소켓 전송 페이로드:", payload); 
 
       socket.emit("message.send", payload, (res: ApiSuccessResponse<MessageSendData>) => {
         console.log("📤 전송 서버 응답:", res);
