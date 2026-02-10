@@ -37,26 +37,8 @@ export default function ChatListPage() {
 
       if (response) {
         // 🚨 [핵심 수정 2] response.items를 변수에 담고, 더미 데이터 로직을 적용
-        let fetchedItems = response.items;
+       const fetchedItems = response.items;
 
-        // 데이터가 없고 첫 페이지 로딩일 때만 더미 데이터 사용
-        if (fetchedItems.length === 0 && !cursor) {
-          console.log("데이터가 없어서 더미 데이터를 사용합니다.");
-          fetchedItems = [
-            {
-              chatRoomId: 55,
-              peer: { userId: 9, nickname: "루시", profileImageUrl: "https://cdn.example.com/files/u9.jpg", areaName: "서울" },
-              lastMessage: { type: "TEXT", textPreview: "이것은 테스트 메시지입니다.", sentAt: new Date().toISOString() },
-              unreadCount: 3,
-            },
-            {
-              chatRoomId: 555,
-              peer: { userId: 2, nickname: "개발자", profileImageUrl: "https://via.placeholder.com/52", areaName: "서울" },
-              lastMessage: { type: "AUDIO", textPreview: "", sentAt: new Date().toISOString() },
-              unreadCount: 0,
-            }
-          ];
-        }
 
         // 커서 값이 있다면 추가 로딩된 데이터를 기존 데이터에 추가
         if (!cursor) {

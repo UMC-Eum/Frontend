@@ -7,11 +7,12 @@ interface ChatInputBarProps {
   onSendText: (text: string) => void;
   onSendVoice: (file: File, duration: number) => void;
   isBlocked?: boolean;
+  onSelectImage: (file: File) => void;
   // 🔥 [추가] 이미지가 선택되었을 때 부모에게 파일을 전달하는 함수
   //onSendImage: (file: File) => void; 
 }
 
-export function ChatInputBar({ onSendText, onSendVoice, isBlocked }: ChatInputBarProps) {
+export function ChatInputBar({ onSendText, onSendVoice, isBlocked, onSelectImage }: ChatInputBarProps) {
   const [text, setText] = useState("");
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   
@@ -54,15 +55,14 @@ export function ChatInputBar({ onSendText, onSendVoice, isBlocked }: ChatInputBa
     }
   };
 
-  // 🔥 [추가] 파일 선택 시 처리 핸들러 (카메라/앨범 공통 사용)
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // 부모 컴포넌트로 파일 전달
-    //onSendImage(file);
+    // 🔥 여기서 부모(ChatRoomPage)에게 파일을 넘겨줍니다!
+    onSelectImage(file);
 
-    // 같은 파일을 다시 선택할 수 있도록 초기화 & 메뉴 닫기
+    // 초기화 & 메뉴 닫기
     e.target.value = "";
     setIsMenuOpen(false);
   };
