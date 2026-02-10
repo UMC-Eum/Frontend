@@ -20,7 +20,7 @@ interface SocketStore {
     roomId: number, 
     type: "TEXT" | "IMAGE" | "AUDIO" | "VIDEO", // VIDEO 추가
     text: string | null, 
-    mediaUrl: string | null, 
+    mediaUrl?: string | null, 
     durationSec?: number | null
   ) => void;
 }

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useUserStore } from "../../stores/useUserStore";
 
@@ -46,23 +46,28 @@ export default function ChatRoomPage() {
   // [Store 사용] 스토어에서 함수들 가져오기
   const { socket, connect, joinRoom, sendMessage } = useSocketStore();
 
+  // 상대 정보 관리 및 메뉴 관리
   const { peerInfo, blockId, isMenuOpen, setIsMenuOpen, handleBlockToggle } = useChatRoomInfo(parsedRoomId);
   
+  // 메세지 불러오기 및 삭제 관리
   const { messages, nextCursor, isLoading, isInitLoaded, loadPrevMessages, handleDeleteMessage } 
     = useChatMessages(parsedRoomId, myId);
 
+  // 전체 메세지 길이 계산 왜냐 3가지 메세지가 변하면 다시 계산 시기키위해서 존재
   const allMessagesLength = messages.length + socketMessages.length + tempMessages.length;
+
+  // 스크롤 관리
   const { scrollContainerRef, topObserverRef, bottomRef } 
     = useChatScroll({ isInitLoaded, isLoading, nextCursor, messagesLength: allMessagesLength, loadPrevMessages });
   
+  // 채팅방내 상태 관리
   const [activeModal, setActiveModal] = useState<ModalType>("NONE");
   const [playingId, setPlayingId] = useState<number | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [isReportScreenOpen, setIsReportScreenOpen] = useState(false);
 
-  // 🔥 [추가] 파일 인풋 제어용 Ref
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
+  
   // 소켓 연결 및 방 입장
   useEffect(() => {
     connect(); // 소켓 연결 시도
@@ -132,72 +137,65 @@ export default function ChatRoomPage() {
   // 1️⃣ 텍스트 전송
   // ------------------------------------------------------------------
   const onSendTextWrapper = async (text: string) => {
-    const tempMsg = {
-      messageId: Date.now(),
-      senderUserId: myId,
-      type: "TEXT",
-      text: text,
-      mediaUrl: null,
-      durationSec: 0,
-      sendAt: new Date().toISOString(),
-      readAt: null,
-      isMine: true,
-    };
-    setTempMessages((prev) => [...prev, tempMsg]);
-    setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
-
-    sendMessage(parsedRoomId, "TEXT", text);
+  // 1. 낙관적 업데이트
+  // ⚠️ 중요: 변수 뒤에 : IMessageItem 을 붙여서 타입을 고정합니다.
+  const tempMsg: IMessageItem = {
+    messageId: Date.now(),
+    senderUserId: myId,
+    type: "TEXT",     // 이제 TS가 이걸 'string'이 아니라 'MessageType'의 "TEXT"로 인식합니다.
+    text: text,
+    mediaUrl: "",     // ⚠️ 중요: 에러 로그상 null이 안 되므로 빈 문자열로 변경
+    durationSec: 0,
+    sendAt: new Date().toISOString(),
+    readAt: null,
+    isMine: true,
   };
+  setTempMessages((prev) => [...prev, tempMsg]);
+  setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
+
+  // 2. 스토어 함수로 전송
+  sendMessage(parsedRoomId, "TEXT", text);
+};
 
   // ------------------------------------------------------------------
   // 2️⃣ 음성 메세지 전송 (Audio) - 🔥 [수정됨: 가짜 URL 사용]
   // ------------------------------------------------------------------
   const onSendVoiceWrapper = async (file: File, duration: number) => {
-    // S3 구현 전이므로 Blob URL(가짜 주소) 사용
-    const fakeUrl = URL.createObjectURL(file);
+  const fakeUrl = URL.createObjectURL(file);
 
-    const tempMsg = {
-      messageId: Date.now(),
-      senderUserId: myId,
-      type: "AUDIO", 
-      text: null,
-      mediaUrl: fakeUrl,
-      durationSec: duration,
-      sendAt: new Date().toISOString(),
-      readAt: null,
-      isMine: true,
-    };
-    setTempMessages((prev) => [...prev, tempMsg]);
-    setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
-
-    // 소켓 전송 (규칙: AUDIO 타입은 durationSec 필수)
-    sendMessage(parsedRoomId, "AUDIO", null, fakeUrl, duration);
+  // ⚠️ 타입 명시
+  const tempMsg: IMessageItem = {
+    messageId: Date.now(),
+    senderUserId: myId,
+    type: "AUDIO",
+    text: null,       // TEXT가 아니면 text는 null (타입 정의에 따라 ""일 수도 있음, 에러 나면 ""로 변경)
+    mediaUrl: fakeUrl,
+    durationSec: duration,
+    sendAt: new Date().toISOString(),
+    readAt: null,
+    isMine: true,
   };
+  setTempMessages((prev) => [...prev, tempMsg]);
+  setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
 
-  // ------------------------------------------------------------------
-  // 3️⃣ 이미지/비디오 파일 선택 및 전송 (Image/Video) - 🔥 [추가됨]
-  // ------------------------------------------------------------------
-  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+  sendMessage(parsedRoomId, "AUDIO", null, fakeUrl, duration);
+};
+
+  const handleFileSelect = async (file: File) => {
     if (!file) return;
 
-    // 파일 타입 확인
     const isVideo = file.type.startsWith("video");
-    const type = isVideo ? "VIDEO" : "IMAGE"; // UI 타입은 PHOTO일 수 있으나 소켓은 IMAGE/VIDEO
+    const uiType = isVideo ? "VIDEO" : "PHOTO"; 
 
-    // S3 구현 전이므로 Blob URL 생성
     const fakeUrl = URL.createObjectURL(file);
 
-    // UI용 임시 메시지 타입 (PHOTO / VIDEO)
-    const uiType = isVideo ? "VIDEO" : "PHOTO";
-
-    const tempMsg = {
+    const tempMsg: IMessageItem = {
       messageId: Date.now(),
       senderUserId: myId,
-      type: uiType,
+      type: uiType, 
       text: null,
       mediaUrl: fakeUrl,
-      durationSec: null, 
+      durationSec: 0, 
       sendAt: new Date().toISOString(),
       readAt: null,
       isMine: true,
@@ -205,12 +203,11 @@ export default function ChatRoomPage() {
     setTempMessages((prev) => [...prev, tempMsg]);
     setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
 
-    // 소켓 전송 (규칙: text=null, mediaUrl=필수)
-    // sendMessage(roomId, type, text, mediaUrl, duration)
-    sendMessage(parsedRoomId, type, null, fakeUrl, null);
-
-    // 같은 파일 다시 선택 가능하게 초기화
-    if (fileInputRef.current) fileInputRef.current.value = "";
+    // 소켓 전송용 타입 (VIDEO / IMAGE)
+    const socketType = isVideo ? "VIDEO" : "IMAGE";
+    sendMessage(parsedRoomId, socketType, null, fakeUrl, null);
+    
+    // 🔥 [삭제] fileInputRef 초기화 코드는 더 이상 필요 없음
   };
 
 
@@ -372,20 +369,12 @@ export default function ChatRoomPage() {
             [mask-image:linear-gradient(to_bottom,transparent_10%,black_80%)]"
           />
         
-        {/* 🔥 [추가] 숨겨진 파일 인풋 (ChatInputBar 버튼과 연결됨) */}
-        <input 
-           type="file" 
-           ref={fileInputRef}
-           className="hidden"
-           accept="image/*,video/*"
-           onChange={handleFileSelect}
-        />
 
         <ChatInputBar 
           onSendText={onSendTextWrapper} 
           onSendVoice={onSendVoiceWrapper} 
-          // 🔥 [추가] 플러스 버튼 누르면 숨겨진 인풋 클릭
-          onClickPlus={() => fileInputRef.current?.click()}
+          // 🔥 [수정] onClickPlus 삭제 -> onSelectImage 추가
+          onSelectImage={handleFileSelect}
           isBlocked={blockId !== null} 
         />
       </div>
