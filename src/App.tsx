@@ -26,6 +26,7 @@ import ProfileRecommendPage from "./pages/ProfileRecommendPage";
 import PersonalitiesRecordPage from "./pages/profile-edit/PersonalitiesRecordPage";
 import Like from "./pages/Like";
 import CardTestPage from "./mock/CardTestPage";
+import NotificationsPage from "./pages/NotificationsPage";
 const router = createBrowserRouter([
   {
     path: "/",
@@ -127,6 +128,10 @@ const router = createBrowserRouter([
             element: <ChatRoomPage />, // url: /message/room/{숫자}
           },
         ],
+      },
+      {
+        path: "/notifications",
+        element: <NotificationsPage />,
       },
     ],
   },
