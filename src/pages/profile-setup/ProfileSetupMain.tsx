@@ -1,5 +1,6 @@
-import { useState, useRef } from "react";
-import { motion } from "framer-motion";
+import { useState, useRef, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
 import SetName from "./01-SetName";
 import SetAge from "./02-SetAge";
 import SetGender from "./03-SetGender";
@@ -13,35 +14,45 @@ import { postProfile } from "../../api/onboarding/onboardingApi";
 import { useUserStore } from "../../stores/useUserStore";
 
 export default function ProfileSetupMain() {
-  const [step, setStep] = useState(1);
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useUserStore();
-
-  // 스토어 구조를 변경하지 않기 위해 local에 임시 저장
+  const step = Number(searchParams.get("step")) || 1;
+  const [direction, setDirection] = useState(1);
   const vibeVectorRef = useRef<number[]>([]);
   const isBarVisible = step <= 5;
 
+  useEffect(() => {}, [step]);
+
   const handleNext = () => {
-    setStep((prev) => prev + 1);
+    setDirection(1);
+    setSearchParams({ step: String(step + 1) });
   };
 
-  // 6번 페이지 전용
+  const handleBack = () => {
+    if (step === 1) return;
+    setDirection(-1);
+    setSearchParams({ step: String(step - 1) });
+  };
+
   const handleSpeechKeywordNext = (data: {
     record: string;
     keywords: string[];
     vibeVector: number[];
   }) => {
-    vibeVectorRef.current = data.vibeVector; //vibe vector 임시 저장
+    vibeVectorRef.current = data.vibeVector;
     handleNext();
   };
   // 7번 페이지 전용
   const handleSubmitProfile = async (selectedData?: { personalities: string[], keywords: string[] }) => {
     if (!user) return;
+
     try {
       const requestBody = {
         nickname: user.nickname,
         gender: user.gender as "M" | "F",
-        //일단 가짜 생일 넣었습니다.
-        birthDate: user.birthDate || `${new Date().getFullYear() - (user.age || 0)}-01-01`,
+        birthDate:
+          user.birthDate ||
+          `${new Date().getFullYear() - (user.age || 0)}-01-01`,
         areaCode: user.area?.code || "",
         introText: user.introText,
         introAudioUrl: user.introAudioUrl,
@@ -50,9 +61,7 @@ export default function ProfileSetupMain() {
       };
 
       const response = await postProfile(requestBody);
-      if (response.profileCompleted) {
-        handleNext();
-      }
+      if (response) handleNext();
     } catch (error: any) {
       if (error.response?.status === 409) {
         handleNext();
@@ -63,41 +72,60 @@ export default function ProfileSetupMain() {
     }
   };
 
-  return (
-    <div className="w-full max-w-md mx-auto min-h-screen bg-white flex flex-col">
-      <BackButton />
-      {/* 상단 프로그레스 바 */}
-      {isBarVisible && (
-        <div className="w-full h-1 bg-gray-100">
-          <div
-            className="h-full bg-[#FC3367] transition-all duration-300"
-            style={{ width: `${(step / 5) * 100}%` }}
-          />
-        </div>
-      )}
+  const pageVariants = {
+    enter: (direction: number) => ({
+      x: direction > 0 ? "100%" : "-100%",
+      opacity: 0,
+    }),
+    center: {
+      x: 0,
+      opacity: 1,
+    },
+    exit: (direction: number) => ({
+      x: direction < 0 ? "100%" : "-100%",
+      opacity: 0,
+    }),
+  };
 
-      {/* 메인 컨텐츠 영역 */}
-      <main className="flex-1 flex flex-col p-6">
-        {step === 1 && <SetName onNext={handleNext} />}
-        {step === 2 && <SetAge onNext={handleNext} />}
-        {step === 3 && <SetGender onNext={handleNext} />}
-        {step === 4 && <SetLocation onNext={handleNext} />}
-        {step === 5 && <SetImage onNext={handleNext} />}
-        {step === 6 && <SpeechKeyword onNext={handleSpeechKeywordNext} />}  
-        {step === 7 && (
-          <motion.div
-            initial={{ x: "100%" }}
-            animate={{ x: 0 }}
-            exit={{ x: "-100%" }}
-            transition={{ type: "spring", stiffness: 300, damping: 30 }}
-            className="flex-1 flex flex-col"
-          >
-            <SetKeywords onNext={(data: { personalities: string[]; keywords: string[] }) => {
-              handleSubmitProfile(data);
-            }} />
-          </motion.div>
+  return (
+    <div className="w-full max-w-md mx-auto h-[100dvh] bg-white flex flex-col overflow-hidden relative">
+      <div className="z-20 bg-white shrink-0">
+        <BackButton onClick={handleBack} showIcon={step !== 1} />
+
+        {isBarVisible && (
+          <div className="w-full h-1 bg-gray-100">
+            <div
+              className="h-full bg-[#FC3367] transition-all duration-300"
+              style={{ width: `${(step / 5) * 100}%` }}
+            />
+          </div>
         )}
-        {step === 8 && <SetComplete />}
+      </div>
+      <main className="flex-1 w-full relative overflow-hidden">
+        <AnimatePresence initial={false} custom={direction} mode="popLayout">
+          <motion.div
+            key={step}
+            custom={direction}
+            variants={pageVariants}
+            initial="enter"
+            animate="center"
+            exit="exit"
+            transition={{
+              x: { type: "spring", stiffness: 300, damping: 30 },
+              opacity: { duration: 0.2 },
+            }}
+            className="absolute inset-0 w-full h-full flex flex-col p-6 bg-white overflow-y-auto"
+          >
+            {step === 1 && <SetName onNext={handleNext} />}
+            {step === 2 && <SetAge onNext={handleNext} />}
+            {step === 3 && <SetGender onNext={handleNext} />}
+            {step === 4 && <SetLocation onNext={handleNext} />}
+            {step === 5 && <SetImage onNext={handleNext} />}
+            {step === 6 && <SpeechKeyword onNext={handleSpeechKeywordNext} />}
+            {step === 7 && <SetKeywords onNext={handleSubmitProfile} />}
+            {step === 8 && <SetComplete />}
+          </motion.div>
+        </AnimatePresence>
       </main>
     </div>
   );

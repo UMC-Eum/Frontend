@@ -1,6 +1,9 @@
 import { ApiSuccessResponse } from "../../types/api/api";
 import axios from "axios";
-import { IInterest, IPersonality } from "../../types/api/onboarding/onboardingDTO";
+import {
+  IInterest,
+  IPersonality,
+} from "../../types/api/onboarding/onboardingDTO";
 
 interface KeywordCandidates {
   personalities: IPersonality[];
@@ -8,6 +11,7 @@ interface KeywordCandidates {
 }
 
 interface IVoiceAnalyzeRequest {
+  userId: number;
   audioUrl: string;
   language: "ko-KR";
 }

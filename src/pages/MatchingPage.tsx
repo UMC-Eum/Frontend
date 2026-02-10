@@ -2,41 +2,78 @@ import { useEffect, useRef } from "react";
 import { useNavigate, Outlet, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { useMutation } from "@tanstack/react-query";
+
+// Hooks & Services
 import { useMicRecording } from "../hooks/useMicRecording";
 import { processVoiceAnalysis } from "../service/voiceService";
-import RecordingControl from "../components/RecordingControl";
 import { useUserStore } from "../stores/useUserStore";
+
+import RecordingControl from "../components/RecordingControl";
 import BackButton from "../components/BackButton";
+
+// ✅ PATCH 함수
+import { updateMyProfile } from "../api/users/usersApi";
+
 const MatchingPage = () => {
-  const nickname = useUserStore((state) => state.user?.nickname);
-  const updateIdealPersonalities = useUserStore((state) => state.updateUser);
+  const user = useUserStore((state) => state.user);
+  const updateStore = useUserStore((state) => state.updateUser);
   const navigate = useNavigate();
   const location = useLocation();
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const isResultPage = location.pathname.includes("result");
 
   const { mutate: analyze } = useMutation({
-    mutationFn: (file: File) => processVoiceAnalysis({ file }), // 임시 userId
-    onSuccess: (data) => {
-      console.log("분석 성공!", data);
-      const keywords =
-        data?.keywordCandidates?.personalities.map((k) => k.text) || [];
+    mutationFn: (file: File) => processVoiceAnalysis({ file }),
 
-      // 2. 콘솔에 예쁘게 출력
-      if (keywords.length > 0) {
-        console.log("✨ 추출된 이상형 키워드들:", keywords.join(", "));
+    // ✅ 군더더기 싹 뺀 PATCH 로직
+    onSuccess: async (data) => {
+      console.log("🎤 음성 분석 성공:", data);
+
+      const newIdealPersonalities =
+        data?.keywordCandidates?.personalities.map((k: any) => k.text) || [];
+
+      console.log("📝 전송할 키워드:", newIdealPersonalities);
+
+      if (newIdealPersonalities.length > 0) {
+        try {
+          console.log("🚀 이상형 키워드만 PATCH 전송...");
+
+          // ✅ [핵심]
+          // area, nickname, userId 등은 다 필요 없습니다.
+          // PATCH는 '바꿀 것'만 보내면 됩니다.
+          // 이렇게 보내면 데이터 형식이 틀릴 일이 없어서 503/422를 예방합니다.
+          await updateMyProfile({
+            idealPersonalities: newIdealPersonalities,
+          } as any);
+
+          console.log("✅ 이상형 업데이트 성공!");
+
+          // 스토어 업데이트
+          updateStore({ idealPersonalities: newIdealPersonalities });
+
+          navigate("/matching/result", { state: { result: data } });
+        } catch (error) {
+          // 🚨 503 에러가 나도 앱은 멈추지 않아야 함
+          console.error(
+            "❌ 서버 에러(503) 발생 (백엔드 로그 확인 필요):",
+            error,
+          );
+          alert(
+            "결과 저장 중 서버 오류가 발생했지만, 분석 결과 페이지로 이동합니다.",
+          );
+          navigate("/matching/result", { state: { result: data } });
+        }
       } else {
-        console.log("ℹ️ 추출된 키워드가 없습니다.");
+        navigate("/matching/result", { state: { result: data } });
       }
-
-      updateIdealPersonalities({ idealPersonalities: keywords });
-      navigate("/matching/result", { state: { result: data } });
     },
     onError: (error) => {
-      console.error(error);
+      console.error("분석 실패:", error);
       alert("분석에 실패했습니다. 다시 시도해주세요.");
     },
   });
+
+  // ... (나머지 UI 및 녹음 관련 코드는 그대로 유지) ...
 
   const { status, setStatus, seconds, isShort, handleMicClick } =
     useMicRecording((file) => {
@@ -53,27 +90,29 @@ const MatchingPage = () => {
 
   return (
     <div className="relative h-full overflow-hidden">
-      <BackButton />
+      <BackButton
+        onClick={() => {
+          navigate("/home");
+        }}
+      />
       <div className="h-[10px]" />
 
       <div className="h-[78px] px-[20px]">
         {status === "inactive" && !isResultPage && (
           <h1 className="text-[28px] font-[700] leading-[140%] text-[#202020]">
-            {nickname || "guest"}님의
+            {user?.nickname || "guest"}님의
             <br />
             이상형을 이야기해주세요!
           </h1>
         )}
         {status === "recording" && (
-          <>
-            <h1 className="text-[28px] font-[700] leading-[140%] text-[#202020]">
-              듣고 있어요 ...
-            </h1>
-          </>
+          <h1 className="text-[28px] font-[700] leading-[140%] text-[#202020]">
+            듣고 있어요 ...
+          </h1>
         )}
         {(status === "loading" || isResultPage) && (
           <h1 className="text-[28px] font-[700] leading-[140%] text-[#202020]">
-            {nickname}님의
+            {user?.nickname}님의
             <br />
             이상형을 찾는 중이에요 ...
           </h1>

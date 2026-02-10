@@ -7,15 +7,14 @@ import { useUserStore } from "../../stores/useUserStore";
 import { useVoiceAnalysis } from "../../hooks/useVoiceAnalysis";
 
 interface SpeechKeywordProps {
-  onNext: (data: { 
-    record: string; 
+  onNext: (data: {
+    record: string;
     keywords: string[];
     vibeVector: number[];
   }) => void;
 }
 
 export default function SpeechKeyword({ onNext }: SpeechKeywordProps) {
-
   // ✅ 스토어에서 유저 정보와 업데이트 함수 가져오기
   const { user } = useUserStore();
 
@@ -49,17 +48,27 @@ export default function SpeechKeyword({ onNext }: SpeechKeywordProps) {
       try {
         const result = await analyzeVoice(file);
 
-        console.log(result);
+        // 🚨 [핵심 수정 부분] 🚨
+        // API 결과(result.personalities/interests)는 { text: string, score: number } 형태의 객체 배열입니다.
+        // 하지만 Request Body는 단순 문자열 배열(string[])을 원하므로, .text만 추출해야 합니다.
+
+        const keywordStrings = [
+          ...(result.personalities?.map((p: any) => p.text || p) || []),
+          ...(result.interests?.map((i: any) => i.text || i) || []),
+        ];
+
+        console.log("✅ 변환된 키워드(String[]):", keywordStrings);
 
         onNext({
           record: result.audioUrl,
-          keywords: [...result.personalities, ...result.interests],
-          vibeVector: result.vibeVector,
+          keywords: keywordStrings, // 문자열 배열로 전송
+          vibeVector: result.vibeVector || [], // 없으면 빈 배열 처리
         });
       } catch (error) {
         console.error("음성 분석 오류:", error);
         alert("분석 중 오류가 발생했습니다. 다시 시도해 주세요.");
-        resetStatus();
+        // 실패 시 상태 초기화가 필요하다면 아래 주석 해제
+        // resetStatus();
       }
     },
     [analyzeVoice, onNext, resetStatus],
@@ -83,6 +92,9 @@ export default function SpeechKeyword({ onNext }: SpeechKeywordProps) {
     </main>
   );
 }
+
+// --- 하위 컴포넌트들 ---
+
 type WhenInactiveProps = {
   name: string;
   RecordingControl: React.ReactNode;
@@ -102,13 +114,14 @@ function WhenInactive({ name, RecordingControl }: WhenInactiveProps) {
 
   return (
     <>
+      {/* 스타일 태그 대신 인라인 스타일이나 Tailwind 사용 권장하지만, 기존 로직 유지를 위해 유지 */}
       <style>{`
         .guide-container {
           transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
           position: absolute;
           width: 100%;
-          left: 0; /* absolute일 때 위치 잡기 위해 추가 */
-          padding-left: 0.5rem; /* px-2에 맞춤 */
+          left: 0;
+          padding-left: 0.5rem;
           padding-right: 0.5rem;
         }
         .position-center {

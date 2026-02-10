@@ -1,11 +1,13 @@
-import { useQuery } from "@tanstack/react-query";
 import Navbar from "../components/Navbar";
 import BackButton from "../components/BackButton";
-import IdleCard from "../components/card/presets/IdleCard";
 import { useUserStore } from "../stores/useUserStore";
+import { useNavigate } from "react-router-dom";
 import { getRecommendations } from "../api/onboarding/onboardingApi";
+import IdleCard from "../components/card/presets/IdleCard";
+import { useQuery } from "@tanstack/react-query";
 
 const ResultPage = () => {
+  const navigate = useNavigate();
   const nickname = useUserStore((state) => state.user?.nickname);
   const idealPersonalities = useUserStore(
     (state) => state.user?.idealPersonalities,
@@ -21,7 +23,11 @@ const ResultPage = () => {
 
   return (
     <div>
-      <BackButton />
+      <BackButton
+        onClick={() => {
+          navigate("/");
+        }}
+      />
       <div className="px-[20px] pb-[40px]">
         <h1 className="mt-[28px] text-[24px] font-[700] leading-[140%] text-[#202020]">
           말씀해주신 내용을 바탕으로

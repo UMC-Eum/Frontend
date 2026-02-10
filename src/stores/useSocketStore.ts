@@ -3,8 +3,10 @@ import { io, Socket } from 'socket.io-client';
 import { MessageSendData, JoinData } from '../types/api/socket';
 import { ApiSuccessResponse } from '../types/api/api';
 
-// 1. [Namespace] 문서에 명시된 "chats" 네임스페이스
-const NAMESPACE = "https://back.eum-dating.com/chats";
+// [Namespace] 
+// ⚠️ 주의: 백엔드 네임스페이스가 '/chats'라면 주소 뒤에 붙여야 합니다.
+// 예: "https://back.eum-dating.com/chats"
+const NAMESPACE = "https://back.eum-dating.com/chats"; 
 
 interface SocketStore {
   socket: Socket | null;
@@ -12,7 +14,15 @@ interface SocketStore {
   connect: () => void;
   disconnect: () => void;
   joinRoom: (roomId: number) => void;
-  sendMessage: (roomId: number, type: "TEXT" | "AUDIO" | "IMAGE", content: string, durationSec?: number) => void;
+  
+  // 🔥 [수정] 인자 구조 변경: text와 mediaUrl 분리
+  sendMessage: (
+    roomId: number, 
+    type: "TEXT" | "IMAGE" | "AUDIO" | "VIDEO", // VIDEO 추가
+    text: string | null, 
+    mediaUrl?: string | null, 
+    durationSec?: number | null
+  ) => void;
 }
 
 export const useSocketStore = create<SocketStore>((set, get) => ({
@@ -30,31 +40,25 @@ export const useSocketStore = create<SocketStore>((set, get) => ({
 
     console.log(`🔌 소켓 연결 시도: ${NAMESPACE}`);
 
-    // 2. [소켓 설정] 여기가 핵심입니다.
     const newSocket = io(NAMESPACE, {
-      
-      // [Path] 아까 유일하게 404가 안 떴던 그 경로
+      // [Path] 백엔드 설정에 맞게 유지 (아까 /ws가 되었다면 유지)
+      // 보통 NestJS 기본값은 /socket.io 이지만, 설정에 따라 다름
       path: "/ws", 
       
-      // [Transports] ⚠️ 중요: Polling은 404가 뜨므로 반드시 뺍니다!
       transports: ["websocket"],
       
-      // [Auth] 문서에 "Handshake에서 JWT 전달"이라고만 되어 있어서,
-      // Bearer가 필요한지 아닌지 몰라 둘 다 보냅니다. (서버가 알아서 맞는 걸 씁니다)
       auth: { 
-        token: token,             // 그냥 토큰값
+        token: token,
       },
     });
 
     newSocket.on("connect", () => {
-      console.log("✅ [Store] 드디어 연결 성공! ID:", newSocket.id);
+      console.log("✅ [Store] 연결 성공! ID:", newSocket.id);
       set({ isConnected: true });
     });
 
     newSocket.on("connect_error", (err) => {
-      // 404면 Path 문제, 아니면 Auth/Namespace 문제입니다.
       console.error("🔥 [Store] 연결 실패:", err.message);
-      console.dir(err); 
     });
 
     newSocket.on("disconnect", (reason) => {
@@ -79,19 +83,26 @@ export const useSocketStore = create<SocketStore>((set, get) => ({
     }
   },
 
-  sendMessage: (roomId, type, content, durationSec) => {
+  // 🔥 [수정] ChatRoomPage에서 보내주는 5개 인자를 그대로 받아서 처리
+  sendMessage: (roomId, type, text, mediaUrl, durationSec) => {
     const socket = get().socket;
     if (socket) {
+      // 백엔드 DTO(JSON) 규격에 맞게 조립
       const payload = {
         chatRoomId: roomId,
-        type,
-        text: type === "TEXT" ? content : null,
-        mediaUrl: type !== "TEXT" ? content : null,
-        durationSec
+        type: type,
+        text: text,          // null이면 null로 전송
+        mediaUrl: mediaUrl,  // null이면 null로 전송
+        durationSec: durationSec || null // undefined 방지
       };
+
+      console.log("📤 소켓 전송 페이로드:", payload); // 디버깅용 로그
+
       socket.emit("message.send", payload, (res: ApiSuccessResponse<MessageSendData>) => {
-        console.log("📤 전송 결과:", res);
+        console.log("📤 전송 서버 응답:", res);
       });
+    } else {
+      console.error("⚠️ 소켓이 연결되지 않아서 메시지를 보낼 수 없습니다.");
     }
   }
 }));

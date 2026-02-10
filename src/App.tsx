@@ -2,7 +2,8 @@ import "./App.css";
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import { useEffect } from "react";
 import { useMediaStore } from "./stores/useMediaStore";
-import { useNotificationPolling } from "./hooks/useNotificationPolling";
+// ❌ useNotificationPolling import 제거
+
 import AppLayout from "./layout/AppLayout";
 import MatchingPage from "./pages/MatchingPage";
 import OnBoardingPage from "./pages/onboarding/OnBoardingPage";
@@ -26,6 +27,8 @@ import ProfileRecommendPage from "./pages/ProfileRecommendPage";
 import PersonalitiesRecordPage from "./pages/profile-edit/PersonalitiesRecordPage";
 import Like from "./pages/Like";
 import CardTestPage from "./mock/CardTestPage";
+import NotificationsPage from "./pages/NotificationsPage";
+
 const router = createBrowserRouter([
   {
     path: "/",
@@ -120,13 +123,17 @@ const router = createBrowserRouter([
         children: [
           {
             index: true,
-            element: <ChatListPage />, // url: /chats
+            element: <ChatListPage />,
           },
           {
             path: "room/:roomId",
-            element: <ChatRoomPage />, // url: /message/room/{숫자}
+            element: <ChatRoomPage />,
           },
         ],
+      },
+      {
+        path: "/notifications",
+        element: <NotificationsPage />,
       },
     ],
   },
@@ -143,7 +150,7 @@ const App = () => {
     checkPermission();
   }, [checkPermission]);
 
-  useNotificationPolling(30000);
+  // ❌ 여기서 훅 호출 삭제함 (AppLayout으로 이동)
 
   return <RouterProvider router={router} />;
 };
