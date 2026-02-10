@@ -38,7 +38,12 @@ export default function HomePage() {
               님!
             </div>
             <button className="w-[24px] h-[24px] flex items-center justify-center">
-              <img src={bell} className="w-full h-full" alt="알림" />
+              <img
+                src={bell}
+                onClick={() => navigate("/notifications")}
+                className="w-full h-full"
+                alt="알림"
+              />
             </button>
           </header>
           <div className="flex flex-col gap-[20px]">
