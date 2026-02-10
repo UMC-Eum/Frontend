@@ -14,6 +14,7 @@ interface IVoiceAnalyzeRequest {
   userId: number;
   audioUrl: string;
   language: "ko-KR";
+  analysisType: "profile" | "ideal-type";
 }
 
 interface IVoiceAnalyzeResponse {

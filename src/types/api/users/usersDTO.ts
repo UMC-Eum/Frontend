@@ -14,3 +14,6 @@ export interface IPatchUserProfileRequest {
 export interface IKeywordsRequest {
   interestKeywordIds: number[];
 }
+export interface IPutIdealRequest {
+  personalityKeywords: string[];
+}

@@ -5,10 +5,12 @@ import { IUserProfile } from "../../types/user";
 import {
   IKeywordsRequest,
   IPatchUserProfileRequest,
+  IPutIdealRequest,
 } from "../../types/api/users/usersDTO";
 //v1/users/me
 export const getMyProfile = async () => {
-  const { data } = await api.get<ApiSuccessResponse<IUserProfile>>("/v1/users/me");
+  const { data } =
+    await api.get<ApiSuccessResponse<IUserProfile>>("/v1/users/me");
 
   return data.success.data;
 };
@@ -16,13 +18,18 @@ export const getMyProfile = async () => {
 //v1/users/me(patch)
 
 export const updateMyProfile = async (body: IPatchUserProfileRequest) => {
-  const { data } = await api.patch<ApiSuccessResponse<null>>("/v1/users/me", body);
+  const { data } = await api.patch<ApiSuccessResponse<null>>(
+    "/v1/users/me",
+    body,
+  );
 
   return data.success.data;
 };
 //v1/users/me/deactivate(patch)
 export const deactivateUser = async () => {
-  const { data } = await api.patch<ApiSuccessResponse<null>>("/v1/users/me/deactivate");
+  const { data } = await api.patch<ApiSuccessResponse<null>>(
+    "/v1/users/me/deactivate",
+  );
 
   return data.success.data;
 };
@@ -46,7 +53,7 @@ export const putPersonalities = async (body: IKeywordsRequest) => {
   return data.success.data;
 };
 //v1/users/me/ideal-personalities(put)
-export const putIdealPersonalities = async (body: IKeywordsRequest) => {
+export const putIdealPersonalities = async (body: IPutIdealRequest) => {
   const { data } = await api.put<ApiSuccessResponse<null>>(
     "/v1/users/me/ideal-personalities",
     body,
