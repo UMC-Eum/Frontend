@@ -1,25 +1,41 @@
+// 공통: 프로필 정보
+export interface IProfileSummary {
+  profileImageUrl: string;
+  nickname: string;
+  age: number;
+}
+
 //v1/hearts(post)
 export interface IHeartsRequest {
   targetUserId: number;
 }
 export interface IHeartsResponse {
   heartId: number;
+  createdAt?: string;
 }
 
 //v1/hearts/sent(get)
+export interface IHeartsentItem {
+  heartId: number;
+  targetUserId: number;
+  createdAt: string;
+  targetUser: IProfileSummary;
+}
 export interface IHeartsentResponse {
   nextCursor: string | null;
-  items: { heartId: number; targetUserId: number; createdAt: string }[];
+  items: IHeartsentItem[];
 }
 
 //v1/hearts/received(get)
+export interface IHeartreceivedItem {
+  heartId: number;
+  fromUserId: number;
+  createdAt: string;
+  fromUser: IProfileSummary;
+}
 export interface IHeartreceivedResponse {
   nextCursor: string | null;
-  items: {
-    heartId: number;
-    fromUserId: number;
-    createdAt: string;
-  }[];
+  items: IHeartreceivedItem[];
 }
 
 //v1/hearts/{heartId}(patch)
