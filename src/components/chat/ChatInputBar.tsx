@@ -1,5 +1,4 @@
 import { useState, useRef, useEffect } from "react";
-import { useMediaUpload } from "../../hooks/chat/useMediaUpload";
 import { useMicRecording } from "../../hooks/useMicRecording";
 import { ChatPlusMenu } from "./ChatPlusMenu";
 import RecordingControl from "../RecordingControl";
@@ -8,19 +7,19 @@ interface ChatInputBarProps {
   onSendText: (text: string) => void;
   onSendVoice: (file: File, duration: number) => void;
   isBlocked?: boolean;
-  onSelectImage: (mediaUrl: string) => void;
+  onSelectImage: (file: File) => void; // ✅ URL 대신 File을 받도록 수정
 }
 
 export function ChatInputBar({
   onSendText,
-  onSendVoice, // Props에서 빠져있던 것 추가
+  onSendVoice,
   isBlocked,
   onSelectImage,
 }: ChatInputBarProps) {
-  const { uploadMedia, uploading } = useMediaUpload();
-
+  // 이제 업로드는 부모(useChatSender)가 하므로 여기서 useMediaUpload는 제거해도 됩니다.
   const [text, setText] = useState("");
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isComposing, setIsComposing] = useState(false);
 
   // 파일 선택 상태 및 미리보기 URL 관리
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -39,7 +38,6 @@ export function ChatInputBar({
     true,
   );
 
-  // 컴포넌트 언마운트 시 or 파일 변경 시 미리보기 URL 메모리 해제
   useEffect(() => {
     return () => {
       if (previewUrl) URL.revokeObjectURL(previewUrl);
@@ -55,21 +53,12 @@ export function ChatInputBar({
     setIsFocused(false);
   };
 
-  // 🔥 [수정] 전송 버튼 클릭 핸들러 (텍스트 + 파일 업로드 통합)
+  // 🔥 [수정] 전송 버튼 클릭 핸들러
   const handleSend = async () => {
-    if (uploading) return; // 업로드 중 중복 클릭 방지
-
-    // 1. 파일이 있다면 업로드 먼저 수행
+    // 1. 파일이 있다면 부모의 sendImageOrVideo로 File 전달
     if (selectedFile) {
-      const uploadedUrl = await uploadMedia(selectedFile);
-
-      if (uploadedUrl) {
-        onSelectImage(uploadedUrl); // 부모 컴포넌트에 이미지 URL 전달
-        handleRemoveFile(); // 전송 후 미리보기 초기화
-      } else {
-        alert("파일 업로드에 실패했습니다.");
-        return; // 업로드 실패 시 텍스트 전송도 막을지 여부는 기획에 따라 결정 (여기선 중단)
-      }
+      onSelectImage(selectedFile);
+      handleRemoveFile(); // 미리보기 초기화
     }
 
     // 2. 텍스트가 있다면 전송
@@ -86,84 +75,39 @@ export function ChatInputBar({
     }
   };
 
-  // 🔥 [수정] 파일 선택 핸들러 (업로드 하지 않고 미리보기만 설정)
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // 기존 미리보기 URL 해제
     if (previewUrl) URL.revokeObjectURL(previewUrl);
-
-    // 새 미리보기 URL 생성
     const url = URL.createObjectURL(file);
 
     setSelectedFile(file);
     setPreviewUrl(url);
 
-    // 입력값 초기화 (동일 파일 재선택 가능하게) 및 메뉴 닫기
     e.target.value = "";
     setIsMenuOpen(false);
   };
 
-  // 미리보기 삭제 (X 버튼)
   const handleRemoveFile = () => {
     setSelectedFile(null);
     if (previewUrl) URL.revokeObjectURL(previewUrl);
     setPreviewUrl(null);
   };
 
-  const triggerCamera = () => {
-    cameraInputRef.current?.click();
-  };
+  const triggerCamera = () => cameraInputRef.current?.click();
+  const triggerAlbum = () => albumInputRef.current?.click();
 
-  const triggerAlbum = () => {
-    albumInputRef.current?.click();
-  };
-
-  // 마이크 숨김 조건
   const shouldHideMic =
     status === "inactive" &&
     (isMenuOpen || isFocused || text.length > 0 || selectedFile !== null);
 
-  // 차단 상태 UI
   if (isBlocked) {
     return (
       <div className="shrink-0 min-h-[60px] px-4 py-2 bg-white border-t border-gray-100 flex items-center justify-center">
-        <button disabled className="mr-3 p-2 text-gray-300">
-          <svg
-            width="24"
-            height="24"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-          >
-            <path
-              d="M12 5V19M5 12H19"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </button>
-        <div className="flex-1 bg-[#F2F4F6] rounded-[20px] px-4 py-3 text-[14px] text-[#979797] flex items-center">
+        <div className="flex-1 bg-[#F2F4F6] rounded-[20px] px-4 py-3 text-[14px] text-[#979797]">
           차단한 사용자와는 대화할 수 없어요.
         </div>
-        <button disabled className="ml-3 p-2 text-gray-300">
-          <svg
-            width="24"
-            height="24"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-          >
-            <path
-              d="M22 2L11 13M22 2L15 22L11 13M11 13L2 9L22 2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </button>
       </div>
     );
   }
@@ -175,7 +119,6 @@ export function ChatInputBar({
           status={status}
           seconds={seconds}
           isShort={isShort}
-          isResultPage={false}
           onMicClick={handleMicClick}
           isChat={true}
           className={`absolute bottom-full mb-6 flex flex-col items-center transition-opacity duration-200 
@@ -198,10 +141,9 @@ export function ChatInputBar({
                   className="h-20 w-auto rounded-lg border border-gray-200 object-cover"
                 />
               )}
-
               <button
                 onClick={handleRemoveFile}
-                className="absolute -top-2 -right-2 bg-gray-500 text-white rounded-full p-1 hover:bg-gray-700 transition-colors"
+                className="absolute -top-2 -right-2 bg-gray-500 text-white rounded-full p-1"
               >
                 <svg
                   width="12"
@@ -210,8 +152,6 @@ export function ChatInputBar({
                   fill="none"
                   stroke="currentColor"
                   strokeWidth="3"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
                 >
                   <line x1="18" y1="6" x2="6" y2="18"></line>
                   <line x1="6" y1="6" x2="18" y2="18"></line>
@@ -224,7 +164,7 @@ export function ChatInputBar({
         <div className="flex items-center gap-2 px-4 py-3 shrink-0">
           <button
             onClick={handlePlusClick}
-            className={`p-2 transition-transform duration-200 ${isMenuOpen ? "rotate-45 text-gray-800" : "text-gray-400 rotate-0"}`}
+            className={`p-2 transition-transform ${isMenuOpen ? "rotate-45" : ""}`}
           >
             <svg
               width="24"
@@ -239,56 +179,35 @@ export function ChatInputBar({
             </svg>
           </button>
 
-          <div className="flex-1 bg-gray-100 rounded-[24px] px-4 py-2.5 flex items-center">
+          <div className="flex-1 bg-gray-100 rounded-[24px] px-4 py-2.5">
             <input
               ref={inputRef}
-              className="w-full bg-transparent outline-none text-[15px] placeholder-gray-400 text-gray-800"
+              className="w-full bg-transparent outline-none text-[15px]"
               placeholder={
-                status === "recording"
-                  ? "녹음 중입니다..."
-                  : "대화를 입력하세요"
+                status === "recording" ? "녹음 중..." : "대화를 입력하세요"
               }
               value={text}
               onChange={(e) => setText(e.target.value)}
+              onCompositionStart={() => setIsComposing(true)}
+              onCompositionEnd={() => setIsComposing(false)}
               onFocus={handleInputFocus}
               onBlur={handleInputBlur}
-              disabled={status === "recording" || uploading}
               onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.nativeEvent.isComposing) {
-                  e.preventDefault(); // 엔터 시 줄바꿈 방지 등
-                  handleSend();
-                }
+                if (e.key !== "Enter") return;
+                if (isComposing || (e.nativeEvent as any).isComposing) return;
+                e.preventDefault();
+                handleSend();
               }}
             />
           </div>
 
-          {/* 전송 버튼: 텍스트가 있거나 파일이 있거나 업로드 중이 아닐 때 활성화 */}
-          {text.length > 0 || selectedFile ? (
+          {(text.length > 0 || selectedFile) && (
             <button
               onClick={handleSend}
-              disabled={uploading}
-              className={`p-2 font-bold text-sm whitespace-nowrap ${uploading ? "text-gray-400" : "text-[#FC3367]"}`}
+              className="p-2 font-bold text-[#FC3367]"
             >
-              {uploading ? "전송중" : "전송"}
+              전송
             </button>
-          ) : (
-            <div className="w-[37px] h-[37px] bg-[#E9ECED] rounded-full flex items-center justify-center">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="20"
-                height="20"
-                viewBox="0 0 22 16"
-                fill="none"
-              >
-                <path
-                  d="M7.91645 7.652L1.42305 3.05942C0.63275 2.50047 1.01842 1.25681 1.9863 1.24309L19.339 0.996997C20.1755 0.985135 20.6559 1.94432 20.1455 2.60706L9.89652 15.9149C9.32159 16.6614 8.12763 16.2712 8.10455 15.3292L7.91645 7.652ZM7.91645 7.652L11.57 5.81253"
-                  stroke="#636970"
-                  strokeWidth="1.99387"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </div>
           )}
         </div>
 
@@ -302,17 +221,14 @@ export function ChatInputBar({
 
       <input
         type="file"
-        id="camera-input"
         accept="image/*"
         capture="environment"
         ref={cameraInputRef}
         onChange={handleFileSelect}
         className="hidden"
       />
-
       <input
         type="file"
-        id="album-input"
         accept="image/*,video/*"
         ref={albumInputRef}
         onChange={handleFileSelect}

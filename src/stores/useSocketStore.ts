@@ -1,10 +1,10 @@
-import { create } from 'zustand';
-import { io, Socket } from 'socket.io-client';
-import { MessageSendData, JoinData } from '../types/api/socket';
-import { ApiSuccessResponse } from '../types/api/api';
+import { create } from "zustand";
+import { io, Socket } from "socket.io-client";
+import { MessageSendData, JoinData } from "../types/api/socket";
+import { ApiSuccessResponse } from "../types/api/api";
 
-// [Namespace] 
-const NAMESPACE = "https://back.eum-dating.com/chats"; 
+// [Namespace]
+const NAMESPACE = "https://back.eum-dating.com/chats";
 
 interface SocketStore {
   socket: Socket | null;
@@ -14,13 +14,13 @@ interface SocketStore {
   connect: () => void;
   disconnect: () => void;
   joinRoom: (roomId: number) => void;
-  
+
   sendMessage: (
-    roomId: number, 
-    type: "TEXT" | "IMAGE" | "AUDIO" | "VIDEO", 
-    text: string | null, 
-    mediaUrl?: string | null, 
-    durationSec?: number | null
+    roomId: number,
+    type: "TEXT" | "PHOTO" | "AUDIO" | "VIDEO",
+    text: string | null,
+    mediaUrl?: string | null,
+    durationSec?: number | null,
   ) => void;
 }
 
@@ -32,8 +32,8 @@ export const useSocketStore = create<SocketStore>((set, get) => ({
   connect: () => {
     const token = localStorage.getItem("accessToken");
     if (!token) {
-        console.error("❌ 토큰이 없습니다.");
-        return;
+      console.error("❌ 토큰이 없습니다.");
+      return;
     }
 
     // 이미 연결되어 있다면 재연결 하지 않음
@@ -42,9 +42,9 @@ export const useSocketStore = create<SocketStore>((set, get) => ({
     console.log(`🔌 소켓 연결 시도: ${NAMESPACE}`);
 
     const newSocket = io(NAMESPACE, {
-      path: "/ws", 
+      path: "/ws",
       transports: ["websocket"],
-      auth: { 
+      auth: {
         token: token,
       },
       reconnection: true, // 자동 재연결 활성화
@@ -53,6 +53,18 @@ export const useSocketStore = create<SocketStore>((set, get) => ({
     newSocket.on("connect", () => {
       console.log("✅ [Store] 연결 성공! ID:", newSocket.id);
       set({ isConnected: true });
+
+      // 재연결 시 기존 방 자동 재조인
+      const { joinedRoomIds } = get();
+      joinedRoomIds.forEach((roomId) => {
+        newSocket.emit(
+          "room.join",
+          { chatRoomId: roomId },
+          (res: ApiSuccessResponse<JoinData>) => {
+            console.log(`🔁 ${roomId}번 방 재입장 결과:`, res);
+          },
+        );
+      });
     });
 
     newSocket.on("connect_error", (err) => {
@@ -81,16 +93,19 @@ export const useSocketStore = create<SocketStore>((set, get) => ({
 
     // 🔥 [핵심 수정] 소켓이 있고, "아직 이 방에 안 들어갔을 때만" 요청!
     if (socket && !joinedRoomIds.has(roomId)) {
-      
-      socket.emit("room.join", { chatRoomId: roomId }, (res: ApiSuccessResponse<JoinData>) => {
-        console.log(`🚪 ${roomId}번 방 입장 결과:`, res);
-      });
+      socket.emit(
+        "room.join",
+        { chatRoomId: roomId },
+        (res: ApiSuccessResponse<JoinData>) => {
+          console.log(`🚪 ${roomId}번 방 입장 결과:`, res);
+        },
+      );
 
       // 🔥 [추가] Set에 방 ID 추가 (불변성 유지)
       const newSet = new Set(joinedRoomIds);
       newSet.add(roomId);
       set({ joinedRoomIds: newSet });
-      
+
       console.log(`📌 [Local] ${roomId}번 방 입장 처리 완료 (중복 방지용)`);
     } else {
       // 이미 들어간 방이면 로그만 찍고 무시 (서버 부하 감소)
@@ -104,18 +119,22 @@ export const useSocketStore = create<SocketStore>((set, get) => ({
       const payload = {
         chatRoomId: roomId,
         type: type,
-        text: text,          
-        mediaUrl: mediaUrl,  
-        durationSec: durationSec || null 
+        text: text,
+        mediaUrl: mediaUrl,
+        durationSec: durationSec || null,
       };
 
-      console.log("📤 소켓 전송 페이로드:", payload); 
+      console.log("📤 소켓 전송 페이로드:", payload);
 
-      socket.emit("message.send", payload, (res: ApiSuccessResponse<MessageSendData>) => {
-        console.log("📤 전송 서버 응답:", res);
-      });
+      socket.emit(
+        "message.send",
+        payload,
+        (res: ApiSuccessResponse<MessageSendData>) => {
+          console.log("📤 전송 서버 응답:", res);
+        },
+      );
     } else {
       console.error("⚠️ 소켓이 연결되지 않아서 메시지를 보낼 수 없습니다.");
     }
-  }
+  },
 }));

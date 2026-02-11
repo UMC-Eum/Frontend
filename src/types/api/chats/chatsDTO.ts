@@ -84,25 +84,18 @@ export interface IChatsRoomIdMessagesPostResponse {
   messageId: number;
   sendAt: string;
 }
-
-//v1/chats/messages/{messageId}/read(patch)
-// {
-//   "success": true,
-//   "data": null,
-//   "error": null,
-//   "timestamp": "2025-12-30T04:10:00.000Z",
-//   "path": "/api/v1/chats/messages/9001/read"
-// }
-
-//v1/chats/messages/{messageId}(patch)
-// {
-//   "resultType": "SUCCESS",
-//   "success": {
-//     "data": null
-//   },
-//   "error": null,
-//   "meta": {
-//     "timestamp": "2025-12-30T04:10:00.000Z",
-//     "path": "/api/v1/chats/messages/345"
-//   }
-// }
+//v1/chats/rooms/{chatRoomId}/media/presign(post)
+export interface IChatsRoomIdMediaPresignPostRequest {
+  type: MessageType;
+  fileName: string;
+  contentType: string;
+  sizeBytes: number;
+}
+export interface IChatsRoomIdMediaPresignPostResponse {
+  uploadUrl: string;
+  mediaRef: string;
+  expiresAt: string;
+  requireHeaders: {
+    "Content-Type": string;
+  };
+}

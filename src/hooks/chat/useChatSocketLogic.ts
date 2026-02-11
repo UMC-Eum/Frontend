@@ -5,6 +5,20 @@ import { readChatMessage } from "../../api/chats/chatsApi";
 import { MessageNewData } from "../../types/api/socket";
 
 type IMessageItem = IChatsRoomIdMessagesGetResponse["items"][number];
+type MessageWithSentAt = IMessageItem & { sentAt?: string };
+
+const normalizeMediaUrl = (url?: string | null) => {
+  if (!url) return "";
+  if (url.startsWith("blob:")) return url;
+  if (url.startsWith("s3://")) {
+    const withoutScheme = url.replace("s3://", "");
+    const [bucket, ...rest] = withoutScheme.split("/");
+    const key = rest.join("/");
+    if (!bucket || !key) return url;
+    return `https://${bucket}.s3.amazonaws.com/${key}`;
+  }
+  return url;
+};
 
 export const useChatSocketLogic = (
   myId: number,
@@ -12,31 +26,29 @@ export const useChatSocketLogic = (
   setInitialMessages: React.Dispatch<React.SetStateAction<IMessageItem[]>>,
   blockId: number | null,
 ) => {
+  // ✅ 1. socket을 가장 먼저 가져옵니다.
   const { socket } = useSocketStore();
   const [socketMessages, setSocketMessages] = useState<IMessageItem[]>([]);
   const [tempMessages, setTempMessages] = useState<IMessageItem[]>([]);
 
-  // 1. 소켓 이벤트 리스너
   useEffect(() => {
+    // ✅ 2. socket 선언 여부 체크
     if (!socket) return;
 
-    // 새 메시지 수신 (message.new)
     const handleMessageNew = (response: any) => {
       const newMsgData: MessageNewData = response.success?.data || response;
       if (blockId) return;
 
-      // ✅ [수정] 타입 단언(as string)을 사용하여 ts(2367) 에러 해결
-      // 서버 타입(PHOTO/IMAGE) -> UI 타입(PHOTO) 변환 및 비디오 대응
-      let uiType: any = newMsgData.type;
-      const rawType = newMsgData.type as string;
+      const rawType = String(newMsgData.type);
+      const uiType: IMessageItem["type"] =
+        rawType === "PHOTO" || rawType === "IMAGE"
+          ? "PHOTO"
+          : rawType === "VIDEO"
+            ? "VIDEO"
+            : rawType === "AUDIO"
+              ? "AUDIO"
+              : "TEXT";
 
-      if (rawType === "IMAGE" || rawType === "PHOTO") {
-        uiType = "PHOTO";
-      } else if (rawType === "VIDEO") {
-        uiType = "VIDEO";
-      }
-
-      // 서버 데이터 매핑 (sentAt -> sendAt)
       const newMsg: IMessageItem = {
         messageId: newMsgData.messageId,
         senderUserId: newMsgData.senderUserId,
@@ -49,34 +61,52 @@ export const useChatSocketLogic = (
         isMine: newMsgData.senderUserId === myId,
       };
 
-      console.log("📥 새 메시지 수신:", newMsg);
       setSocketMessages((prev) => [...prev, newMsg]);
 
-      // 내 메시지라면 낙관적 업데이트로 추가했던 임시 메시지 삭제
       if (newMsgData.senderUserId === myId) {
-        setTempMessages((prev) =>
-          prev.filter(
-            (temp) =>
-              !(
-                // 텍스트 내용이 같거나, 미디어 URL이 같은 경우 필터링
-                (
-                  (temp.type === uiType &&
-                    temp.text &&
-                    temp.text === newMsg.text) ||
-                  (temp.mediaUrl && temp.mediaUrl === newMsg.mediaUrl)
-                )
-              ),
-          ),
-        );
+        setTempMessages((prev) => {
+          let targetIndex = -1;
+
+          if (uiType === "TEXT") {
+            targetIndex = prev.findIndex(
+              (temp) => temp.type === "TEXT" && temp.text === newMsg.text,
+            );
+          } else {
+            const normalizedUrl = normalizeMediaUrl(newMsg.mediaUrl);
+            if (normalizedUrl) {
+              targetIndex = prev.findIndex(
+                (temp) => temp.mediaUrl === normalizedUrl,
+              );
+            }
+
+            if (targetIndex === -1) {
+              const newMsgTime = new Date(newMsg.sendAt).getTime();
+              for (let i = prev.length - 1; i >= 0; i -= 1) {
+                const temp = prev[i];
+                if (temp.type !== uiType) continue;
+                const tempTime = new Date(temp.sendAt).getTime();
+                if (Math.abs(tempTime - newMsgTime) < 10000) {
+                  targetIndex = i;
+                  break;
+                }
+              }
+            }
+          }
+
+          if (targetIndex !== -1) {
+            const newList = [...prev];
+            newList.splice(targetIndex, 1);
+            return newList;
+          }
+          return prev;
+        });
       }
 
-      // 상대방 메시지라면 읽음 처리 API 호출
       if (newMsgData.senderUserId !== myId) {
         readChatMessage(newMsgData.messageId).catch(console.error);
       }
     };
 
-    // 메시지 읽음 처리 (message.read)
     const handleMessageRead = (response: any) => {
       const { messageId, readAt } = response.success?.data || response;
       if (!messageId || !readAt) return;
@@ -95,53 +125,42 @@ export const useChatSocketLogic = (
       setTempMessages((prev) => updateReadStatus(prev));
     };
 
-    // 메시지 삭제 (message.deleted)
-    const handleMessageDelete = (response: any) => {
-      const { messageId } = response.success?.data || response;
-      if (!messageId) return;
-
-      const filterMsg = (list: IMessageItem[]) =>
-        list.filter((msg) => msg.messageId !== messageId);
-
-      setInitialMessages((prev) => filterMsg(prev));
-      setSocketMessages((prev) => filterMsg(prev));
-      setTempMessages((prev) => filterMsg(prev));
-    };
-
+    // ✅ 3. socket.on 호출 (컴포넌트 내의 변수가 아닌 socket 객체의 메서드 사용)
     socket.on("message.new", handleMessageNew);
     socket.on("message.read", handleMessageRead);
-    socket.on("message.deleted", handleMessageDelete);
 
     return () => {
       socket.off("message.new", handleMessageNew);
       socket.off("message.read", handleMessageRead);
-      socket.off("message.deleted", handleMessageDelete);
     };
   }, [socket, myId, blockId, setInitialMessages]);
 
-  // 2. 메시지 병합 및 정렬 (Memoization)
+  // ✅ 4. 메시지 병합 및 과거->최신순 정렬
   const displayMessages = useMemo(() => {
-    const rawList = [...initialMessages, ...socketMessages, ...tempMessages];
+    const rawList: MessageWithSentAt[] = [
+      ...initialMessages,
+      ...socketMessages,
+      ...tempMessages,
+    ];
     const uniqueMap = new Map();
 
     rawList.forEach((msg) => {
-      // 날짜 포맷 표준화 (공백을 T로 치환)
-      const dateStr = String(msg.sendAt || new Date().toISOString()).replace(
-        " ",
-        "T",
-      );
+      const dateStr = String(
+        msg.sendAt || msg.sentAt || new Date().toISOString(),
+      ).replace(" ", "T");
+      const standardizedMsg = {
+        ...msg,
+        sendAt: dateStr,
+        mediaUrl: normalizeMediaUrl(msg.mediaUrl),
+      };
 
-      const standardizedMsg = { ...msg, sendAt: dateStr };
-
-      // 중복 제거 키 (messageId가 없으면 임시 키 생성)
       const key = msg.messageId
         ? String(msg.messageId)
-        : `temp-${dateStr}-${msg.text || msg.mediaUrl}`;
+        : `temp-${dateStr}-${msg.type}-${msg.text || msg.mediaUrl}`;
 
       const existing = uniqueMap.get(key);
       if (existing) {
         const mergedMsg = { ...existing, ...standardizedMsg };
-        // 이미 읽음 처리가 되었다면 유지
         if (existing.readAt && !standardizedMsg.readAt)
           mergedMsg.readAt = existing.readAt;
         uniqueMap.set(key, mergedMsg);
@@ -150,11 +169,11 @@ export const useChatSocketLogic = (
       }
     });
 
-    // 시간 순 정렬
-    return Array.from(uniqueMap.values()).sort(
-      (a: any, b: any) =>
-        new Date(a.sendAt).getTime() - new Date(b.sendAt).getTime(),
-    );
+    return Array.from(uniqueMap.values()).sort((a, b) => {
+      const aTime = new Date(a.sendAt).getTime();
+      const bTime = new Date(b.sendAt).getTime();
+      return aTime - bTime;
+    });
   }, [initialMessages, socketMessages, tempMessages]);
 
   return { displayMessages, setTempMessages, socketMessages };
