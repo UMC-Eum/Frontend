@@ -121,7 +121,7 @@ export function ChatInputBar({
           isShort={isShort}
           onMicClick={handleMicClick}
           isChat={true}
-          className={`absolute bottom-full mb-6 flex flex-col items-center transition-opacity duration-200 
+          className={`absolute left-1/2 -translate-x-1/2 bottom-full mb-6 flex flex-col items-center transition-opacity duration-200 
             ${shouldHideMic ? "opacity-0 pointer-events-none" : "opacity-100 pointer-events-auto"}`}
         />
 
