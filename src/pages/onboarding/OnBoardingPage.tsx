@@ -44,18 +44,21 @@ export default function OnBoardingPage() {
   // 권한 체크 함수 (기존 유지)
   const checkPermissionAndPass = async () => {
     try {
-      const isNotiGranted = Notification.permission === "granted";
-      // navigator.permissions.query는 일부 브라우저 호환성 문제 가능성 있음. 
-      // 필요시 try-catch로 감싸거나 navigator.mediaDevices 등 다른 API 사용 고려
+      // 알림 권한 상태 가져오기 (변수는 유지하되, 조건문에서만 뺍니다)
+      
+      // 카메라/마이크 권한 상태 확인
       const cameraStatus = await navigator.permissions.query({ name: "camera" as any }).catch(() => ({ state: 'prompt' }));
       const micStatus = await navigator.permissions.query({ name: "microphone" as any }).catch(() => ({ state: 'prompt' }));
 
       const isCameraGranted = cameraStatus.state === "granted";
       const isMicGranted = micStatus.state === "granted";
 
-      if (isCameraGranted && isMicGranted && isNotiGranted) {
+      // 🔥 [수정] 필수 권한(카메라, 마이크)만 허용되어 있으면 바로 통과시킵니다.
+      // (&& isNotiGranted 부분을 삭제했습니다)
+      if (isCameraGranted && isMicGranted) {
         navigate("/profileset", { replace: true });
       } else {
+        // 필수 권한 중 하나라도 없으면 권한 설정 페이지로 이동
         setStep("permission");
       }
     } catch {
