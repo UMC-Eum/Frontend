@@ -9,10 +9,10 @@ import { forwardRef, InputHTMLAttributes } from 'react';
 
 //input 그대로 상속
 interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
-    errMsg : string
+    errMsg?: string
 }
 
-const Input = forwardRef<HTMLInputElement, InputProps>(({ className, errMsg, ...props }, ref) => {
+const   Input = forwardRef<HTMLInputElement, InputProps>(({ className, errMsg, ...props }, ref) => {
   return (
     <div className="
         flex flex-col gap-2
@@ -32,7 +32,9 @@ const Input = forwardRef<HTMLInputElement, InputProps>(({ className, errMsg, ...
         />
         {/* 에러메시지 */}
         {/* 시각적 보정을 위해 1px 마진 넣음 */}
-        <p className="ml-[1px] text-[#FC3367] text-[14px] font-medium">{errMsg}</p>
+        {errMsg && (
+          <p className="ml-[1px] text-[#FC3367] text-[14px] font-medium">{errMsg}</p>
+        )}
     </div>
   );
 });

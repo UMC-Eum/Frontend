@@ -128,13 +128,29 @@ const MatchingPage = () => {
         </section>
       )}
 
-      <RecordingControl
-        status={status}
-        seconds={seconds}
-        isShort={isShort}
-        isResultPage={isResultPage}
-        onMicClick={handleMicClick}
-      />
+      {status === "loading" || isResultPage ? (
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="relative flex flex-col items-center bottom-[-16px]">
+            <RecordingControl
+              status={status}
+              seconds={seconds}
+              isShort={isShort}
+              isResultPage={isResultPage}
+              onMicClick={handleMicClick}
+            />
+          </div>
+        </div>
+      ) : (
+        <div className="absolute bottom-[74px] left-1/2 -translate-x-1/2 flex flex-col items-center">
+          <RecordingControl
+            status={status}
+            seconds={seconds}
+            isShort={isShort}
+            isResultPage={isResultPage}
+            onMicClick={handleMicClick}
+          />
+        </div>
+      )}
 
       <AnimatePresence mode="wait">
         {isResultPage && (

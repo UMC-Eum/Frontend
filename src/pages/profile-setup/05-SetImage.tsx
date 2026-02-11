@@ -4,6 +4,8 @@ import { useUserStore } from "../../stores/useUserStore";
 import getCroppedImg from "../../utils/cropImage";
 import avatar_placeholder from "../../assets/avatar_placeholder.png";
 import camera_btn from "../../assets/camera_btn.png";
+import { FullButton } from "../../components/standard/CTA";
+import { postPresign } from "../../api/onboarding/onboardingApi";
 
 interface SetImageProps {
   onNext: () => void;
@@ -69,7 +71,15 @@ export default function SetImage({ onNext }: SetImageProps) {
         setImageSrc(croppedImage);
         // 스토어에 저장
         updateUser({ profileImageUrl: croppedImage });
+
+        const presignData = await postPresign({
+          fileName: croppedImage,
+          contentType: "image/png",
+          purpose: "PROFILE_INTRO_AUDIO"
+        });
       }
+
+
     } catch (e) {
       console.error("Crop error:", e);
     } finally {
@@ -102,27 +112,19 @@ export default function SetImage({ onNext }: SetImageProps) {
   const isValid = imageSrc.length > 0;
 
   return (
-    <div className="flex-1 flex flex-col px-2">
-      {/* -------------------------------------------------- */}
-      {/* 1. 상단 텍스트 */}
-      {/* -------------------------------------------------- */}
-      <div className="mt-5 mb-5">
-        <h1 className="text-[26px] font-bold text-black leading-tight">
-          사진을 등록해주세요.
-        </h1>
-        <p className="text-gray-500 text-[15px] mt-2">
-          따뜻한 미소가 담긴 사진은 매칭에 큰 도움이 됩니다.
-        </p>
-      </div>
+    <div className="flex-1 flex flex-col justify-between">
+      <h1 className="text-[26px] font-bold text-black leading-tight">
+        사진을 등록해주세요.
+      </h1>
+      <p className="text-gray-500 text-[15px] mt-2">
+        따뜻한 미소가 담긴 사진은 매칭에 큰 도움이 됩니다.
+      </p>
 
-      {/* -------------------------------------------------- */}
-      {/* 2. 프로필 이미지 원형 영역 */}
-      {/* -------------------------------------------------- */}
-      <div className="flex flex-col items-center justify-center pt-40">
+      <div className="flex flex-col items-center justify-center mt-[106px]">
         <div
           className={`relative w-40 h-40 rounded-full p-[3px] ${
             isValid
-              ? "bg-gradient-to-tr from-[#FFBD66] via-[#FF3D77] to-[#FF3D77]"
+              ? "bg-gradient-to-tr from-[#FFBD66] v ia-[#FF3D77] to-[#FF3D77]"
               : "bg-gray-300"
           } flex items-center justify-center`}
         >
@@ -145,9 +147,6 @@ export default function SetImage({ onNext }: SetImageProps) {
         </div>
       </div>
 
-      {/* -------------------------------------------------- */}
-      {/* 3. 숨겨진 File Input (ref로 제어) */}
-      {/* -------------------------------------------------- */}
       <input
         type="file"
         accept="image/*"
@@ -156,25 +155,15 @@ export default function SetImage({ onNext }: SetImageProps) {
         className="hidden"
       />
 
-      {/* -------------------------------------------------- */}
-      {/* 4. 하단 '다음' 버튼 */}
-      {/* -------------------------------------------------- */}
-      <div className="mt-auto pb-10">
-        <button
-          onClick={onNext}
-          disabled={!isValid}
-          className={`w-full py-5 rounded-[20px] text-[18px] font-semibold transition-all ${
-            isValid
-              ? "bg-[#FC3367] text-white active:bg-pink-300"
-              : "bg-[#DEE3E5] text-[#A6AFB6] cursor-not-allowed"
-          }`}
-        >
-          다음
-        </button>
-      </div>
+      {/* 빈 공간을 다 차지해서 버튼을 아래로 밀어버림 */}
+      <div className="flex-1" />
+
+      <FullButton onClick={onNext} disabled={!isValid}>
+        다음
+      </FullButton>
 
       {/* -------------------------------------------------- */}
-      {/* 5. 하단 메뉴 모달 (SetImageModal) */}
+      {/* 하단 메뉴 모달 (SetImageModal) */}
       {/* -------------------------------------------------- */}
       {isMenuOpen && (
         <SetImageModal
@@ -185,7 +174,7 @@ export default function SetImage({ onNext }: SetImageProps) {
       )}
 
       {/* -------------------------------------------------- */}
-      {/* 6. 전체화면 크롭 모달 */}
+      {/* 전체화면 크롭 모달 */}
       {/* -------------------------------------------------- */}
       {/* ✅ 크롭 UI 모달 (전체 화면 덮기) */}
       {isCroppingOpen && rawImage && (

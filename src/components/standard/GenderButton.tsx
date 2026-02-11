@@ -39,7 +39,7 @@ const GenderButton = forwardRef<HTMLButtonElement, GenderButtonProps>(
 );
 
 const MaleButton = forwardRef<HTMLButtonElement, GenderButtonProps>(
-  ({ className, children, active, ...props }, ref) => {
+  ({ className, active, ...props }, ref) => {
     return (
       <GenderButton ref={ref} className={className} active={active} {...props}>
         <div className='flex flex-col items-center gap-[18px]'>
@@ -52,7 +52,7 @@ const MaleButton = forwardRef<HTMLButtonElement, GenderButtonProps>(
 );
 
 const FemaleButton = forwardRef<HTMLButtonElement, GenderButtonProps>(
-  ({ className, children, active, ...props }, ref) => {
+  ({ className, active, ...props }, ref) => {
     return (
       <GenderButton ref={ref} className={className} active={active} {...props}>
         <div className='flex flex-col items-center gap-[14px]'>

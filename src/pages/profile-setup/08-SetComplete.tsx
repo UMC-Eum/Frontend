@@ -3,6 +3,7 @@ import { useUserStore } from "../../stores/useUserStore";
 import useCompleteLogin from "../../hooks/useCompleteLogin";
 import KeywordLabel from "../../components/keyword/KeywordLabel";
 import locationIcon from "../../assets/location.svg";
+import { FullButton } from "../../components/standard/CTA";
 
 
 export default function SetComplete() {
@@ -26,8 +27,9 @@ export default function SetComplete() {
   }; 
 
 return (
-  <div className="flex-1 flex flex-col px-2">
-    <div className="mt-5 mb-5">
+  <div className="flex-1 flex flex-col items-center">
+    {/* 헤더와 제목 사이 56px (28+28) */}
+    <div className="mt-[28px] mb-[40px] w-full">
       <h1 className="text-[26px] font-bold text-black leading-tight">
         {user?.nickname}님의 프로필이 준비됐어요!
       </h1>
@@ -37,8 +39,8 @@ return (
       </p>
     </div>
 
-    {/* 카드 */}
-    <div className="relative w-full h-[380px] w-[314px] overflow-hidden mb-6 rounded-[30px]">
+    {/* 카드 : 314 * 380, 글자랑 카드 사이 40px */}
+    <div className="relative w-[314px] h-[380px] overflow-hidden mb-6 rounded-[30px] mx-auto flex-none shadow-lg">
       <div
         className="absolute inset-0 bg-cover bg-center"
         style={{
@@ -66,15 +68,15 @@ return (
           {user?.area.name} 거주 · {user?.age}세
         </p>
 
-        <p className="text-[14px] text-center opacity-80 mb-2 line-clamp-2 leading-relaxed text-white">
-          {user?.introText}
+        <p className="text-[14px] text-center opacity-80 mb-2 line-clamp-2 overflow-hidden leading-relaxed text-white px-4">
+          {user?.introText} 
         </p>
       </div>
 
-      <div className="relative z-10 flex flex-wrap justify-center gap-2 px-4">
+      <div className="absolute bottom-[26px] inset-x-0 z-10 flex flex-wrap justify-center gap-2 px-4">
         {[...(user?.personalities || []), ...(user?.keywords || [])].map(
           (k, i) => (
-            <KeywordLabel
+             <KeywordLabel
               key={i}
               keyword={k}
               shape="pill"
@@ -84,16 +86,13 @@ return (
       </div>
     </div>
 
-    <div className="mt-auto pb-10">
-      <p className="text-center text-gray-500 text-[14px] mb-5">프로필은 설정에서 언제든지 수정할 수 있어요.</p>
-      <button
-        onClick={handleStart}
-        disabled={loading}
-        className="w-full py-5 rounded-[20px] text-[18px] font-semibold transition-all bg-[#FC3367] text-white active:bg-pink-300 disabled:opacity-60 disabled:cursor-not-allowed"
-      >
+    {/* 빈 공간을 다 차지해서 버튼을 아래로 밀어버림 */}
+    <div className="flex-1" />
+
+    <p className="text-center text-gray-500 text-[14px] mb-5">프로필은 설정에서 언제든지 수정할 수 있어요.</p>
+    <FullButton onClick={handleStart} disabled={loading}>
         {loading ? "로딩 중..." : "시작하기"}
-      </button>
-    </div>
+    </FullButton>
   </div>
 );
 }

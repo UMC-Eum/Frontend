@@ -1,5 +1,6 @@
 import { useRef, useState } from "react"; // useEffect 추가
 import { useUserStore } from "../../stores/useUserStore";
+import { FullButton } from "../../components/standard/CTA";
 
 interface SetAgeProps {
   onNext: () => void;
@@ -17,30 +18,26 @@ export default function SetAge({ onNext }: SetAgeProps) {
   };
 
   return (
-    <div className="flex-1 flex flex-col px-2">
-      <div className="mt-5 mb-5">
+    <div className="flex-1 flex flex-col justify-between">
+      <div>
         <h1 className="text-[26px] font-bold text-black leading-tight">
           나이가 어떻게 되세요?
         </h1>
         <p className="text-gray-500 text-[15px] mt-2">
           만나이로 알려주세요! 추후에 변경이 불가능해요.
         </p>
+
+        {/* 피그마와 디자인이 달라져서 마진을 임의로 줬어요 */}
+        <div className="mt-10">
+          <WheelPicker onChange={setAge} />
+        </div>  
       </div>
 
-      <div className="mt-10">
-        <WheelPicker onChange={setAge} />
-      </div>
-
-      <div className="mt-auto pb-10">
-        <button
-          onClick={handleNext}
-          className={
-            "w-full py-5 rounded-[20px] text-[18px] font-semibold transition-all bg-[#FC3367] text-white active:bg-pink-300"
-          }
-        >
-          다음
-        </button>
-      </div>
+      <FullButton
+        onClick={handleNext}
+      >
+        다음
+      </FullButton>
     </div>
   );
 }
