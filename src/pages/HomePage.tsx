@@ -1,4 +1,4 @@
-import Navbar from "../components/Navbar";
+import Navbar from "../components/standard/Navbar";
 import { Outlet, useNavigate } from "react-router-dom";
 import { useUserStore } from "../stores/useUserStore";
 import { useQuery } from "@tanstack/react-query";

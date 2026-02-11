@@ -34,7 +34,7 @@ export default function IntroTextEditModal({
   return (
     <div
       onClick={onClose}
-      className="fixed inset-0 bg-black/50
+      className="fixed inset-0 bg-black/50 z-[100]
     flex items-end"
     >
       {/* 모달창 시작*/}

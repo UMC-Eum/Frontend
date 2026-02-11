@@ -56,7 +56,7 @@ export default function SetImageModal({ onClose }: SetImageModalProps) {
     <>
       {!rawImageURL && (
         <div
-          className="px-10 pb-4 fixed inset-0 bg-black/50 flex items-end justify-center z-50"
+          className="px-10 pb-4 fixed inset-0 bg-black/50 flex items-end justify-center z-[100]"
           onClick={onClose}
         >
           <div
@@ -121,7 +121,7 @@ export default function SetImageModal({ onClose }: SetImageModalProps) {
               const presignResult = await postPresign({
                 fileName: file.name,
                 contentType: file.type,
-                purpose: "profile-image",
+                purpose: "PROFILE_IMAGE",
               });
 
               const { uploadUrl, fileUrl } = presignResult.data;

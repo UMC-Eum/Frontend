@@ -5,7 +5,7 @@ import term_detailbutton from "../../assets/term_detailbutton.svg";
 import { useNavigate } from "react-router-dom";
 import { logout } from "../../api/auth/authApi";
 import { deactivateUser } from "../../api/users/usersApi";
-import Navbar from "../../components/Navbar";
+import Navbar from "../../components/standard/Navbar";
 
 export default function ProfileEditMain() {
   const { user, clearUser } = useUserStore();

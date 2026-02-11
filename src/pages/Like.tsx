@@ -1,5 +1,5 @@
 import BackButton from "../components/BackButton";
-import Navbar from "../components/Navbar";
+import Navbar from "../components/standard/Navbar";
 import { useMemo, useState } from "react";
 import MiniCard from "../components/card/presets/MiniCard";
 import { useInfiniteQuery } from "@tanstack/react-query";

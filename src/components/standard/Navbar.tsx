@@ -1,4 +1,4 @@
-import { NavLink } from "react-router-dom";
+import { NavLink, useLocation } from "react-router-dom";
 
 import home from "../../assets/home.svg";
 import emptyhome from "../../assets/empty_home.svg";
@@ -21,6 +21,8 @@ const linkClass = ({ isActive }: { isActive: boolean }) =>
 //세로 : 픽셀 고정
 
 export default function Navbar() {
+  const location = useLocation();
+
   return (
     <nav className="absolute bottom-0 left-0 
         w-full h-[92px] z-50 
@@ -72,13 +74,19 @@ export default function Navbar() {
                 </>
             )}
             </NavLink>
-            <NavLink to="/my" end className={linkClass}>
-            {({ isActive }) => (
-                <>
-                <img src={isActive ? my : emptymy} />
-                <span>마이</span>
-                </>
-            )}
+            <NavLink to="/my" end className={() => {
+             const isActive = location.pathname === "/my" || location.pathname === "/my/edit";
+             return linkClass({ isActive });
+            }}>
+            {() => {
+                const isActive = location.pathname === "/my" || location.pathname === "/my/edit";
+                return (
+                    <>
+                    <img src={isActive ? my : emptymy} />
+                    <span>마이</span>
+                    </>
+                );
+            }}
             </NavLink>
         </div>
     </nav>

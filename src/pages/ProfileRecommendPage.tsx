@@ -1,7 +1,7 @@
 import { useLocation, useParams, useNavigate } from "react-router-dom";
 import { useMutation } from "@tanstack/react-query";
 import BackButton from "../components/BackButton";
-import Navbar from "../components/Navbar";
+import Navbar from "../components/standard/Navbar";
 import chatpinkbox from "../assets/chat_pinkbox.svg";
 import KeywordLabel from "../components/keyword/KeywordLabel";
 import RecommendCard2 from "../components/card/presets/RecommendCard2";
