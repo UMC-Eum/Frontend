@@ -15,7 +15,7 @@ import { useUserStore } from "../../stores/useUserStore";
 
 export default function ProfileSetupMain() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const { user } = useUserStore();
+  const { user, updateUser } = useUserStore();
   const step = Number(searchParams.get("step")) || 1;
   const [direction, setDirection] = useState(1);
   const vibeVectorRef = useRef<number[]>([]);
@@ -36,9 +36,13 @@ export default function ProfileSetupMain() {
 
   const handleSpeechKeywordNext = (data: {
     record: string;
-    keywords: string[];
+    transcript: string;
     vibeVector: number[];
   }) => {
+    updateUser({
+      introText: data.transcript,
+      introAudioUrl: data.record,
+    })
     vibeVectorRef.current = data.vibeVector;
     handleNext();
   };
@@ -133,3 +137,5 @@ export default function ProfileSetupMain() {
 
   );
 }
+
+

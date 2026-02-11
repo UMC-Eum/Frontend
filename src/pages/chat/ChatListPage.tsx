@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import Navbar from "../../components/Navbar";
+import Navbar from "../../components/standard/Navbar";
 import { getChatRooms } from "../../api/chats/chatsApi"; 
 import { IChatsRoomItem } from "../../types/api/chats/chatsDTO";
 import { getBlocks } from "../../api/socials/socialsApi";

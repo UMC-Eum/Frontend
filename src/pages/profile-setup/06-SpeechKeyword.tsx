@@ -9,7 +9,7 @@ import { useVoiceAnalysis } from "../../hooks/useVoiceAnalysis";
 interface SpeechKeywordProps {
   onNext: (data: {
     record: string;
-    keywords: string[];
+    transcript: string;
     vibeVector: number[];
   }) => void;
 }
@@ -48,27 +48,14 @@ export default function SpeechKeyword({ onNext }: SpeechKeywordProps) {
       try {
         const result = await analyzeVoice(file);
 
-        // 🚨 [핵심 수정 부분] 🚨
-        // API 결과(result.personalities/interests)는 { text: string, score: number } 형태의 객체 배열입니다.
-        // 하지만 Request Body는 단순 문자열 배열(string[])을 원하므로, .text만 추출해야 합니다.
-
-        const keywordStrings = [
-          ...(result.personalities?.map((p: any) => p.text || p) || []),
-          ...(result.interests?.map((i: any) => i.text || i) || []),
-        ];
-
-        console.log("✅ 변환된 키워드(String[]):", keywordStrings);
-
         onNext({
           record: result.audioUrl,
-          keywords: keywordStrings, // 문자열 배열로 전송
+          transcript: result.transcript,
           vibeVector: result.vibeVector || [], // 없으면 빈 배열 처리
         });
       } catch (error) {
         console.error("음성 분석 오류:", error);
         alert("분석 중 오류가 발생했습니다. 다시 시도해 주세요.");
-        // 실패 시 상태 초기화가 필요하다면 아래 주석 해제
-        // resetStatus();
       }
     },
     [analyzeVoice, onNext, resetStatus],

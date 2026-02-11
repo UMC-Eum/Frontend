@@ -4,7 +4,10 @@ import useCompleteLogin from "../../hooks/useCompleteLogin";
 import KeywordLabel from "../../components/keyword/KeywordLabel";
 import locationIcon from "../../assets/location.svg";
 import { FullButton } from "../../components/standard/CTA";
+import { updateMyProfile } from "../../api/users/usersApi";
 
+
+import { postPresign, uploadFileToS3 } from "../../api/onboarding/onboardingApi";
 
 export default function SetComplete() {
   const navigate = useNavigate();
@@ -15,14 +18,46 @@ export default function SetComplete() {
   const handleStart = async () => {
     try {
       console.log("최종 가입 정보:", user);
+      
+      const currentImage = user?.profileImageUrl;
 
-      // 로그인 완료 처리 (프로필 로드 및 로그린 상태 업데이트)
+      if (currentImage && currentImage.startsWith("data:")) {
+        // 1. DataURL(Base64)을 Blob 파일로 변환
+        const response = await fetch(currentImage);
+        const blob = await response.blob();
+        const file = new File([blob], `profile_${Date.now()}.jpg`, { type: "image/jpeg" });
+
+        // 2. S3 Presigned URL 요청
+        const presignResult = await postPresign({
+          fileName: file.name,
+          contentType: file.type,
+          purpose: "PROFILE_IMAGE",
+        });
+
+        const { uploadUrl, fileUrl } = presignResult.data;
+
+        // 3. S3 직접 업로드
+        await uploadFileToS3(uploadUrl, file);
+
+        // 4. 서버 유저 정보 업데이트
+        await updateMyProfile({
+          profileImageUrl: fileUrl,
+        });
+      } else if (currentImage && currentImage.startsWith("http")) {
+        // 기본 썸네일(Unsplash 등)인 경우 URL만 업데이트
+        await updateMyProfile({
+          profileImageUrl: currentImage,
+        });
+      }
+
+      // 로그인 완료 처리 (프로필 로드 및 로그인 상태 업데이트)
       await completeLogin();
 
       // 메인 페이지로 이동
       navigate("/home");
     } catch (error) {
       console.error("가입 실패", error);
+      alert("가입 처리에 실패했습니다. 다시 시도해 주세요.");
     }
   }; 
 

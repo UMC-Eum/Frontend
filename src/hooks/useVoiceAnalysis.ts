@@ -68,7 +68,7 @@ export const useVoiceAnalysis = (theme: VoiceAnalysisTheme = "intro") => {
 
         return {
           audioUrl: presignData.data.fileUrl, 
-          summary: analysisResult.summary,
+          transcript: analysisResult.transcript,
           vibeVector: analysisResult.vibeVector,
           personalities,
           interests,

@@ -1,5 +1,5 @@
 import { useEffect } from "react"; // useEffect 추가
-import Navbar from "../components/Navbar";
+import Navbar from "../components/standard/Navbar";
 import BackButton from "../components/BackButton";
 import { useUserStore } from "../stores/useUserStore";
 import { useNavigate } from "react-router-dom";

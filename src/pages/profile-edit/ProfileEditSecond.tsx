@@ -2,7 +2,7 @@
 import BackButton from "../../components/BackButton";
 import { useUserStore } from "../../stores/useUserStore";
 import camera_btn from "../../assets/camera_btn.png";
-import volume_btn from "../../assets/volume_btn.png";
+import Sound_Icon from "../../assets/Sound_Icon.svg";
 import white_mic from "../../assets/white_mic.png";
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -11,11 +11,10 @@ import IntroTextEditModal from "./overlays/IntroTextEditModal";
 import SetImageModal from "./overlays/SetImageModal";
 import NextArrow from "../../components/NextArrow";
 import { useNavigate } from "react-router-dom";
-import Navbar from "../../components/Navbar";
+import Navbar from "../../components/standard/Navbar";
   
 const ProfileEditSecond = () => {
   const { user } = useUserStore();
-  console.log("🚀 ProfileEditSecond - user data:", user);
 
   const [isImageModalOpen, setIsImageModalOpen] = useState(false); // 프로필 변경 모달창
   const [isIntroModalOpen, setIsIntroModalOpen] = useState(false); // 나의 소개 모달창
@@ -25,7 +24,7 @@ const ProfileEditSecond = () => {
     <>
       <BackButton title="내 프로필" textClassName="text-[24px] font-semibold" />
 
-      <div className="h-[calc(100vh-120px)] overflow-y-auto">
+      <div className="h-[calc(100vh-140px)] overflow-y-auto no-scrollbar pb-10">
         {/* 내 프로필 */}
         <div className="ml-5 mt-2 flex items-center gap-3">
           {/* 내 프로필 - 프로필사진 */}
@@ -240,38 +239,36 @@ export default ProfileEditSecond;
 const IntroPlayer = () => {
   const { user } = useUserStore();
   const [isPlaying, setIsPlaying] = useState(false);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [audioElement, setAudioElement] = useState<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     if (user?.introAudioUrl) {
-      audioRef.current = new Audio(user.introAudioUrl);
+      const audio = new Audio(user.introAudioUrl);
+      audio.crossOrigin = "anonymous"; // CORS 허용 안하면 Web Audio API 안됨
 
       const handleEnded = () => {
         setIsPlaying(false);
-        if (audioRef.current) {
-          audioRef.current.currentTime = 0;
-        }
+        audio.currentTime = 0;
       };
 
-      audioRef.current.addEventListener("ended", handleEnded);
+      audio.addEventListener("ended", handleEnded);
+      setAudioElement(audio);
 
       return () => {
-        if (audioRef.current) {
-          audioRef.current.pause();
-          audioRef.current.removeEventListener("ended", handleEnded);
-          audioRef.current = null;
-        }
+        audio.pause();
+        audio.removeEventListener("ended", handleEnded);
+        setAudioElement(null);
       };
     }
   }, [user?.introAudioUrl]);
 
   const togglePlay = () => {
-    if (!audioRef.current) return;
+    if (!audioElement) return;
 
     if (isPlaying) {
-      audioRef.current.pause();
+      audioElement.pause();
     } else {
-      audioRef.current.play().catch((err) => {
+      audioElement.play().catch((err) => {
         console.error("Audio play failed:", err);
       });
     }
@@ -280,13 +277,7 @@ const IntroPlayer = () => {
 
   // Play 아이콘
   const playIcon = (
-    <svg
-      width="12"
-      height="14"
-      viewBox="0 0 12 14"
-      fill="none"
-      className="ml-1"
-    >
+    <svg width="12" height="14" viewBox="0 0 12 14" fill="none" className="ml-1">
       <path
         d="M10.5 5.6L3 1.1C1.7 0.3 0 1.3 0 2.9V11.1C0 12.7 1.7 13.7 3 12.9L10.5 8.4C11.8 7.7 11.8 6.3 10.5 5.6Z"
         fill="white"
@@ -303,99 +294,102 @@ const IntroPlayer = () => {
   );
 
   return (
-    <div className="mx-5 pl-[10px] py-2 gap-3 flex items-center border border-gray-300 rounded-full">
+    <div className="mx-5 pl-[10px] pr-[15px] py-2 gap-3 flex items-center border border-gray-300 rounded-full">
       <button
         onClick={togglePlay}
         disabled={!user?.introAudioUrl}
-        className={`flex items-center justify-center w-8 h-8 rounded-[19px] bg-[#FF3D77] ${!user?.introAudioUrl ? "opacity-50 cursor-not-allowed" : ""}`}
+        className={`flex items-center justify-center w-[30px] h-[30px] rounded-[19px] bg-[#FF3D77] ${!user?.introAudioUrl ? "opacity-50 cursor-not-allowed" : ""}`}
       >
         {isPlaying ? pauseIcon : playIcon}
       </button>
-      <Waveform
-        paused={!isPlaying}
-        reset={!isPlaying && audioRef.current?.currentTime === 0}
-      />
-      <img src={volume_btn} />
+      <div className="flex-1 min-w-0">
+        <Waveform
+         audioElement={audioElement}
+         paused={!isPlaying}
+        />
+      </div>
+      <img className="w-[24px] h-[24px]" src={Sound_Icon} />
     </div>
   );
 };
 
 interface WaveformProps {
-  width?: number;
-  barCount?: number;
   barWidth?: number;
+  gap?: number;
   minHeight?: number;
   maxHeight?: number;
   paused?: boolean;
-  reset?: boolean;
+  audioElement: HTMLAudioElement | null;
 }
 
 const Waveform = ({
-  width = 200,
-  barCount = 30,
   barWidth = 2,
-  minHeight = 5,
-  maxHeight = 15,
+  gap = 4,
+  minHeight = 4,
+  maxHeight = 16,
   paused = false,
-  reset = false,
+  audioElement,
 }: WaveformProps) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [containerWidth, setContainerWidth] = useState(0);
+
+  // 컨테이너 너비 측정
+  useEffect(() => {
+    if (!containerRef.current) return;
+
+    const updateWidth = () => {
+      if (containerRef.current) {
+        setContainerWidth(containerRef.current.offsetWidth);
+      }
+    };
+
+    // 초기 실행
+    updateWidth();
+
+    // 리사이즈 감지
+    const resizeObserver = new ResizeObserver(() => {
+      updateWidth();
+    });
+
+    resizeObserver.observe(containerRef.current);
+
+    return () => resizeObserver.disconnect();
+  }, []);
+
+  // 동적 barCount 계산
+  const barCount = useMemo(() => {
+    if (containerWidth === 0) return 30; // 기본값
+    // width = count * barWidth + (count - 1) * gap
+    // width = count * (barWidth + gap) - gap
+    // count = (width + gap) / (barWidth + gap)
+    const count = Math.floor((containerWidth + gap) / (barWidth + gap));
+    return Math.max(1, count); // 최소 1개
+  }, [containerWidth, barWidth, gap]);
+
   const barsRef = useRef<HTMLDivElement[]>([]);
   const rafRef = useRef<number | null>(null);
-  const tRef = useRef(0);
+
+  // Web Audio Context & Analyzer
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const sourceRef = useRef<MediaElementAudioSourceNode | null>(null);
 
   // ⏱ 타이머 상태
   const [seconds, setSeconds] = useState(0);
   const timerRef = useRef<number | null>(null);
 
-  // reset이 true로 들어오면 시간 초기화
+  // Seconds Reset
   useEffect(() => {
-    if (reset) {
+    if (!paused) return; // 재생중이면 리셋 안함 (일시정지 일수도, 정지일수도)
+    
+    // 만약 오디오가 0초라면 리셋
+    if (audioElement && audioElement.currentTime === 0) {
       setSeconds(0);
     }
-  }, [reset]);
+  }, [paused, audioElement]);
 
-  // gap 계산
-  const gap = useMemo(() => {
-    if (barCount <= 1) return 0;
-    return Math.max(0, (width - barCount * barWidth) / (barCount - 1));
-  }, [width, barCount, barWidth]);
 
-  /* =====================
-     Waveform Animation
-  ====================== */
-  useEffect(() => {
-    if (paused) {
-      if (rafRef.current) {
-        cancelAnimationFrame(rafRef.current);
-        rafRef.current = null;
-      }
-      return;
-    }
-
-    const animate = () => {
-      tRef.current += 0.08;
-
-      barsRef.current.forEach((bar, i) => {
-        if (!bar) return;
-        const wave = Math.sin(tRef.current - i * 0.6) * 0.5 + 0.5;
-        const height = minHeight + wave * (maxHeight - minHeight);
-        bar.style.height = `${height}px`;
-      });
-
-      rafRef.current = requestAnimationFrame(animate);
-    };
-
-    animate();
-
-    return () => {
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
-      rafRef.current = null;
-    };
-  }, [paused, minHeight, maxHeight]);
-
-  /* =====================
-     Timer
-  ====================== */
+  // Timer Logic
   useEffect(() => {
     if (paused) {
       if (timerRef.current) {
@@ -406,14 +400,118 @@ const Waveform = ({
     }
 
     timerRef.current = window.setInterval(() => {
-      setSeconds((s) => s + 1);
-    }, 1000);
+      // 실제 오디오 시간과 싱크를 맞추는게 더 정확함
+      if (audioElement) {
+        setSeconds(Math.floor(audioElement.currentTime));
+      } else {
+         setSeconds((s) => s + 1);
+      }
+    }, 200); // 1초보다는 자주 갱신해서 싱크 맞춤
 
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
       timerRef.current = null;
     };
-  }, [paused]);
+  }, [paused, audioElement]);
+
+
+  // Audio Analyzer Setup
+  useEffect(() => {
+    if (!audioElement) return;
+
+    // 이미 연결되었다면 패스 (AudioContext가 닫혀있다면 재생성 고려, 하지만 1회성이므로 유지)
+    if (sourceRef.current) return;
+
+    try {
+      const AudioContextCtor = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioContextCtor) return;
+
+      const actx = new AudioContextCtor();
+      audioContextRef.current = actx;
+
+      const analyser = actx.createAnalyser();
+      analyser.fftSize = 64; // 데이터 개수: 32 bins
+      analyserRef.current = analyser;
+
+      const source = actx.createMediaElementSource(audioElement);
+      source.connect(analyser);
+      analyser.connect(actx.destination);
+      sourceRef.current = source;
+      
+    } catch (e) {
+      console.error("Audio Context Setup Error:", e);
+    }
+
+    return () => {
+      // 컴포넌트 언마운트 시 cleanup? 
+      // audioElement가 바뀌면 cleanup해야함.
+      if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
+        audioContextRef.current.close();
+      }
+      sourceRef.current = null;
+      analyserRef.current = null;
+      audioContextRef.current = null;
+    };
+
+  }, [audioElement]);
+
+
+  const volumeHistoryRef = useRef<number[]>(new Array(barCount).fill(0));
+
+  // barCount 변경 시 history 초기화
+  useEffect(() => {
+    volumeHistoryRef.current = new Array(barCount).fill(0);
+  }, [barCount]);
+
+  // Animation Loop
+  useEffect(() => {
+    const animate = () => {
+      if (analyserRef.current && !paused) {
+        const bufferLength = analyserRef.current.frequencyBinCount;
+        const dataArray = new Uint8Array(bufferLength);
+        analyserRef.current.getByteFrequencyData(dataArray);
+
+        // 현재 프레임의 평균 볼륨(진폭) 계산
+        let sum = 0;
+        for (let i = 0; i < bufferLength; i++) {
+          sum += dataArray[i];
+        }
+        const average = sum / bufferLength; // 0 ~ 2555
+
+        // 오른쪽으로 이동 (새 데이터가 왼쪽[0]에 들어옴)
+        volumeHistoryRef.current.pop();
+        volumeHistoryRef.current.unshift(average);
+
+        // Render
+        barsRef.current.forEach((bar, i) => {
+          if (!bar) return;
+          const value = volumeHistoryRef.current[i];
+          
+          const percent = value / 255;
+          const height = minHeight + percent * (maxHeight - minHeight);
+
+          bar.style.height = `${height}px`;
+        });
+
+      } else if (audioElement?.currentTime === 0) {
+        // 정지 시 초기화
+        volumeHistoryRef.current.fill(0);
+        barsRef.current.forEach((bar) => {
+          if (bar) bar.style.height = `${minHeight}px`;
+        });
+      }
+
+      rafRef.current = requestAnimationFrame(animate);
+    };
+
+    animate();
+
+    return () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    };
+  }, [paused, minHeight, maxHeight, barCount, audioElement]);
+
 
   // mm:ss 포맷
   const formattedTime = useMemo(() => {
@@ -425,35 +523,35 @@ const Waveform = ({
   }, [seconds]);
 
   return (
-    <div className="flex items-center gap-[26px]">
+    <div className="flex-1 flex items-center gap-[18px] min-w-0">
       {/* Waveform */}
-      <div
-        style={{
-          width: `${width}px`,
-          display: "flex",
-          alignItems: "center",
-        }}
+      <div 
+        ref={containerRef} 
+        className="flex-1 flex items-center h-[30px] overflow-hidden"
       >
-        {Array.from({ length: barCount }).map((_, i) => (
-          <div
-            key={i}
-            ref={(el) => {
-              if (el) barsRef.current[i] = el;
-            }}
-            style={{
-              width: `${barWidth}px`,
-              height: `${minHeight}px`,
-              marginRight: i === barCount - 1 ? 0 : `${gap}px`,
-              backgroundColor: "#4b5563",
-              borderRadius: "9999px",
-              flexShrink: 0,
-            }}
-          />
-        ))}
+        <div className="flex items-center w-full">
+          {Array.from({ length: barCount }).map((_, i) => (
+            <div
+              key={i}
+              ref={(el) => {
+                if (el) barsRef.current[i] = el;
+              }}
+              style={{
+                width: `${barWidth}px`,
+                height: `${minHeight}px`,
+                marginRight: i === barCount - 1 ? 0 : `${gap}px`,
+                backgroundColor: "#4b5563",
+                borderRadius: "9999px",
+                flexShrink: 0,
+                transition: "height 0.1s ease",
+              }}
+            />
+          ))}
+        </div>
       </div>
 
       {/* Timer */}
-      <span className="text-sm text-gray-500" style={{ width: "40px" }}>
+      <span className="text-sm text-gray-500 w-[36px] text-center shrink-0">
         {formattedTime}
       </span>
     </div>

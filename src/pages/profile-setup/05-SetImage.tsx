@@ -2,7 +2,7 @@ import { useState, useRef, useCallback } from "react";
 import Cropper from "react-easy-crop";
 import { useUserStore } from "../../stores/useUserStore";
 import getCroppedImg from "../../utils/cropImage";
-import avatar_placeholder from "../../assets/avatar_placeholder.png";
+import avatar_placeholder from "../../assets/avatar_placeholder.svg";
 import camera_btn from "../../assets/camera_btn.png";
 import { FullButton } from "../../components/standard/CTA";
 
@@ -28,7 +28,7 @@ export default function SetImage({ onNext }: SetImageProps) {
   const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
 
   // 4. 스토어 및 Refs
-  const { updateUser } = useUserStore();
+  const { user, updateUser } = useUserStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // ----------------------------------------------------------------
@@ -75,6 +75,7 @@ export default function SetImage({ onNext }: SetImageProps) {
       console.error("Crop error:", e);
     } finally {
       // 정리 작업
+      console.log(user);
       setIsCroppingOpen(false);
       setRawImage(null);
       setZoom(1);
@@ -92,8 +93,7 @@ export default function SetImage({ onNext }: SetImageProps) {
 
   // [5] 하단 모달에서 '기본 프로필' 클릭 시
   const handleDefaultProfile = () => {
-    const defaultUrl =
-      "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee";
+    const defaultUrl = avatar_placeholder;
     setImageSrc(defaultUrl);
     updateUser({ profileImageUrl: defaultUrl });
     setIsMenuOpen(false);
