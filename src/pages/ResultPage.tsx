@@ -15,7 +15,7 @@ const ResultPage = () => {
   );
 
   const { data, isLoading, isError, error } = useQuery({
-    queryKey: ["matchResults"],
+    queryKey: ["matchResults", "recommendation"],
     queryFn: () => getRecommendations({ size: 20 }),
     retry: 0,
     refetchOnWindowFocus: false,
