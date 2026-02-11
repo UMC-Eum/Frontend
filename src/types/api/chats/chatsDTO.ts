@@ -29,7 +29,7 @@ export interface IChatsRoomItem {
     nickname: string;
     profileImageUrl: string;
     areaName: string;
-  },
+  };
   lastMessage: ILastMessage;
   unreadCount: number;
 }
