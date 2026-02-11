@@ -13,6 +13,8 @@ interface MessageBubbleProps {
   isPlayingProp: boolean;
   onPlay: () => void;
   onDelete?: () => void;
+  showTimestamp?: boolean;
+  showRead?: boolean;
 }
 
 export function MessageBubble({
@@ -26,6 +28,8 @@ export function MessageBubble({
   isPlayingProp,
   onPlay,
   onDelete,
+  showTimestamp = true,
+  showRead = true,
 }: MessageBubbleProps) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [showOverlay, setShowOverlay] = useState(false);
@@ -137,22 +141,26 @@ export function MessageBubble({
       )}
 
       {/* 읽음 / 시간 표시 영역 */}
-      <div
-        className={`flex flex-col justify-end gap-0.5 ${isMe ? "items-end" : "items-start"}`}
-      >
-        {isMe && (
-          <span className="text-[12px] font-medium leading-none">
-            {readAt ? (
-              <span className="text-[#636970]">읽음</span>
-            ) : (
-              <span className="text-[#FBC02D]">1</span>
-            )}
-          </span>
-        )}
-        <span className="text-[12px] text-[#A6AFB6] whitespace-nowrap leading-none pb-[2px]">
-          {timestamp}
-        </span>
-      </div>
+      {(showTimestamp || (isMe && showRead)) && (
+        <div
+          className={`flex flex-col justify-end gap-0.5 ${isMe ? "items-end" : "items-start"}`}
+        >
+          {isMe && showRead && (
+            <span className="text-[12px] font-medium leading-none">
+              {readAt ? (
+                <span className="text-[#636970]">읽음</span>
+              ) : (
+                <span className="text-[#FBC02D]">1</span>
+              )}
+            </span>
+          )}
+          {showTimestamp && (
+            <span className="text-[12px] text-[#A6AFB6] whitespace-nowrap leading-none pb-[2px]">
+              {timestamp}
+            </span>
+          )}
+        </div>
+      )}
 
       {/* 공통 삭제 모달 */}
       {showOverlay && (

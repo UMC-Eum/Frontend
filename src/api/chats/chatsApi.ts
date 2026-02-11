@@ -1,7 +1,7 @@
+import axios from "axios";
 import api from "../axiosInstance";
 import { ApiSuccessResponse } from "../../types/api/api";
 import * as DTO from "../../types/api/chats/chatsDTO";
-import { uploadFileToS3 as onboardingUploadFileToS3 } from "../onboarding/onboardingApi";
 
 // --- 1. 채팅방 관련 ---
 
@@ -51,46 +51,54 @@ export const getChatMessages = async (
   return data.success.data;
 };
 
-/** * 🔥 [최종 해결 버전] presign URL 요청
- * 백엔드 스웨거 규격에 맞춰 필드명을 'purpose'로 유지하고,
- * 오디오의 경우 'PROFILE_INTRO_AUDIO' 값을 사용하여 422 에러를 방지합니다.
+/** * 🔥 [신규] 채팅방 전용 미디어 Presign URL 요청
+ * 파일 타입에 따라 PHOTO, VIDEO, AUDIO를 동적으로 판별합니다.
  */
-export const postChatPresign = async (
-  fileName: string,
-  contentType: string,
-) => {
-  // 1. 기본값을 PROFILE_IMAGE로 변경 시도
-  let purpose = "PROFILE_IMAGE";
+export const postChatMediaPresign = async (chatRoomId: number, file: File) => {
+  let mediaType = "PHOTO";
 
-  if (contentType.startsWith("audio")) {
-    purpose = "PROFILE_INTRO_AUDIO"; // 오디오는 검증 완료된 값
-  } else if (contentType.startsWith("video")) {
-    purpose = "VIDEO"; // 비디오는 필요시 확인
-  } else if (contentType.startsWith("image")) {
-    // 🔍 후보 1: "PROFILE_IMAGE" (가장 유력)
-    // 🔍 후보 2: "MATCH_CHAT_IMAGE"
-    // 🔍 후보 3: "PHOTO"
-    purpose = "PROFILE_IMAGE";
+  if (file.type.startsWith("audio")) {
+    mediaType = "AUDIO";
+  } else if (file.type.startsWith("video")) {
+    mediaType = "VIDEO";
   }
 
-  console.log(`📤 사진 Presign 요청: fileName=${fileName}, purpose=${purpose}`);
+  const payload = {
+    type: mediaType,
+    fileName: file.name,
+    contentType: file.type,
+    sizeBytes: file.size,
+  };
 
-  const { data } = await api.post<ApiSuccessResponse<any>>(
-    "/v1/files/presign",
-    {
-      fileName,
-      contentType,
-      purpose,
-    },
-  );
+  const { data } = await api.post<
+    ApiSuccessResponse<DTO.IChatsRoomIdMediaPresignPostResponse>
+  >(`/v1/chats/rooms/${chatRoomId}/media/presign`, payload);
 
   return data.success.data;
 };
 
-/** * S3 직접 업로드 (PUT)
- * onboardingApi의 로직을 그대로 재사용합니다.
+/** * 🚀 S3 직접 업로드 (PUT)
+ * 에러 방지를 위해 requireHeaders가 없을 경우에 대한 방어 로직이 추가되었습니다.
  */
-export const uploadFileToS3 = onboardingUploadFileToS3;
+export const uploadChatFileToS3 = async (
+  presignData: DTO.IChatsRoomIdMediaPresignPostResponse,
+  file: File,
+) => {
+  // ✅ [수정] Optional Chaining과 기본값 설정을 통해 'Content-Type' 읽기 실패 에러 방지
+  const contentType = presignData.requireHeaders?.["Content-Type"] || file.type;
+
+  console.log("📤 S3 업로드 시도 - URL:", presignData.uploadUrl);
+  console.log("📤 적용 헤더:", contentType);
+
+  // S3 업로드는 공통 API 인스턴스 대신 순수 axios를 사용합니다.
+  const response = await axios.put(presignData.uploadUrl, file, {
+    headers: {
+      "Content-Type": contentType,
+    },
+  });
+
+  return response;
+};
 
 /** 메시지 전송 (POST) */
 export const sendChatMessage = async (

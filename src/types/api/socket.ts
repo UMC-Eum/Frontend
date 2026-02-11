@@ -14,7 +14,7 @@ export interface MessageNewData {
   messageId: number;
   chatRoomId: number;
   senderUserId: number;
-  type: "TEXT" | "AUDIO" | "IMAGE";
+  type: "TEXT" | "AUDIO" | "PHOTO" | "VIDEO";
   text: string | null;
   mediaUrl: string | null;
   durationSec: number;
