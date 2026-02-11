@@ -35,7 +35,7 @@ export default function SmallButtonIdleCard({
   description,
   initialHeartId, // ✅ 여기랑
   initialIsLiked, // ✅ 여기에 추가해서 받아와야 함
-  profileUrl
+  profileUrl,
 }: SmallButtonIdleCardProps) {
   // ✅ 1. 채팅 이동 훅
   const { startChat } = useMoveToChat();

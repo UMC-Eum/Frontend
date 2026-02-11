@@ -4,27 +4,29 @@ import { useMemo, useState } from "react";
 import MiniCard from "../components/card/presets/MiniCard";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { getReceivedHearts, getSentHearts } from "../api/socials/socialsApi";
-import * as DTO from "../types/api/socials/socialsDTO";
 
 type CardUser = {
   id: number;
+  heartId: number;
   name: string;
   age: number;
   imageUrl: string;
   location: string;
   distanceKm: number;
-  heartId?: number;
 };
 
 type Tab = "sent" | "received";
-
-type SentItem = DTO.IHeartsentResponse["items"][number];
-type ReceivedItem = DTO.IHeartreceivedResponse["items"][number];
 
 const PAGE_SIZE = 20;
 
 const FALLBACK_IMAGE =
   "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=500&h=800&fit=crop";
+
+const safeImage = (url?: string) => {
+  if (!url) return FALLBACK_IMAGE;
+  if (url.includes("example.com")) return FALLBACK_IMAGE;
+  return url;
+};
 
 export default function Like() {
   const [tab, setTab] = useState<Tab>("sent");
@@ -32,6 +34,7 @@ export default function Like() {
   // 보낸 하트 목록
   const sentQuery = useInfiniteQuery({
     queryKey: ["hearts", "sent"],
+    enabled: tab === "sent",
     queryFn: ({ pageParam }) =>
       getSentHearts({
         cursor: (pageParam as string | null) ?? null,
@@ -44,6 +47,7 @@ export default function Like() {
   // 받은 하트 목록
   const receivedQuery = useInfiniteQuery({
     queryKey: ["hearts", "received"],
+    enabled: tab === "received",
     queryFn: ({ pageParam }) =>
       getReceivedHearts({
         cursor: (pageParam as string | null) ?? null,
@@ -53,51 +57,39 @@ export default function Like() {
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
   });
 
-  const userMap = useMemo(() => new Map<number, CardUser>(), []);
-
-  const sentItems: SentItem[] = useMemo(() => {
+  const sentItems = useMemo(() => {
     const pages = sentQuery.data?.pages ?? [];
     return pages.flatMap((p) => p.items);
   }, [sentQuery.data]);
 
-  const receivedItems: ReceivedItem[] = useMemo(() => {
+  const receivedItems = useMemo(() => {
     const pages = receivedQuery.data?.pages ?? [];
     return pages.flatMap((p) => p.items);
   }, [receivedQuery.data]);
 
   const sentCards: CardUser[] = useMemo(() => {
-    return sentItems.map((h) => {
-      const userId = h.targetUserId;
-      const found = userMap.get(userId);
-
-      return {
-        id: userId,
-        name: found?.name ?? `유저 ${userId}`,
-        age: found?.age ?? 0,
-        imageUrl: found?.imageUrl ?? FALLBACK_IMAGE,
-        location: found?.location ?? "",
-        distanceKm: found?.distanceKm ?? 0,
-        heartId: h.heartId,
-      };
-    });
-  }, [sentItems, userMap]);
+    return sentItems.map((h) => ({
+      id: h.targetUserId,
+      heartId: h.heartId,
+      name: h.targetUser.nickname,
+      age: h.targetUser.age,
+      imageUrl: safeImage(h.targetUser.profileImageUrl),
+      location: "",
+      distanceKm: 0,
+    }));
+  }, [sentItems]);
 
   const receivedCards: CardUser[] = useMemo(() => {
-    return receivedItems.map((h) => {
-      const userId = h.fromUserId;
-      const found = userMap.get(userId);
-
-      return {
-        id: userId,
-        name: found?.name ?? `유저 ${userId}`,
-        age: found?.age ?? 0,
-        imageUrl: found?.imageUrl ?? FALLBACK_IMAGE,
-        location: found?.location ?? "",
-        distanceKm: found?.distanceKm ?? 0,
-        heartId: undefined,
-      };
-    });
-  }, [receivedItems, userMap]);
+    return receivedItems.map((h) => ({
+      id: h.fromUserId,
+      heartId: h.heartId,
+      name: h.fromUser.nickname,
+      age: h.fromUser.age,
+      imageUrl: safeImage(h.fromUser.profileImageUrl),
+      location: "",
+      distanceKm: 0,
+    }));
+  }, [receivedItems]);
 
   const isLoading =
     tab === "sent" ? sentQuery.isLoading : receivedQuery.isLoading;
