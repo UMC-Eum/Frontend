@@ -83,19 +83,8 @@ export default function SetKeywords({ onNext }: SetKeywordsProps) {
     </div>
   </div>
 
-<<<<<<< Updated upstream
-  <div className="pb-4 flex flex-wrap gap-3">
-    <KeywordChips
-      allKeywords={allKeywords}
-      selectedKeywords={selectedKeywords}
-      maxSelect={MAX_SELECT}
-      onChange={(ids) => setSelectedKeywords(ids)}
-    />
-  </div>
-=======
   {/* 빈 공간을 다 차지해서 버튼을 아래로 밀어버림 */}
   <div className="flex-1" />
->>>>>>> Stashed changes
 
   <p className="text-center text-gray-500 text-[14px] mb-[18px]">키워드는 프로필에서 언제든 수정할 수 있어요!</p>
   <FullButton onClick={handleNext} disabled={!isValid}>

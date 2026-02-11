@@ -5,7 +5,6 @@ import getCroppedImg from "../../utils/cropImage";
 import avatar_placeholder from "../../assets/avatar_placeholder.png";
 import camera_btn from "../../assets/camera_btn.png";
 import { FullButton } from "../../components/standard/CTA";
-import { postPresign } from "../../api/onboarding/onboardingApi";
 
 interface SetImageProps {
   onNext: () => void;
@@ -71,15 +70,7 @@ export default function SetImage({ onNext }: SetImageProps) {
         setImageSrc(croppedImage);
         // 스토어에 저장
         updateUser({ profileImageUrl: croppedImage });
-
-        const presignData = await postPresign({
-          fileName: croppedImage,
-          contentType: "image/png",
-          purpose: "PROFILE_INTRO_AUDIO"
-        });
       }
-
-
     } catch (e) {
       console.error("Crop error:", e);
     } finally {

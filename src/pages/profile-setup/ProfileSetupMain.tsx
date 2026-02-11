@@ -89,7 +89,6 @@ export default function ProfileSetupMain() {
     }),
   };
 
-<<<<<<< Updated upstream
   return (
     <div className="w-full max-w-md mx-auto h-[100dvh] bg-white flex flex-col overflow-hidden relative">
       <div className="z-20 bg-white shrink-0">
@@ -102,40 +101,6 @@ export default function ProfileSetupMain() {
               style={{ width: `${(step / 5) * 100}%` }}
             />
           </div>
-=======
-      {/* 메인 컨텐츠 영역 */}
-      <main className="flex-1 flex flex-col p-6">
-        {step === 1 && <SetName onNext={handleNext} />}
-        {step === 2 && <SetAge onNext={handleNext} />}
-        {step === 3 && <SetGender onNext={handleNext} />}
-        {step === 4 && <SetLocation onNext={handleNext} />}
-        {step === 5 && <SetImage onNext={handleNext} />}
-        {step === 6 && <SpeechKeyword onNext={handleSpeechKeywordNext} />}
-        {step === 7 && (
-          <motion.div
-<<<<<<< Updated upstream
-            initial={{ x: "100%" }}
-            animate={{ x: 0 }}
-            exit={{ x: "-100%" }}
-            transition={{ type: "spring", stiffness: 300, damping: 30 }}
-            className="flex-1 flex flex-col"
-=======
-            key={step}
-            custom={direction}
-            variants={pageVariants}
-            initial="enter"
-            animate="center"
-            exit="exit"
-            transition={{
-              x: { type: "spring", stiffness: 300, damping: 30 },
-              opacity: { duration: 0.2 },
-            }}
-            className="absolute inset-0 flex-1 flex flex-col px-5 pt-[28px] pb-[58px] bg-white"
->>>>>>> Stashed changes
-          >
-            <SetKeywords onNext={handleSubmitProfile} />
-          </motion.div>
->>>>>>> Stashed changes
         )}
       </div>
       <main className="flex-1 w-full relative overflow-hidden">
@@ -151,7 +116,7 @@ export default function ProfileSetupMain() {
               x: { type: "spring", stiffness: 300, damping: 30 },
               opacity: { duration: 0.2 },
             }}
-            className="absolute inset-0 w-full h-full flex flex-col p-6 bg-white overflow-y-auto"
+            className="absolute inset-0 flex-1 flex flex-col px-5 pt-[28px] pb-[58px] bg-white"
           >
             {step === 1 && <SetName onNext={handleNext} />}
             {step === 2 && <SetAge onNext={handleNext} />}
@@ -165,5 +130,6 @@ export default function ProfileSetupMain() {
         </AnimatePresence>
       </main>
     </div>
+
   );
 }
