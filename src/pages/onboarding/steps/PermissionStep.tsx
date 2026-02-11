@@ -6,6 +6,7 @@ import { PERMISSION_CONFIG } from "../../../constants/permissions";
 import cameraimg from "../../../assets/permission_camera.svg";
 import bellimg from "../../../assets/permission_bell.svg";
 import micimg from "../../../assets/permission_mic.svg";
+import { FullButton } from "../../../components/standard/CTA";
 
 const permissionIcons: Record<string, string> = {
   camera: cameraimg,
@@ -70,7 +71,7 @@ export default function PermissionStep({ onFinish }: Props) {
   };
 
   return (
-    <div className="flex flex-col min-h-screen bg-white px-6 pt-10">
+    <div className="flex flex-col min-h-screen bg-white px-6 pt-10 pb-[58px]">
       <h1 className="text-2xl font-bold text-center mb-5">앱 접근 권한 안내</h1>
 
       <p className="text-[20px] font-semibold text-center text-gray-900 mb-8 leading-relaxed">
@@ -140,19 +141,12 @@ export default function PermissionStep({ onFinish }: Props) {
       </div>
 
       {/* 확인 버튼 */}
-      <button
+      <FullButton
         onClick={handleFinish}
-        className={`
-          h-14 rounded-xl mb-6 font-bold text-lg transition-colors
-          ${
-            permissionsState.camera
-              ? "bg-[#fc3367] text-white hover:bg-[#e02e5b]"
-              : "bg-gray-300 text-gray-500 cursor-not-allowed"
-          }
-        `}
+        disabled={!permissionsState.camera}
       >
         확인
-      </button>
+      </FullButton>
     </div>
   );
 }

@@ -60,6 +60,8 @@ export default function ProfileSetupMain() {
         vibeVector: vibeVectorRef.current,
       };
 
+      console.log("프로필 생성 요청 바디:", requestBody);
+
       const response = await postProfile(requestBody);
       if (response) handleNext();
     } catch (error: any) {
@@ -114,7 +116,7 @@ export default function ProfileSetupMain() {
               x: { type: "spring", stiffness: 300, damping: 30 },
               opacity: { duration: 0.2 },
             }}
-            className="absolute inset-0 w-full h-full flex flex-col p-6 bg-white overflow-y-auto"
+            className="absolute inset-0 flex-1 flex flex-col px-5 pt-[28px] pb-[58px] bg-white"
           >
             {step === 1 && <SetName onNext={handleNext} />}
             {step === 2 && <SetAge onNext={handleNext} />}
@@ -128,5 +130,6 @@ export default function ProfileSetupMain() {
         </AnimatePresence>
       </main>
     </div>
+
   );
 }

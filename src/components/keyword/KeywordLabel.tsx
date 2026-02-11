@@ -30,7 +30,7 @@ const KeywordLabel = ({
 }: KeywordLabelProps) => {
   const shapeStyles: Record<Shape, string> = {
     round: "px-[12px] py-[4px] rounded-[7px] text-[14px]",
-    pill: "px-2 py-1 rounded-full border-2 border-gray-300 text-xs",
+    pill: "px-4 py-1 rounded-full border-2 border-gray-300 text-[16px] font-medium",
   };
 
   const activeStyles = isActive

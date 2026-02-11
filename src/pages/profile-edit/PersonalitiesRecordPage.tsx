@@ -108,7 +108,7 @@ function WhenInactive({ name, RecordingControl }: WhenInactiveProps) {
         title="재녹음"
         textClassName="text-[24px] font-semibold"
       />
-      <div className="mx-5 guide-container mt-5">
+      <div className="mx-5 guide-container mt-[12px]">
         <h1 className="text-[26px] font-bold text-black leading-tight">
           {name}의 이야기를 들려주세요.
         </h1>
@@ -121,16 +121,7 @@ function WhenInactive({ name, RecordingControl }: WhenInactiveProps) {
       </div>
 
       <div className="transition-opacity duration-500 h-full">
-        <div className="absolute left-0 right-0 bottom-0 h-[210px] flex flex-col items-center pb-[12px]">
-          <div className="pt-2 flex flex-col items-center">
-            <div className="flex w-[232px] h-[36px] bg-pink-100 items-center justify-center rounded-[7px]">
-              <p className="text-[14px] font-[500] text-[#FF88A6]">
-                버튼을 누른 뒤 말해주세요!
-              </p>
-            </div>
-            <div className="w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[8px] border-t-pink-100"></div>
-          </div>
-
+        <div className="absolute bottom-[74px] left-1/2 -translate-x-1/2 flex flex-col items-center">
           {RecordingControl}
         </div>
       </div>
@@ -149,7 +140,7 @@ function WhenRecording({ RecordingControl }: WhenRecordingProps) {
         title="재녹음"
         textClassName="text-[24px] font-semibold"
       />
-      <div className="mx-5 guide-container mt-5">
+      <div className="mx-5 guide-container mt-[12px]">
         <h1 className="text-[26px] font-bold text-black leading-tight">
           듣고있어요..
         </h1>
@@ -161,16 +152,7 @@ function WhenRecording({ RecordingControl }: WhenRecordingProps) {
         </div>
       </div>
 
-      <div className="absolute left-0 right-0 bottom-0 h-[210px] flex flex-col items-center pb-[12px]">
-        <div className="flex flex-col items-center">
-          <div className="flex w-[300px] h-[36px] bg-pink-100 items-center justify-center rounded-[7px]">
-            <p className="text-[14px] font-[500] text-[#FF88A6]">
-              녹음을 멈추고 싶으면 버튼을 한번 더 눌러주세요!
-            </p>
-          </div>
-          <div className="w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[8px] border-t-pink-100"></div>
-        </div>
-
+      <div className="absolute bottom-[74px] left-1/2 -translate-x-1/2 flex flex-col items-center">
         {RecordingControl}
       </div>
     </>
@@ -190,15 +172,17 @@ function Whenloading({ name, RecordingControl }: WhenloadingProps) {
         textClassName="text-[24px] font-semibold"
       />
 
-      <div className="mx-5 guide-container mt-5">
+      <div className="mx-5 guide-container mt-[12px]">
         <h1 className="text-[26px] font-bold text-black leading-tight">
           AI가 {name}님의 성격을 <br />
           정리하고있어요!
         </h1>
       </div>
 
-      <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <div className="relative w-full h-[140px]">{RecordingControl}</div>
+      <div className="absolute inset-0 flex items-center justify-center">
+        <div className="relative flex flex-col items-center bottom-[-16px]">
+          {RecordingControl}
+        </div>
       </div>
     </>
   );
