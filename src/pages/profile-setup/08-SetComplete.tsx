@@ -92,7 +92,7 @@ return (
         }}
       />
 
-      <div className="absolute inset-0 backdrop-blur-[24px]"/>
+      <div className="absolute inset-0 backdrop-blur-[24px] bg-black/30"/>  
       
       <div className="relative z-10 flex flex-col items-center px-8 pt-8 pb-4">
         <div className="w-[102px] h-[102px] rounded-full overflow-hidden border-[3px] border-white mb-4">
