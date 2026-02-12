@@ -21,7 +21,7 @@ export default function SetImage({ onNext }: SetImageProps) {
   const [zoom, setZoom] = useState(1);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
 
-  const { user, updateUser } = useUserStore();
+  const { updateUser } = useUserStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

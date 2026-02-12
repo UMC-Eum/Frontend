@@ -60,7 +60,6 @@ export default function MiniCard({
           />
         </div>
 
-        {/* 이름 + 위치 (좌하단) */}
         <div className="absolute left-4 bottom-2 text-white z-10">
           <CardUserId
             name={nickname}
