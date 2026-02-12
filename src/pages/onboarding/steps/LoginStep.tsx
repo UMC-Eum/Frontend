@@ -25,7 +25,7 @@ export default function LoginStep() {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center h-screen px-6 bg-white overflow-hidden">
+    <div className="flex flex-col items-center justify-center h-full px-6 bg-white overflow-hidden">
       
       {/* 3. 일러스트 이미지: 서서히 나타남 (Fade In) + 살짝 커짐 */}
       <img 

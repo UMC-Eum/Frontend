@@ -10,8 +10,6 @@ import {
   AgreementType,
 } from "../../types/api/agreements/agreementsDTO";
 
-import SplashStep from "./steps/SplashStep";
-import LoginStep from "./steps/LoginStep";
 import PermissionStep from "./steps/PermissionStep";
 import AgreementSheet from "./overlays/AgreementSheet";
 import ServiceTerms from "./terms/ServiceTerms";
@@ -19,6 +17,8 @@ import PrivacyPolicy from "./terms/PrivacyPolicy";
 import MarketingTerms from "./terms/MarketingTerms";
 import { getMyProfile } from "../../api/users/usersApi";
 import AgeLimitModal from "./overlays/AgeLimitModal";
+import ProfileSetupMain from "../profile-setup/ProfileSetupMain";
+
 const DUMMY_DATA: IAgreementItem[] = [
   { agreementId: 1, body: "서비스 이용약관 상세 내용더미...", type: "POLICY" },
   {
@@ -40,7 +40,7 @@ const AGREEMENT_TYPE_MAP: Record<number, AgreementType> = {
 
 export default function OnBoardingPage() {
   const navigate = useNavigate();
-  const [step, setStep] = useState<"splash" | "login" | "permission">("splash");
+  const [step, setStep] = useState<"checking" | "permission" | "setup">("checking");
   const [agreements, setAgreements] = useState<IAgreementItem[]>([]);
   const [showAgreement, setShowAgreement] = useState(false);
   const [currentTerm, setCurrentTerm] = useState<AgreementType | null>(null);
@@ -66,7 +66,7 @@ export default function OnBoardingPage() {
       const isCameraGranted = cameraStatus.state === "granted";
       const isMicGranted = micStatus.state === "granted";
       if (isCameraGranted && isMicGranted) {
-        navigate("/profileset", { replace: true });
+        setStep("setup");
       } else {
         setStep("permission");
       }
@@ -78,7 +78,7 @@ export default function OnBoardingPage() {
   const handleAgeLimitClose = () => {
     localStorage.removeItem("accessToken");
     setShowAgeLimit(false);
-    setStep("splash");
+    navigate("/login", { replace: true });
   };
 
   const fetchAgreementsData = async () => {
@@ -103,7 +103,6 @@ export default function OnBoardingPage() {
   useEffect(() => {
     const token = localStorage.getItem("accessToken");
     if (!token) return;
-    setStep("login");
 
     const initializeUser = async () => {
       try {
@@ -177,10 +176,17 @@ export default function OnBoardingPage() {
     }
   };
 
+  if (step === "setup") {
+    return <ProfileSetupMain />;
+  }
+
   return (
-    <div className="relative min-h-screen bg-white">
-      {step === "splash" && <SplashStep onNext={() => setStep("login")} />}
-      {step === "login" && <LoginStep />}
+    <div className="relative h-full bg-white">
+      {step === "checking" && (
+        <div className="flex items-center justify-center h-full">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#FC3367]"></div>
+        </div>
+      )}
 
       {showAgeLimit && <AgeLimitModal onClose={handleAgeLimitClose} />}
 
@@ -234,7 +240,7 @@ export default function OnBoardingPage() {
       )}
 
       {step === "permission" && (
-        <PermissionStep onFinish={() => navigate("/profileset")} />
+        <PermissionStep onFinish={() => setStep("setup")} />
       )}
     </div>
   );
