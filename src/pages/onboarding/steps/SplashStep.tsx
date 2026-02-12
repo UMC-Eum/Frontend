@@ -17,7 +17,7 @@ export default function SplashStep({ onNext }: SplashProps) {
   }, [onNext])
 
   return (
-    <div className="flex items-center justify-center h-screen bg-white">
+    <div className="flex items-center justify-center h-full bg-white">
       <img
         src={splashbackground}
         alt="스플래쉬 배경 이미지"

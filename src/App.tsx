@@ -11,7 +11,6 @@ import MatchingPage from "./pages/MatchingPage";
 import OnBoardingPage from "./pages/onboarding/OnBoardingPage";
 import ResultPage from "./pages/ResultPage";
 import HomePage from "./pages/HomePage";
-import ProfileSetupMain from "./pages/profile-setup/ProfileSetupMain";
 import ProfileEditMain from "./pages/profile-edit/ProfileEditMain";
 import ChatListPage from "./pages/chat/ChatListPage";
 import ChatRoomPage from "./pages/chat/ChatRoomPage";
@@ -22,7 +21,7 @@ import IdealEditPage from "./pages/profile-edit/IdealEditPage";
 import IdealRecordPage from "./pages/profile-edit/IdealRecordPage";
 import LocationEditPage from "./pages/profile-edit/LocationEditPage";
 
-import LoginStep from "./pages/onboarding/steps/LoginStep";
+import LoginPage from "./pages/onboarding/LoginPage";
 import OAuthCallbackPage from "./pages/OAuthCallbackPage";
 
 import ProfileRecommendPage from "./pages/ProfileRecommendPage";
@@ -62,19 +61,14 @@ const router = createBrowserRouter([
     children: [
       {
         index: true,
-        element: <div>Home Page</div>,
+        element: <Navigate to="/home" replace />,
       },
       {
         element: <PublicOnlyRoute />,
         children: [
           {
             path: "/login",
-            element: <LoginStep />,
-          },
-
-          {
-            path: "/profileset",
-            element: <ProfileSetupMain />,
+            element: <LoginPage />,
           },
         ],
       },
