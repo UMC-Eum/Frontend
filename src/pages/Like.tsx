@@ -1,3 +1,4 @@
+import { useNavigate } from "react-router-dom";
 import BackButton from "../components/BackButton";
 import Navbar from "../components/standard/Navbar";
 import { useMemo, useState } from "react";
@@ -12,26 +13,27 @@ type CardUser = {
   age: number;
   imageUrl: string;
   location: string;
-  distanceKm: number;
+  introText?: string;
+  keywords?: string[];
+  rawProfile?: any;
 };
 
 type Tab = "sent" | "received";
-
 const PAGE_SIZE = 20;
-
 const FALLBACK_IMAGE =
   "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=500&h=800&fit=crop";
 
-const safeImage = (url?: string) => {
-  if (!url) return FALLBACK_IMAGE;
-  if (url.includes("example.com")) return FALLBACK_IMAGE;
-  return url;
+const calculateAge = (birthDateString: string): number => {
+  if (!birthDateString) return 25;
+  const birthYear = new Date(birthDateString).getFullYear();
+  const currentYear = new Date().getFullYear();
+  return currentYear - birthYear + 1;
 };
 
 export default function Like() {
+  const navigate = useNavigate();
   const [tab, setTab] = useState<Tab>("sent");
 
-  // 보낸 하트 목록
   const sentQuery = useInfiniteQuery({
     queryKey: ["hearts", "sent"],
     enabled: tab === "sent",
@@ -44,7 +46,6 @@ export default function Like() {
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
   });
 
-  // 받은 하트 목록
   const receivedQuery = useInfiniteQuery({
     queryKey: ["hearts", "received"],
     enabled: tab === "received",
@@ -57,66 +58,67 @@ export default function Like() {
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
   });
 
-  const sentItems = useMemo(() => {
+  const mapUserToCard = (
+    u: any,
+    heartId: number,
+    targetUserId: number,
+  ): CardUser => {
+    const interestTags = (u.interests || [])
+      .map((i: any) => i.interest?.body)
+      .filter(Boolean);
+    const personalityTags = (u.personalities || [])
+      .map((p: any) => p.personality?.body)
+      .filter(Boolean);
+
+    return {
+      id: targetUserId,
+      heartId: heartId,
+      name: u.nickname,
+      age: calculateAge(u.birthdate),
+      imageUrl: u.profileImageUrl || FALLBACK_IMAGE,
+      location: u.address?.fullName || "지역 미설정",
+      introText: u.introText || "",
+      keywords: [...interestTags, ...personalityTags],
+      rawProfile: u,
+    };
+  };
+
+  const sentCards = useMemo(() => {
     const pages = sentQuery.data?.pages ?? [];
-    return pages.flatMap((p) => p.items);
+    return pages
+      .flatMap((p) => p.items)
+      .map((h) => mapUserToCard(h.targetUser, h.heartId, h.targetUserId));
   }, [sentQuery.data]);
 
-  const receivedItems = useMemo(() => {
+  const receivedCards = useMemo(() => {
     const pages = receivedQuery.data?.pages ?? [];
-    return pages.flatMap((p) => p.items);
+    return pages
+      .flatMap((p) => p.items)
+      .map((h) => mapUserToCard(h.fromUser, h.heartId, h.fromUserId));
   }, [receivedQuery.data]);
 
-  const sentCards: CardUser[] = useMemo(() => {
-    return sentItems.map((h) => ({
-      id: h.targetUserId,
-      heartId: h.heartId,
-      name: h.targetUser.nickname,
-      age: h.targetUser.age,
-      imageUrl: safeImage(h.targetUser.profileImageUrl),
-      location: "",
-      distanceKm: 0,
-    }));
-  }, [sentItems]);
-
-  const receivedCards: CardUser[] = useMemo(() => {
-    return receivedItems.map((h) => ({
-      id: h.fromUserId,
-      heartId: h.heartId,
-      name: h.fromUser.nickname,
-      age: h.fromUser.age,
-      imageUrl: safeImage(h.fromUser.profileImageUrl),
-      location: "",
-      distanceKm: 0,
-    }));
-  }, [receivedItems]);
-
+  const currentCards = tab === "sent" ? sentCards : receivedCards;
   const isLoading =
     tab === "sent" ? sentQuery.isLoading : receivedQuery.isLoading;
-  const currentCards = tab === "sent" ? sentCards : receivedCards;
 
   return (
-    <div className="h-screen flex flex-col">
+    <div className="h-screen flex flex-col bg-white">
       <BackButton title="마음" />
-
-      {/* 탭 */}
       <div className="shrink-0 border-b border-[#DEE3E5] px-[20px] h-[48px] flex">
         <button
-          type="button"
           onClick={() => setTab("sent")}
           className="relative flex-1 flex items-center justify-center text-[18px] font-medium"
         >
-          내가 누른
+          내가 누른{" "}
           {tab === "sent" && (
             <div className="absolute bottom-0 left-1/2 -translate-x-1/2 h-[3px] w-[120px] bg-[#FC3367] rounded-full" />
           )}
         </button>
         <button
-          type="button"
           onClick={() => setTab("received")}
           className="relative flex-1 flex items-center justify-center text-[18px] font-medium"
         >
-          나를 마음한
+          나를 마음한{" "}
           {tab === "received" && (
             <div className="absolute bottom-0 left-1/2 -translate-x-1/2 h-[3px] w-[120px] bg-[#FC3367] rounded-full" />
           )}
@@ -125,13 +127,32 @@ export default function Like() {
 
       <main className="flex-1 overflow-y-auto pt-[26px] px-[20px] pb-[120px] no-scrollbar">
         {isLoading ? (
-          <p className="text-sm text-gray-500">불러오는 중...</p>
-        ) : currentCards.length === 0 ? (
-          <p className="text-sm text-gray-500">목록이 비어 있어요.</p>
+          <p className="text-sm text-gray-400 text-center mt-10">로딩 중...</p>
         ) : (
           <div className="grid grid-cols-2 gap-[20px]">
             {currentCards.map((item) => (
-              <div key={item.id} className="h-[243px] mx-[5px] my-[10px]">
+              <div
+                key={`${item.id}-${item.heartId}`}
+                className="h-[243px] mx-[5px] my-[10px] cursor-pointer"
+                onClick={() => {
+                  navigate(`/home/profile/${item.id}`, {
+                    state: {
+                      profile: {
+                        ...item.rawProfile,
+                        userId: item.id,
+                        nickname: item.name,
+                        age: item.age,
+                        profileImageUrl: item.imageUrl,
+                        areaName: item.location,
+                        introText: item.introText,
+                        keywords: item.keywords,
+                        isLiked: tab === "sent",
+                        heartId: item.heartId,
+                      },
+                    },
+                  });
+                }}
+              >
                 <MiniCard
                   profileUrl={`/home/profile/${item.id}`}
                   targetUserId={item.id}
@@ -140,18 +161,14 @@ export default function Like() {
                   age={item.age}
                   area={item.location}
                   initialIsLiked={tab === "sent"}
-                  initialHeartId={
-                    tab === "sent" ? (item.heartId ?? null) : null
-                  }
+                  initialHeartId={tab === "sent" ? item.heartId : null}
                 />
               </div>
             ))}
           </div>
         )}
       </main>
-      <div className="shrink-0">
-        <Navbar />
-      </div>
+      <Navbar />
     </div>
   );
 }
