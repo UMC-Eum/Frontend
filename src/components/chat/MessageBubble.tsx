@@ -6,7 +6,7 @@ interface MessageBubbleProps {
   isMe: boolean;
   type: MessageType;
   content: string | null;
-  audioUrl: string | null; // 미디어(이미지/동영상/오디오) URL 공용 사용
+  audioUrl: string | null; 
   duration: number | null;
   timestamp: string;
   readAt: string | null;
@@ -15,7 +15,6 @@ interface MessageBubbleProps {
   onDelete?: () => void;
   showTimestamp?: boolean;
   showRead?: boolean;
-  // 🔥 [추가] 이미지 클릭 핸들러
   onImageClick?: (url: string) => void;
 }
 
@@ -37,7 +36,7 @@ export function MessageBubble({
   const audioRef = useRef<HTMLAudioElement>(null);
   const [showOverlay, setShowOverlay] = useState(false);
   
-  // 🔥 [추가] 롱프레스 타이머 참조
+  // 롱프레스 타이머 참조
   const longPressTimer = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
@@ -60,19 +59,17 @@ export function MessageBubble({
     setShowOverlay(false);
   };
 
-  // 🔥 [추가] 롱프레스 시작 (누를 때)
+  // 롱프레스 시작 (누를 때)
   const handlePressStart = () => {
-    // 내 메시지가 아니거나 삭제 기능이 없으면 무시
     if (!isMe || !onDelete) return;
 
     longPressTimer.current = setTimeout(() => {
       setShowOverlay(true);
-      // 모바일 진동 피드백 (지원 기기만)
       if (navigator.vibrate) navigator.vibrate(50);
-    }, 2000); // 2초 설정
+    }, 2000); 
   };
 
-  // 🔥 [추가] 롱프레스 취소 (뗄 때, 마우스 나갈 때)
+  // 롱프레스 취소 (뗄 때, 마우스 나갈 때)
   const handlePressEnd = () => {
     if (longPressTimer.current) {
       clearTimeout(longPressTimer.current);
@@ -87,7 +84,6 @@ export function MessageBubble({
       {/* 1. 텍스트 메시지 */}
       {type === "TEXT" && content && (
         <div
-          // 🔥 클릭 대신 롱프레스 이벤트 연결
           onMouseDown={handlePressStart}
           onMouseUp={handlePressEnd}
           onMouseLeave={handlePressEnd}
@@ -104,7 +100,6 @@ export function MessageBubble({
       {/* 2. 오디오 메시지 */}
       {type === "AUDIO" && audioUrl && (
         <div
-          // 🔥 롱프레스 이벤트 연결
           onMouseDown={handlePressStart}
           onMouseUp={handlePressEnd}
           onMouseLeave={handlePressEnd}
@@ -146,7 +141,6 @@ export function MessageBubble({
       {/* 3. 이미지 메시지 (PHOTO / IMAGE) */}
       {(type === "PHOTO" || (type as string) === "IMAGE") && audioUrl && (
         <div
-          // 🔥 롱프레스 이벤트 연결 (삭제용)
           onMouseDown={handlePressStart}
           onMouseUp={handlePressEnd}
           onMouseLeave={handlePressEnd}
@@ -160,10 +154,9 @@ export function MessageBubble({
             alt="채팅 이미지"
             className="w-full h-auto object-cover block"
             style={{ maxHeight: "300px" }}
-            // 🔥 [추가] 클릭 시 확대 (삭제 롱프레스와 분리)
             onClick={(e) => {
               if (onImageClick) {
-                e.stopPropagation(); // 롱프레스와 겹치지 않게 주의 (사실 click은 mouseUp 후에 일어나서 괜찮지만 안전하게)
+                e.stopPropagation(); 
                 onImageClick(audioUrl);
               }
             }}
@@ -174,7 +167,6 @@ export function MessageBubble({
       {/* 4. 동영상 메시지 (VIDEO) */}
       {(type as string) === "VIDEO" && audioUrl && (
         <div
-          // 🔥 롱프레스 이벤트 연결
           onMouseDown={handlePressStart}
           onMouseUp={handlePressEnd}
           onMouseLeave={handlePressEnd}

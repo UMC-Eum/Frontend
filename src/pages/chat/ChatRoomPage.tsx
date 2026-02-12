@@ -79,34 +79,26 @@ export default function ChatRoomPage() {
   );
 
   useEffect(() => {
-    // 1. 로딩 중이거나 메시지 없으면 패스
+
     if (!isInitLoaded || displayMessages.length === 0) return;
 
     const currentLastMsg = displayMessages[displayMessages.length - 1];
     const currentLastId = currentLastMsg.messageId;
     const prevLastId = prevLastMessageIdRef.current;
 
-    // 2. "마지막 메시지가 바뀌었을 때"만 실행 (새 메시지 수신/전송 시)
-    // 과거 메시지 로딩 시에는 리스트 '앞'이 바뀌므로 여기 안 걸림 -> 스크롤 안 튐 ✅
     if (currentLastId !== prevLastId) {
       
       const isMyMessage = currentLastMsg.senderUserId === myId;
       const isInitialLoad = prevLastId === null;
-      const isUserAtBottom = isAtBottomRef.current; // 사용자가 바닥 근처를 보고 있었나?
+      const isUserAtBottom = isAtBottomRef.current; 
 
-      // 3. 스크롤을 내려야 하는 3가지 상황
-      // A. 초기 로딩 시
-      // B. 내가 메시지를 보냈을 시 (무조건 내림)
-      // C. 남이 보냈는데, 내가 이미 바닥을 보고 있었을 시 (읽고 있던 중이면 안 내림)
       if (isInitialLoad || isMyMessage || isUserAtBottom) {
-        scrollToBottom("smooth"); // 부드럽게 이동
+        scrollToBottom("smooth"); 
       } else {
-        // 남이 보냈고 내가 위를 보고 있다면? -> "새 메시지" 토스트나 버튼 띄우기 좋은 위치
         console.log("새 메시지가 왔지만 스크롤을 내리지 않았습니다."); 
       }
     }
 
-    // 현재 ID 저장
     prevLastMessageIdRef.current = currentLastId;
     
   }, [displayMessages, isInitLoaded, myId, scrollToBottom]);
@@ -134,9 +126,7 @@ export default function ChatRoomPage() {
   if (!parsedRoomId) return null;
 
   return (
-    // ✅ 구조 변경: absolute 대신 flex-col로 전체 높이 제어
     <div className="w-full h-dvh flex flex-col bg-white overflow-hidden">
-      {/* 헤더: shrink-0으로 높이 유지 */}
       <header className="shrink-0 h-[45px] px-4 flex items-center justify-between bg-white z-50 border-b border-gray-100">
         <div className="-ml-5">
           <BackButton />
@@ -155,7 +145,6 @@ export default function ChatRoomPage() {
         </button>
       </header>
 
-      {/* ✅ 메시지 영역: flex-1을 주어 남은 모든 공간을 차지하게 함 */}
       <div
         ref={scrollContainerRef}
         className="flex-1 overflow-y-auto px-4 scrollbar-hide flex flex-col"
@@ -168,7 +157,6 @@ export default function ChatRoomPage() {
           </div>
         )}
 
-        {/* ✅ mt-auto를 주어 메시지가 적을 때 하단부터 쌓이게 함 */}
         <div className="flex flex-col gap-4 py-4">
           {(() => {
             let lastMyIndex = -1;
@@ -225,12 +213,12 @@ export default function ChatRoomPage() {
             });
           })()}
           <div className="h-[70px] shrink-0" />
-          {/* ✅ 하단 스크롤 기준점 */}
+          {/* 하단 스크롤 기준점 */}
           <div ref={bottomRef} className="h-2 shrink-0" />
         </div>
       </div>
 
-      {/* ✅ 하단 입력창: absolute를 제거하고 shrink-0으로 영역 고정 */}
+      {/* 하단 입력창: absolute를 제거하고 shrink-0으로 영역 고정 */}
       <div className="shrink-0 bg-white border-t border-gray-100 shadow-[0_-2px_10px_rgba(0,0,0,0.05)]">
         <ChatInputBar
           onSendText={sendText}

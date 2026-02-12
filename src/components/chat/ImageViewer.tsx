@@ -6,7 +6,6 @@ interface ImageViewerProps {
 }
 
 export default function ImageViewer({ src, onClose }: ImageViewerProps) {
-  // ESC 키 누르면 닫기
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
