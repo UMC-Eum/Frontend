@@ -14,6 +14,7 @@ import {
   getNotificationChats,
   readNotification,
 } from "../api/notifications/notificationsApi";
+import LoadingPage from "./LoadingPage";
 import * as DTO from "../types/api/notifications/notificationsDTO";
 
 export type TabType = "HEART" | "CHAT";
@@ -101,9 +102,7 @@ const NotificationsPage = () => {
       {/* 🟢 스크롤이 가능하도록 이 영역을 감싸고 overflow-y-auto를 줍니다. */}
       <main className="flex-1 overflow-y-auto scrollbar-hide">
         {isLoading ? (
-          <div className="flex justify-center mt-20 text-gray-400">
-            로딩 중...
-          </div>
+          <LoadingPage />
         ) : filteredNotifications.length > 0 ? (
           <div className="flex flex-col">
             {filteredNotifications.map((noti) => (

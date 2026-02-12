@@ -21,11 +21,20 @@ export default function SetComplete() {
       
       const currentImage = user?.profileImageUrl;
 
-      if (currentImage && currentImage.startsWith("data:")) {
-        // 1. DataURL(Base64)을 Blob 파일로 변환
+      if (currentImage && !currentImage.startsWith("http")) {
+        // 1. DataURL(Base64) 또는 로컬 경로를 Blob 파일로 변환
         const response = await fetch(currentImage);
         const blob = await response.blob();
-        const file = new File([blob], `profile_${Date.now()}.jpg`, { type: "image/jpeg" });
+
+        // 파일 확장자 및 타입 결정
+        let extension = "jpg";
+        if (blob.type.includes("svg")) extension = "svg";
+        else if (blob.type.includes("png")) extension = "png";
+        else if (blob.type.includes("webp")) extension = "webp";
+
+        const file = new File([blob], `profile_${Date.now()}.${extension}`, {
+          type: blob.type,
+        });
 
         // 2. S3 Presigned URL 요청
         const presignResult = await postPresign({

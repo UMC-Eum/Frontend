@@ -1,16 +1,43 @@
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useRouteError } from "react-router-dom";
 import { ApiErrorDetail } from "../types/api/api";
 import { HalfButton } from "../components/standard/CTA";
 import ErrorIcon from "../assets/ErrorIcon.svg";
+import { ERROR_SITUATION_MAP } from "../constants/errorConstants";
 
 interface ErrorPageProps {
-    error: ApiErrorDetail;
+    error?: ApiErrorDetail;
 }   
 
-export default function ErrorPage({ error }: ErrorPageProps) {
+export default function ErrorPage({ error: propError }: ErrorPageProps) {
     const navigate = useNavigate();
+    const routeError = useRouteError() as any;
 
-    const sentences = error.message.split('.').filter(s => s.trim() !== '');    
+    // 에러 객체 결정 로직
+    let error: ApiErrorDetail;
+
+    if (propError) {
+        error = propError;
+    } else if (routeError?.data?.code) {
+        // 서버에서 보낸 커스텀 에러 (ApiErrorDetail 구조)
+        error = routeError.data;
+    } else if (routeError?.status === 404) {
+        // 리액트 라우터 404
+        error = {
+            code: "NOT_FOUND",
+            message: "요청하신 페이지를 찾을 수 없습니다."
+        };
+    } else {
+        // 그 외 알 수 없는 에러
+        error = {
+            code: "UNKNOWN",
+            message: routeError?.statusText || routeError?.message || "알 수 없는 오류가 발생했습니다."
+        };
+    }
+
+    const sentences = error.message ? error.message.split('.').filter(s => s.trim() !== '') : [];    
+
+    // 맵에 없는 코드일 경우 대비
+    const errorTitle = ERROR_SITUATION_MAP[error.code] || "오류 발생";
 
     return (
         <div className="
@@ -20,7 +47,9 @@ export default function ErrorPage({ error }: ErrorPageProps) {
             <div className="flex flex-col items-center text-center">
                 <img src={ErrorIcon} alt="Error Icon" />
                 <div className="mt-10 flex flex-col items-center gap-3">
-                    <h1 className="text-[20px] font-semibold text-[#636970]">{error.code}: {ERROR_SITUATION_MAP[error.code]}</h1>
+                    <h1 className="text-[20px] font-semibold text-[#636970]">
+                        {error.code}: {errorTitle}
+                    </h1>
                     <p className="text-[18px] font-medium text-[#A6AFB6] leading-[1.2] break-keep">
                         {sentences.map((sentence, index) => (
                             <span key={index} className="block">
@@ -39,44 +68,3 @@ export default function ErrorPage({ error }: ErrorPageProps) {
         </div>
     );
 }
-
-// 에러 코드 → 에러 상황
-const ERROR_SITUATION_MAP: Record<string, string> = {
-  // AUTH
-  "AUTH-001": "로그인 필요",
-  "AUTH-002": "세션 만료",
-  "AUTH-003": "가입된 이메일",
-  "AUTH-004": "유효하지 않은 인증정보",
-  "AUTH-005": "인증정보 가져오기 실패",
-  "AUTH-006": "인증정보 만료",
-  "AUTH-007": "프로필 가져오기 실패",
-  "AUTH-008": "신고 누적된 회원 로그인 차단",
-
-  // VALID
-  "VALID-001": "입력 형식 오류",
-  "VALID-002": "필수 입력 누락",
-
-  // VOICE
-  "VOICE-001": "음성 녹음 실패",
-  "VOICE-002": "음성이 너무 짧음",
-  "VOICE-003": "음성 인식 실패",
-
-  // MATCH
-  "MATCH-001": "매칭 결과 없음",
-  "MATCH-002": "음성 분석 지연",
-
-  // PROF
-  "PROF-001": "이상형 미등록",
-
-  // CHAT
-  "CHAT-001": "메시지 전송 실패",
-  "CHAT-002": "채팅방 접근 실패",
-
-  // SYSTEM
-  "SYS-001": "일시적 서버 오류",
-  "SYS-002": "네트워크 연결 실패",
-
-  // ETC
-  "AGREE-001": "존재하지 않는 약관",
-  "NOTI-001": "존재하지 않는 알림",
-};

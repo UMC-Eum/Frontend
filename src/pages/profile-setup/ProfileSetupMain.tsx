@@ -56,7 +56,7 @@ export default function ProfileSetupMain() {
         gender: user.gender as "M" | "F",
         birthDate:
           user.birthDate ||
-          `${new Date().getFullYear() - (user.age || 0)}-01-01`,
+          `${new Date().getFullYear() - (user.age)}-01-01`,
         areaCode: user.area?.code || "",
         introText: user.introText,
         introAudioUrl: user.introAudioUrl,

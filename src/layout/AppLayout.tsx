@@ -60,11 +60,11 @@ const AppLayout = () => {
   };
 
   return (
-    <div className="flex justify-center bg-gray-100 min-h-screen">
-      <div className="relative w-full max-w-[420px] h-screen bg-white flex flex-col overflow-hidden">
+    <div className="flex justify-center bg-gray-100 h-full"> 
+      <div className="relative w-full h-full bg-white flex flex-col overflow-hidden">
         
         {/* 1. 메인 컨텐츠를 먼저 그립니다 */}
-        <main className="flex-1 relative overflow-hidden">
+        <main className="flex-1 relative overflow-y-auto w-full no-scrollbar">
           <Outlet />
         </main>
 
@@ -73,7 +73,7 @@ const AppLayout = () => {
           <div 
             onClick={handleToastClick}
             className="absolute top-4 left-0 right-0 z-[9999] px-4 cursor-pointer animate-fade-in-down"
-          >
+          > 
             <ToastNotification 
               message={toastMessage}
               isVisible={isToastVisible}

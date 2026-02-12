@@ -14,6 +14,7 @@ export interface IUserProfile {
   idealPersonalities: string[];
   introAudioUrl: string;
   profileImageUrl: string;
+  age: number;
 }
 export interface IUserProfileExtend extends IUserProfile {
   age: number;

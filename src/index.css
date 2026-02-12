@@ -8,7 +8,19 @@
   /* 필요하다면 변수 설정 */
 }
 
+
+/* 모바일 바운스 스크롤 방지 */
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
 body {
+
   /* 2. 폰트 패밀리 적용 */
   font-family:
     "Pretendard",
@@ -22,6 +34,7 @@ body {
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
+
 .no-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
@@ -30,11 +43,14 @@ body {
 /* 1. 키프레임 정의 (동작) */
 @keyframes slideUp {
   from {
-    transform: translateY(100%); /* 화면 아래쪽 100% 위치에서 시작 */
+    transform: translateY(100%);
+    /* 화면 아래쪽 100% 위치에서 시작 */
     opacity: 0;
   }
+
   to {
-    transform: translateY(0); /* 제자리로 이동 */
+    transform: translateY(0);
+    /* 제자리로 이동 */
     opacity: 1;
   }
 }
