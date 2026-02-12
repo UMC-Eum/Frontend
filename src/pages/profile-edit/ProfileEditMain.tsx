@@ -19,7 +19,7 @@ export default function ProfileEditMain() {
     } finally {
       clearUser();
       localStorage.removeItem("accessToken");
-      navigate("/login", { replace: true });
+      navigate("/onboarding", { replace: true });
     }
   };
 
@@ -37,7 +37,7 @@ export default function ProfileEditMain() {
       alert("탈퇴가 완료되었습니다.");
       clearUser();
       localStorage.removeItem("accessToken");
-      navigate("/login", { replace: true });
+      navigate("/onboarding", { replace: true });
     } catch (error) {
       console.error("Deactivation failed:", error);
       alert("탈퇴 처리 중 오류가 발생했습니다. 다시 시도해주세요.");

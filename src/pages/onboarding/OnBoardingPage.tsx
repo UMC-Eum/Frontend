@@ -80,7 +80,7 @@ export default function OnBoardingPage() {
   const handleAgeLimitClose = () => {
     localStorage.removeItem("accessToken");
     setShowAgeLimit(false);
-    navigate("/login", { replace: true });
+    navigate("/onboarding", { replace: true });
   };
 
   const fetchAgreementsData = async () => {
@@ -104,9 +104,15 @@ export default function OnBoardingPage() {
 
   useEffect(() => {
     const token = localStorage.getItem("accessToken");
-    if (!token) return;
 
     const initializeUser = async () => {
+      if (!token) {
+        console.log("No token found, proceeding with default onboarding");
+        await fetchAgreementsData();
+        setShowAgreement(true);
+        return;
+      }
+
       try {
         const [userData, isPassed] = await Promise.all([
           getMyProfile(),

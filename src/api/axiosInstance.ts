@@ -51,7 +51,7 @@ api.interceptors.response.use(
         return api(originalRequest);
       } catch (refreshError) {
         localStorage.clear();
-        window.location.href = "/login";
+        window.location.href = "/onboarding";
         return Promise.reject(refreshError);
       }
     }

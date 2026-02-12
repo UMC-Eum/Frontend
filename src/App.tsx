@@ -20,7 +20,7 @@ import IdealEditPage from "./pages/profile-edit/IdealEditPage";
 import IdealRecordPage from "./pages/profile-edit/IdealRecordPage";
 import LocationEditPage from "./pages/profile-edit/LocationEditPage";
 
-import LoginPage from "./pages/onboarding/LoginPage";
+
 import OAuthCallbackPage from "./pages/OAuthCallbackPage";
 
 import ProfileRecommendPage from "./pages/ProfileRecommendPage";
@@ -32,15 +32,11 @@ import ErrorPage from "./pages/ErrorPage";
 
 import { Outlet, Navigate } from "react-router-dom";
 
-function PublicOnlyRoute() {
-  const user = useUserStore((s) => s.user);
-  if (user) return <Navigate to="/home" replace />;
-  return <Outlet />;
-}
+
 
 function ProtectedRoute() {
   const user = useUserStore((s) => s.user);
-  if (!user) return <Navigate to="/login" replace />;
+  if (!user) return <Navigate to="/onboarding" replace />;
   return <Outlet />;
 }
 
@@ -52,18 +48,13 @@ const router = createBrowserRouter([
     children: [
       {
         index: true,
-        element: <Navigate to="/home" replace />,
-      },
-      {
-        element: <PublicOnlyRoute />,
-        children: [
-          {
-            path: "/login",
-            element: <LoginPage />,
-          },
-        ],
+        element: <Navigate to="/onboarding" replace />,
       },
 
+      {
+        path: "/onboarding",
+        element: <OnBoardingPage />,
+      },
       {
         path: "/oauth/callback/:provider",
         element: <OAuthCallbackPage />,
@@ -81,10 +72,7 @@ const router = createBrowserRouter([
               },
             ],
           },
-          {
-            path: "/onboarding",
-            element: <OnBoardingPage />,
-          },
+
           {
             path: "my",
             element: <ProfileEditMain />,
