@@ -43,7 +43,7 @@ export default function HomePage() {
 
   return (
     <div className="flex justify-center min-h-screen">
-      <div className="w-full max-w-[420px] h-screen bg-[#F8FAFB] flex flex-col overflow-hidden flex-1 relative">
+      <div className="w-full h-screen bg-[#F8FAFB] flex flex-col overflow-hidden flex-1 relative">
         <main className="overflow-y-auto px-[20px] pb-[120px] no-scrollbar">
           <header className="flex h-[45px] items-center justify-between mb-[10px] font-bold">
             <div className="text-[24px]">

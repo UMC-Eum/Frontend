@@ -4,6 +4,7 @@ import axios from "axios";
 import { ApiSuccessResponse } from "../types/api/api";
 import { IKakaoLoginResponse } from "../types/api/auth/authDTO";
 import useCompleteLogin from "../hooks/useCompleteLogin";
+import LoadingPage from "./LoadingPage";
 
 export default function OAuthCallbackPage() {
   const navigate = useNavigate();
@@ -72,5 +73,5 @@ export default function OAuthCallbackPage() {
     }
   }, [navigate, completeLogin]);
 
-  return <div>로그인 처리 중입니다...</div>;
+  return <LoadingPage />;
 }

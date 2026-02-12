@@ -6,6 +6,8 @@ import { useNavigate } from "react-router-dom";
 import { getRecommendations } from "../api/onboarding/onboardingApi";
 import IdleCard from "../components/card/presets/IdleCard";
 import { useQuery } from "@tanstack/react-query";
+import LoadingPage from "./LoadingPage";
+import ErrorPage from "./ErrorPage";
 
 const ResultPage = () => {
   const navigate = useNavigate();
@@ -34,19 +36,16 @@ const ResultPage = () => {
     }
   }, [isError, error]);
 
-  if (isLoading) return <div className="p-5 text-center">로딩 중...</div>;
+  if (isLoading) return <LoadingPage />;
 
   if (isError)
     return (
-      <div className="p-5 text-center">
-        <p className="text-red-500">추천 목록을 가져오는 데 실패했습니다.</p>
-        <button
-          onClick={() => window.location.reload()}
-          className="mt-4 px-4 py-2 bg-pink-500 text-white rounded-md"
-        >
-          다시 시도
-        </button>
-      </div>
+      <ErrorPage
+        error={{
+          code: "SYS-001",
+          message: "추천 목록을 가져오는 데 실패했습니다.",
+        }}
+      />
     );
 
   return (

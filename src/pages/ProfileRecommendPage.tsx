@@ -9,6 +9,7 @@ import chatpinkbox from "../assets/chat_pinkbox.svg";
 import KeywordLabel from "../components/keyword/KeywordLabel";
 import RecommendCard2 from "../components/card/presets/RecommendCard2";
 import { createChatRoom } from "../api/chats/chatsApi";
+import ErrorPage from "./ErrorPage";
 
 type Profile = {
   userId: number;
@@ -74,15 +75,18 @@ export default function ProfileRecommendPage() {
 
   if (!profile) {
     return (
-      <div className="flex justify-center min-h-screen items-center">
-        <p>프로필 정보를 불러올 수 없습니다.</p>
-      </div>
+      <ErrorPage
+        error={{
+          code: "AUTH-007",
+          message: "프로필 정보를 불러올 수 없습니다.",
+        }}
+      />
     );
   }
 
   return (
     <div className="flex justify-center min-h-screen">
-      <div className="w-full max-w-[420px] h-screen bg-[#F8FAFB] flex flex-col overflow-hidden flex-1 relative">
+      <div className="w-full h-screen bg-[#F8FAFB] flex flex-col overflow-hidden flex-1 relative">
         <main className="flex-1 overflow-y-auto pb-[72px] no-scrollbar">
           <div className="relative">
             <div className="relative w-full h-[585px] overflow-hidden">
