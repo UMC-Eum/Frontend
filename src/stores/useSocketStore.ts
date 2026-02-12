@@ -1,7 +1,5 @@
 import { create } from "zustand";
 import { io, Socket } from "socket.io-client";
-import { MessageSendData, JoinData } from "../types/api/socket";
-import { ApiSuccessResponse } from "../types/api/api";
 
 const NAMESPACE = "https://back.eum-dating.com/chats";
 
