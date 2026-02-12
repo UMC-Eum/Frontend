@@ -221,6 +221,7 @@ export default function ChatRoomPage() {
               );
             });
           })()}
+          <div className="h-[70px] shrink-0" />
           {/* ✅ 하단 스크롤 기준점 */}
           <div ref={bottomRef} className="h-2 shrink-0" />
         </div>

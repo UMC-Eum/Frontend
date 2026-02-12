@@ -109,6 +109,12 @@ export function ChatInputBar({
   return (
     <div className="w-full">
       <div className="flex flex-col bg-white border-t border-gray-100 pb-safe relative z-20">
+        <div
+          className={`absolute bottom-full left-0 right-0 h-[150px] w-full
+            bg-gradient-to-t from-white via-white/50 to-transparent
+            pointer-events-none z-10
+            ${shouldHideMic ? "opacity-0" : "opacity-100"}`}
+        />
         <RecordingControl
           status={status}
           seconds={seconds}
