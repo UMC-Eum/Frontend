@@ -76,16 +76,16 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
         // Case B: 새로운 알림이 감지되었을 때
         else if (latestIdFromServer > currentLastId) {
           console.log(`🔔 [새 알림 감지] ID: ${latestIdFromServer}`);
-          
+
           // 🔥 [추가 로직] 새로 들어온 알림들 중 'LIKE' 타입이 있는지 찾기
           // (currentLastId보다 큰 ID를 가진 알림들만 필터링)
           const newNotifications = items.filter(
-            (item) => item.notificationId > currentLastId
+            (item) => item.notificationId > currentLastId,
           );
 
           // 'LIKE' 타입인 알림 찾기 (백엔드 타입이 'LIKE'인지 'MATCH'인지 확인 필요)
           const newLikeNotification = newNotifications.find(
-            (item) => item.type === "LIKE" // ⚠️ 백엔드 DTO 타입 확인 필수
+            (item) => item.type === "HEART", // ⚠️ 백엔드 DTO 타입 확인 필수
           );
 
           if (newLikeNotification) {
@@ -119,7 +119,7 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
     try {
       await readNotification(notificationId);
       const currentNotifications = get().notifications.map((n) =>
-        n.notificationId === notificationId ? { ...n, isRead: true } : n
+        n.notificationId === notificationId ? { ...n, isRead: true } : n,
       );
       set({
         notifications: currentNotifications,

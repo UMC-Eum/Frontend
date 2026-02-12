@@ -16,6 +16,8 @@ export default function HomePage() {
     queryFn: () => getRecommendations({ size: 20 }),
     retry: false,
     refetchOnWindowFocus: false,
+    gcTime: 1000 * 60 * 5,
+    staleTime: 1000 * 60 * 5,
   });
 
   const user = useUserStore((state) => state.user);
