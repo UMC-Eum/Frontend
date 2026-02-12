@@ -58,7 +58,7 @@ export default function PermissionStep({ onFinish }: Props) {
   };
 
   return (
-    <div className="flex flex-col h-full bg-white px-6 pt-10 pb-[58px]">
+    <div className="flex flex-col h-full bg-white px-6 pt-10 pb-[28px]">
       <h1 className="text-2xl font-bold text-center mb-5">앱 접근 권한 안내</h1>
 
       <p className="text-[20px] font-semibold text-center text-gray-900 mb-8 leading-relaxed">
