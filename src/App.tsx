@@ -71,16 +71,14 @@ const router = createBrowserRouter([
             path: "/login",
             element: <LoginStep />,
           },
-          {
-            path: "/onboarding",
-            element: <OnBoardingPage />,
-          },
+
           {
             path: "/profileset",
             element: <ProfileSetupMain />,
           },
         ],
       },
+
       {
         path: "/oauth/callback/:provider",
         element: <OAuthCallbackPage />,
@@ -97,6 +95,10 @@ const router = createBrowserRouter([
                 element: <ResultPage />,
               },
             ],
+          },
+          {
+            path: "/onboarding",
+            element: <OnBoardingPage />,
           },
           {
             path: "my",
