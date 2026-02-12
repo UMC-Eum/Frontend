@@ -22,6 +22,7 @@ import ReportScreen from "../../components/chat/ReportScreen";
 import { DateSeparator } from "../../components/chat/DateSeparator";
 import { getFormattedDate } from "../../hooks/useFormatDate";
 import { createReport } from "../../api/socials/socialsApi";
+import ImageViewer from "../../components/chat/ImageViewer";
 
 type ModalType = "NONE" | "BLOCK" | "EXIT";
 
@@ -39,6 +40,7 @@ export default function ChatRoomPage() {
   const [playingId, setPlayingId] = useState<number | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [isReportScreenOpen, setIsReportScreenOpen] = useState(false);
+  const [expandedImage, setExpandedImage] = useState<string | null>(null);
 
   // 1. 데이터 및 로직 훅
   const { peerInfo, blockId, isMenuOpen, setIsMenuOpen, handleBlockToggle } =
@@ -216,6 +218,7 @@ export default function ChatRoomPage() {
                         ? () => handleDeleteMessage(msg.messageId)
                         : undefined
                     }
+                    onImageClick={(url) => setExpandedImage(url)}
                   />
                 </div>
               );
@@ -236,6 +239,13 @@ export default function ChatRoomPage() {
           isBlocked={blockId !== null}
         />
       </div>
+      {/* 이미지 확대 뷰어 */}
+      {expandedImage && (
+        <ImageViewer 
+          src={expandedImage} 
+          onClose={() => setExpandedImage(null)} 
+        />
+      )}
 
       {/* 모달 및 알림 컴포넌트들 (기존과 동일) */}
       <ToastNotification
