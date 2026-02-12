@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useUserStore } from "../../stores/useUserStore";
 
+// Hooks
 import { useChatRoomInfo } from "../../hooks/chat/useChatRoomInfo";
 import { useChatMessages } from "../../hooks/chat/useChatMessages";
 import { useChatScroll } from "../../hooks/chat/useChatScroll";
@@ -9,6 +10,7 @@ import { useSocketStore } from "../../stores/useSocketStore";
 import { useChatSocketLogic } from "../../hooks/chat/useChatSocketLogic";
 import { useChatSender } from "../../hooks/chat/useChatSender";
 
+// Components
 import BackButton from "../../components/BackButton";
 import { MessageBubble } from "../../components/chat/MessageBubble";
 import { ChatInputBar } from "../../components/chat/ChatInputBar";
@@ -36,6 +38,7 @@ export default function ChatRoomPage() {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [isReportScreenOpen, setIsReportScreenOpen] = useState(false);
 
+  // 1. 데이터 및 로직 훅
   const { peerInfo, blockId, isMenuOpen, setIsMenuOpen, handleBlockToggle } =
     useChatRoomInfo(parsedRoomId);
 
@@ -71,6 +74,7 @@ export default function ChatRoomPage() {
     () => bottomRef.current?.scrollIntoView({ behavior: "smooth" }),
   );
 
+  // 메시지 추가 시 즉시 바닥으로 스크롤 고정
   useEffect(() => {
     if (isInitLoaded && bottomRef.current) {
       bottomRef.current.scrollIntoView({ behavior: "auto" });
@@ -100,7 +104,9 @@ export default function ChatRoomPage() {
   if (!parsedRoomId) return null;
 
   return (
+    // ✅ 구조 변경: absolute 대신 flex-col로 전체 높이 제어
     <div className="w-full h-dvh flex flex-col bg-white overflow-hidden">
+      {/* 헤더: shrink-0으로 높이 유지 */}
       <header className="shrink-0 h-[45px] px-4 flex items-center justify-between bg-white z-50 border-b border-gray-100">
         <div className="-ml-5">
           <BackButton />
@@ -119,6 +125,7 @@ export default function ChatRoomPage() {
         </button>
       </header>
 
+      {/* ✅ 메시지 영역: flex-1을 주어 남은 모든 공간을 차지하게 함 */}
       <div
         ref={scrollContainerRef}
         className="flex-1 overflow-y-auto px-4 scrollbar-hide flex flex-col"
@@ -131,6 +138,7 @@ export default function ChatRoomPage() {
           </div>
         )}
 
+        {/* ✅ mt-auto를 주어 메시지가 적을 때 하단부터 쌓이게 함 */}
         <div className="flex flex-col gap-4 py-4">
           {(() => {
             let lastMyIndex = -1;
@@ -185,10 +193,12 @@ export default function ChatRoomPage() {
               );
             });
           })()}
+          {/* ✅ 하단 스크롤 기준점 */}
           <div ref={bottomRef} className="h-2 shrink-0" />
         </div>
       </div>
 
+      {/* ✅ 하단 입력창: absolute를 제거하고 shrink-0으로 영역 고정 */}
       <div className="shrink-0 bg-white border-t border-gray-100 shadow-[0_-2px_10px_rgba(0,0,0,0.05)]">
         <ChatInputBar
           onSendText={sendText}
@@ -198,6 +208,7 @@ export default function ChatRoomPage() {
         />
       </div>
 
+      {/* 모달 및 알림 컴포넌트들 (기존과 동일) */}
       <ToastNotification
         message={toastMessage}
         isVisible={!!toastMessage}
@@ -228,13 +239,16 @@ export default function ChatRoomPage() {
       />
       <ConfirmModal
         isOpen={activeModal === "BLOCK"}
-        title="차단할까요?"
-        description="서로의 프로필이 노출되지 않습니다."
-        confirmText="차단하기"
+        title={!blockId ? "차단할까요?" : "차단을 해제할까요?"}
+        description={!blockId ? "서로의 프로필이 노출되지 않습니다." : "다시 채팅을 진행할 수 있습니다."}
+        confirmText={!blockId ? "차단하기" : "차단 해제하기"}
         cancelText="취소"
         isDanger
         onCancel={() => setActiveModal("NONE")}
-        onConfirm={handleBlockToggle}
+        onConfirm={() => {
+          handleBlockToggle();
+          setActiveModal("NONE");
+        }}
       />
       <ConfirmModal
         isOpen={activeModal === "EXIT"}
@@ -244,7 +258,7 @@ export default function ChatRoomPage() {
         cancelText="취소"
         isDanger
         onCancel={() => setActiveModal("NONE")}
-        onConfirm={() => navigate("/chats")}
+        onConfirm={() => navigate("/message")}
       />
     </div>
   );
