@@ -1,4 +1,4 @@
-import { NavLink, useLocation } from "react-router-dom";
+import { NavLink, useLocation, useNavigate } from "react-router-dom"; // 1. useNavigate 추가
 
 import home from "../../assets/home.svg";
 import emptyhome from "../../assets/empty_home.svg";
@@ -16,79 +16,86 @@ const linkBase =
 const linkClass = ({ isActive }: { isActive: boolean }) =>
   `${linkBase} ${isActive ? "text-black font-semibold" : "text-[#A6AFB6]"}`;
 
-//전체 박스
-//가로 : w-full
-//세로 : 픽셀 고정
-
 export default function Navbar() {
   const location = useLocation();
+  const navigate = useNavigate(); // 2. navigate 함수 생성
 
   return (
-    <nav className="absolute bottom-0 left-0 
+    <nav
+      className="absolute bottom-0 left-0 
         w-full h-[92px] z-50 
         bg-white"
-        style={{ filter: 'drop-shadow(0 -4px 12px rgba(0,0,0,0.08))' }}>
-
-        {/* 아래 패딩은 디자이너분이 일부러 줬다고 하네요
-        그래서 아래쪽에 패딩을 붙이고 요소박스들을 아래로 까는 방식으로 만들었습니다. */}
-
-        {/* 좌우 패딩은 피그마가 아니라 단순 보정값입니다. 
-        비슷하지만 피그마와 픽셀 차이가 있습니다. */}
-        <div className="
+      style={{ filter: "drop-shadow(0 -4px 12px rgba(0,0,0,0.08))" }}
+    >
+      <div
+        className="
         px-4 pb-[39px]
         h-full
         items-end
         grid grid-cols-[1fr_1fr_1.1fr_1fr_1fr]
-        ">
-            <NavLink to="/home" end className={linkClass}>
-            {({ isActive }) => (
-                <>
-                <img src={isActive ? home : emptyhome} />
-                <span>홈</span>
-                </>
-            )}
-            </NavLink>
-            <NavLink to="/like" end className={linkClass}>
-            {({ isActive }) => (
-                <>
-                <img src={isActive ? heart : emptyheart} />
-                <span>마음</span>
-                </>
-            )}
-            </NavLink>
-            <div className="relative h-full">
-                <button className="
+        "
+      >
+        <NavLink to="/home" end className={linkClass}>
+          {({ isActive }) => (
+            <>
+              <img src={isActive ? home : emptyhome} alt="홈" />
+              <span>홈</span>
+            </>
+          )}
+        </NavLink>
+        <NavLink to="/like" end className={linkClass}>
+          {({ isActive }) => (
+            <>
+              <img src={isActive ? heart : emptyheart} alt="마음" />
+              <span>마음</span>
+            </>
+          )}
+        </NavLink>
+
+        {/* 마이크 버튼 부분 수정 */}
+        <div className="relative h-full">
+          <button
+            onClick={() => navigate("/matching")} // 3. 클릭 시 이동 이벤트 추가
+            className="
                 absolute flex top-[-35px] 
                 h-[68px] w-[68px]
                 -translate-x-1/2 left-1/2
                 items-center justify-center
-                rounded-full ring-[5px] ring-white">
-                <img src={mic} />
-                </button>
-            </div>
-            <NavLink to="/message" end className={linkClass}>
-            {({ isActive }) => (
-                <>
-                <img src={isActive ? message : emptymessage} />
-                <span>메세지</span>
-                </>
-            )}
-            </NavLink>
-            <NavLink to="/my" end className={() => {
-             const isActive = location.pathname === "/my" || location.pathname === "/my/edit";
-             return linkClass({ isActive });
-            }}>
-            {() => {
-                const isActive = location.pathname === "/my" || location.pathname === "/my/edit";
-                return (
-                    <>
-                    <img src={isActive ? my : emptymy} />
-                    <span>마이</span>
-                    </>
-                );
-            }}
-            </NavLink>
+                rounded-full ring-[5px] ring-white"
+          >
+            <img src={mic} alt="매칭" />
+          </button>
         </div>
+
+        <NavLink to="/message" end className={linkClass}>
+          {({ isActive }) => (
+            <>
+              <img src={isActive ? message : emptymessage} alt="메세지" />
+              <span>메세지</span>
+            </>
+          )}
+        </NavLink>
+        <NavLink
+          to="/my"
+          end
+          className={() => {
+            const isActive =
+              location.pathname === "/my" || location.pathname === "/my/edit";
+            return linkClass({ isActive });
+          }}
+        >
+          {() => {
+            const isActive =
+              location.pathname === "/my" || location.pathname === "/my/edit";
+            return (
+              <>
+                <img src={isActive ? my : emptymy} alt="마이" />
+                <span>마이</span>
+              </>
+            );
+          }}
+        </NavLink>
+      </div>
     </nav>
   );
 }

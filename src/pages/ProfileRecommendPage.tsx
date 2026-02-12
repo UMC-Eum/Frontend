@@ -8,11 +8,13 @@ import RecommendCard2 from "../components/card/presets/RecommendCard2";
 import { createChatRoom } from "../api/chats/chatsApi";
 
 type Profile = {
-  id: number;
-  name: string;
+  userId: number;
+  nickname: string;
   age: number;
-  imageUrl: string;
-  area: string;
+  profileImageUrl: string;
+  areaName: string;
+  introText?: string;
+  keywords?: string[];
 };
 
 const FALLBACK_IMAGE =
@@ -26,20 +28,27 @@ export default function ProfileRecommendPage() {
   const stateProfile = (location.state as { profile?: Profile } | null)
     ?.profile;
 
-  const profile: Profile | null =
-    stateProfile ??
-    (id
+  const profile: Profile | null = stateProfile
+    ? {
+        ...stateProfile,
+        profileImageUrl: stateProfile.profileImageUrl || FALLBACK_IMAGE,
+        introText: stateProfile.introText || "안녕하세요! 편하게 대화해요.",
+        keywords: stateProfile.keywords || [],
+      }
+    : id
       ? {
-          id: Number(id),
-          name: `유저 ${id}`,
-          age: 0,
-          imageUrl: FALLBACK_IMAGE,
-          area: "",
+          userId: Number(id),
+          nickname: `유저 ${id}`,
+          age: 25, // 기본값
+          profileImageUrl: FALLBACK_IMAGE,
+          areaName: "지역 미설정",
+          introText: "프로필 정보를 불러올 수 없어 임시 정보를 표시합니다.",
+          keywords: ["임시", "데이터"],
         }
-      : null);
+      : null;
 
   const { mutate: handleStartChat, isPending } = useMutation({
-    mutationFn: () => createChatRoom({ targetUserId: profile!.id }),
+    mutationFn: () => createChatRoom({ targetUserId: profile!.userId }),
 
     onSuccess: (data) => {
       navigate(`/message/room/${data.chatRoomId}`, {
@@ -63,21 +72,25 @@ export default function ProfileRecommendPage() {
   return (
     <div className="flex justify-center min-h-screen">
       <div className="w-full max-w-[420px] h-screen bg-[#F8FAFB] flex flex-col overflow-hidden flex-1 relative">
-        <main className="flex-1 overflow-y-auto pb-[72px]">
+        <main className="flex-1 overflow-y-auto pb-[72px] no-scrollbar">
           <div className="relative">
             <div className="relative w-full h-[585px] overflow-hidden">
               <RecommendCard2
-                profileUrl={`/home/profile/${profile.id}`}
-                targetUserId={profile.id}
-                imageUrl={profile.imageUrl}
-                nickname={profile.name}
+                profileUrl={`/home/profile/${profile.userId}`}
+                targetUserId={profile.userId}
+                imageUrl={profile.profileImageUrl}
+                nickname={profile.nickname}
                 age={profile.age}
-                area={profile.area}
+                area={profile.areaName}
               />
             </div>
-            <header className="absolute inset-0 w-full pt-[5px] shrink-0 pointer-events-none">
+            <header className="absolute inset-0 w-full pt-[5px] shrink-0 pointer-events-none z-50">
               <div className="pointer-events-auto">
-                <BackButton />
+                <BackButton
+                  onClick={() => {
+                    navigate("/home");
+                  }}
+                />
               </div>
             </header>
           </div>
@@ -85,30 +98,24 @@ export default function ProfileRecommendPage() {
           <section className="m-[20px]">
             <section className="flex flex-col gap-[12px] mb-[15px]">
               <h1 className="text-[20px] font-semibold">소개</h1>
-              <p className="flex bg-white rounded-xl border border-[#E9ECED] shadow-[0px_4px_24px_rgba(0,0,0,0.06)] text-[14px] text-gray-700 px-[14px] py-[14px]">
-                안녕하세요. 하루를 마무리하며 나누는 소소한 대화를 좋아합니다.
-                서두르지 않고, 편안하게 이야기할 수 있는 인연을 만나고 싶어요.
+              <p className="flex bg-white rounded-xl border border-[#E9ECED] shadow-[0px_4px_24px_rgba(0,0,0,0.06)] text-[14px] text-gray-700 px-[14px] py-[14px] whitespace-pre-wrap leading-relaxed">
+                {profile.introText}
               </p>
             </section>
-
             <section className="flex flex-col gap-[12px] mb-[15px]">
               <h1 className="text-[20px] font-semibold">저의 관심사에요.</h1>
               <div className="flex flex-wrap gap-[8px]">
-                <KeywordLabel keyword="식물키우기" />
-                <KeywordLabel keyword="반려동물케어" />
-                <KeywordLabel keyword="공부취미" />
+                {profile.keywords && profile.keywords.length > 0 ? (
+                  profile.keywords.map((keyword, index) => (
+                    <KeywordLabel key={index} keyword={keyword} />
+                  ))
+                ) : (
+                  <span className="text-gray-400 text-sm">
+                    등록된 관심사가 없습니다.
+                  </span>
+                )}
               </div>
             </section>
-
-            <section className="flex flex-col gap-[12px] mb-[15px]">
-              <h1 className="text-[20px] font-semibold">이런 사람이 좋아요.</h1>
-              <div className="flex flex-wrap gap-[8px]">
-                {["식물키우기", "반려동물케어", "공부취미"].map((k, i) => (
-                  <KeywordLabel key={i} keyword={k} />
-                ))}
-              </div>
-            </section>
-
             <section className="mb-[15px]">
               <div
                 className="flex flex-col w-full rounded-2xl items-center gap-[8px] px-[16px] py-[16px]"
@@ -121,9 +128,12 @@ export default function ProfileRecommendPage() {
                   나와 이런점이 닮았어요!
                 </p>
                 <div className="flex flex-wrap justify-center gap-[8px]">
-                  <p className="bg-white rounded-lg text-[14px] text-gray-700 px-[12px] py-[4px] shadow-sm">
-                    친절한
-                  </p>
+                  {/* 공통점 로직이 있다면 여기에 구현, 임시로 첫 번째 키워드 사용 */}
+                  {profile.keywords && profile.keywords[0] && (
+                    <p className="bg-white rounded-lg text-[14px] text-gray-700 px-[12px] py-[4px] shadow-sm">
+                      {profile.keywords[0]}
+                    </p>
+                  )}
                 </div>
               </div>
             </section>
@@ -132,7 +142,9 @@ export default function ProfileRecommendPage() {
               <button
                 onClick={() => handleStartChat()}
                 disabled={isPending}
-                className={`w-full transition-all active:scale-95 ${isPending ? "grayscale opacity-70" : ""}`}
+                className={`w-full transition-all active:scale-95 ${
+                  isPending ? "grayscale opacity-70" : ""
+                }`}
               >
                 <img src={chatpinkbox} alt="대화하기" className="w-full" />
               </button>
