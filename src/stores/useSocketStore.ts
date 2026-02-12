@@ -54,9 +54,6 @@ export const useSocketStore = create<SocketStore>((set, get) => ({
         newSocket.emit(
           "room.join",
           { chatRoomId: roomId },
-          (res: ApiSuccessResponse<JoinData>) => {
-            console.log(`${roomId}번 방 재입장 결과:`, res);
-          },
         );
       });
     });
@@ -85,18 +82,11 @@ export const useSocketStore = create<SocketStore>((set, get) => ({
       socket.emit(
         "room.join",
         { chatRoomId: roomId },
-        (res: ApiSuccessResponse<JoinData>) => {
-          console.log(`${roomId}번 방 입장 결과:`, res);
-        },
       );
 
       const newSet = new Set(joinedRoomIds);
       newSet.add(roomId);
       set({ joinedRoomIds: newSet });
-
-      console.log(`${roomId}번 방 입장 처리 완료 (중복 방지용)`);
-    } else {
-      console.warn(`소켓이 없거나 이미 ${roomId}번 방에 입장한 상태입니다.`);
     }
   },
 
@@ -114,9 +104,6 @@ export const useSocketStore = create<SocketStore>((set, get) => ({
       socket.emit(
         "message.send",
         payload,
-        (res: ApiSuccessResponse<MessageSendData>) => {
-          console.log("전송 서버 응답:", res);
-        },
       );
     } else {
       console.error("소켓이 연결되지 않아서 메시지를 보낼 수 없습니다.");

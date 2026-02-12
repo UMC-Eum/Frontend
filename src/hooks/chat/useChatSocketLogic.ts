@@ -25,6 +25,7 @@ export const useChatSocketLogic = (
   initialMessages: IMessageItem[],
   setInitialMessages: React.Dispatch<React.SetStateAction<IMessageItem[]>>,
   blockId: number | null,
+  currentRoomId: number // 🔥 [추가] 현재 방 번호를 인자로 받음
 ) => {
   const { socket } = useSocketStore();
   const [socketMessages, setSocketMessages] = useState<IMessageItem[]>([]);
@@ -33,9 +34,16 @@ export const useChatSocketLogic = (
   useEffect(() => {
     if (!socket) return;
 
-    // 1. 새 메시지 수신 
+    // 1. 새 메시지 수신
     const handleMessageNew = (response: any) => {
       const newMsgData: MessageNewData = response.success?.data || response;
+
+      // 🔥 [핵심 수정] 다른 방에서 온 메시지면 무시!
+      // (단, 데이터에 chatRoomId가 없다면 백엔드 확인 필요하지만 보통 있습니다)
+      if (newMsgData.chatRoomId && Number(newMsgData.chatRoomId) !== currentRoomId) {
+        return; 
+      }
+
       if (blockId) return;
 
       const rawType = String(newMsgData.type);
@@ -62,10 +70,10 @@ export const useChatSocketLogic = (
 
       setSocketMessages((prev) => [...prev, newMsg]);
 
+      // 임시 메시지 삭제 로직 (기존 유지)
       if (newMsgData.senderUserId === myId) {
         setTempMessages((prev) => {
           let targetIndex = -1;
-
           if (uiType === "TEXT") {
             targetIndex = prev.findIndex(
               (temp) => temp.type === "TEXT" && temp.text === newMsg.text,
@@ -77,15 +85,12 @@ export const useChatSocketLogic = (
                 (temp) => normalizeMediaUrl(temp.mediaUrl) === normalizedUrl,
               );
             }
-
             if (targetIndex === -1) {
               const newMsgTime = new Date(newMsg.sendAt).getTime();
               for (let i = prev.length - 1; i >= 0; i -= 1) {
                 const temp = prev[i];
                 if (temp.type !== uiType) continue;
-                
                 const tempTime = new Date(temp.sendAt).getTime();
-                
                 if (Math.abs(tempTime - newMsgTime) < 10000) {
                   targetIndex = i;
                   break;
@@ -93,7 +98,6 @@ export const useChatSocketLogic = (
               }
             }
           }
-
           if (targetIndex !== -1) {
             const newList = [...prev];
             newList.splice(targetIndex, 1);
@@ -103,6 +107,7 @@ export const useChatSocketLogic = (
         });
       }
 
+      // 현재 방에 온 메시지이고, 상대방이 보냈으면 읽음 처리
       if (newMsgData.senderUserId !== myId) {
         readChatMessage(newMsgData.messageId).catch(console.error);
       }
@@ -110,8 +115,13 @@ export const useChatSocketLogic = (
 
     // 2. 메시지 읽음 처리
     const handleMessageRead = (response: any) => {
-      const { messageId, readAt } = response.success?.data || response;
+      const data = response.success?.data || response;
+      const { messageId, readAt, chatRoomId } = data; // chatRoomId 확인
+
       if (!messageId || !readAt) return;
+
+      // 🔥 [추가] 다른 방의 읽음 처리는 무시
+      if (chatRoomId && Number(chatRoomId) !== currentRoomId) return;
 
       const updateReadStatus = (list: IMessageItem[]) =>
         list.map((msg) => {
@@ -127,12 +137,15 @@ export const useChatSocketLogic = (
       setTempMessages((prev) => updateReadStatus(prev));
     };
 
-    // 3. 메시지 삭제 처리 
+    // 3. 메시지 삭제 처리
     const handleMessageDelete = (response: any) => {
       const data = response.success?.data || response;
-      const { messageId } = data;
+      const { messageId, chatRoomId } = data;
 
       if (!messageId) return;
+
+      // 🔥 [추가] 다른 방의 삭제 이벤트는 무시
+      if (chatRoomId && Number(chatRoomId) !== currentRoomId) return;
 
       const removeMessage = (list: IMessageItem[]) =>
         list.filter((msg) => msg.messageId !== messageId);
@@ -151,9 +164,10 @@ export const useChatSocketLogic = (
       socket.off("message.read", handleMessageRead);
       socket.off("message.deleted", handleMessageDelete);
     };
-  }, [socket, myId, blockId, setInitialMessages]);
+  }, [socket, myId, blockId, setInitialMessages, currentRoomId]); // 🔥 의존성 추가
 
   const displayMessages = useMemo(() => {
+    // ... (기존 병합 로직 유지)
     const rawList: MessageWithSentAt[] = [
       ...initialMessages,
       ...socketMessages,
