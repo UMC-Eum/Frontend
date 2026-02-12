@@ -70,17 +70,18 @@ export default function LocationEditPage() {
           </p>
         </div>
 
-        <div className="flex-1 mt-[30px] overflow-y-auto no-scrollbar pb-10">
-          <div className="grid grid-cols-2 gap-2">
-            {step === 1
-              ? REGIONS.map((region) => (
-                  <SelectChip
+        {/* 2. 리스트 영역 (유동적 스크롤) */}
+        <div className="flex-1 mt-[30px] overflow-x-hidden overflow-y-auto no-scrollbar pb-10">
+            <div className="grid grid-cols-2 gap-2">
+            {step === 1 ? (
+                REGIONS.map((region) => (
+                <SelectChip
                     key={region.code}
                     onClick={() => setSelectedRegionCode(region.code)}
                     active={selectedRegionCode === region.code}
                     text={region.name}
                   />
-                ))
+                )))
               : currentDistricts.map((district) => (
                   <SelectChip
                     key={district.code}
