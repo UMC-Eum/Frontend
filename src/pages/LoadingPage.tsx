@@ -1,47 +1,106 @@
-//기본적인 로딩 스피너입니다.
-//스켈레톤 UI 사용을 권장합니다.
+import { useState, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
+import { useUserStore } from "../../stores/useUserStore";
+import { IUserArea } from "../../types/user";
+import { REGIONS, DISTRICTS } from "../../constants/locationData";
+import { updateMyProfile } from "../../api/users/usersApi";
+import BackButton from "../../components/BackButton";
+import { SelectChip } from "../../components/standard/Select";
+import { FullButton } from "../../components/standard/CTA";
 
-export default function LoadingPage() {
+export default function LocationEditPage() {
+  const navigate = useNavigate();
+  const { updateUser } = useUserStore();
+
+  const [step, setStep] = useState<1 | 2>(1);
+  const [selectedRegionCode, setSelectedRegionCode] = useState<string | null>(null);
+  const [selectedDistrictCode, setSelectedDistrictCode] = useState<string | null>(null);
+
+  // 현재 선택된 리전에 해당하는 구역 리스트 계산 
+  const currentDistricts = useMemo(() => {
+    if (!selectedRegionCode) return [];
+    return DISTRICTS[selectedRegionCode] || [];
+  }, [selectedRegionCode]);
+
+  // 버튼 활성화 조건
+  const isValid = step === 1 ? !!selectedRegionCode : !!selectedDistrictCode;
+
+  const handleNext = async () => {
+    if (step === 1) {
+      // 1단계: 리전 선택 후 다음 버튼 클릭 시 2단계로 이동
+      setStep(2);
+    } else {
+      // 2단계: 구역 선택 후 완료 버튼 클릭 시 서버 저장 및 이동
+      const region = REGIONS.find((r) => r.code === selectedRegionCode);
+      const district = currentDistricts.find((d) => d.code === selectedDistrictCode);
+
+      if (region && district && selectedDistrictCode) {
+        try {
+            await updateMyProfile({ areaCode: selectedDistrictCode });
+            
+            const newArea: IUserArea = {
+              code: district.code,
+              name: `${region.name} ${district.name}`,
+            };
+            
+            updateUser({ area: newArea });
+            navigate(-1);
+        } catch (error) {
+            console.error("Failed to update location:", error);
+            alert("지역 수정에 실패했습니다. 다시 시도해주세요.");
+        }
+      }
+    }
+  };
+
   return (
-    <div className="
-        fixed inset-0 z-50 
-        flex items-center justify-center
-        bg-white"> 
-      <div className="flex flex-col items-center">
-        {/* Spinner Container */}
-        <div
-          className="relative w-[98px] h-[98px] animate-spin"
-          style={{ animationDirection: 'reverse' }}
-        >
-          {/* Main Gradient Ring */}
-          <div
-            className="absolute inset-0 rounded-full"
-            style={{
-              background:
-                'conic-gradient(from 180deg at 50% 50%, #FC3367 0deg, #FD5966 83.08deg, rgba(255, 153, 98, 0.6) 147.12deg, rgba(255, 255, 255, 0) 360deg)',
-              WebkitMaskImage: 'radial-gradient(transparent 39px, black 40px)',
-              maskImage: 'radial-gradient(transparent 39px, black 40px)',
-            }}
-          />
-
-          {/* Round Cap */}
-          <div
-            className="absolute w-[9px] h-[9px] rounded-full bg-[#FC3367]"
-            style={{
-              left: '50%',
-              bottom: '0',
-              transform: 'translateX(-50%)',
-            }}
-          />
+    <div className="flex-1 flex flex-col h-full overflow-hidden bg-white">
+      <BackButton title="거주지 수정" />
+      
+      <div className="flex-1 flex flex-col px-5 overflow-hidden">
+        {/* 1. 제목 영역 (고정) */}
+        <div className="flex-none mt-2">
+            <h1 className="text-[26px] font-bold text-black leading-tight">
+            현재 거주하는 <br />  
+            지역이 어디인가요?
+            </h1>
+            <p className="text-gray-500 text-[15px] mt-2">
+            내 거주지와 가까운 분들과 더 잘 이어져요.
+            </p>
         </div>
 
-        {/* Loading Text */}
-        <p className="mt-[39px] text-[18px] font-semibold text-[#4B5563] tracking-tight">
-          잠시만 기다려주세요...
-        </p>
+        {/* 2. 리스트 영역 (유동적 스크롤) */}
+        <div className="flex-1 mt-[30px] overflow-x-hidden overflow-y-auto no-scrollbar pb-10">
+            <div className="grid grid-cols-2 gap-2">
+            {step === 1 ? (
+                REGIONS.map((region) => (
+                <SelectChip
+                    key={region.code}
+                    onClick={() => setSelectedRegionCode(region.code)}
+                    active={selectedRegionCode === region.code}
+                    text={region.name}
+                />
+                ))
+            ) : (
+                currentDistricts.map((district) => (
+                <SelectChip
+                    key={district.code}
+                    onClick={() => setSelectedDistrictCode(district.code)}
+                    active={selectedDistrictCode === district.code}
+                    text={district.name}
+                />
+                ))
+            )}
+            </div>
+        </div>
+
+        {/* 3. 버튼 영역 (하단 고정) */}
+        <div className="flex-none pb-4 bg-white flex justify-center">
+            <FullButton onClick={handleNext} disabled={!isValid}>
+            {step === 1 ? "다음" : "완료"}
+            </FullButton>
+        </div>
       </div>
     </div>
   );
 }
-
-
