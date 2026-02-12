@@ -1,4 +1,3 @@
-import { useEffect } from "react"; // useEffect 추가
 import Navbar from "../components/standard/Navbar";
 import BackButton from "../components/BackButton";
 import { useUserStore } from "../stores/useUserStore";
@@ -16,25 +15,13 @@ const ResultPage = () => {
     (state) => state.user?.idealPersonalities,
   );
 
-  const { data, isLoading, isError, error } = useQuery({
+  const { data, isLoading, isError } = useQuery({
     queryKey: ["matchResults", "recommendation"],
     queryFn: () => getRecommendations({ size: 20 }),
     retry: 0,
     refetchOnWindowFocus: false,
     gcTime: 1000 * 60 * 5,
   });
-
-  useEffect(() => {
-    if (data?.items) {
-      console.log("📡 백엔드 추천 데이터 로드 성공:", data.items);
-    }
-  }, [data]);
-
-  useEffect(() => {
-    if (isError) {
-      console.error("❌ 추천 데이터 로드 실패 (503 등):", error);
-    }
-  }, [isError, error]);
 
   if (isLoading) return <LoadingPage />;
 
@@ -52,14 +39,12 @@ const ResultPage = () => {
     <div>
       <BackButton onClick={() => navigate("/")} />
       <div className="px-[20px] pb-[40px]">
-        {/* 상단 헤더 섹션 */}
         <h1 className="mt-[28px] text-[24px] font-[700] leading-[140%] text-[#202020]">
           말씀해주신 내용을 바탕으로
           <br />
           이런 분들을 추천해드릴게요
         </h1>
 
-        {/* 이상형 키워드 섹션 */}
         <div className="mt-[40px]">
           <h3 className="text-[18px] font-[500] text-[#707070]">
             {nickname || "guest"}님의 이상형은...
@@ -80,7 +65,6 @@ const ResultPage = () => {
           </div>
         </div>
 
-        {/* 추천 리스트 섹션 */}
         <div className="mt-[24px] space-y-[20px] pb-[80px]">
           {data?.items && data.items.length > 0 ? (
             data.items.map((user, userIndex) => (
@@ -107,7 +91,6 @@ const ResultPage = () => {
           )}
         </div>
 
-        {/* 하단 네비게이션 */}
         <div className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-100">
           <Navbar />
         </div>

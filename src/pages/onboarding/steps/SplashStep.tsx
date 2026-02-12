@@ -1,20 +1,18 @@
-// pages/onboarding/steps/SplashStep.tsx
-import { useEffect } from "react"
-import splashbackground from "../../../assets/splash_background.svg"
-
+import { useEffect } from "react";
+import splashbackground from "../../../assets/splash_background.svg";
 
 interface SplashProps {
-  onNext: () => void
+  onNext: () => void;
 }
 
 export default function SplashStep({ onNext }: SplashProps) {
   useEffect(() => {
     const timer = setTimeout(() => {
-      onNext()
-    }, 1000)
+      onNext();
+    }, 1000);
 
-    return () => clearTimeout(timer)
-  }, [onNext])
+    return () => clearTimeout(timer);
+  }, [onNext]);
 
   return (
     <div className="flex items-center justify-center h-full bg-white">
@@ -24,5 +22,5 @@ export default function SplashStep({ onNext }: SplashProps) {
         className="w-28 h-28"
       />
     </div>
-  )
+  );
 }

@@ -29,7 +29,6 @@ export default function ProfileRecommendPage() {
   const location = useLocation();
   const { id } = useParams<{ id: string }>();
 
-  // ✅ 스토어에서 내 키워드 가져오기
   const myKeywords = useUserStore((state) => state.user?.keywords || []);
 
   const stateProfile = (location.state as { profile?: Profile } | null)
@@ -54,7 +53,6 @@ export default function ProfileRecommendPage() {
         }
       : null;
 
-  // ✅ 공통 키워드 계산
   const commonKeywords = useMemo(
     () => getCommonKeywords(myKeywords, profile?.keywords),
     [myKeywords, profile?.keywords],
@@ -109,7 +107,6 @@ export default function ProfileRecommendPage() {
           </div>
 
           <section className="m-[20px]">
-            {/* 소개 섹션 */}
             <section className="flex flex-col gap-[12px] mb-[15px]">
               <h1 className="text-[20px] font-semibold">소개</h1>
               <p
@@ -123,7 +120,6 @@ export default function ProfileRecommendPage() {
               </p>
             </section>
 
-            {/* 관심사 섹션 */}
             <section className="flex flex-col gap-[12px] mb-[15px]">
               <h1 className="text-[20px] font-semibold">저의 관심사에요.</h1>
               <div className="flex flex-wrap gap-[8px]">
@@ -139,7 +135,6 @@ export default function ProfileRecommendPage() {
               </div>
             </section>
 
-            {/* ✅ "나와 이런점이 닮았어요!" 섹션 - 이전 글씨 디자인 유지 */}
             <section className="mb-[15px]">
               <div
                 className="flex flex-col w-full rounded-2xl items-center gap-[8px] px-[16px] py-[16px]"

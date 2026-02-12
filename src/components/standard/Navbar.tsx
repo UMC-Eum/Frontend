@@ -1,4 +1,4 @@
-import { NavLink, useLocation, useNavigate } from "react-router-dom"; // 1. useNavigate 추가
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
 
 import home from "../../assets/home.svg";
 import emptyhome from "../../assets/empty_home.svg";
@@ -18,7 +18,7 @@ const linkClass = ({ isActive }: { isActive: boolean }) =>
 
 export default function Navbar() {
   const location = useLocation();
-  const navigate = useNavigate(); // 2. navigate 함수 생성
+  const navigate = useNavigate();
 
   return (
     <nav
@@ -52,10 +52,9 @@ export default function Navbar() {
           )}
         </NavLink>
 
-        {/* 마이크 버튼 부분 수정 */}
         <div className="relative h-full">
           <button
-            onClick={() => navigate("/matching")} // 3. 클릭 시 이동 이벤트 추가
+            onClick={() => navigate("/matching")}
             className="
                 absolute flex top-[-35px] 
                 h-[68px] w-[68px]

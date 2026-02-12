@@ -10,12 +10,12 @@ const MOCK_RESULT_DATA = {
 
 export const mockAnalyzeVoice = (): Promise<typeof MOCK_RESULT_DATA> => {
   return new Promise((resolve) => {
-    console.log("📡 (가짜) 서버로 목소리 전송 중...");
+    console.log("(가짜) 서버로 목소리 전송 중...");
 
     setTimeout(() => {
-      console.log("✅ (가짜) 분석 완료!");
+      console.log("(가짜) 분석 완료!");
 
       resolve(MOCK_RESULT_DATA);
-    }, 2000); // 2초 딜레이
+    }, 2000);
   });
 };

@@ -17,14 +17,8 @@ export default function IdealRecordPage() {
 
   const recordingCompleteRef = useRef<(file: File) => void>();
 
-  const {
-    status,
-    setStatus,
-    seconds,
-    isShort,
-    handleMicClick,
-    resetStatus,
-  } = useMicRecording((file) => recordingCompleteRef.current?.(file));
+  const { status, setStatus, seconds, isShort, handleMicClick, resetStatus } =
+    useMicRecording((file) => recordingCompleteRef.current?.(file));
 
   const onRecordingComplete = useCallback(
     async (file: File) => {
@@ -44,7 +38,6 @@ export default function IdealRecordPage() {
   useEffect(() => {
     recordingCompleteRef.current = onRecordingComplete;
   }, [onRecordingComplete]);
-
 
   const RenderRecordingControl = (
     <RecordingControl
@@ -66,9 +59,7 @@ export default function IdealRecordPage() {
             />
           )}
           {status === "recording" && (
-            <WhenRecording
-              RecordingControl={RenderRecordingControl}
-            />
+            <WhenRecording RecordingControl={RenderRecordingControl} />
           )}
           {status === "loading" && (
             <Whenloading
@@ -78,17 +69,17 @@ export default function IdealRecordPage() {
           )}
         </main>
       )}
-      {isKeywordPage && 
+      {isKeywordPage && (
         <motion.div
-            initial={{ x: "100%" }}
-            animate={{ x: 0 }}
-            exit={{ x: "-100%" }}
-            transition={{ type: "spring", stiffness: 300, damping: 30 }}
-            className="flex-1 flex flex-col"
-          >
-            <IdealEditPage />
+          initial={{ x: "100%" }}
+          animate={{ x: 0 }}
+          exit={{ x: "-100%" }}
+          transition={{ type: "spring", stiffness: 300, damping: 30 }}
+          className="flex-1 flex flex-col"
+        >
+          <IdealEditPage />
         </motion.div>
-      }
+      )}
     </>
   );
 }
@@ -101,10 +92,7 @@ type WhenInactiveProps = {
 function WhenInactive({ name, RecordingControl }: WhenInactiveProps) {
   return (
     <>
-      <BackButton
-        title="재녹음"
-        textClassName="text-[24px] font-semibold"
-      />
+      <BackButton title="재녹음" textClassName="text-[24px] font-semibold" />
       <div className="mx-5 guide-container mt-[12px]">
         <h1 className="text-[26px] font-bold text-black leading-tight">
           {name}님의 <br />
@@ -134,10 +122,7 @@ type WhenRecordingProps = {
 function WhenRecording({ RecordingControl }: WhenRecordingProps) {
   return (
     <>
-      <BackButton
-        title="재녹음"
-        textClassName="text-[24px] font-semibold"
-      />
+      <BackButton title="재녹음" textClassName="text-[24px] font-semibold" />
       <div className="mx-5 guide-container mt-[12px]">
         <h1 className="text-[26px] font-bold text-black leading-tight">
           듣고있어요..
@@ -165,10 +150,7 @@ type WhenloadingProps = {
 function Whenloading({ name, RecordingControl }: WhenloadingProps) {
   return (
     <>
-      <BackButton
-        title="재녹음"
-        textClassName="text-[24px] font-semibold"
-      />
+      <BackButton title="재녹음" textClassName="text-[24px] font-semibold" />
 
       <div className="mx-5 guide-container mt-[12px]">
         <h1 className="text-[26px] font-bold text-black leading-tight">
@@ -193,12 +175,8 @@ function IdealEditPage() {
 
   const ideal = useScoreStore((s) => s.keywords.ideal);
 
-  const allKeywords = useMemo(
-    () => (ideal || []).map((p) => p.text),
-    [ideal]
-  );
+  const allKeywords = useMemo(() => (ideal || []).map((p) => p.text), [ideal]);
 
-  //선택된 키워드
   const [selectedKeywords, setSelectedKeywords] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -209,7 +187,6 @@ function IdealEditPage() {
     isInitialized.current = true;
   }, [allKeywords]);
 
-  // 변경사항 감지; 1. 개수 비교 2. 내용 비교
   const isChanged = useMemo(() => {
     const original = user?.idealPersonalities || [];
     if (selectedKeywords.length !== original.length) return true;
@@ -218,8 +195,8 @@ function IdealEditPage() {
 
   const handleSave = async () => {
     if (!isChanged || !user) return;
-    
-    setIsLoading(true); 
+
+    setIsLoading(true);
     try {
       await updateMyProfile({
         idealPersonalities: selectedKeywords,

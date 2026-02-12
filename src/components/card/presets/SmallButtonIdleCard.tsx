@@ -7,8 +7,7 @@ import { ChatAction } from "../actions/ChatAction";
 import LikeAction from "../actions/LikeAction";
 import CloseAction from "../actions/CloseAction";
 
-// ✅ 훅 불러오기 (경로가 맞는지 확인해주세요)
-import { useMoveToChat } from "../../../hooks/UseMoveToChat"; // 파일명 대소문자 주의
+import { useMoveToChat } from "../../../hooks/UseMoveToChat";
 import { useLike } from "../../../hooks/useLike";
 import { useNavigate } from "react-router-dom";
 
@@ -21,8 +20,8 @@ type SmallButtonIdleCardProps = {
   area: string;
   keywords: string[];
   description: string;
-  initialHeartId?: number | null; // ✅ 좋아요 취소용 ID
-  initialIsLiked?: boolean; // ✅ 초기 좋아요 상태
+  initialHeartId?: number | null;
+  initialIsLiked?: boolean;
 };
 
 export default function SmallButtonIdleCard({
@@ -33,14 +32,12 @@ export default function SmallButtonIdleCard({
   area,
   keywords,
   description,
-  initialHeartId, // ✅ 여기랑
-  initialIsLiked, // ✅ 여기에 추가해서 받아와야 함
+  initialHeartId,
+  initialIsLiked,
   profileUrl,
 }: SmallButtonIdleCardProps) {
-  // ✅ 1. 채팅 이동 훅
   const { startChat } = useMoveToChat();
 
-  // ✅ 2. 좋아요 훅 (반드시 컴포넌트 내부에서 호출!)
   const { isLiked, toggleLike } = useLike({
     targetUserId,
     initialIsLiked,
@@ -59,10 +56,7 @@ export default function SmallButtonIdleCard({
       onClick={handleBackgroundClick}
       className="cursor-pointer"
     >
-      {/* 하단 그라데이션 */}
       <div className="absolute inset-x-0 bottom-0 h-80 bg-gradient-to-t from-black/80 via-black/40 to-transparent pointer-events-none" />
-
-      {/* 텍스트 정보 영역 */}
       <div className="absolute left-4 right-4 bottom-28 text-white z-10">
         <CardUserId name={nickname} age={age} isVerified />
 
@@ -79,21 +73,17 @@ export default function SmallButtonIdleCard({
         </div>
       </div>
 
-      {/* 하단 액션 버튼 */}
       <div
         onClick={(e) => e.stopPropagation()}
         className="absolute inset-x-0 bottom-4 flex items-center justify-center gap-13 z-20"
       >
-        {/* X 버튼 */}
         <CloseAction size="md" onClose={() => console.log("닫기 클릭")} />
 
-        {/* ✅ 채팅 버튼 */}
         <ChatAction onChat={() => startChat(targetUserId)} size="lg" />
 
-        {/* ✅ 좋아요 버튼 (이제 정상 작동함) */}
         <LikeAction
-          isLiked={isLiked} // 훅 상태 연결
-          onLike={toggleLike} // 훅 함수 연결
+          isLiked={isLiked}
+          onLike={toggleLike}
           size="md"
           variant="bigIcon"
         />

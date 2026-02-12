@@ -14,12 +14,9 @@ export default function useCompleteLogin() {
     setError(null);
 
     try {
-      const user = await getMyProfile(); // IUserProfile
-      console.log("가져온 유저 정보", user);
+      const user = await getMyProfile();
 
-      // store에 저장
       updateUser(user);
-      console.log("✅ 사용자 프로필 로드 및 상태 업데이트 완료:", user);
       setIsLoggedIn(true);
 
       return user;

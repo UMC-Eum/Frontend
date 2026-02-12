@@ -35,17 +35,14 @@ export default function Card({
         transition-transform duration-300 active:scale-[0.98]
       "
     >
-      {/* 배경 이미지 */}
       <img
         src={imageUrl}
         alt={`${name} 프로필`}
         className="w-full h-full object-cover"
       />
 
-      {/* 그라데이션 */}
       <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
 
-      {/* 정보 영역 */}
       <div className="absolute bottom-0 w-full px-[5%] pb-4 text-white">
         <div className="flex items-center gap-2 mb-3">
           <h2 className="text-2xl font-bold">
@@ -58,7 +55,6 @@ export default function Card({
           {distance}
         </p>
 
-        {/* 디스크립션 (클릭 시 이벤트만 전달) */}
         <div
           onClick={(e) => {
             e.stopPropagation();
@@ -72,7 +68,6 @@ export default function Card({
           {description}
         </div>
 
-        {/* 키워드 */}
         <div className="flex flex-wrap gap-2 mb-4">
           {keywords.map((keyword, index) =>
             index < 2 ? (
@@ -87,7 +82,6 @@ export default function Card({
           )}
         </div>
 
-        {/* 버튼 */}
         <div className="flex gap-3">
           <button
             onClick={(e) => {

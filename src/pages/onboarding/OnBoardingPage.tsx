@@ -40,7 +40,9 @@ const AGREEMENT_TYPE_MAP: Record<number, AgreementType> = {
 
 export default function OnBoardingPage() {
   const navigate = useNavigate();
-  const [step, setStep] = useState<"checking" | "permission" | "setup">("checking");
+  const [step, setStep] = useState<"checking" | "permission" | "setup">(
+    "checking",
+  );
   const [agreements, setAgreements] = useState<IAgreementItem[]>([]);
   const [showAgreement, setShowAgreement] = useState(false);
   const [currentTerm, setCurrentTerm] = useState<AgreementType | null>(null);

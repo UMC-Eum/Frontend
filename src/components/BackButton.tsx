@@ -11,12 +11,12 @@ const BackButton = ({
   title,
   textClassName,
   onClick,
-  showIcon = true, // 기본은 보이기
+  showIcon = true,
 }: BackButtonProps) => {
   const navigate = useNavigate();
 
   const handleBack = () => {
-    if (!showIcon) return; // 아이콘 안 보일 때는 동작도 막음
+    if (!showIcon) return;
 
     if (onClick) {
       onClick();
@@ -38,7 +38,6 @@ const BackButton = ({
         aria-label="뒤로 가기"
         className="w-[24px] h-[24px] shrink-0"
       >
-        {/* ✅ 아이콘만 조건부 렌더링 */}
         {showIcon && (
           <svg
             xmlns="http://www.w3.org/2000/svg"

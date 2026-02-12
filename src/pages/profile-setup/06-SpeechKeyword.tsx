@@ -1,6 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 
-// 경로에 맞게 import 확인해주세요
 import { useMicRecording } from "../../hooks/useMicRecording";
 import RecordingControl from "../../components/RecordingControl";
 import { useUserStore } from "../../stores/useUserStore";
@@ -15,24 +14,16 @@ interface SpeechKeywordProps {
 }
 
 export default function SpeechKeyword({ onNext }: SpeechKeywordProps) {
-  // ✅ 스토어에서 유저 정보와 업데이트 함수 가져오기
   const { user } = useUserStore();
 
-  // ✅ 닉네임 가져오기 (없으면 기본값 '회원')
   const name = user?.nickname || "회원";
 
-  // ✅ 목소리 분석 훅 사용
   const { analyzeVoice } = useVoiceAnalysis();
 
   const recordingCompleteRef = useRef<(file: File) => void>();
 
-  const {
-    status,
-    seconds,
-    isShort,
-    handleMicClick,
-    resetStatus,
-  } = useMicRecording((file) => recordingCompleteRef.current?.(file));
+  const { status, seconds, isShort, handleMicClick, resetStatus } =
+    useMicRecording((file) => recordingCompleteRef.current?.(file));
 
   const RenderRecordingControl = (
     <RecordingControl
@@ -51,7 +42,7 @@ export default function SpeechKeyword({ onNext }: SpeechKeywordProps) {
         onNext({
           record: result.audioUrl,
           transcript: result.transcript,
-          vibeVector: result.vibeVector || [], // 없으면 빈 배열 처리
+          vibeVector: result.vibeVector || [],
         });
       } catch (error) {
         console.error("음성 분석 오류:", error);
@@ -80,8 +71,6 @@ export default function SpeechKeyword({ onNext }: SpeechKeywordProps) {
   );
 }
 
-// --- 하위 컴포넌트들 ---
-
 type WhenInactiveProps = {
   name: string;
   RecordingControl: React.ReactNode;
@@ -91,7 +80,6 @@ function WhenInactive({ name, RecordingControl }: WhenInactiveProps) {
   const [isTop, setIsTop] = useState(false);
 
   useEffect(() => {
-    // 4초 뒤에 텍스트가 위로 올라가는 애니메이션
     const timer = setTimeout(() => {
       setIsTop(true);
     }, 4000);
@@ -101,7 +89,6 @@ function WhenInactive({ name, RecordingControl }: WhenInactiveProps) {
 
   return (
     <>
-      {/* 스타일 태그 대신 인라인 스타일이나 Tailwind 사용 권장하지만, 기존 로직 유지를 위해 유지 */}
       <style>{`
         .guide-container {
           transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);

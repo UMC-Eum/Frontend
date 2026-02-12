@@ -1,5 +1,5 @@
 interface Props {
-  isLiked?: boolean; // ✅ 상태를 받아야 색을 유지할 수 있음
+  isLiked?: boolean;
   onLike?: () => void;
   onChat?: () => void;
 }
@@ -7,7 +7,6 @@ interface Props {
 export function CardActions({ isLiked = false, onLike, onChat }: Props) {
   return (
     <div className="flex gap-3 w-full">
-      {/* 좋아요 버튼 */}
       {onLike && (
         <button
           onClick={(e) => {
@@ -16,9 +15,10 @@ export function CardActions({ isLiked = false, onLike, onChat }: Props) {
           }}
           className={`
             flex-1 h-12 rounded-xl font-semibold text-base transition-colors duration-200
-            ${isLiked 
-              ? "bg-[#fc3367] text-white shadow-md" // ❤️ 좋아요 ON: 핑크색 + 흰글씨
-              : "bg-white text-black " // 🤍 좋아요 OFF: 흰색
+            ${
+              isLiked
+                ? "bg-[#fc3367] text-white shadow-md"
+                : "bg-white text-black "
             }
           `}
         >
@@ -26,7 +26,6 @@ export function CardActions({ isLiked = false, onLike, onChat }: Props) {
         </button>
       )}
 
-      {/* 채팅 버튼 */}
       {onChat && (
         <button
           onClick={(e) => {

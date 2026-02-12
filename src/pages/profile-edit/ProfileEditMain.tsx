@@ -17,7 +17,6 @@ export default function ProfileEditMain() {
     } catch (error) {
       console.error("Logout failed:", error);
     } finally {
-      // API 호출 성공 여부와 상관없이 클라이언트 상태는 초기화
       clearUser();
       localStorage.removeItem("accessToken");
       navigate("/login", { replace: true });
@@ -48,22 +47,18 @@ export default function ProfileEditMain() {
   return (
     <div>
       <div className="flex flex-1 flex-col min-h-screen">
-        {/* 상단 화면 */}
         <div className="pb-6">
           <h2 className="px-5 py-2 text-[24px] font-semibold">내 프로필</h2>
           <div className="flex flex-col items-center">
-            {/* 프로필 사진 */}
             <div className="mb-6 w-[111px] h-[111px] rounded-full p-[2px] bg-gradient-to-tr from-[#FFBD66] via-[#FF3D77] to-[#FF3D77]">
               <img
                 className="w-full h-full rounded-full object-cover"
                 src={user?.profileImageUrl}
               />
             </div>
-            {/* 닉네임 */}
             <h3 className="mb-[10px] text-[20px] font-semibold leading-[1.2]">
               {user?.nickname} {user?.age}
             </h3>
-            {/* 프로필 수정 버튼 */}
             <button
               onClick={() => navigate("edit")}
               className="flex items-center px-[12px] py-[7px] rounded-full border border-gray-300 bg-gray-100"
@@ -75,9 +70,7 @@ export default function ProfileEditMain() {
             </button>
           </div>
         </div>
-        {/* 하단 화면 */}
         <div className="pt-6 flex flex-1 flex-col items-center bg-gray-100">
-          {/* 로그아웃 버튼 */}
           <button
             onClick={handleLogout}
             className="py-4 pl-6 pr-4 w-[90%] flex justify-between rounded-[10px] bg-white border border-[#F2F4F7]"
@@ -90,7 +83,6 @@ export default function ProfileEditMain() {
             </div>
             <img src={term_detailbutton} className="" />
           </button>
-          {/* 탈퇴하기 버튼 */}
           <button
             onClick={handleDeactivate}
             className="pt-6 text-gray-600 text-sm underline underline-offset-4 decoration-1"

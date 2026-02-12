@@ -1,4 +1,4 @@
-import axios from "axios"; // S3 업로드용 (인터셉터 없는 순수 axios)
+import axios from "axios";
 import api from "../axiosInstance";
 import { ApiSuccessResponse } from "../../types/api/api";
 import {
@@ -24,7 +24,7 @@ export const postPresign = async (body: IPresignRequest) => {
 export const uploadFileToS3 = async (uploadUrl: string, file: File) => {
   await axios.put(uploadUrl, file, {
     headers: {
-      "Content-Type": file.type, // Presign 요청때 보낸 타입과 일치해야 함
+      "Content-Type": file.type,
     },
   });
 };

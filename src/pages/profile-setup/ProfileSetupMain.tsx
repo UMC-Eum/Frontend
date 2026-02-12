@@ -42,12 +42,14 @@ export default function ProfileSetupMain() {
     updateUser({
       introText: data.transcript,
       introAudioUrl: data.record,
-    })
+    });
     vibeVectorRef.current = data.vibeVector;
     handleNext();
   };
-  // 7번 페이지 전용
-  const handleSubmitProfile = async (selectedData?: { personalities: string[], keywords: string[] }) => {
+  const handleSubmitProfile = async (selectedData?: {
+    personalities: string[];
+    keywords: string[];
+  }) => {
     if (!user) return;
 
     try {
@@ -55,16 +57,16 @@ export default function ProfileSetupMain() {
         nickname: user.nickname,
         gender: user.gender as "M" | "F",
         birthDate:
-          user.birthDate ||
-          `${new Date().getFullYear() - (user.age)}-01-01`,
+          user.birthDate || `${new Date().getFullYear() - user.age}-01-01`,
         areaCode: user.area?.code || "",
         introText: user.introText,
         introAudioUrl: user.introAudioUrl,
-        selectedKeywords: [...(selectedData?.personalities || []), ...(selectedData?.keywords || [])],
+        selectedKeywords: [
+          ...(selectedData?.personalities || []),
+          ...(selectedData?.keywords || []),
+        ],
         vibeVector: vibeVectorRef.current,
       };
-
-      console.log("프로필 생성 요청 바디:", requestBody);
 
       const response = await postProfile(requestBody);
       if (response) handleNext();
@@ -134,8 +136,5 @@ export default function ProfileSetupMain() {
         </AnimatePresence>
       </main>
     </div>
-
   );
 }
-
-

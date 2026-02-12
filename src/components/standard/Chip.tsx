@@ -1,13 +1,6 @@
-import React, { forwardRef } from 'react';
+import React, { forwardRef } from "react";
 
-/******************************
- * Keyword Chip
- * *****************************/
-
-// 가로 : 115px 고정
-// 세로 : 38px 고정
-
-interface KeywordChipProps extends React.ComponentPropsWithoutRef<'button'> {
+interface KeywordChipProps extends React.ComponentPropsWithoutRef<"button"> {
   active: boolean;
   keyword: string;
 }
@@ -21,18 +14,24 @@ const KeywordChip = forwardRef<HTMLButtonElement, KeywordChipProps>(
             w-[115px] h-[38px]
             border-[2px]
             rounded-[7px]
-            ${active 
-              ? 'bg-[#FFECF1] border-[#FC3367]' 
-              : 'bg-white border-[#DEE3E5]'}
+            ${
+              active
+                ? "bg-[#FFECF1] border-[#FC3367]"
+                : "bg-white border-[#DEE3E5]"
+            }
             ${className}`}
         {...props}
       >
-        <p className={`text-[16px] font-medium ${active 
-              ? 'text-[#FC3367]' 
-              : 'text-black'}`}>{keyword}</p>
+        <p
+          className={`text-[16px] font-medium ${
+            active ? "text-[#FC3367]" : "text-black"
+          }`}
+        >
+          {keyword}
+        </p>
       </button>
     );
-  }
+  },
 );
 
 export { KeywordChip };
