@@ -7,7 +7,7 @@ import { useScoreStore } from "../../stores/useScoreStore";
 import { updateMyProfile } from "../../api/users/usersApi";
 
 export default function IdealEditPage() {
-  const MAX_SELECT = 5;
+  const MAX_SELECT = 30;
   const navigate = useNavigate();
   const { user, updateUser } = useUserStore();
 
@@ -66,7 +66,7 @@ export default function IdealEditPage() {
           나의 이상형을 골라주세요.
         </h2>
         <p className="text-[14px] font-medium leading-[1.4] tracking-normal text-gray-500">
-          최대 5개까지 고를 수 있어요.
+          {user?.nickname}님의 이상형은...
         </p>
         <div className="pt-5 flex flex-wrap gap-3">
           <KeywordChips
