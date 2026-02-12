@@ -77,8 +77,8 @@ export default function PermissionStep({ onFinish }: Props) {
               transition-all duration-200 border
               ${
                 isGranted
-                  ? "bg-pink-50 border-pink-200 shadow-sm"
-                  : "bg-gray-50 border-transparent hover:bg-gray-100"
+                  ? "bg-[#FFE2E9] border-[#FC3367]"
+                  : "bg-[#E9ECED] border-transparent"
               }
             `}
           >
@@ -94,30 +94,19 @@ export default function PermissionStep({ onFinish }: Props) {
             <div className="flex-1">
               <div className="flex items-center gap-2">
                 <p
-                  className={`text-[17px] font-bold ${isGranted ? "text-gray-900" : "text-gray-600"}`}
+                  className={`text-[18px] font-semibold text-gray-900`}
                 >
-                  {PERMISSION_CONFIG[key].label}
+                  {PERMISSION_CONFIG[key].label} 
                 </p>
                 {(key === "camera" || key === "microphone") && (
-                  <span className="text-xs text-[#fc3367] font-bold bg-pink-100 px-1.5 py-0.5 rounded">
-                    필수
+                  <span className="text-[18px] font-semibold text-gray-900">
+                    (필수)
                   </span>
                 )}
               </div>
-              <p className="text-[14px] text-gray-500 mt-0.5">
+              <p className="text-[16px] text-gray-700 mt-0.5">
                 {PERMISSION_CONFIG[key].desc}
               </p>
-            </div>
-
-            <div
-              className={`
-              w-6 h-6 rounded-full flex items-center justify-center border-2
-              ${isGranted ? "border-[#fc3367] bg-[#fc3367]" : "border-gray-300"}
-            `}
-            >
-              {isGranted && (
-                <span className="text-white text-xs font-bold">✔</span>
-              )}
             </div>
           </div>
         ))}

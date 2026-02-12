@@ -4,14 +4,14 @@ export const PERMISSION_CONFIG: Record<
 > = {
   camera: {
     label: "카메라",
-    desc: "영상 통화를 위해 카메라 접근이 필요해요.",
+    desc: "사진으로 일정을 간편하게 등록",
   },
   microphone: {
     label: "마이크",
-    desc: "목소리 전달을 위해 마이크 접근이 필요해요.",
+    desc: "녹음한 음성은 매칭에만 사용돼요",
   },
   notification: {
     label: "알림",
-    desc: "매칭 성공 및 채팅 알림을 받아보세요.",
+    desc: "새 인연 소식을 받아보세요",
   },
 };
