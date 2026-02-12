@@ -98,7 +98,7 @@ export default function ProfileSetupMain() {
   };
 
   return (
-    <div className="w-full max-w-md mx-auto h-[100dvh] bg-white flex flex-col overflow-hidden relative">
+    <div className="w-full max-w-md mx-auto h-[100vh] bg-white flex flex-col overflow-hidden relative">
       <div className="z-20 bg-white shrink-0">
         <BackButton onClick={handleBack} showIcon={step !== 1} />
 
@@ -124,7 +124,7 @@ export default function ProfileSetupMain() {
               x: { type: "spring", stiffness: 300, damping: 30 },
               opacity: { duration: 0.2 },
             }}
-            className="absolute inset-0 flex-1 flex flex-col px-5 pt-[28px] pb-[58px] bg-white"
+            className="absolute inset-0 flex-1 flex flex-col px-5 pt-[28px] pb-8 bg-white"
           >
             {step === 1 && <SetName onNext={handleNext} />}
             {step === 2 && <SetAge onNext={handleNext} />}

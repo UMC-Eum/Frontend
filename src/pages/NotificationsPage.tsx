@@ -91,7 +91,7 @@ const NotificationsPage = () => {
   });
 
   return (
-    <div className="flex flex-col h-screen bg-white overflow-hidden">
+    <div className="flex flex-col h-full bg-white overflow-hidden">
       <BackButton title="알림" />
       <LikeOrMessage tab={currentTab} setTab={setTab} />
 

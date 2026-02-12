@@ -45,8 +45,8 @@ export default function ProfileEditMain() {
   };
 
   return (
-    <div>
-      <div className="flex flex-1 flex-col min-h-screen">
+    <div className="h-full flex flex-col relative overflow-hidden">
+      <div className="flex flex-1 flex-col">
         <div className="pb-6">
           <h2 className="px-5 py-2 text-[24px] font-semibold">내 프로필</h2>
           <div className="flex flex-col items-center">

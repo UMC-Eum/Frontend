@@ -51,7 +51,7 @@ export default function IdealEditPage() {
   };
 
   return (
-    <div className="flex flex-col min-h-screen">
+    <div className="flex flex-col h-full bg-white relative overflow-hidden">
       <BackButton
         title="나의 이상형"
         textClassName="text-[24px] font-semibold"
@@ -74,7 +74,7 @@ export default function IdealEditPage() {
       </div>
       <div className="flex items-center justify-center">
         <button
-          className={`m-5 px-[149px] py-4 w-full flex items-center justify-center rounded-xl text-[18px] font-semibold leading-[1.2] tracking-normal transition-all ${
+          className={`m-5 py-4 w-[calc(100%-40px)] flex items-center justify-center rounded-xl text-[18px] font-semibold leading-[1.2] tracking-normal transition-all ${
             isChanged && !isLoading
               ? "bg-[#FF3D77] text-white"
               : "bg-[#DEE3E5] text-[#A6AFB6] cursor-not-allowed"
