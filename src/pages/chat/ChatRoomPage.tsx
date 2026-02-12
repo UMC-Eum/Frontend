@@ -61,6 +61,7 @@ export default function ChatRoomPage() {
     initialMessages,
     setInitialMessages,
     blockId,
+    parsedRoomId
   );
 
   const { scrollContainerRef, topObserverRef, bottomRef, scrollToBottom, isAtBottomRef } = useChatScroll({
