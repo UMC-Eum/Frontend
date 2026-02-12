@@ -6,7 +6,7 @@ interface MessageBubbleProps {
   isMe: boolean;
   type: MessageType;
   content: string | null;
-  audioUrl: string | null;
+  audioUrl: string | null; 
   duration: number | null;
   timestamp: string;
   readAt: string | null;
@@ -15,6 +15,7 @@ interface MessageBubbleProps {
   onDelete?: () => void;
   showTimestamp?: boolean;
   showRead?: boolean;
+  onImageClick?: (url: string) => void;
 }
 
 export function MessageBubble({
@@ -30,9 +31,13 @@ export function MessageBubble({
   onDelete,
   showTimestamp = true,
   showRead = true,
+  onImageClick,
 }: MessageBubbleProps) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [showOverlay, setShowOverlay] = useState(false);
+  
+  // 롱프레스 타이머 참조
+  const longPressTimer = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     if (!audioRef.current) return;
@@ -49,36 +54,58 @@ export function MessageBubble({
     onPlay();
   };
 
-  const handleBubbleClick = () => {
-    if (isMe && onDelete && !showOverlay) {
-      setShowOverlay(true);
-    }
-  };
-
   const handleDeleteConfirm = () => {
     if (onDelete) onDelete();
     setShowOverlay(false);
+  };
+
+  // 롱프레스 시작 (누를 때)
+  const handlePressStart = () => {
+    if (!isMe || !onDelete) return;
+
+    longPressTimer.current = setTimeout(() => {
+      setShowOverlay(true);
+      if (navigator.vibrate) navigator.vibrate(50);
+    }, 2000); 
+  };
+
+  // 롱프레스 취소 (뗄 때, 마우스 나갈 때)
+  const handlePressEnd = () => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
   };
 
   return (
     <div
       className={`flex items-end gap-1 mb-4 ${isMe ? "flex-row-reverse" : "flex-row"}`}
     >
+      {/* 1. 텍스트 메시지 */}
       {type === "TEXT" && content && (
         <div
-          onClick={handleBubbleClick}
-          className={`relative px-4 py-2 rounded-[14px] max-w-[75%] text-[15px] leading-relaxed break-words
+          onMouseDown={handlePressStart}
+          onMouseUp={handlePressEnd}
+          onMouseLeave={handlePressEnd}
+          onTouchStart={handlePressStart}
+          onTouchEnd={handlePressEnd}
+          className={`relative px-4 py-2 rounded-[14px] max-w-[75%] text-[15px] leading-relaxed break-words select-none
             ${isMe ? "bg-[#FC3367] text-white" : "bg-[#E9ECED] text-gray-900"}
-            ${isMe && onDelete ? "cursor-pointer" : ""}`}
+            ${isMe && onDelete ? "cursor-pointer active:scale-95 transition-transform" : ""}`}
         >
           {content}
         </div>
       )}
 
+      {/* 2. 오디오 메시지 */}
       {type === "AUDIO" && audioUrl && (
         <div
-          onClick={handleBubbleClick}
-          className={`relative flex items-center gap-3 px-4 py-2 rounded-[14px] min-w-[180px]
+          onMouseDown={handlePressStart}
+          onMouseUp={handlePressEnd}
+          onMouseLeave={handlePressEnd}
+          onTouchStart={handlePressStart}
+          onTouchEnd={handlePressEnd}
+          className={`relative flex items-center gap-3 px-4 py-2 rounded-[14px] min-w-[180px] select-none
             ${isMe ? "bg-[#FC3367] text-white" : "bg-[#E9ECED] text-gray-900"}
             ${isMe && onDelete ? "cursor-pointer" : ""}`}
         >
@@ -111,9 +138,14 @@ export function MessageBubble({
         </div>
       )}
 
+      {/* 3. 이미지 메시지 (PHOTO / IMAGE) */}
       {(type === "PHOTO" || (type as string) === "IMAGE") && audioUrl && (
         <div
-          onClick={handleBubbleClick}
+          onMouseDown={handlePressStart}
+          onMouseUp={handlePressEnd}
+          onMouseLeave={handlePressEnd}
+          onTouchStart={handlePressStart}
+          onTouchEnd={handlePressEnd}
           className={`relative max-w-[70%] rounded-[14px] overflow-hidden border border-gray-100
             ${isMe && onDelete ? "cursor-pointer" : ""}`}
         >
@@ -122,13 +154,24 @@ export function MessageBubble({
             alt="채팅 이미지"
             className="w-full h-auto object-cover block"
             style={{ maxHeight: "300px" }}
+            onClick={(e) => {
+              if (onImageClick) {
+                e.stopPropagation(); 
+                onImageClick(audioUrl);
+              }
+            }}
           />
         </div>
       )}
 
+      {/* 4. 동영상 메시지 (VIDEO) */}
       {(type as string) === "VIDEO" && audioUrl && (
         <div
-          onClick={handleBubbleClick}
+          onMouseDown={handlePressStart}
+          onMouseUp={handlePressEnd}
+          onMouseLeave={handlePressEnd}
+          onTouchStart={handlePressStart}
+          onTouchEnd={handlePressEnd}
           className={`relative max-w-[70%] rounded-[14px] overflow-hidden bg-black
             ${isMe && onDelete ? "cursor-pointer" : ""}`}
         >
@@ -136,6 +179,7 @@ export function MessageBubble({
         </div>
       )}
 
+      {/* 시간 및 읽음 표시 */}
       {(showTimestamp || (isMe && showRead)) && (
         <div
           className={`flex flex-col justify-end gap-0.5 ${isMe ? "items-end" : "items-start"}`}

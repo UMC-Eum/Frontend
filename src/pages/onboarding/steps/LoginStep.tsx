@@ -27,7 +27,7 @@ export default function LoginStep() {
         src={loginbackground}
         alt="illustration"
         className={`
-          mt-40 mb-2
+          mb-2
           transition-all duration-1000 ease-out
           ${isVisible ? "opacity-100 scale-100" : "opacity-0 scale-95"}
         `}
