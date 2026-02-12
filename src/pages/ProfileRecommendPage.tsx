@@ -1,5 +1,8 @@
 import { useLocation, useParams, useNavigate } from "react-router-dom";
 import { useMutation } from "@tanstack/react-query";
+import { useMemo } from "react";
+import { useUserStore } from "../stores/useUserStore";
+import { getCommonKeywords } from "../utils/userUtils";
 import BackButton from "../components/BackButton";
 import Navbar from "../components/standard/Navbar";
 import chatpinkbox from "../assets/chat_pinkbox.svg";
@@ -25,6 +28,9 @@ export default function ProfileRecommendPage() {
   const location = useLocation();
   const { id } = useParams<{ id: string }>();
 
+  // ✅ 스토어에서 내 키워드 가져오기
+  const myKeywords = useUserStore((state) => state.user?.keywords || []);
+
   const stateProfile = (location.state as { profile?: Profile } | null)
     ?.profile;
 
@@ -32,24 +38,29 @@ export default function ProfileRecommendPage() {
     ? {
         ...stateProfile,
         profileImageUrl: stateProfile.profileImageUrl || FALLBACK_IMAGE,
-        introText: stateProfile.introText || "안녕하세요! 편하게 대화해요.",
+        introText: stateProfile.introText,
         keywords: stateProfile.keywords || [],
       }
     : id
       ? {
           userId: Number(id),
           nickname: `유저 ${id}`,
-          age: 25, // 기본값
+          age: 25,
           profileImageUrl: FALLBACK_IMAGE,
           areaName: "지역 미설정",
-          introText: "프로필 정보를 불러올 수 없어 임시 정보를 표시합니다.",
+          introText: "",
           keywords: ["임시", "데이터"],
         }
       : null;
 
+  // ✅ 공통 키워드 계산
+  const commonKeywords = useMemo(
+    () => getCommonKeywords(myKeywords, profile?.keywords),
+    [myKeywords, profile?.keywords],
+  );
+
   const { mutate: handleStartChat, isPending } = useMutation({
     mutationFn: () => createChatRoom({ targetUserId: profile!.userId }),
-
     onSuccess: (data) => {
       navigate(`/message/room/${data.chatRoomId}`, {
         state: { peer: data.peer },
@@ -82,26 +93,33 @@ export default function ProfileRecommendPage() {
                 nickname={profile.nickname}
                 age={profile.age}
                 area={profile.areaName}
+                description={profile.introText || "아직 소개글이 없어요!"}
+                keywords={profile.keywords || []}
               />
             </div>
             <header className="absolute inset-0 w-full pt-[5px] shrink-0 pointer-events-none z-50">
               <div className="pointer-events-auto">
-                <BackButton
-                  onClick={() => {
-                    navigate("/home");
-                  }}
-                />
+                <BackButton onClick={() => navigate("/home")} />
               </div>
             </header>
           </div>
 
           <section className="m-[20px]">
+            {/* 소개 섹션 */}
             <section className="flex flex-col gap-[12px] mb-[15px]">
               <h1 className="text-[20px] font-semibold">소개</h1>
-              <p className="flex bg-white rounded-xl border border-[#E9ECED] shadow-[0px_4px_24px_rgba(0,0,0,0.06)] text-[14px] text-gray-700 px-[14px] py-[14px] whitespace-pre-wrap leading-relaxed">
-                {profile.introText}
+              <p
+                className={`flex bg-white rounded-xl border border-[#E9ECED] shadow-[0px_4px_24px_rgba(0,0,0,0.06)] text-[14px] px-[14px] py-[14px] whitespace-pre-wrap leading-relaxed ${
+                  !profile.introText ? "text-gray-400 italic" : "text-gray-700"
+                }`}
+              >
+                {profile.introText && profile.introText.trim() !== ""
+                  ? profile.introText
+                  : "아직 소개글이 없어요!"}
               </p>
             </section>
+
+            {/* 관심사 섹션 */}
             <section className="flex flex-col gap-[12px] mb-[15px]">
               <h1 className="text-[20px] font-semibold">저의 관심사에요.</h1>
               <div className="flex flex-wrap gap-[8px]">
@@ -110,12 +128,14 @@ export default function ProfileRecommendPage() {
                     <KeywordLabel key={index} keyword={keyword} />
                   ))
                 ) : (
-                  <span className="text-gray-400 text-sm">
+                  <span className="text-gray-400 text-sm italic">
                     등록된 관심사가 없습니다.
                   </span>
                 )}
               </div>
             </section>
+
+            {/* ✅ "나와 이런점이 닮았어요!" 섹션 - 이전 글씨 디자인 유지 */}
             <section className="mb-[15px]">
               <div
                 className="flex flex-col w-full rounded-2xl items-center gap-[8px] px-[16px] py-[16px]"
@@ -128,10 +148,18 @@ export default function ProfileRecommendPage() {
                   나와 이런점이 닮았어요!
                 </p>
                 <div className="flex flex-wrap justify-center gap-[8px]">
-                  {/* 공통점 로직이 있다면 여기에 구현, 임시로 첫 번째 키워드 사용 */}
-                  {profile.keywords && profile.keywords[0] && (
-                    <p className="bg-white rounded-lg text-[14px] text-gray-700 px-[12px] py-[4px] shadow-sm">
-                      {profile.keywords[0]}
+                  {commonKeywords.length > 0 ? (
+                    commonKeywords.map((keyword, index) => (
+                      <p
+                        key={index}
+                        className="bg-white rounded-lg text-[14px] text-gray-700 px-[12px] py-[4px] shadow-sm"
+                      >
+                        {keyword}
+                      </p>
+                    ))
+                  ) : (
+                    <p className="text-gray-500 text-sm">
+                      공통점을 찾는 중이에요
                     </p>
                   )}
                 </div>
