@@ -11,7 +11,7 @@ const SelectChip = forwardRef<HTMLButtonElement, SelectChipProps>(
       <button
         ref={ref}
         className={`
-            w-[177px] h-[58px]
+            w-full h-[58px]
             rounded-[14px]
             ${
               active

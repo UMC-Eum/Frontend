@@ -46,18 +46,20 @@ export default function ProfileSetupMain() {
     vibeVectorRef.current = data.vibeVector;
     handleNext();
   };
-  const handleSubmitProfile = async (selectedData?: {
-    personalities: string[];
-    keywords: string[];
-  }) => {
+  const calculateBirthDate = (targetAge: number) => {
+    const today = new Date();
+    const birthYear = today.getFullYear() - targetAge;
+    return `${birthYear}-01-01`;
+  };
+
+  const handleSubmitProfile = async (selectedData?: { personalities: string[], keywords: string[] }) => {
     if (!user) return;
 
     try {
       const requestBody = {
         nickname: user.nickname,
         gender: user.gender as "M" | "F",
-        birthDate:
-          user.birthDate || `${new Date().getFullYear() - user.age}-01-01`,
+        birthDate: calculateBirthDate(user.age),
         areaCode: user.area?.code || "",
         introText: user.introText,
         introAudioUrl: user.introAudioUrl,

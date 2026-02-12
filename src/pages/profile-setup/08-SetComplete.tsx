@@ -19,8 +19,6 @@ export default function SetComplete() {
 
   const handleStart = async () => {
     try {
-      console.log("최종 가입 정보:", user);
-
       const currentImage = user?.profileImageUrl;
 
       if (currentImage && !currentImage.startsWith("http")) {
@@ -76,24 +74,24 @@ export default function SetComplete() {
         </p>
       </div>
 
-      <div className="relative w-[314px] h-[380px] overflow-hidden mb-6 rounded-[30px] mx-auto flex-none shadow-lg">
-        <div
-          className="absolute inset-0 bg-cover bg-center"
-          style={{
-            backgroundImage: `url(${user?.profileImageUrl})`,
-          }}
-        />
+    <div className="relative w-[314px] h-[380px] overflow-hidden mb-6 rounded-[30px] mx-auto flex-none shadow-lg">
+      <div
+        className="absolute inset-0 bg-cover bg-center"
+        style={{
+          backgroundImage: `url(${user?.profileImageUrl})`,
+        }}
+      />
 
-        <div className="absolute inset-0 backdrop-blur-[24px]" />
-
-        <div className="relative z-10 flex flex-col items-center px-8 pt-8 pb-4">
-          <div className="w-[102px] h-[102px] rounded-full overflow-hidden border-[3px] border-white mb-4">
-            <img
-              src={user?.profileImageUrl}
-              alt="profile"
-              className="w-full h-full object-cover"
-            />
-          </div>
+      <div className="absolute inset-0 backdrop-blur-[24px] bg-black/30"/>  
+      
+      <div className="relative z-10 flex flex-col items-center px-8 pt-8 pb-4">
+        <div className="w-[102px] h-[102px] rounded-full overflow-hidden border-[3px] border-white mb-4">
+          <img
+            src={user?.profileImageUrl}
+            alt="profile"
+            className="w-full h-full object-cover"
+          />
+        </div>
 
           <h2 className="text-[22px] font-bold mb-1 text-white">
             {user?.nickname}
