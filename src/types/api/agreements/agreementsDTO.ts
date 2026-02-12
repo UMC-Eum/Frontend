@@ -1,12 +1,11 @@
 export type AgreementType = "POLICY" | "PERSONAL_INFORMATION" | "MARKETING";
 
 export interface IAgreementItem {
-  agreementId: number; // 최신 예시 반영: number
+  agreementId: number;
   body: string;
   type?: AgreementType;
 }
 
-// GET /agreements 응답 전체 구조
 export interface IAgreementsResponse {
   resultType: string;
   success: {
@@ -21,7 +20,6 @@ export interface IAgreementsResponse {
   };
 }
 
-// POST /users/me/agreements 요청 구조
 export interface UpdateMarketingRequest {
   marketingAgreements: {
     marketingAgreementId: number;
@@ -29,7 +27,6 @@ export interface UpdateMarketingRequest {
   }[];
 }
 
-// GET /me/agreements 응답 전체 구조
 export interface IAgreementStatusResponse {
   resultType: string;
   success: {

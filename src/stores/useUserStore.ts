@@ -34,7 +34,6 @@ export const useUserStore = create<UserState & UserActions>()(
       immer((set) => ({
         user: null,
         isLoggedIn: false,
-        //초기값 설정
         idealKeywords: [],
 
         updateUser: (fields) =>

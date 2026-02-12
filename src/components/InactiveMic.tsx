@@ -1,7 +1,6 @@
 const InactiveMic = () => {
   return (
     <div className="relative w-[90px] h-[90px] rounded-full shadow-[0_0_50.625px_0_rgba(161,0,42,0.12)]">
-      {/* 바깥 원 (90) */}
       <svg
         xmlns="http://www.w3.org/2000/svg"
         viewBox="0 0 90 90"
@@ -11,7 +10,6 @@ const InactiveMic = () => {
         <circle cx="45" cy="45" r="45" fill="white" />
       </svg>
 
-      {/* 안쪽 마이크 (81) */}
       <svg
         xmlns="http://www.w3.org/2000/svg"
         viewBox="0 0 81 81"

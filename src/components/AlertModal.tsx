@@ -13,9 +13,7 @@ export default function AlertModal({ onClose }: { onClose: () => void }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      {/* 흐리게 */}
       <div className="absolute inset-0 bg-black/40" />
-      {/* modal */}
       <div className="relative w-[256px] overflow-hidden rounded-[14px] bg-white shadow-[0_16px_40px_rgba(0,0,0,0.25)]">
         <div className="px-4 pt-4 pb-3 text-center">
           <h2 className="text-[17px] font-semibold">가입대상이 아닙니다.</h2>

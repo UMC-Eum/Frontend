@@ -7,7 +7,7 @@ interface SetNameProps {
 }
 
 export default function SetName({ onNext }: SetNameProps) {
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const [name, setName] = useState("");
   const [isDirty, setIsDirty] = useState(false);
   const { updateUser } = useUserStore();
@@ -25,13 +25,13 @@ export default function SetName({ onNext }: SetNameProps) {
     if (!isDirty && value.length > 0) {
       setIsDirty(true);
     }
-    
+
     if (value.length === 0) {
-      setError('닉네임을 입력해주세요.');
+      setError("닉네임을 입력해주세요.");
     } else if (!regex.test(value)) {
-      setError('한글만 입력해주세요.');
+      setError("한글만 입력해주세요.");
     } else {
-      setError(''); // 유효성 통과
+      setError("");
     }
     setName(value);
   };
@@ -54,14 +54,10 @@ export default function SetName({ onNext }: SetNameProps) {
           onChange={(e) => validateNickname(e.target.value)}
           placeholder="이름을 입력해주세요"
           autoFocus
-        >
-        </Input>
+        ></Input>
       </div>
 
-      <FullButton
-        onClick={handleNext}
-        disabled={!isValid}
-      >
+      <FullButton onClick={handleNext} disabled={!isValid}>
         다음
       </FullButton>
     </div>

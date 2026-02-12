@@ -38,8 +38,8 @@ api.interceptors.response.use(
       try {
         const res = await axios.post<ApiSuccessResponse<ITokenRefreshResponse>>(
           `${api.defaults.baseURL}/auth/token/refresh`,
-          {}, // body 비움
-          { withCredentials: true }, // ★ 핵심: 쿠키 전송 허용
+          {},
+          { withCredentials: true },
         );
         const { accessToken } = res.data.success.data;
 

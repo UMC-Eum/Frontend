@@ -13,12 +13,8 @@ export default function IdealEditPage() {
 
   const ideal = useScoreStore((s) => s.keywords.ideal);
 
-  const allKeywords = useMemo(
-    () => (ideal || []).map((p) => p.text),
-    [ideal]
-  );
+  const allKeywords = useMemo(() => (ideal || []).map((p) => p.text), [ideal]);
 
-  //선택된 키워드
   const [selectedKeywords, setSelectedKeywords] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -30,7 +26,6 @@ export default function IdealEditPage() {
     initialized.current = true;
   }, [user]);
 
-  // 변경사항 감지; 1. 개수 비교 2. 내용 비교
   const isChanged = useMemo(() => {
     const original = user?.idealPersonalities || [];
     if (selectedKeywords.length !== original.length) return true;
@@ -39,8 +34,8 @@ export default function IdealEditPage() {
 
   const handleSave = async () => {
     if (!isChanged || !user) return;
-    
-    setIsLoading(true); 
+
+    setIsLoading(true);
     try {
       await updateMyProfile({
         idealPersonalities: selectedKeywords,

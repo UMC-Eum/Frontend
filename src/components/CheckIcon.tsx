@@ -19,7 +19,6 @@ const CheckIcon = () => {
         fill="none"
         className={`${checked ? "text-[#FC3367]" : "text-gray-300"}`}
       >
-        {/* 배경 원 */}
         <path
           fillRule="evenodd"
           clipRule="evenodd"
@@ -27,7 +26,6 @@ const CheckIcon = () => {
           fill="currentColor"
         />
 
-        {/* 체크 표시 */}
         <path
           fillRule="evenodd"
           clipRule="evenodd"

@@ -1,13 +1,9 @@
 const RecordingMic = () => {
-  //추후 수정예정 svg 애니메이션
   return (
-    // [수정 1] shadow 클래스를 부모 div로 이동 (여기에 주어야 둥글게 잘림)
     <div className="relative w-[90px] h-[90px] rounded-full shadow-[0_0_50.625px_0_rgba(161,0,42,0.12)]">
-      {/* 바깥 원 (90) */}
       <svg
         xmlns="http://www.w3.org/2000/svg"
         viewBox="0 0 90 90"
-        // [수정 2] svg 태그에서는 shadow 제거
         className="pointer-events-none absolute inset-0 w-[90px] h-[90px] rounded-full"
         fill="none"
       >

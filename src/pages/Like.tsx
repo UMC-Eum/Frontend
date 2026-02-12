@@ -99,7 +99,6 @@ export default function Like() {
     <div className="h-screen flex flex-col">
       <BackButton title="마음" />
 
-      {/* 탭 */}
       <div className="shrink-0 border-b border-[#DEE3E5] px-[20px] h-[48px] flex">
         <button
           type="button"

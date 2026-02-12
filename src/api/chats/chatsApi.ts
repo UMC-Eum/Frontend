@@ -3,8 +3,6 @@ import api from "../axiosInstance";
 import { ApiSuccessResponse } from "../../types/api/api";
 import * as DTO from "../../types/api/chats/chatsDTO";
 
-// --- 1. 채팅방 관련 ---
-
 /** 채팅방 생성 (POST) */
 export const createChatRoom = async (body: DTO.IChatsRoomsPostRequest) => {
   const { data } = await api.post<
@@ -32,8 +30,6 @@ export const getChatRoomDetail = async (chatRoomId: number) => {
   return data.success.data;
 };
 
-// --- 2. 메시지 관련 ---
-
 /** 메시지 목록 조회 (GET) */
 export const getChatMessages = async (
   chatRoomId: number,
@@ -51,9 +47,6 @@ export const getChatMessages = async (
   return data.success.data;
 };
 
-/** * 🔥 [신규] 채팅방 전용 미디어 Presign URL 요청
- * 파일 타입에 따라 PHOTO, VIDEO, AUDIO를 동적으로 판별합니다.
- */
 export const postChatMediaPresign = async (chatRoomId: number, file: File) => {
   let mediaType = "PHOTO";
 
@@ -76,21 +69,11 @@ export const postChatMediaPresign = async (chatRoomId: number, file: File) => {
 
   return data.success.data;
 };
-
-/** * 🚀 S3 직접 업로드 (PUT)
- * 에러 방지를 위해 requireHeaders가 없을 경우에 대한 방어 로직이 추가되었습니다.
- */
 export const uploadChatFileToS3 = async (
   presignData: DTO.IChatsRoomIdMediaPresignPostResponse,
   file: File,
 ) => {
-  // ✅ [수정] Optional Chaining과 기본값 설정을 통해 'Content-Type' 읽기 실패 에러 방지
   const contentType = presignData.requireHeaders?.["Content-Type"] || file.type;
-
-  console.log("📤 S3 업로드 시도 - URL:", presignData.uploadUrl);
-  console.log("📤 적용 헤더:", contentType);
-
-  // S3 업로드는 공통 API 인스턴스 대신 순수 axios를 사용합니다.
   const response = await axios.put(presignData.uploadUrl, file, {
     headers: {
       "Content-Type": contentType,

@@ -1,20 +1,11 @@
-import React, { forwardRef } from 'react';
+import React, { forwardRef } from "react";
 
-import CheckCircleGray from '../../assets/CheckCircleGray.svg';
-import CheckCirclePink from '../../assets/CheckCirclePink.svg';
-import SimpleCheckGray from '../../assets/SimpleCheckGray.svg';
-import SimpleCheckPink from '../../assets/SimpleCheckPink.svg';
+import CheckCircleGray from "../../assets/CheckCircleGray.svg";
+import CheckCirclePink from "../../assets/CheckCirclePink.svg";
+import SimpleCheckGray from "../../assets/SimpleCheckGray.svg";
+import SimpleCheckPink from "../../assets/SimpleCheckPink.svg";
 
-
-/******************************
- * CheckCircle
- * SimpleCheck
- * *****************************/
-
-// 가로 : 115px 고정
-// 세로 : 38px 고정
-
-interface CheckProps extends React.ComponentPropsWithoutRef<'button'> {
+interface CheckProps extends React.ComponentPropsWithoutRef<"button"> {
   active: boolean;
 }
 
@@ -30,7 +21,7 @@ const CheckCircle = forwardRef<HTMLButtonElement, CheckProps>(
         <img src={active ? CheckCirclePink : CheckCircleGray} alt="check" />
       </button>
     );
-  }
+  },
 );
 
 const SimpleCheck = forwardRef<HTMLButtonElement, CheckProps>(
@@ -45,7 +36,7 @@ const SimpleCheck = forwardRef<HTMLButtonElement, CheckProps>(
         <img src={active ? SimpleCheckPink : SimpleCheckGray} alt="check" />
       </button>
     );
-  }
+  },
 );
 
 export { CheckCircle, SimpleCheck };

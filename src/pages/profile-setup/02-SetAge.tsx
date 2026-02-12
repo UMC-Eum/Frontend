@@ -1,4 +1,4 @@
-import { useRef, useState } from "react"; // useEffect 추가
+import { useRef, useState } from "react";
 import { useUserStore } from "../../stores/useUserStore";
 import { FullButton } from "../../components/standard/CTA";
 
@@ -27,17 +27,12 @@ export default function SetAge({ onNext }: SetAgeProps) {
           만나이로 알려주세요! 추후에 변경이 불가능해요.
         </p>
 
-        {/* 피그마와 디자인이 달라져서 마진을 임의로 줬어요 */}
         <div className="mt-10">
           <WheelPicker onChange={setAge} />
-        </div>  
+        </div>
       </div>
 
-      <FullButton
-        onClick={handleNext}
-      >
-        다음
-      </FullButton>
+      <FullButton onClick={handleNext}>다음</FullButton>
     </div>
   );
 }
@@ -50,7 +45,6 @@ const WheelPicker = ({ onChange }: WheelPickerProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [activeIndex, setActiveIndex] = useState(0);
 
-  // 50부터 100까지
   const ageList = Array.from({ length: 51 }, (_, i) => i + 50);
 
   const ITEM_HEIGHT = 60;
@@ -64,13 +58,12 @@ const WheelPicker = ({ onChange }: WheelPickerProps) => {
     const safeIndex = Math.max(0, Math.min(ageList.length - 1, newIndex));
 
     if (safeIndex !== activeIndex) {
-      setActiveIndex(safeIndex); // 여기서 렌더링 시점 결정
+      setActiveIndex(safeIndex);
       onChange(ageList[safeIndex]);
     }
   };
 
   function computeBlockStyle(index: number) {
-
     const distance = Math.abs(index - activeIndex);
 
     if (distance === 0) return "text-[#FC3367] text-6xl font-bold";
@@ -108,7 +101,6 @@ const WheelPicker = ({ onChange }: WheelPickerProps) => {
       </div>
 
       <div className="pointer-events-none absolute inset-0 flex justify-center">
-        {/* 중앙선 디자인 유지 */}
         <div
           className="absolute w-[120px] h-px bg-[#FC3367]"
           style={{ top: (CONTAINER_HEIGHT - ITEM_HEIGHT) / 2 }}
