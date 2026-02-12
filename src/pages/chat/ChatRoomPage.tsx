@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useUserStore } from "../../stores/useUserStore";
 
@@ -32,6 +32,8 @@ export default function ChatRoomPage() {
   const myId = user?.userId ?? 0;
   const parsedRoomId = Number(roomId);
 
+  const prevLastMessageIdRef = useRef<number | null>(null);
+
   const { connect, joinRoom } = useSocketStore();
   const [activeModal, setActiveModal] = useState<ModalType>("NONE");
   const [playingId, setPlayingId] = useState<number | null>(null);
@@ -59,7 +61,7 @@ export default function ChatRoomPage() {
     blockId,
   );
 
-  const { scrollContainerRef, topObserverRef, bottomRef } = useChatScroll({
+  const { scrollContainerRef, topObserverRef, bottomRef, scrollToBottom, isAtBottomRef } = useChatScroll({
     isInitLoaded,
     isLoading,
     nextCursor,
@@ -74,12 +76,38 @@ export default function ChatRoomPage() {
     () => bottomRef.current?.scrollIntoView({ behavior: "smooth" }),
   );
 
-  // 메시지 추가 시 즉시 바닥으로 스크롤 고정
   useEffect(() => {
-    if (isInitLoaded && bottomRef.current) {
-      bottomRef.current.scrollIntoView({ behavior: "auto" });
+    // 1. 로딩 중이거나 메시지 없으면 패스
+    if (!isInitLoaded || displayMessages.length === 0) return;
+
+    const currentLastMsg = displayMessages[displayMessages.length - 1];
+    const currentLastId = currentLastMsg.messageId;
+    const prevLastId = prevLastMessageIdRef.current;
+
+    // 2. "마지막 메시지가 바뀌었을 때"만 실행 (새 메시지 수신/전송 시)
+    // 과거 메시지 로딩 시에는 리스트 '앞'이 바뀌므로 여기 안 걸림 -> 스크롤 안 튐 ✅
+    if (currentLastId !== prevLastId) {
+      
+      const isMyMessage = currentLastMsg.senderUserId === myId;
+      const isInitialLoad = prevLastId === null;
+      const isUserAtBottom = isAtBottomRef.current; // 사용자가 바닥 근처를 보고 있었나?
+
+      // 3. 스크롤을 내려야 하는 3가지 상황
+      // A. 초기 로딩 시
+      // B. 내가 메시지를 보냈을 시 (무조건 내림)
+      // C. 남이 보냈는데, 내가 이미 바닥을 보고 있었을 시 (읽고 있던 중이면 안 내림)
+      if (isInitialLoad || isMyMessage || isUserAtBottom) {
+        scrollToBottom("smooth"); // 부드럽게 이동
+      } else {
+        // 남이 보냈고 내가 위를 보고 있다면? -> "새 메시지" 토스트나 버튼 띄우기 좋은 위치
+        console.log("새 메시지가 왔지만 스크롤을 내리지 않았습니다."); 
+      }
     }
-  }, [displayMessages.length, isInitLoaded]);
+
+    // 현재 ID 저장
+    prevLastMessageIdRef.current = currentLastId;
+    
+  }, [displayMessages, isInitLoaded, myId, scrollToBottom]);
 
   useEffect(() => {
     connect();
