@@ -26,15 +26,14 @@ export const useChatSocketLogic = (
   setInitialMessages: React.Dispatch<React.SetStateAction<IMessageItem[]>>,
   blockId: number | null,
 ) => {
-  // ✅ 1. socket을 가장 먼저 가져옵니다.
   const { socket } = useSocketStore();
   const [socketMessages, setSocketMessages] = useState<IMessageItem[]>([]);
   const [tempMessages, setTempMessages] = useState<IMessageItem[]>([]);
 
   useEffect(() => {
-    // ✅ 2. socket 선언 여부 체크
     if (!socket) return;
 
+    // 1. 새 메시지 수신 
     const handleMessageNew = (response: any) => {
       const newMsgData: MessageNewData = response.success?.data || response;
       if (blockId) return;
@@ -75,7 +74,7 @@ export const useChatSocketLogic = (
             const normalizedUrl = normalizeMediaUrl(newMsg.mediaUrl);
             if (normalizedUrl) {
               targetIndex = prev.findIndex(
-                (temp) => temp.mediaUrl === normalizedUrl,
+                (temp) => normalizeMediaUrl(temp.mediaUrl) === normalizedUrl,
               );
             }
 
@@ -84,7 +83,9 @@ export const useChatSocketLogic = (
               for (let i = prev.length - 1; i >= 0; i -= 1) {
                 const temp = prev[i];
                 if (temp.type !== uiType) continue;
+                
                 const tempTime = new Date(temp.sendAt).getTime();
+                
                 if (Math.abs(tempTime - newMsgTime) < 10000) {
                   targetIndex = i;
                   break;
@@ -107,6 +108,7 @@ export const useChatSocketLogic = (
       }
     };
 
+    // 2. 메시지 읽음 처리
     const handleMessageRead = (response: any) => {
       const { messageId, readAt } = response.success?.data || response;
       if (!messageId || !readAt) return;
@@ -125,17 +127,32 @@ export const useChatSocketLogic = (
       setTempMessages((prev) => updateReadStatus(prev));
     };
 
-    // ✅ 3. socket.on 호출 (컴포넌트 내의 변수가 아닌 socket 객체의 메서드 사용)
+    // 3. 메시지 삭제 처리 
+    const handleMessageDelete = (response: any) => {
+      const data = response.success?.data || response;
+      const { messageId } = data;
+
+      if (!messageId) return;
+
+      const removeMessage = (list: IMessageItem[]) =>
+        list.filter((msg) => msg.messageId !== messageId);
+
+      setInitialMessages((prev) => removeMessage(prev));
+      setSocketMessages((prev) => removeMessage(prev));
+      setTempMessages((prev) => removeMessage(prev));
+    };
+
     socket.on("message.new", handleMessageNew);
     socket.on("message.read", handleMessageRead);
+    socket.on("message.deleted", handleMessageDelete);
 
     return () => {
       socket.off("message.new", handleMessageNew);
       socket.off("message.read", handleMessageRead);
+      socket.off("message.deleted", handleMessageDelete);
     };
   }, [socket, myId, blockId, setInitialMessages]);
 
-  // ✅ 4. 메시지 병합 및 과거->최신순 정렬
   const displayMessages = useMemo(() => {
     const rawList: MessageWithSentAt[] = [
       ...initialMessages,

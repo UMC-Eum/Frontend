@@ -41,7 +41,9 @@ const RecordingControl = ({
         ) : status === "recording" ? (
           <GuideBar content="녹음을 멈추고 싶으면 버튼을 한번 더 눌러주세요!" />
         ) : status === "inactive" ? (
-          <GuideTooltip content="버튼을 누른 뒤 말해주세요!" />
+          isChat ? null : (
+            <GuideTooltip content="버튼을 누른 뒤 말해주세요!" />
+          )
         ) : null}
       </div>
 

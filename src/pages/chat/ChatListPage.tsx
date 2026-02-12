@@ -16,14 +16,31 @@ export default function ChatListPage() {
 
   const loadingRef = useRef(false);
   const observerTarget = useRef<HTMLDivElement>(null);
+  
+  // 🔥 [수정] 차단 유저 ID 저장용 Set
   const [blockedUserIds, setBlockedUserIds] = useState<Set<number>>(new Set());
 
   useEffect(() => {
     const fetchBlockedList = async () => {
       try {
-        const items = await getBlocks({ size: 100 });
-        if (items) {
-          const ids = new Set(items.items.map((item: any) => item.userId));
+        const response = await getBlocks({ size: 100 });
+        
+        // 🔥 [수정] 응답 데이터 구조 안전하게 파싱 및 로그 확인
+        // response가 배열인지, { items: [] } 인지, { success: { data: ... } } 인지 확인 필요
+        // 보통 페이징 API는 items 배열을 줍니다.
+        const items = response?.items || [];
+        
+        console.log("🚫 [Debug] 차단 목록 응답:", items); // 디버깅용 로그
+
+        if (items.length > 0) {
+          // 🔥 [핵심 수정] 
+          // 1. API 응답 필드명이 'userId'가 아니라 'blockedUserId' 혹은 'targetUserId'일 수 있음
+          // 2. 타입이 문자열일 수도 있으니 Number()로 변환
+          const ids = new Set(
+            items.map((item: any) => Number(item.userId || item.blockedUserId || item.targetUserId))
+          );
+          
+          console.log("🚫 [Debug] 차단된 ID Set:", ids); // 디버깅용 로그
           setBlockedUserIds(ids);
         }
       } catch (error) {
@@ -158,7 +175,11 @@ export default function ChatListPage() {
         )}
 
         {rooms.map((room) => {
-          const isBlocked = blockedUserIds.has(room.peer.userId);
+          // 🔥 [수정] 타입 불일치 방지 (Number 변환)
+          // room.peer.userId가 string일 수도 있으므로 안전하게 변환
+          const peerId = Number(room.peer.userId);
+          const isBlocked = blockedUserIds.has(peerId);
+          
           const displayUnreadCount = isBlocked ? 0 : room.unreadCount;
 
           const displayLastMessage = isBlocked
