@@ -38,8 +38,8 @@ api.interceptors.response.use(
       try {
         const res = await axios.post<ApiSuccessResponse<ITokenRefreshResponse>>(
           `${api.defaults.baseURL}/auth/token/refresh`,
-          {},
-          { withCredentials: true },
+          {}, // body 비움
+          { withCredentials: true }, // ★ 핵심: 쿠키 전송 허용
         );
         const { accessToken } = res.data.success.data;
 
@@ -51,7 +51,7 @@ api.interceptors.response.use(
         return api(originalRequest);
       } catch (refreshError) {
         localStorage.clear();
-        window.location.href = "/onboarding";
+        window.location.href = "/";
         return Promise.reject(refreshError);
       }
     }

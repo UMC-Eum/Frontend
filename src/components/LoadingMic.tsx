@@ -1,6 +1,7 @@
 const LoadingMic = () => {
   return (
     <div className="relative w-[90px] h-[90px] rounded-full shadow-[0_0_50.625px_0_rgba(161,0,42,0.12)]">
+      {/* 바깥 원 */}
       <svg
         viewBox="0 0 90 90"
         className="pointer-events-none absolute inset-0 rounded-full"
@@ -9,6 +10,7 @@ const LoadingMic = () => {
         <circle cx="45" cy="45" r="45" fill="white" />
       </svg>
 
+      {/* 로딩 점 */}
       <svg
         width="45"
         height="30"

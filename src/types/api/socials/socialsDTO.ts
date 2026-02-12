@@ -1,3 +1,4 @@
+// 공통: 프로필 정보
 export interface IProfileSummary {
   profileImageUrl: string;
   nickname: string;
@@ -37,6 +38,19 @@ export interface IHeartreceivedResponse {
   items: IHeartreceivedItem[];
 }
 
+//v1/hearts/{heartId}(patch)
+// {
+//   "resultType": "SUCCESS",
+//   "success": {
+//     "data": null
+//   },
+//   "error": null,
+//   "meta": {
+//     "timestamp": "2025-12-30T04:10:00.000Z",
+//     "path": "/api/v1/hearts/101"
+//   }
+// }
+
 //v1/blocks(post)
 export interface IBlocksRequest {
   targetUserId: number;
@@ -58,6 +72,19 @@ export interface IBlocksGetResponse {
     blockedAt: string;
   }[];
 }
+//v1/blocks/{blockId}(patch)
+//   {
+//   "resultType": "SUCCESS",
+//   "success": {
+//     "data": null
+//   },
+//   "error": null,
+//   "meta": {
+//     "timestamp": "2025-12-30T04:10:00.000Z",
+//     "path": "/api/v1/blocks/1"
+//   }
+// }
+
 //v1/reports(post)
 export interface IReportsRequest {
   targetUserId: number;

@@ -42,16 +42,11 @@ export default function ProfileSetupMain() {
     updateUser({
       introText: data.transcript,
       introAudioUrl: data.record,
-    });
+    })
     vibeVectorRef.current = data.vibeVector;
     handleNext();
   };
-  const calculateBirthDate = (targetAge: number) => {
-    const today = new Date();
-    const birthYear = today.getFullYear() - targetAge;
-    return `${birthYear}-01-01`;
-  };
-
+  // 7번 페이지 전용
   const handleSubmitProfile = async (selectedData?: { personalities: string[], keywords: string[] }) => {
     if (!user) return;
 
@@ -59,16 +54,17 @@ export default function ProfileSetupMain() {
       const requestBody = {
         nickname: user.nickname,
         gender: user.gender as "M" | "F",
-        birthDate: calculateBirthDate(user.age),
+        birthDate:
+          user.birthDate ||
+          `${new Date().getFullYear() - (user.age)}-01-01`,
         areaCode: user.area?.code || "",
         introText: user.introText,
         introAudioUrl: user.introAudioUrl,
-        selectedKeywords: [
-          ...(selectedData?.personalities || []),
-          ...(selectedData?.keywords || []),
-        ],
+        selectedKeywords: [...(selectedData?.personalities || []), ...(selectedData?.keywords || [])],
         vibeVector: vibeVectorRef.current,
       };
+
+      console.log("프로필 생성 요청 바디:", requestBody);
 
       const response = await postProfile(requestBody);
       if (response) handleNext();
@@ -98,7 +94,7 @@ export default function ProfileSetupMain() {
   };
 
   return (
-    <div className="w-full max-w-md mx-auto h-[100vh] bg-white flex flex-col overflow-hidden relative">
+    <div className="w-full max-w-md mx-auto h-[100dvh] bg-white flex flex-col overflow-hidden relative">
       <div className="z-20 bg-white shrink-0">
         <BackButton onClick={handleBack} showIcon={step !== 1} />
 
@@ -124,7 +120,7 @@ export default function ProfileSetupMain() {
               x: { type: "spring", stiffness: 300, damping: 30 },
               opacity: { duration: 0.2 },
             }}
-            className="absolute inset-0 flex-1 flex flex-col px-5 pt-[28px] pb-8 bg-white"
+            className="absolute inset-0 flex-1 flex flex-col px-5 pt-[28px] pb-[24px] bg-white"
           >
             {step === 1 && <SetName onNext={handleNext} />}
             {step === 2 && <SetAge onNext={handleNext} />}
@@ -138,5 +134,8 @@ export default function ProfileSetupMain() {
         </AnimatePresence>
       </main>
     </div>
+
   );
 }
+
+

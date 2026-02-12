@@ -15,9 +15,10 @@ export default function PersonalitiesEditPage() {
 
   const allKeywords = useMemo(
     () => (personalities || []).map((p) => p.text),
-    [personalities],
+    [personalities]
   );
 
+  //선택된 키워드
   const [selectedKeywords, setSelectedKeywords] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -30,6 +31,7 @@ export default function PersonalitiesEditPage() {
     initialized.current = true;
   }, [user]);
 
+  // 변경사항 감지; 1. 개수 비교 2. 내용 비교
   const isChanged = useMemo(() => {
     const original = user?.personalities || [];
     if (selectedKeywords.length !== original.length) return true;
@@ -38,7 +40,7 @@ export default function PersonalitiesEditPage() {
 
   const handleSave = async () => {
     if (!isChanged || !user) return;
-
+    
     setIsLoading(true);
     try {
       await updateMyProfile({
@@ -55,18 +57,14 @@ export default function PersonalitiesEditPage() {
   };
 
   return (
-    <div className="flex flex-col h-full bg-white relative overflow-hidden">
+    <div className="flex flex-col min-h-screen">
       <BackButton
         title="나는 이런 사람이에요."
         textClassName="text-[24px] font-semibold"
       />
       <div className="p-5 flex flex-col gap-[10px] flex-1">
-        <h2 className="text-[22px] font-semibold leading-[1.4] tracking-normal text-gray-900 align-middle">
-          나를 나타내는 키워드들을 골라주세요.{" "}
-        </h2>
-        <p className="text-[14px] font-medium leading-[1.4] tracking-normal text-gray-500">
-          최대 5개까지 고를 수 있어요.
-        </p>
+        <h2 className="text-[22px] font-semibold leading-[1.4] tracking-normal text-gray-900 align-middle">나를 나타내는 키워드들을 골라주세요. </h2>
+        <p className="text-[14px] font-medium leading-[1.4] tracking-normal text-gray-500">최대 5개까지 고를 수 있어요.</p>
         <div className="pt-5 flex flex-wrap gap-3">
           <KeywordChips
             allKeywords={allKeywords}
@@ -78,7 +76,7 @@ export default function PersonalitiesEditPage() {
       </div>
       <div className="flex items-center justify-center">
         <button
-          className={`m-5 py-4 w-[calc(100%-40px)] flex items-center justify-center rounded-xl text-[18px] font-semibold leading-[1.2] tracking-normal transition-all ${
+          className={`m-5 px-[149px] py-4 w-full flex items-center justify-center rounded-xl text-[18px] font-semibold leading-[1.2] tracking-normal transition-all ${
             isChanged && !isLoading
               ? "bg-[#FF3D77] text-white"
               : "bg-[#DEE3E5] text-[#A6AFB6] cursor-not-allowed"

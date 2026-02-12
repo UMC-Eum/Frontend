@@ -39,6 +39,7 @@ export const getReceivedHearts = async (params: {
   return data.success.data;
 };
 
+// 마음 상태 수정 (PATCH) -> ★ 데이터가 없으므로 <null>
 export const patchHeart = async (heartId: number) => {
   const { data } = await api.patch<ApiSuccessResponse<null>>(
     `/v1/hearts/${heartId}`,
@@ -71,12 +72,15 @@ export const getBlocks = async (params: {
   return data.success.data;
 };
 
+// 차단 해제/수정 (PATCH) -> ★ 데이터가 없으므로 <null>
 export const patchBlock = async (blockId: number) => {
   const { data } = await api.patch<ApiSuccessResponse<null>>(
     `/v1/block/${blockId}`,
   );
   return data.success.data;
 };
+
+// --- 3. Reports API ---
 
 // 신고하기 (POST)
 export const createReport = async (body: DTO.IReportsRequest) => {

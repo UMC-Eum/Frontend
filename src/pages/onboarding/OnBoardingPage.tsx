@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import {
   getAgreements,
   getAgreementStatus,
@@ -39,10 +38,7 @@ const AGREEMENT_TYPE_MAP: Record<number, AgreementType> = {
 };
 
 export default function OnBoardingPage() {
-  const navigate = useNavigate();
-  const [step, setStep] = useState<"checking" | "permission" | "setup">(
-    "checking",
-  );
+  const [step, setStep] = useState<"checking" | "permission" | "setup">("checking");
   const [agreements, setAgreements] = useState<IAgreementItem[]>([]);
   const [showAgreement, setShowAgreement] = useState(false);
   const [currentTerm, setCurrentTerm] = useState<AgreementType | null>(null);
@@ -80,7 +76,7 @@ export default function OnBoardingPage() {
   const handleAgeLimitClose = () => {
     localStorage.removeItem("accessToken");
     setShowAgeLimit(false);
-    navigate("/onboarding", { replace: true });
+    // navigate("/login", { replace: true }); // 제거
   };
 
   const fetchAgreementsData = async () => {
@@ -103,21 +99,16 @@ export default function OnBoardingPage() {
   };
 
   useEffect(() => {
-    const token = localStorage.getItem("accessToken");
+    // const token = localStorage.getItem("accessToken");
+    // if (!token) return; // 이제 토큰 검사 안함
 
     const initializeUser = async () => {
-      if (!token) {
-        console.log("No token found, proceeding with default onboarding");
-        await fetchAgreementsData();
-        setShowAgreement(true);
-        return;
-      }
-
       try {
         const [userData, isPassed] = await Promise.all([
           getMyProfile(),
           getAgreementStatus(),
         ]);
+
 
         if (userData?.birthDate) {
           const today = new Date();

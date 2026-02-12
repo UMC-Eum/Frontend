@@ -1,6 +1,6 @@
 // room.join 응답 데이터
 export interface JoinData {
-  joined: string;
+  joined: string; // 예: "room:55"
 }
 
 // message.send 응답 데이터 (ACK)

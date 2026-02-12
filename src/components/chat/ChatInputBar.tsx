@@ -7,7 +7,7 @@ interface ChatInputBarProps {
   onSendText: (text: string) => void;
   onSendVoice: (file: File, duration: number) => void;
   isBlocked?: boolean;
-  onSelectImage: (file: File) => void;
+  onSelectImage: (file: File) => void; // ✅ URL 대신 File을 받도록 수정
 }
 
 export function ChatInputBar({
@@ -16,9 +16,12 @@ export function ChatInputBar({
   isBlocked,
   onSelectImage,
 }: ChatInputBarProps) {
+  // 이제 업로드는 부모(useChatSender)가 하므로 여기서 useMediaUpload는 제거해도 됩니다.
   const [text, setText] = useState("");
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isComposing, setIsComposing] = useState(false);
+
+  // 파일 선택 상태 및 미리보기 URL 관리
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
@@ -50,12 +53,15 @@ export function ChatInputBar({
     setIsFocused(false);
   };
 
+  // 🔥 [수정] 전송 버튼 클릭 핸들러
   const handleSend = async () => {
+    // 1. 파일이 있다면 부모의 sendImageOrVideo로 File 전달
     if (selectedFile) {
       onSelectImage(selectedFile);
-      handleRemoveFile();
+      handleRemoveFile(); // 미리보기 초기화
     }
 
+    // 2. 텍스트가 있다면 전송
     if (text.trim()) {
       onSendText(text);
       setText("");
@@ -119,6 +125,7 @@ export function ChatInputBar({
             ${shouldHideMic ? "opacity-0 pointer-events-none" : "opacity-100 pointer-events-auto"}`}
         />
 
+        {/* 파일 미리보기 영역 */}
         {selectedFile && previewUrl && (
           <div className="px-4 pt-3 pb-1 flex">
             <div className="relative inline-block">

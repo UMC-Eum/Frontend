@@ -15,9 +15,10 @@ export default function HobbyEditPage() {
 
   const allKeywords = useMemo(
     () => (interests || []).map((p) => p.text),
-    [interests],
+    [interests]
   );
 
+  //선택된 키워드
   const [selectedKeywords, setSelectedKeywords] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -30,6 +31,7 @@ export default function HobbyEditPage() {
     initialized.current = true;
   }, [user]);
 
+  // 변경사항 감지; 1. 개수 비교 2. 내용 비교
   const isChanged = useMemo(() => {
     const original = user?.keywords || [];
     if (selectedKeywords.length !== original.length) return true;
@@ -38,7 +40,7 @@ export default function HobbyEditPage() {
 
   const handleSave = async () => {
     if (!isChanged || !user) return;
-
+    
     setIsLoading(true);
     try {
       await updateMyProfile({
@@ -54,7 +56,7 @@ export default function HobbyEditPage() {
     }
   };
   return (
-    <div className="flex flex-col h-full bg-white relative overflow-hidden">
+    <div className="flex flex-col min-h-screen">
       <BackButton
         title="나의 관심사"
         textClassName="text-[24px] font-semibold"
@@ -77,7 +79,7 @@ export default function HobbyEditPage() {
       </div>
       <div className="flex items-center justify-center">
         <button
-          className={`m-5 py-4 w-[calc(100%-40px)] flex items-center justify-center rounded-xl text-[18px] font-semibold leading-[1.2] tracking-normal transition-all ${
+          className={`m-5 px-[149px] py-4 w-full flex items-center justify-center rounded-xl text-[18px] font-semibold leading-[1.2] tracking-normal transition-all ${
             isChanged && !isLoading
               ? "bg-[#FF3D77] text-white"
               : "bg-[#DEE3E5] text-[#A6AFB6] cursor-not-allowed"

@@ -17,6 +17,7 @@ export function CardRecommend({
         w-full h-14
         rounded-2xl
         text-white text-base font-semibold
+        /* 👇 3색 그라데이션 적용 */
         bg-gradient-to-r from-[#FC3367] via-[#FD7E71] to-[#FFCA7A]
       "
     >

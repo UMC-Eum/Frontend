@@ -28,6 +28,7 @@ const NotificationsPage = () => {
     setSearchParams({ tab: newTab }, { replace: true });
   };
 
+  // 1. 데이터 조회 (Infinite Query)
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } =
     useInfiniteQuery({
       queryKey: ["notifications", currentTab],
@@ -44,9 +45,12 @@ const NotificationsPage = () => {
 
   const allNotifications = data?.pages.flatMap((page) => page.items) || [];
 
+  // 2. 필터링 로직 (HEART와 CHAT만 정확히 매칭)
   const filteredNotifications = allNotifications.filter((noti) => {
     return noti.type === currentTab;
   });
+
+  // 3. 읽음 처리 Mutation
   const { mutate: markAsRead } = useMutation({
     mutationFn: readNotification,
     onMutate: async (notificationId: number) => {
@@ -91,10 +95,11 @@ const NotificationsPage = () => {
   });
 
   return (
-    <div className="flex flex-col h-full bg-white overflow-hidden">
+    <div className="flex flex-col h-screen bg-white overflow-hidden">
       <BackButton title="알림" />
       <LikeOrMessage tab={currentTab} setTab={setTab} />
 
+      {/* 🟢 스크롤이 가능하도록 이 영역을 감싸고 overflow-y-auto를 줍니다. */}
       <main className="flex-1 overflow-y-auto scrollbar-hide">
         {isLoading ? (
           <LoadingPage />
@@ -108,6 +113,7 @@ const NotificationsPage = () => {
               />
             ))}
 
+            {/* 더보기 버튼 (무한 스크롤 트리거) */}
             {hasNextPage && (
               <div
                 onClick={() => fetchNextPage()}

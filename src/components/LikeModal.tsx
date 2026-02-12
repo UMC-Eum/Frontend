@@ -17,6 +17,7 @@ const LikeModal = () => {
         className="relative w-[322px] rounded-[24px] bg-white flex flex-col items-center p-[24px]"
         onClick={(e) => e.stopPropagation()}
       >
+        {/* 닫기 버튼 (X) */}
         <button
           onClick={closeModal}
           className="absolute top-[20px] right-[20px] p-1 hover:opacity-70 transition-opacity"
@@ -31,6 +32,7 @@ const LikeModal = () => {
           </svg>
         </button>
 
+        {/* 상단 텍스트 섹션 */}
         <div className="mt-6 text-center">
           <h1 className="text-[22px] font-bold leading-[1.3] text-[#202020]">
             누군가 회원님을
@@ -42,6 +44,7 @@ const LikeModal = () => {
           </p>
         </div>
 
+        {/* 중앙 하트 SVG 섹션 (마진 조정으로 중앙 배치) */}
         <div className="flex-1 flex items-center justify-center mt-[16px] mb-[32px]">
           <svg
             width="109"
@@ -169,6 +172,7 @@ const LikeModal = () => {
           </svg>
         </div>
 
+        {/* 하단 버튼 섹션 */}
         <div className="flex gap-[12px] w-full mt-auto mb-2">
           <button
             onClick={closeModal}

@@ -3,12 +3,15 @@ import { useNavigate, Outlet, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { useMutation } from "@tanstack/react-query";
 
+// Hooks & Services
 import { useMicRecording } from "../hooks/useMicRecording";
 import { processVoiceAnalysis } from "../service/voiceService";
 import { useUserStore } from "../stores/useUserStore";
 
 import RecordingControl from "../components/RecordingControl";
 import BackButton from "../components/BackButton";
+
+// ✅ PATCH 함수
 import { putIdealPersonalities } from "../api/users/usersApi";
 
 const MatchingPage = () => {
@@ -23,21 +26,35 @@ const MatchingPage = () => {
     mutationFn: (file: File) =>
       processVoiceAnalysis({ file, analysisType: "ideal-type" }),
 
+    // ✅ 군더더기 싹 뺀 PATCH 로직
     onSuccess: async (data) => {
+      console.log("🎤 음성 분석 성공:", data);
+
       const newIdealPersonalities =
         data?.keywordCandidates?.personalities.map((k: any) => k.text) || [];
 
+      console.log("📝 전송할 키워드:", newIdealPersonalities);
+
       if (newIdealPersonalities.length > 0) {
         try {
+          console.log("🚀 이상형 키워드만 PATCH 전송...");
+
+          // ✅ [핵심]
+          // area, nickname, userId 등은 다 필요 없습니다.
+          // PATCH는 '바꿀 것'만 보내면 됩니다.
+          // 이렇게 보내면 데이터 형식이 틀릴 일이 없어서 503/422를 예방합니다.
           await putIdealPersonalities({
             personalityKeywords: newIdealPersonalities,
           } as any);
 
+          console.log("✅ 이상형 업데이트 성공!");
+
+          // 스토어 업데이트
           updateStore({ idealPersonalities: newIdealPersonalities });
 
           navigate("/matching/result", { state: { result: data } });
         } catch (error) {
-          console.error("서버 오류 발생 (로그 확인 필요):", error);
+          console.error("❌ 서버  발생 (백엔드 로그 확인 필요):", error);
           alert(
             "결과 저장 중 서버 오류가 발생했지만, 분석 결과 페이지로 이동합니다.",
           );
@@ -52,6 +69,8 @@ const MatchingPage = () => {
       alert("분석에 실패했습니다. 다시 시도해주세요.");
     },
   });
+
+  // ... (나머지 UI 및 녹음 관련 코드는 그대로 유지) ...
 
   const { status, setStatus, seconds, isShort, handleMicClick } =
     useMicRecording((file) => {

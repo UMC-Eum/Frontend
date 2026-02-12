@@ -1,6 +1,16 @@
-import React, { forwardRef } from "react";
+//가로 : w-full & 최대 픽셀 고정
+//세로 : 픽셀 고정
 
-type ButtonProps = React.ComponentPropsWithoutRef<"button">;
+import React, { forwardRef } from 'react';
+
+//버튼 그대로 상속
+type ButtonProps = React.ComponentPropsWithoutRef<'button'>;
+// interface ButtonProps extends React.ComponentPropsWithoutRef<'button'> {}
+
+/******************************
+ * FullButton
+ * HalfButton
+ * *****************************/
 
 const FullButton = forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, children, ...props }, ref) => {
@@ -23,7 +33,7 @@ const FullButton = forwardRef<HTMLButtonElement, ButtonProps>(
         {children}
       </button>
     );
-  },
+  }
 );
 
 const HalfButton = forwardRef<HTMLButtonElement, ButtonProps>(
@@ -47,8 +57,13 @@ const HalfButton = forwardRef<HTMLButtonElement, ButtonProps>(
         {children}
       </button>
     );
-  },
+  }
 );
+
+/******************************
+ * FullGradButton
+ * SmallGradButton
+ * *****************************/
 
 const FullGradButton = forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, children, ...props }, ref) => {
@@ -71,7 +86,7 @@ const FullGradButton = forwardRef<HTMLButtonElement, ButtonProps>(
         {children}
       </button>
     );
-  },
+  }
 );
 
 const SmallGradButton = forwardRef<HTMLButtonElement, ButtonProps>(
@@ -95,8 +110,12 @@ const SmallGradButton = forwardRef<HTMLButtonElement, ButtonProps>(
         {children}
       </button>
     );
-  },
+  }
 );
+
+/******************************
+ * YesNoButton
+ * *****************************/
 
 const YesNoButton = forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, children, ...props }, ref) => {
@@ -119,7 +138,8 @@ const YesNoButton = forwardRef<HTMLButtonElement, ButtonProps>(
         {children}
       </button>
     );
-  },
+  }
 );
+
 
 export { FullButton, HalfButton, FullGradButton, SmallGradButton, YesNoButton };

@@ -1,17 +1,13 @@
 import { create } from "zustand";
 import { devtools, persist } from "zustand/middleware";
 import { immer } from "zustand/middleware/immer";
-import {
-  IInterest,
-  IKeywordscandidate,
-  IPersonality,
-} from "../types/api/onboarding/onboardingDTO";
+import { IInterest, IKeywordscandidate, IPersonality } from "../types/api/onboarding/onboardingDTO";
 
 interface ScoreState {
   keywords: {
     personalities: IPersonality[];
     interests: IInterest[];
-    ideal: IPersonality[];
+    ideal: IPersonality[]; //setScores에는 포함 X
   };
 }
 
@@ -30,11 +26,11 @@ const sortByScore = <T extends { score: number }>(arr: T[]): T[] => {
 export const useScoreStore = create<ScoreState & ScoreActions>()(
   devtools(
     persist(
-      immer((set) => ({
+      immer((set) => ({ 
         keywords: {
           personalities: [],
           interests: [],
-          ideal: [],
+          ideal: []
         },
 
         setScores: (candidates) =>
@@ -45,32 +41,22 @@ export const useScoreStore = create<ScoreState & ScoreActions>()(
             candidates.forEach((candidate) => {
               if (candidate.personalities) {
                 candidate.personalities.forEach((p) => {
-                  if (
-                    !personalityMap.has(p.text) ||
-                    personalityMap.get(p.text)!.score < p.score
-                  ) {
+                  if (!personalityMap.has(p.text) || personalityMap.get(p.text)!.score < p.score) {
                     personalityMap.set(p.text, p);
                   }
                 });
               }
               if (candidate.interests) {
                 candidate.interests.forEach((i) => {
-                  if (
-                    !interestMap.has(i.text) ||
-                    interestMap.get(i.text)!.score < i.score
-                  ) {
+                  if (!interestMap.has(i.text) || interestMap.get(i.text)!.score < i.score) {
                     interestMap.set(i.text, i);
                   }
                 });
               }
             });
 
-            state.keywords.personalities = sortByScore(
-              Array.from(personalityMap.values()),
-            );
-            state.keywords.interests = sortByScore(
-              Array.from(interestMap.values()),
-            );
+            state.keywords.personalities = sortByScore(Array.from(personalityMap.values()));
+            state.keywords.interests = sortByScore(Array.from(interestMap.values()));
           }),
 
         setPersonalities: (personalities) =>
@@ -97,10 +83,10 @@ export const useScoreStore = create<ScoreState & ScoreActions>()(
       })),
       {
         name: "score-storage",
-      },
+      }
     ),
     {
       name: "ScoreStore",
-    },
-  ),
+    }
+  )
 );

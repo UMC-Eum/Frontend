@@ -15,9 +15,10 @@ export default function IntroTextEditModal({
 
   const handleSave = async () => {
     if (!user) return;
-
+    
     setIsLoading(true);
     try {
+      // PATCH 요청이므로 변경이 필요한 introText만 전송합니다.
       await updateMyProfile({
         introText: text,
       });
@@ -25,6 +26,7 @@ export default function IntroTextEditModal({
       onClose();
     } catch (error) {
       console.error("Failed to update profile:", error);
+      // TODO: Add user-friendly error handling (e.g., toast)
     } finally {
       setIsLoading(false);
     }
@@ -35,17 +37,18 @@ export default function IntroTextEditModal({
       className="fixed inset-0 bg-black/50 z-[100]
     flex items-end"
     >
+      {/* 모달창 시작*/}
       <div
         onClick={(e) => e.stopPropagation()}
         className="pt-[14px] px-[20px] pb-[58px] flex flex-col justify-center w-full bg-white rounded-t-3xl gap-5"
       >
+        {/* 제목 */}
         <div className="flex flex-col items-center gap-3">
           <div className="w-[40px] h-[4px] bg-[#A6AFB6] rounded-full" />
-          <h2 className="text-[20px] font-semibold leading-[1.2] tracking-normal text-gray-900">
-            나의 소개
-          </h2>
+          <h2 className="text-[20px] font-semibold leading-[1.2] tracking-normal text-gray-900">나의 소개</h2>
         </div>
 
+        {/* 텍스트 에디터 */}
         <div className="relative">
           <textarea
             value={text}
@@ -62,16 +65,14 @@ export default function IntroTextEditModal({
             {text.length}/300
           </div>
         </div>
-
+        
         <button
           onClick={handleSave}
           disabled={text.length === 0 || isLoading}
           className={`py-[16px] px-[149px] font-semibold text-[18px] leading-[1.2] tracking-normal rounded-[14px] active:bg-[#e6356a]
-              ${
-                text.length === 0 || isLoading
-                  ? "bg-[#DEE3E5] text-[#A6AFB6] cursor-not-allowed"
-                  : "bg-[#FF3D77] text-white"
-              }`}
+              ${text.length === 0 || isLoading 
+          ? "bg-[#DEE3E5] text-[#A6AFB6] cursor-not-allowed" 
+          : "bg-[#FF3D77] text-white"}`}
         >
           {isLoading ? "저장 중..." : "저장"}
         </button>

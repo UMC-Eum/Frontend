@@ -64,6 +64,7 @@ export function MessageBubble({
     <div
       className={`flex items-end gap-1 mb-4 ${isMe ? "flex-row-reverse" : "flex-row"}`}
     >
+      {/* 1. 텍스트 메시지 */}
       {type === "TEXT" && content && (
         <div
           onClick={handleBubbleClick}
@@ -75,6 +76,7 @@ export function MessageBubble({
         </div>
       )}
 
+      {/* 2. 오디오 메시지 */}
       {type === "AUDIO" && audioUrl && (
         <div
           onClick={handleBubbleClick}
@@ -111,6 +113,7 @@ export function MessageBubble({
         </div>
       )}
 
+      {/* 🚨 3. 사진 메시지 (추가됨) */}
       {(type === "PHOTO" || (type as string) === "IMAGE") && audioUrl && (
         <div
           onClick={handleBubbleClick}
@@ -118,7 +121,7 @@ export function MessageBubble({
             ${isMe && onDelete ? "cursor-pointer" : ""}`}
         >
           <img
-            src={audioUrl}
+            src={audioUrl} // Page에서 넘겨주는 mediaUrl
             alt="채팅 이미지"
             className="w-full h-auto object-cover block"
             style={{ maxHeight: "300px" }}
@@ -126,6 +129,7 @@ export function MessageBubble({
         </div>
       )}
 
+      {/* 🚨 4. 비디오 메시지 (추가됨) */}
       {(type as string) === "VIDEO" && audioUrl && (
         <div
           onClick={handleBubbleClick}
@@ -136,6 +140,7 @@ export function MessageBubble({
         </div>
       )}
 
+      {/* 읽음 / 시간 표시 영역 */}
       {(showTimestamp || (isMe && showRead)) && (
         <div
           className={`flex flex-col justify-end gap-0.5 ${isMe ? "items-end" : "items-start"}`}
@@ -157,6 +162,7 @@ export function MessageBubble({
         </div>
       )}
 
+      {/* 공통 삭제 모달 */}
       {showOverlay && (
         <ConfirmModal
           isOpen={showOverlay}

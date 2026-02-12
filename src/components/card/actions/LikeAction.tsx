@@ -1,6 +1,8 @@
+// card/blocks/actions/LikeAction.tsx
+
 interface LikeActionProps {
-  isLiked: boolean;
-  onLike: () => void;
+  isLiked: boolean; // ✅ 상태를 외부에서 받음
+  onLike: () => void; // ✅ 클릭 함수도 외부에서 받음
   size?: "sm" | "base" | "md" | "lg";
   variant?: "bigIcon" | "smallIcon";
 }
@@ -18,6 +20,7 @@ export default function LikeAction({
   size = "md",
   variant = "bigIcon",
 }: LikeActionProps) {
+  // ✅ 좋아요 상태면 핑크색(#FC3367), 아니면 흰색
   const fillColor = isLiked ? "#FC3367" : "white";
 
   const containerClass = `
@@ -32,7 +35,7 @@ export default function LikeAction({
   return (
     <button
       onClick={(e) => {
-        e.stopPropagation();
+        e.stopPropagation(); // 카드 클릭 이벤트 전파 방지
         onLike();
       }}
       className="outline-none"
