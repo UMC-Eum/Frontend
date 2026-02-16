@@ -67,11 +67,6 @@ export default function Like() {
     retry: 0,
   });
 
-  useEffect(() => {
-    if (tab === "sent") sentQuery.refetch();
-    else receivedQuery.refetch();
-  }, [tab]);
-
   const mapUserToCard = (
     u: any,
     heartId: number,
