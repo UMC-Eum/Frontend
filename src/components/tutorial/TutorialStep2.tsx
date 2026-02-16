@@ -5,7 +5,7 @@ interface Props {
 
 const TutorialStep2 = ({ onCloseForever, onClose }: Props) => {
   return (
-    <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-black/70 p-4">
+    <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-black/70 p-4 overflow-hidden">
       <button
         onClick={onClose}
         className="absolute top-[20px] right-[37.5px] p-1 hover:opacity-70 transition-opacity z-50"
@@ -25,9 +25,9 @@ const TutorialStep2 = ({ onCloseForever, onClose }: Props) => {
         </svg>
       </button>
 
-      <main className="flex flex-col justify-center items-center w-full h-full relative pb-[100px]">
+      <main className="absolute inset-0 flex flex-col items-center justify-center pb-[40px] pointer-events-none">
         <p
-          className="text-center font-semibold mb-[40px] text-white"
+          className="text-center font-semibold mb-[40px] text-white z-20 pointer-events-auto"
           style={{
             fontFamily: "Pretendard",
             fontSize: "20px",
@@ -53,7 +53,7 @@ const TutorialStep2 = ({ onCloseForever, onClose }: Props) => {
           시작해보세요!
         </p>
 
-        <div className="mb-10">
+        <div className="pointer-events-auto">
           <svg
             xmlns="http://www.w3.org/2000/svg"
             width="69"
@@ -141,22 +141,195 @@ const TutorialStep2 = ({ onCloseForever, onClose }: Props) => {
             />
           </svg>
         </div>
-
-        <div className="absolute bottom-[250px] left-1/2 -translate-x-1/2 flex flex-col items-center gap-5 w-full">
-          <button
-            onClick={onClose}
-            className="px-8 py-3 bg-[rgba(0,0,0,0.70)] text-white rounded-[22px] text-[16px] border border-white whitespace-nowrap hover:bg-black/90 transition"
-          >
-            시작하기
-          </button>
-          <button
-            onClick={onCloseForever}
-            className="text-[#D1D1D1] text-sm underline hover:text-white transition"
-          >
-            다시 보지 않기
-          </button>
-        </div>
       </main>
+
+      <div className="absolute bottom-[68px] left-1/2 -translate-x-1/2 flex items-center justify-center translate-y-[20%] z-0">
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-0 flex items-center justify-center pointer-events-none">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="366"
+            height="366"
+            viewBox="0 0 244 244"
+            fill="none"
+            className="absolute"
+          >
+            <circle
+              opacity="0.3"
+              cx="122"
+              cy="122"
+              r="122"
+              fill="url(#paint0_radial_big)"
+              fillOpacity="0.4"
+            />
+            <defs>
+              <radialGradient
+                id="paint0_radial_big"
+                cx="0"
+                cy="0"
+                r="1"
+                gradientUnits="userSpaceOnUse"
+                gradientTransform="translate(122 122) rotate(90) scale(122)"
+              >
+                <stop stopOpacity="0" />
+                <stop offset="1" stopColor="#D9D9D9" />
+              </radialGradient>
+            </defs>
+          </svg>
+
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="216"
+            height="216"
+            viewBox="0 0 144 144"
+            fill="none"
+            className="absolute"
+          >
+            <path
+              d="M144 72C144 111.765 111.765 144 72 144C32.2355 144 0 111.765 0 72C0 32.2355 32.2355 0 72 0C111.765 0 144 32.2355 144 72ZM36.9736 72C36.9736 91.3445 52.6555 107.026 72 107.026C91.3445 107.026 107.026 91.3445 107.026 72C107.026 52.6555 91.3445 36.9736 72 36.9736C52.6555 36.9736 36.9736 52.6555 36.9736 72Z"
+              fill="url(#paint0_radial_small)"
+              fillOpacity="0.4"
+            />
+            <defs>
+              <radialGradient
+                id="paint0_radial_small"
+                cx="0"
+                cy="0"
+                r="1"
+                gradientUnits="userSpaceOnUse"
+                gradientTransform="translate(72 72) rotate(90) scale(72)"
+              >
+                <stop stopOpacity="0" />
+                <stop offset="1" stopColor="#D9D9D9" />
+              </radialGradient>
+            </defs>
+          </svg>
+        </div>
+
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="108"
+          height="108"
+          viewBox="0 0 108 108"
+          fill="none"
+          className="relative z-10"
+        >
+          <g filter="url(#filter0_d_4935_4256)">
+            <circle cx="54" cy="58" r="39" fill="white" />
+          </g>
+          <g filter="url(#filter1_d_4935_4256)">
+            <circle
+              cx="54"
+              cy="58"
+              r="34"
+              fill="url(#paint0_linear_4935_4256)"
+            />
+          </g>
+          <path
+            d="M63.4639 55.9141C64.2173 55.9141 64.8281 56.5249 64.8281 57.2783C64.8281 62.8438 60.6619 67.4319 55.2783 68.1035V70.8877H60.0293C60.7826 70.8879 61.3936 71.4986 61.3936 72.252C61.3936 73.0053 60.7826 73.616 60.0293 73.6162H47.7998C47.0464 73.6162 46.4355 73.0054 46.4355 72.252C46.4355 71.4985 47.0464 70.8877 47.7998 70.8877H52.5498V68.1035C47.1663 67.4319 43 62.8438 43 57.2783C43 56.5249 43.6108 55.9141 44.3643 55.9141C45.1177 55.9141 45.7285 56.5249 45.7285 57.2783C45.7285 61.7991 49.3933 65.4638 53.9141 65.4639C58.4349 65.4639 62.0996 61.7991 62.0996 57.2783C62.0996 56.5249 62.7105 55.9142 63.4639 55.9141ZM53.915 45C56.9287 45.0003 59.372 47.4434 59.3721 50.457V57.2783C59.3721 60.292 56.9287 62.7351 53.915 62.7354C50.9012 62.7353 48.458 60.2922 48.458 57.2783V50.457C48.458 47.4432 50.9012 45 53.915 45ZM53.915 47.7285C52.4081 47.7285 51.1866 48.9501 51.1865 50.457V57.2783C51.1865 58.7853 52.4081 60.0068 53.915 60.0068C55.4218 60.0066 56.6436 58.7851 56.6436 57.2783V50.457C56.6435 48.9503 55.4217 47.7288 53.915 47.7285Z"
+            fill="white"
+          />
+          <defs>
+            <filter
+              id="filter0_d_4935_4256"
+              x="0"
+              y="0"
+              width="108"
+              height="108"
+              filterUnits="userSpaceOnUse"
+              colorInterpolationFilters="sRGB"
+            >
+              <feFlood floodOpacity="0" result="BackgroundImageFix" />
+              <feColorMatrix
+                in="SourceAlpha"
+                type="matrix"
+                values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0"
+                result="hardAlpha"
+              />
+              <feOffset dy="-4" />
+              <feGaussianBlur stdDeviation="7.5" />
+              <feComposite in2="hardAlpha" operator="out" />
+              <feColorMatrix
+                type="matrix"
+                values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.04 0"
+              />
+              <feBlend
+                mode="normal"
+                in2="BackgroundImageFix"
+                result="effect1_dropShadow_4935_4256"
+              />
+              <feBlend
+                mode="normal"
+                in="SourceGraphic"
+                in2="effect1_dropShadow_4935_4256"
+                result="shape"
+              />
+            </filter>
+            <filter
+              id="filter1_d_4935_4256"
+              x="5"
+              y="5"
+              width="98"
+              height="98"
+              filterUnits="userSpaceOnUse"
+              colorInterpolationFilters="sRGB"
+            >
+              <feFlood floodOpacity="0" result="BackgroundImageFix" />
+              <feColorMatrix
+                in="SourceAlpha"
+                type="matrix"
+                values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0"
+                result="hardAlpha"
+              />
+              <feOffset dy="-4" />
+              <feGaussianBlur stdDeviation="7.5" />
+              <feComposite in2="hardAlpha" operator="out" />
+              <feColorMatrix
+                type="matrix"
+                values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.04 0"
+              />
+              <feBlend
+                mode="normal"
+                in2="BackgroundImageFix"
+                result="effect1_dropShadow_4935_4256"
+              />
+              <feBlend
+                mode="normal"
+                in="SourceGraphic"
+                in2="effect1_dropShadow_4935_4256"
+                result="shape"
+              />
+            </filter>
+            <linearGradient
+              id="paint0_linear_4935_4256"
+              x1="88"
+              y1="122.955"
+              x2="54.5073"
+              y2="29.5821"
+              gradientUnits="userSpaceOnUse"
+            >
+              <stop stopColor="white" />
+              <stop offset="0.275557" stopColor="#FFCA7A" />
+              <stop offset="0.560305" stopColor="#FE7E71" />
+              <stop offset="1" stopColor="#FC3367" />
+            </linearGradient>
+          </defs>
+        </svg>
+      </div>
+
+      <div className="absolute bottom-[220px] left-1/2 -translate-x-1/2 flex flex-col items-center gap-3 w-full z-50">
+        <button
+          onClick={onClose}
+          className="px-8 py-3 bg-[rgba(0,0,0,0.70)] text-white rounded-[22px] text-[16px] border border-white whitespace-nowrap hover:bg-black/90 transition"
+        >
+          시작하기
+        </button>
+        <button
+          onClick={onCloseForever}
+          className="text-[#D1D1D1] text-sm underline hover:text-white transition"
+        >
+          다시 보지 않기
+        </button>
+      </div>
     </div>
   );
 };

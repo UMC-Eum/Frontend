@@ -1,5 +1,5 @@
 import RecommendCard from "../card/presets/RecommendCard1";
-
+import avatar_placeholder from "../../assets/avatar_placeholder.svg";
 interface Props {
   onNext: () => void;
   onClose: () => void;
@@ -7,12 +7,11 @@ interface Props {
 
 const TutorialStep1 = ({ onNext, onClose }: Props) => {
   const MOCK_PROFILE = {
-    targetUserId: 99999,
+    targetUserId: -1,
     profileUrl: "#",
-    imageUrl:
-      "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=500&h=800&fit=crop",
-    nickname: "김철수",
-    age: 27,
+    imageUrl: avatar_placeholder,
+    nickname: "홍길동",
+    age: 68,
     area: "서울 강남구",
     description: "함께 맛집 탐방하실 분 찾아요! 😊",
     keywords: ["맛집탐방", "여행", "영화", "산책"],
