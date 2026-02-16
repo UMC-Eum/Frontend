@@ -3,7 +3,6 @@ import { CardLocation } from "../blocks/CardLocation";
 import LikeAction from "../actions/LikeAction";
 import { CardShell } from "../shell/CardShell";
 import { useLike } from "../../../hooks/useLike";
-import { useNavigate } from "react-router-dom";
 
 type RecommendCard2Props = {
   profileUrl: string;
@@ -35,16 +34,9 @@ export default function RecommendCard2({
     initialHeartId,
   });
 
-  const navigate = useNavigate();
-
-  const handleBackgroundClick = () => {
-    navigate(profileUrl);
-  };
-
   return (
     <CardShell
       imageUrl={imageUrl}
-      onClick={handleBackgroundClick}
       className="cursor-pointer"
     >
       <div className="absolute inset-x-0 bottom-0 h-[70%] bg-gradient-to-t from-black/90 via-black/50 to-transparent pointer-events-none z-10" />

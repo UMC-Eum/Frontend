@@ -16,6 +16,7 @@ type MiniCardProps = {
   nickname: string;
   age: number;
   area: string;
+  isReceived?: boolean;
 };
 
 export default function MiniCard({
@@ -27,6 +28,7 @@ export default function MiniCard({
   nickname,
   age,
   area,
+  isReceived = false,
 }: MiniCardProps) {
   const { isLiked, toggleLike } = useLike({
     targetUserId,
@@ -52,12 +54,14 @@ export default function MiniCard({
           onClick={(e) => e.stopPropagation()}
           className="absolute top-[12px] right-[6px] shrink-0 z-20"
         >
-          <LikeAction
-            isLiked={isLiked}
-            onLike={toggleLike}
-            size="sm"
-            variant="smallIcon"
-          />
+          {isReceived ? null : (
+            <LikeAction
+              isLiked={isLiked}
+              onLike={toggleLike}
+              size="sm"
+              variant="smallIcon"
+            />
+          )}
         </div>
 
         <div className="absolute left-4 bottom-2 text-white z-10">

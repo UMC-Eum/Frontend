@@ -182,6 +182,7 @@ export default function Like() {
                       area={item.location}
                       initialIsLiked={tab === "sent"}
                       initialHeartId={tab === "sent" ? item.heartId : null}
+                      isReceived={tab === "received"}
                     />
                   </div>
                 ))}
