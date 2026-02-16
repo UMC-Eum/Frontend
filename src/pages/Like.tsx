@@ -45,7 +45,12 @@ export default function Like() {
       }),
     initialPageParam: null as string | null,
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
+    staleTime: 0, 
+    refetchOnMount: true,
+    retry: 0,
   });
+
+  
 
   const receivedQuery = useInfiniteQuery({
     queryKey: ["hearts", "received"],
@@ -57,6 +62,9 @@ export default function Like() {
       }),
     initialPageParam: null as string | null,
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
+    staleTime: 0, 
+    refetchOnMount: true,
+    retry: 0,
   });
 
   useEffect(() => {
@@ -90,22 +98,27 @@ export default function Like() {
   };
 
   const sentCards = useMemo(() => {
+    if (sentQuery.isError) return [];
     const pages = sentQuery.data?.pages ?? [];
     return pages
       .flatMap((p) => p.items)
       .map((h) => mapUserToCard(h.targetUser, h.heartId, h.targetUserId));
-  }, [sentQuery.data]);
+  }, [sentQuery.data, sentQuery.isError]);
 
   const receivedCards = useMemo(() => {
+    if (receivedQuery.isError) return [];
     const pages = receivedQuery.data?.pages ?? [];
     return pages
       .flatMap((p) => p.items)
       .map((h) => mapUserToCard(h.fromUser, h.heartId, h.fromUserId));
-  }, [receivedQuery.data]);
+  }, [receivedQuery.data, receivedQuery.isError]);
 
   const currentCards = tab === "sent" ? sentCards : receivedCards;
   const isLoading =
     tab === "sent" ? sentQuery.isLoading : receivedQuery.isLoading;
+
+
+
 
   return (
     <div className="h-screen flex flex-col bg-white">
@@ -135,43 +148,51 @@ export default function Like() {
         {isLoading ? (
           <p className="text-sm text-gray-400 text-center mt-10">로딩 중...</p>
         ) : (
-          <div className="grid grid-cols-2 gap-[20px]">
-            {currentCards.map((item) => (
-              <div
-                key={`${item.id}-${item.heartId}`}
-                className="h-[243px] mx-[5px] my-[10px] cursor-pointer"
-                onClick={() => {
-                  navigate(`/home/profile/${item.id}`, {
-                    state: {
-                      profile: {
-                        ...item.rawProfile,
-                        userId: item.id,
-                        nickname: item.name,
-                        age: item.age,
-                        profileImageUrl: item.imageUrl,
-                        areaName: item.location,
-                        introText: item.introText,
-                        keywords: item.keywords,
-                        isLiked: tab === "sent",
-                        heartId: item.heartId,
-                      },
-                    },
-                  });
-                }}
-              >
-                <MiniCard
-                  profileUrl={`/home/profile/${item.id}`}
-                  targetUserId={item.id}
-                  imageUrl={item.imageUrl}
-                  nickname={item.name}
-                  age={item.age}
-                  area={item.location}
-                  initialIsLiked={tab === "sent"}
-                  initialHeartId={tab === "sent" ? item.heartId : null}
-                />
+          <>
+            {currentCards.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-[50vh] text-gray-400">
+                <p>마음 내역이 없습니다.</p>
               </div>
-            ))}
-          </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-[20px]">
+                {currentCards.map((item) => (
+                  <div
+                    key={`${item.id}-${item.heartId}`}
+                    className="h-[243px] mx-[5px] my-[10px] cursor-pointer"
+                    onClick={() => {
+                      navigate(`/home/profile/${item.id}`, {
+                        state: {
+                          profile: {
+                            ...item.rawProfile,
+                            userId: item.id,
+                            nickname: item.name,
+                            age: item.age,
+                            profileImageUrl: item.imageUrl,
+                            areaName: item.location,
+                            introText: item.introText,
+                            keywords: item.keywords,
+                            isLiked: tab === "sent",
+                            heartId: item.heartId,
+                          },
+                        },
+                      });
+                    }}
+                  >
+                    <MiniCard
+                      profileUrl={`/home/profile/${item.id}`}
+                      targetUserId={item.id}
+                      imageUrl={item.imageUrl}
+                      nickname={item.name}
+                      age={item.age}
+                      area={item.location}
+                      initialIsLiked={tab === "sent"}
+                      initialHeartId={tab === "sent" ? item.heartId : null}
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
         )}
       </main>
       <Navbar />
