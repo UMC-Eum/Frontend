@@ -24,6 +24,7 @@ export default function HomePage() {
   const user = useUserStore((state) => state.user);
   const userNickname = user?.nickname ?? "회원";
   const navigate = useNavigate();
+  
 
   const isProfileRegistered =
     user?.idealPersonalities && user.idealPersonalities.length > 0;
