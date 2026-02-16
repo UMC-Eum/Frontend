@@ -16,7 +16,7 @@ export default function HomePage() {
     queryKey: ["home", "recommendation"],
     queryFn: () => getRecommendations({ size: 20 }),
     retry: false,
-    refetchOnWindowFocus: false,
+    refetchOnWindowFocus: true,
     gcTime: 1000 * 60 * 5,
     staleTime: 1000 * 60 * 5,
   });
@@ -89,6 +89,8 @@ export default function HomePage() {
                         description={user.introText || "자기소개가 없습니다."}
                         keywords={user.keywords || []}
                         onGoProfile={() => goProfile(user)}
+                        initialHeartId={user.likedHeartId}
+                        initialIsLiked={user.isLiked}
                       />
                     </div>
                   ))
@@ -130,6 +132,8 @@ export default function HomePage() {
                           description={user.introText || "자기소개가 없습니다."}
                           keywords={user.keywords || []}
                           onGoProfile={() => goProfile(user)}
+                          initialHeartId={user.likedHeartId}
+                          initialIsLiked={user.isLiked}
                         />
                       </div>
                     ))

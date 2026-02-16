@@ -16,6 +16,8 @@ type RecommendCardProps = {
   description: string;
   keywords: string[];
   onGoProfile: () => void;
+  initialHeartId?: number;
+  initialIsLiked?: boolean;
 };
 
 export default function RecommendCard({
@@ -27,6 +29,8 @@ export default function RecommendCard({
   description,
   keywords,
   onGoProfile,
+  initialHeartId,
+  initialIsLiked,
 }: RecommendCardProps) {
   const handleBackgroundClick = () => {
     onGoProfile();

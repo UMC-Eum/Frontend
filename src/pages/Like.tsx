@@ -1,7 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import BackButton from "../components/BackButton";
 import Navbar from "../components/standard/Navbar";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import MiniCard from "../components/card/presets/MiniCard";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { getReceivedHearts, getSentHearts } from "../api/socials/socialsApi";
@@ -22,6 +22,7 @@ type Tab = "sent" | "received";
 const PAGE_SIZE = 20;
 const FALLBACK_IMAGE =
   "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=500&h=800&fit=crop";
+
 
 const calculateAge = (birthDateString: string): number => {
   if (!birthDateString) return 25;
@@ -57,6 +58,11 @@ export default function Like() {
     initialPageParam: null as string | null,
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
   });
+
+  useEffect(() => {
+    if (tab === "sent") sentQuery.refetch();
+    else receivedQuery.refetch();
+  }, [tab]);
 
   const mapUserToCard = (
     u: any,
