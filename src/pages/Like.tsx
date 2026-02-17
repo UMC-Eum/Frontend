@@ -1,10 +1,11 @@
 import { useNavigate } from "react-router-dom";
-import BackButton from "../components/BackButton";
-import Navbar from "../components/standard/Navbar";
+
 import { useMemo, useState } from "react";
 import MiniCard from "../components/card/presets/MiniCard";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { getReceivedHearts, getSentHearts } from "../api/socials/socialsApi";
+import { PageHeader } from "../components/standard/Header";
+import Navbar from "../components/standard/Navbar";
 
 type CardUser = {
   id: number;
@@ -102,8 +103,8 @@ export default function Like() {
     tab === "sent" ? sentQuery.isLoading : receivedQuery.isLoading;
 
   return (
-    <div className="h-screen flex flex-col bg-white">
-      <BackButton title="마음" />
+    <div className="w-full h-full bg-[#F8FAFB] flex flex-col overflow-hidden relative">
+      <PageHeader title="마음" />
       <div className="shrink-0 border-b border-[#DEE3E5] px-[20px] h-[48px] flex">
         <button
           onClick={() => setTab("sent")}
@@ -125,48 +126,52 @@ export default function Like() {
         </button>
       </div>
 
-      <main className="flex-1 overflow-y-auto pt-[26px] px-[20px] pb-[120px] no-scrollbar">
-        {isLoading ? (
-          <p className="text-sm text-gray-400 text-center mt-10">로딩 중...</p>
-        ) : (
-          <div className="grid grid-cols-2 gap-[20px]">
-            {currentCards.map((item) => (
-              <div
-                key={`${item.id}-${item.heartId}`}
-                className="h-[243px] mx-[5px] my-[10px] cursor-pointer"
-                onClick={() => {
-                  navigate(`/home/profile/${item.id}`, {
-                    state: {
-                      profile: {
-                        ...item.rawProfile,
-                        userId: item.id,
-                        nickname: item.name,
-                        age: item.age,
-                        profileImageUrl: item.imageUrl,
-                        areaName: item.location,
-                        introText: item.introText,
-                        keywords: item.keywords,
-                        isLiked: tab === "sent",
-                        heartId: item.heartId,
+      <main className="overflow-y-auto px-[20px] pb-[120px] no-scrollbar">
+        <div className="pt-[42px]">
+          {isLoading ? (
+            <p className="text-sm text-gray-400 text-center mt-10">
+              로딩 중...
+            </p>
+          ) : (
+            <div className="grid grid-cols-2 gap-[20px]">
+              {currentCards.map((item) => (
+                <div
+                  key={`${item.id}-${item.heartId}`}
+                  className="h-[243px] mx-[5px] my-[10px] cursor-pointer"
+                  onClick={() => {
+                    navigate(`/home/profile/${item.id}`, {
+                      state: {
+                        profile: {
+                          ...item.rawProfile,
+                          userId: item.id,
+                          nickname: item.name,
+                          age: item.age,
+                          profileImageUrl: item.imageUrl,
+                          areaName: item.location,
+                          introText: item.introText,
+                          keywords: item.keywords,
+                          isLiked: tab === "sent",
+                          heartId: item.heartId,
+                        },
                       },
-                    },
-                  });
-                }}
-              >
-                <MiniCard
-                  profileUrl={`/home/profile/${item.id}`}
-                  targetUserId={item.id}
-                  imageUrl={item.imageUrl}
-                  nickname={item.name}
-                  age={item.age}
-                  area={item.location}
-                  initialIsLiked={tab === "sent"}
-                  initialHeartId={tab === "sent" ? item.heartId : null}
-                />
-              </div>
-            ))}
-          </div>
-        )}
+                    });
+                  }}
+                >
+                  <MiniCard
+                    profileUrl={`/home/profile/${item.id}`}
+                    targetUserId={item.id}
+                    imageUrl={item.imageUrl}
+                    nickname={item.name}
+                    age={item.age}
+                    area={item.location}
+                    initialIsLiked={tab === "sent"}
+                    initialHeartId={tab === "sent" ? item.heartId : null}
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </main>
       <Navbar />
     </div>

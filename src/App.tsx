@@ -28,6 +28,7 @@ import PersonalitiesRecordPage from "./pages/profile-edit/PersonalitiesRecordPag
 import Like from "./pages/Like";
 import CardTestPage from "./mock/CardTestPage";
 import NotificationsPage from "./pages/NotificationsPage";
+
 import ErrorPage from "./pages/ErrorPage";
 
 import { Outlet, Navigate } from "react-router-dom";

@@ -1,4 +1,4 @@
-import { Outlet, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useUserStore } from "../stores/useUserStore";
 import { useQuery } from "@tanstack/react-query";
 import { getRecommendations } from "../api/onboarding/onboardingApi";
@@ -74,12 +74,12 @@ export default function HomePage() {
                   {userNickname}님이 말한 이상형으로 찾아봤어요!
                 </p>
               </div>
-              <div className="flex overflow-x-auto snap-x snap-mandatory no-scrollbar">
+              <div className="flex overflow-x-auto snap-x snap-mandatory no-scrollbar w-full">
                 {recommendationList.length > 0 ? (
                   recommendationList.map((user) => (
                     <div
                       key={user.userId}
-                      className="snap-center shrink-0 w-full pr-[12px] last:pr-0"
+                      className="snap-center shrink-0 w-full px-[12px]"
                     >
                       <RecommendCard
                         profileUrl={`/home/profile/${user.userId}`}
@@ -196,7 +196,6 @@ export default function HomePage() {
           </section>
         </div>
       </main>
-      <Outlet />
       <Navbar />
     </div>
   );
