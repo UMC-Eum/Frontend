@@ -45,14 +45,14 @@ export default function LoginStep() {
         <p className="text-[18px] mb-10 text-center">
           잊었던 설렘, 목소리로 다시 만나세요.
         </p>
-
-        <img
-          src={kakaologin}
-          alt="loginbutton"
-          className="mt-20 h-14 w-full cursor-pointer"
-          onClick={handleLogin}
-        />
       </div>
+
+      <img
+        src={kakaologin}
+        alt="loginbutton"
+        className="mt-20 h-14 w-full cursor-pointer"
+        onClick={handleLogin}
+      />
     </div>
   );
 }
