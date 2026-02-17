@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   getAgreements,
   getAgreementStatus,
@@ -18,6 +18,7 @@ import MarketingTerms from "./terms/MarketingTerms";
 import { getMyProfile } from "../../api/users/usersApi";
 import AgeLimitModal from "./overlays/AgeLimitModal";
 import ProfileSetupMain from "../profile-setup/ProfileSetupMain";
+import { IUserProfile } from "../../types/user";
 
 const DUMMY_DATA: IAgreementItem[] = [
   { agreementId: 1, body: "서비스 이용약관 상세 내용더미...", type: "POLICY" },
@@ -40,9 +41,11 @@ const AGREEMENT_TYPE_MAP: Record<number, AgreementType> = {
 
 export default function OnBoardingPage() {
   const navigate = useNavigate();
-  const [step, setStep] = useState<"checking" | "permission" | "setup">(
+  const [searchParams] = useSearchParams();
+  const [step, setStep] = useState<"checking"| "permission" | "setup">(
     "checking",
   );
+  const [userProfile, setUserProfile] = useState<IUserProfile | null>(null);
   const [agreements, setAgreements] = useState<IAgreementItem[]>([]);
   const [showAgreement, setShowAgreement] = useState(false);
   const [currentTerm, setCurrentTerm] = useState<AgreementType | null>(null);
@@ -61,15 +64,13 @@ export default function OnBoardingPage() {
       const cameraStatus = await navigator.permissions
         .query({ name: "camera" as any })
         .catch(() => ({ state: "prompt" }));
-      const micStatus = await navigator.permissions
-        .query({ name: "microphone" as any })
-        .catch(() => ({ state: "prompt" }));
-
       const isCameraGranted = cameraStatus.state === "granted";
-      const isMicGranted = micStatus.state === "granted";
-      if (isCameraGranted && isMicGranted) {
+
+      // step=1 파라미터가 있고 카메라 권한이 있다면 바로 setup으로
+      if (searchParams.get("step") === "1" && isCameraGranted) {
         setStep("setup");
       } else {
+        // 그 외에는 권한 허용 여부와 관계없이 PermissionStep 노출
         setStep("permission");
       }
     } catch {
@@ -112,6 +113,8 @@ export default function OnBoardingPage() {
           getMyProfile(),
           getAgreementStatus(),
         ]);
+
+        setUserProfile(userData);
 
         if (userData?.birthDate) {
           const today = new Date();
@@ -242,7 +245,16 @@ export default function OnBoardingPage() {
       )}
 
       {step === "permission" && (
-        <PermissionStep onFinish={() => setStep("setup")} />
+        <PermissionStep
+          onFinish={() => {
+            // 이미 닉네임이 있다면(가입 완료 상태) 이전 페이지로 이동
+            if (userProfile?.nickname) {
+              navigate(-1);
+            } else {
+              setStep("setup");
+            }
+          }}
+        />
       )}
     </div>
   );

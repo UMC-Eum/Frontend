@@ -189,7 +189,7 @@ const ProfileEditSecond = () => {
                 성별
               </dt>
               <dd className="text-[16px] font-medium leading-[1.2] text-gray-500 tracking-normal">
-                {user?.gender}
+                {user?.gender === "M" ? "남성" : "여성"}
               </dd>
             </div>
 
