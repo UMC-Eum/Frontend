@@ -187,10 +187,8 @@ export function MessageBubble({
           {isMe && (
             <span className="text-[12px] font-medium leading-none">
               {!readAt ? (
-                // 1. 안 읽었으면(readAt 없음): '1' 무조건 표시 (모든 메시지에)
                 <span className="text-[#FBC02D]">1</span>
               ) : (
-                // 2. 읽었으면(readAt 있음): 맨 마지막 메시지(showRead)일 때만 '읽음' 표시
                 showRead && <span className="text-[#636970]">읽음</span>
               )}
             </span>

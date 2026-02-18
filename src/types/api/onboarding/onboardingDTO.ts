@@ -64,6 +64,7 @@ export interface IItemRecommendation {
   matchScore: number;
   matchReasons: string[];
   isLiked: boolean;
+  likedHeartId: number;
 }
 export interface IRecommendationsRequest {
   cursor?: string;

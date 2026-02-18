@@ -15,6 +15,8 @@ type RecommendCardProps = {
   description: string;
   keywords: string[];
   onGoProfile: () => void;
+  initialHeartId?: number;
+  initialIsLiked?: boolean;
   className?: string; // [추가] 외부에서 스타일을 받을 수 있게 추가
 };
 
