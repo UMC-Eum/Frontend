@@ -97,8 +97,8 @@ export default function ChatRoomPage() {
       const isInitialLoad = prevLastId === null;
       const isUserAtBottom = isAtBottomRef.current;
       setTimeout(() => {
-          scrollToBottom("smooth");
-        }, 50);
+        scrollToBottom("smooth");
+      }, 50);
 
       if (isInitialLoad || isMyMessage || isUserAtBottom) {
         scrollToBottom("smooth");
