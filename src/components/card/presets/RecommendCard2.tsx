@@ -18,7 +18,6 @@ type RecommendCard2Props = {
 };
 
 export default function RecommendCard2({
-  profileUrl,
   targetUserId,
   imageUrl = "",
   nickname = "알 수 없음",

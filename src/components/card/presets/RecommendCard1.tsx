@@ -29,8 +29,6 @@ export default function RecommendCard({
   description,
   keywords,
   onGoProfile,
-  initialHeartId,
-  initialIsLiked,
   className, // [추가] 구조 분해 할당
 }: RecommendCardProps) {
   const handleBackgroundClick = () => {
