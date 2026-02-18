@@ -23,6 +23,7 @@ import { DateSeparator } from "../../components/chat/DateSeparator";
 import { getFormattedDate } from "../../hooks/useFormatDate";
 import { createReport } from "../../api/socials/socialsApi";
 import ImageViewer from "../../components/chat/ImageViewer";
+import { patchChatRoomLeave } from "../../api/chats/chatsApi";
 
 type ModalType = "NONE" | "BLOCK" | "EXIT";
 
@@ -299,7 +300,10 @@ export default function ChatRoomPage() {
         cancelText="취소"
         isDanger
         onCancel={() => setActiveModal("NONE")}
-        onConfirm={() => navigate("/message")}
+        onConfirm={async () => {
+          await patchChatRoomLeave(parsedRoomId);
+          navigate("/message");
+        }}
       />
     </div>
   );
