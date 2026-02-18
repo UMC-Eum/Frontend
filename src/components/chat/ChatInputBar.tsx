@@ -7,14 +7,14 @@ interface ChatInputBarProps {
   onSendText: (text: string) => void;
   onSendVoice: (file: File, duration: number) => void;
   isBlocked?: boolean;
-  onSelectImage: (file: File) => void;
+  onSendImage: (file: File) => void;
 }
 
 export function ChatInputBar({
   onSendText,
   onSendVoice,
   isBlocked,
-  onSelectImage,
+  onSendImage,
 }: ChatInputBarProps) {
   const [text, setText] = useState("");
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -52,7 +52,7 @@ export function ChatInputBar({
 
   const handleSend = async () => {
     if (selectedFile) {
-      onSelectImage(selectedFile);
+      onSendImage(selectedFile);
       handleRemoveFile();
     }
 
