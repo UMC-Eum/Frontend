@@ -224,7 +224,7 @@ export default function ChatRoomPage() {
         <ChatInputBar
           onSendText={sendText}
           onSendVoice={sendVoice}
-          onSelectImage={sendImageOrVideo}
+          onSendImage={sendImageOrVideo}
           isBlocked={blockId !== null}
         />
       </div>
