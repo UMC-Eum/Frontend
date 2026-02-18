@@ -6,6 +6,7 @@ import { useNavigate } from "react-router-dom";
 import { logout } from "../../api/auth/authApi";
 import { deactivateUser } from "../../api/users/usersApi";
 import Navbar from "../../components/standard/Navbar";
+import { PageHeader } from "../../components/standard/Header";
 
 export default function ProfileEditMain() {
   const { user, clearUser } = useUserStore();
@@ -45,51 +46,49 @@ export default function ProfileEditMain() {
   };
 
   return (
-    <div>
-      <div className="flex flex-1 flex-col min-h-screen">
-        <div className="pb-6">
-          <h2 className="px-5 py-2 text-[24px] font-semibold">내 프로필</h2>
-          <div className="flex flex-col items-center">
-            <div className="mb-6 w-[111px] h-[111px] rounded-full p-[2px] bg-gradient-to-tr from-[#FFBD66] via-[#FF3D77] to-[#FF3D77]">
-              <img
-                className="w-full h-full rounded-full object-cover"
-                src={user?.profileImageUrl}
-              />
-            </div>
-            <h3 className="mb-[10px] text-[20px] font-semibold leading-[1.2]">
-              {user?.nickname} {user?.age}
-            </h3>
-            <button
-              onClick={() => navigate("edit")}
-              className="flex items-center px-[12px] py-[7px] rounded-full border border-gray-300 bg-gray-100"
-            >
-              <img src={editpen_btn} />
-              <span className="text-gray-700 text-[14px] font-medium leading-[1.2]">
-                프로필 수정
-              </span>
-            </button>
+    <div className="w-full h-full bg-[#F8FAFB] flex flex-col overflow-hidden relative">
+      <PageHeader title="내 프로필" />
+      <div className="pb-6">
+        <div className="flex flex-col items-center">
+          <div className="mb-6 w-[111px] h-[111px] rounded-full p-[2px] bg-gradient-to-tr from-[#FFBD66] via-[#FF3D77] to-[#FF3D77]">
+            <img
+              className="w-full h-full rounded-full object-cover"
+              src={user?.profileImageUrl}
+            />
           </div>
-        </div>
-        <div className="pt-6 flex flex-1 flex-col items-center bg-gray-100">
+          <h3 className="mb-[10px] text-[20px] font-semibold leading-[1.2]">
+            {user?.nickname} {user?.age}
+          </h3>
           <button
-            onClick={handleLogout}
-            className="py-4 pl-6 pr-4 w-[90%] flex justify-between rounded-[10px] bg-white border border-[#F2F4F7]"
+            onClick={() => navigate("edit")}
+            className="flex items-center px-[12px] py-[7px] rounded-full border border-gray-300 bg-gray-100"
           >
-            <div className="flex items-center gap-3 text-[#475467]">
-              <img src={signout_btn} className="h-[1em]" />
-              <span className="text-[16px] font-medium leading-[24px]">
-                로그아웃
-              </span>
-            </div>
-            <img src={term_detailbutton} className="" />
-          </button>
-          <button
-            onClick={handleDeactivate}
-            className="pt-6 text-gray-600 text-sm underline underline-offset-4 decoration-1"
-          >
-            탈퇴하기
+            <img src={editpen_btn} />
+            <span className="text-gray-700 text-[14px] font-medium leading-[1.2]">
+              프로필 수정
+            </span>
           </button>
         </div>
+      </div>
+      <div className="pt-6 flex flex-1 flex-col items-center bg-gray-100 min-h-[400px]">
+        <button
+          onClick={handleLogout}
+          className="py-4 pl-6 pr-4 w-[90%] flex justify-between rounded-[10px] bg-white border border-[#F2F4F7]"
+        >
+          <div className="flex items-center gap-3 text-[#475467]">
+            <img src={signout_btn} className="h-[1em]" />
+            <span className="text-[16px] font-medium leading-[24px]">
+              로그아웃
+            </span>
+          </div>
+          <img src={term_detailbutton} className="" />
+        </button>
+        <button
+          onClick={handleDeactivate}
+          className="pt-6 text-gray-600 text-sm underline underline-offset-4 decoration-1"
+        >
+          탈퇴하기
+        </button>
       </div>
       <Navbar />
     </div>

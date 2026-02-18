@@ -1,4 +1,4 @@
-import { Outlet, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useUserStore } from "../stores/useUserStore";
 import { useQuery } from "@tanstack/react-query";
 import { getRecommendations } from "../api/onboarding/onboardingApi";
@@ -7,6 +7,7 @@ import saypinkbox from "../assets/saypinkbox.svg";
 import bell from "../assets/Bell.svg";
 import norecommend from "../assets/norecommend.svg";
 import Navbar from "../components/standard/Navbar";
+import TutorialMain from "../components/tutorial/TutorialMain";
 
 const FALLBACK_IMAGE =
   "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=500&h=800&fit=crop";
@@ -45,6 +46,7 @@ export default function HomePage() {
 
   return (
     <div className="w-full h-full bg-[#F8FAFB] flex flex-col overflow-hidden relative">
+      <TutorialMain />
       <main className="overflow-y-auto px-[20px] pb-[120px] no-scrollbar">
         <header className="flex h-[45px] items-center justify-between mt-[10px] mb-[10px] font-bold">
           <div className="text-[24px]">
@@ -73,12 +75,12 @@ export default function HomePage() {
                   {userNickname}님이 말한 이상형으로 찾아봤어요!
                 </p>
               </div>
-              <div className="flex overflow-x-auto snap-x snap-mandatory no-scrollbar">
+              <div className="flex overflow-x-auto snap-x snap-mandatory no-scrollbar w-full">
                 {recommendationList.length > 0 ? (
                   recommendationList.map((user) => (
                     <div
                       key={user.userId}
-                      className="snap-center shrink-0 w-full pr-[12px] last:pr-0"
+                      className="snap-center shrink-0 w-full px-[12px]"
                     >
                       <RecommendCard
                         profileUrl={`/home/profile/${user.userId}`}
@@ -97,7 +99,11 @@ export default function HomePage() {
                   ))
                 ) : (
                   <div className="w-full aspect-[2/3] shrink-0 rounded-2xl overflow-hidden shadow-lg bg-white flex items-center justify-center">
-                    <img src={norecommend} alt="추천 없음" className="w-full h-full object-cover" />
+                    <img
+                      src={norecommend}
+                      alt="추천 없음"
+                      className="w-full h-full object-cover"
+                    />
                   </div>
                 )}
               </div>
@@ -140,7 +146,11 @@ export default function HomePage() {
                     ))
                   ) : (
                     <div className="w-full aspect-[2/3] shrink-0 rounded-2xl overflow-hidden shadow-lg bg-white flex items-center justify-center">
-                      <img src={norecommend} alt="추천 없음" className="w-full h-full object-cover" />
+                      <img
+                        src={norecommend}
+                        alt="추천 없음"
+                        className="w-full h-full object-cover"
+                      />
                     </div>
                   )}
                 </div>
@@ -191,7 +201,6 @@ export default function HomePage() {
           </section>
         </div>
       </main>
-      <Outlet />
       <Navbar />
     </div>
   );

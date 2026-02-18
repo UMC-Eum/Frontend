@@ -66,6 +66,11 @@ export function useChatMessages(roomId: number | undefined, myId: number) {
       } else {
         setNextCursor(null);
       }
+      res.items.forEach((item) => {
+        if (item.senderUserId !== myId && !item.readAt) {
+          readChatMessage(item.messageId).catch(console.error);
+        }
+      });
     } catch (e) {
       console.error("과거 메시지 로드 실패", e);
     } finally {

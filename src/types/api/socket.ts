@@ -19,4 +19,7 @@ export interface MessageNewData {
   mediaUrl: string | null;
   durationSec: number;
   sentAt: string;
+  // 서버에서 제공하는 경우 (선택적)
+  senderName?: string;
+  senderProfileImage?: string;
 }

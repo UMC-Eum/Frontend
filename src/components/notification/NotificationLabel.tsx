@@ -9,7 +9,7 @@ const NotificationLabel = ({
   notification,
   onClick,
 }: NotificationLabelProps) => {
-  const { notificationId, type, body, isRead, createdAt } = notification;
+  const { notificationId, body, isRead, createdAt } = notification;
 
   const displayTime = getRelativeTime(createdAt);
 
@@ -22,17 +22,15 @@ const NotificationLabel = ({
     >
       <div className="relative shrink-0">
         <img
-          src="/default_profile.png"
-          alt="profile"
+          src={notification.sender.profileImageUrl}
+          alt={notification.sender.nickname}
           className="w-[50px] h-[50px] rounded-full object-cover border border-[#E9ECEF]"
         />
       </div>
 
       <div className="flex flex-col flex-1 gap-[4px] overflow-hidden">
         <div className="flex justify-between items-center w-full">
-          <span className="text-[14px] font-medium text-[#868E96]">
-            {type === "HEART" ? "마음" : "대화"}
-          </span>
+          <span className="text-[14px] font-medium text-[#868E96]">마음</span>
           <span className="text-[12px] text-[#ADB5BD]">{displayTime}</span>
         </div>
 

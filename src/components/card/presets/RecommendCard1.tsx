@@ -7,7 +7,6 @@ import { RoundCardShell } from "../shell/RoundCardShell";
 
 type RecommendCardProps = {
   targetUserId: number;
-
   profileUrl: string;
   imageUrl: string;
   nickname: string;
@@ -18,6 +17,7 @@ type RecommendCardProps = {
   onGoProfile: () => void;
   initialHeartId?: number;
   initialIsLiked?: boolean;
+  className?: string; // [추가] 외부에서 스타일을 받을 수 있게 추가
 };
 
 export default function RecommendCard({
@@ -31,6 +31,7 @@ export default function RecommendCard({
   onGoProfile,
   initialHeartId,
   initialIsLiked,
+  className, // [추가] 구조 분해 할당
 }: RecommendCardProps) {
   const handleBackgroundClick = () => {
     onGoProfile();
@@ -46,7 +47,9 @@ export default function RecommendCard({
     <RoundCardShell
       imageUrl={imageUrl}
       onClick={handleBackgroundClick}
-      className="cursor-pointer"
+      // [수정] 기존 스타일과 외부에서 들어온 className을 합쳐줍니다.
+      // 튜토리얼에서는 pointer-events-none이 들어오므로 cursor-pointer가 무시되어도 괜찮습니다.
+      className={`cursor-pointer ${className || ""}`}
     >
       <div className="absolute inset-x-0 bottom-0 h-[70%] bg-gradient-to-t from-black/90 via-black/50 to-transparent z-10 pointer-events-none" />
 

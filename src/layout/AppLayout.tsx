@@ -4,15 +4,21 @@ import LikeModal from "../components/LikeModal";
 import { useSocketStore } from "../stores/useSocketStore";
 import { useNotificationStore } from "../stores/useNotificationStore";
 import ToastNotification from "../components/common/ToastNotification";
+import ChatNotificationToast from "../components/chat/ChatNotificationToast";
 import { useNotificationPolling } from "../hooks/useNotificationPolling";
+import { useGlobalChatNotification } from "../hooks/chat/useGlobalChatNotification";
 
 const AppLayout = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { socket } = useSocketStore();
 
+  useGlobalChatNotification();
+
   const { showToast, hideToast, toastMessage, isToastVisible, toastLink } =
     useNotificationStore();
+
+  const { chatNotification, hideChatNotification } = useSocketStore();
 
   const isMatchingPage = location.pathname.startsWith("/matching");
   useNotificationPolling(30000, !isMatchingPage);
@@ -58,10 +64,21 @@ const AppLayout = () => {
           <Outlet />
         </main>
 
+        {chatNotification && (
+          <ChatNotificationToast
+            isVisible={!!chatNotification}
+            senderName={chatNotification.senderName}
+            senderProfileImage={chatNotification.senderProfileImage}
+            messagePreview={chatNotification.messagePreview}
+            chatRoomId={chatNotification.chatRoomId}
+            onClose={hideChatNotification}
+          />
+        )}
+
         {isToastVisible && (
           <div
             onClick={handleToastClick}
-            className="absolute top-4 left-0 right-0 z-[9999] px-4 cursor-pointer animate-fade-in-down"
+            className="absolute top-4 left-0 right-0 z-[9998] px-4 cursor-pointer animate-fade-in-down"
           >
             <ToastNotification
               message={toastMessage}
