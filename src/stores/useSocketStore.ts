@@ -3,10 +3,26 @@ import { io, Socket } from "socket.io-client";
 
 const NAMESPACE = "https://back.eum-dating.com/chats";
 
+export interface ChatNotification {
+  chatRoomId: number;
+  senderUserId: number;
+  senderName: string;
+  senderProfileImage: string;
+  messagePreview: string;
+  messageType: string;
+}
+
 interface SocketStore {
   socket: Socket | null;
   isConnected: boolean;
   joinedRoomIds: Set<number>;
+  currentChatRoomId: number | null; // 현재 보고 있는 채팅방 ID
+
+  // 채팅 알림 상태
+  chatNotification: ChatNotification | null;
+  showChatNotification: (notification: ChatNotification) => void;
+  hideChatNotification: () => void;
+  setCurrentChatRoomId: (roomId: number | null) => void;
 
   connect: () => void;
   disconnect: () => void;
@@ -25,6 +41,20 @@ export const useSocketStore = create<SocketStore>((set, get) => ({
   socket: null,
   isConnected: false,
   joinedRoomIds: new Set(),
+  currentChatRoomId: null,
+  chatNotification: null,
+
+  showChatNotification: (notification: ChatNotification) => {
+    set({ chatNotification: notification });
+  },
+
+  hideChatNotification: () => {
+    set({ chatNotification: null });
+  },
+
+  setCurrentChatRoomId: (roomId: number | null) => {
+    set({ currentChatRoomId: roomId });
+  },
 
   connect: () => {
     const token = localStorage.getItem("accessToken");
@@ -49,10 +79,7 @@ export const useSocketStore = create<SocketStore>((set, get) => ({
 
       const { joinedRoomIds } = get();
       joinedRoomIds.forEach((roomId) => {
-        newSocket.emit(
-          "room.join",
-          { chatRoomId: roomId },
-        );
+        newSocket.emit("room.join", { chatRoomId: roomId });
       });
     });
 
@@ -77,10 +104,7 @@ export const useSocketStore = create<SocketStore>((set, get) => ({
     const { socket, joinedRoomIds } = get();
 
     if (socket && !joinedRoomIds.has(roomId)) {
-      socket.emit(
-        "room.join",
-        { chatRoomId: roomId },
-      );
+      socket.emit("room.join", { chatRoomId: roomId });
 
       const newSet = new Set(joinedRoomIds);
       newSet.add(roomId);
@@ -99,10 +123,7 @@ export const useSocketStore = create<SocketStore>((set, get) => ({
         durationSec: durationSec || null,
       };
 
-      socket.emit(
-        "message.send",
-        payload,
-      );
+      socket.emit("message.send", payload);
     } else {
       console.error("소켓이 연결되지 않아서 메시지를 보낼 수 없습니다.");
     }

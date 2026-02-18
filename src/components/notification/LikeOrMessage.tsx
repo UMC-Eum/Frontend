@@ -1,7 +1,6 @@
-import { type TabType } from "../../pages/NotificationsPage";
 interface LikeOrMessageProps {
-  tab: TabType;
-  setTab: (tab: TabType) => void;
+  tab: "HEART" | "CHAT";
+  setTab: (tab: "HEART" | "CHAT") => void;
 }
 
 const LikeOrMessage = ({ tab, setTab }: LikeOrMessageProps) => {
