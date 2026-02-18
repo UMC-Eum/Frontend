@@ -208,7 +208,7 @@ const NotificationsPage = () => {
             <div className="h-10" />
           </div>
         ) : (
-          <EmptyNotification selected="HEART" />
+          <EmptyNotification />
         )}
       </main>
     </div>
