@@ -34,13 +34,13 @@ export const useChatSender = (
     setTimeout(scrollToBottom, 100);
   };
 
-  const replaceTempMediaUrl = (fromUrl: string, toUrl: string) => {
-    setTempMessages((prev) =>
-      prev.map((msg) =>
-        msg.mediaUrl === fromUrl ? { ...msg, mediaUrl: toUrl } : msg,
-      ),
-    );
-  };
+  // const replaceTempMediaUrl = (fromUrl: string, toUrl: string) => {
+  //   setTempMessages((prev) =>
+  //     prev.map((msg) =>
+  //       msg.mediaUrl === fromUrl ? { ...msg, mediaUrl: toUrl } : msg,
+  //     ),
+  //   );
+  // };
 
   const sendText = async (text: string) => {
     if (!roomId) return;
