@@ -47,3 +47,10 @@ export const deleteNotification = async (notificationId: number) => {
   );
   return data.success.data;
 };
+//v1/notifications/hearts/read (patch)
+export const readAllHeartNotifications = async () => {
+  const { data } = await api.patch<ApiSuccessResponse<null>>(
+    `/v1/notifications/hearts/read`,
+  );
+  return data.success.data;
+};

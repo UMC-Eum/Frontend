@@ -19,6 +19,8 @@ type Profile = {
   areaName: string;
   introText?: string;
   keywords?: string[];
+  likedHeartId?: number;
+  isLiked?: boolean;
 };
 
 const FALLBACK_IMAGE =
@@ -50,6 +52,7 @@ export default function ProfileRecommendPage() {
           areaName: "지역 미설정",
           introText: "",
           keywords: ["임시", "데이터"],
+          
         }
       : null;
 
@@ -97,6 +100,8 @@ export default function ProfileRecommendPage() {
                 area={profile.areaName}
                 description={profile.introText || "아직 소개글이 없어요!"}
                 keywords={profile.keywords || []}
+                initialHeartId={profile.likedHeartId}
+                initialIsLiked={profile.isLiked}
               />
             </div>
             <header className="absolute inset-0 w-full pt-[5px] shrink-0 pointer-events-none z-50">

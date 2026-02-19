@@ -23,6 +23,7 @@ import { DateSeparator } from "../../components/chat/DateSeparator";
 import { getFormattedDate } from "../../hooks/useFormatDate";
 import { createReport } from "../../api/socials/socialsApi";
 import ImageViewer from "../../components/chat/ImageViewer";
+import { patchChatRoomLeave } from "../../api/chats/chatsApi";
 
 type ModalType = "NONE" | "BLOCK" | "EXIT";
 
@@ -35,14 +36,13 @@ export default function ChatRoomPage() {
 
   const prevLastMessageIdRef = useRef<number | null>(null);
 
-  const { connect, joinRoom } = useSocketStore();
+  const { connect, joinRoom, setCurrentChatRoomId } = useSocketStore();
   const [activeModal, setActiveModal] = useState<ModalType>("NONE");
   const [playingId, setPlayingId] = useState<number | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [isReportScreenOpen, setIsReportScreenOpen] = useState(false);
   const [expandedImage, setExpandedImage] = useState<string | null>(null);
 
-  // 1. 데이터 및 로직 훅
   const { peerInfo, blockId, isMenuOpen, setIsMenuOpen, handleBlockToggle } =
     useChatRoomInfo(parsedRoomId);
 
@@ -61,10 +61,16 @@ export default function ChatRoomPage() {
     initialMessages,
     setInitialMessages,
     blockId,
-    parsedRoomId
+    parsedRoomId,
   );
 
-  const { scrollContainerRef, topObserverRef, bottomRef, scrollToBottom, isAtBottomRef } = useChatScroll({
+  const {
+    scrollContainerRef,
+    topObserverRef,
+    bottomRef,
+    scrollToBottom,
+    isAtBottomRef,
+  } = useChatScroll({
     isInitLoaded,
     isLoading,
     nextCursor,
@@ -80,7 +86,6 @@ export default function ChatRoomPage() {
   );
 
   useEffect(() => {
-
     if (!isInitLoaded || displayMessages.length === 0) return;
 
     const currentLastMsg = displayMessages[displayMessages.length - 1];
@@ -88,26 +93,34 @@ export default function ChatRoomPage() {
     const prevLastId = prevLastMessageIdRef.current;
 
     if (currentLastId !== prevLastId) {
-      
       const isMyMessage = currentLastMsg.senderUserId === myId;
       const isInitialLoad = prevLastId === null;
-      const isUserAtBottom = isAtBottomRef.current; 
+      const isUserAtBottom = isAtBottomRef.current;
+      setTimeout(() => {
+          scrollToBottom("smooth");
+        }, 50);
 
       if (isInitialLoad || isMyMessage || isUserAtBottom) {
-        scrollToBottom("smooth"); 
+        scrollToBottom("smooth");
       } else {
-        console.log("새 메시지가 왔지만 스크롤을 내리지 않았습니다."); 
+        console.log("새 메시지가 왔지만 스크롤을 내리지 않았습니다.");
       }
     }
 
     prevLastMessageIdRef.current = currentLastId;
-    
   }, [displayMessages, isInitLoaded, myId, scrollToBottom]);
 
   useEffect(() => {
     connect();
     if (parsedRoomId) joinRoom(parsedRoomId);
   }, [parsedRoomId, connect, joinRoom]);
+
+  useEffect(() => {
+    setCurrentChatRoomId(parsedRoomId);
+    return () => {
+      setCurrentChatRoomId(null);
+    };
+  }, [parsedRoomId, setCurrentChatRoomId]);
 
   const handleRealReport = async (code: string, desc: string) => {
     if (!peerInfo) return;
@@ -224,15 +237,15 @@ export default function ChatRoomPage() {
         <ChatInputBar
           onSendText={sendText}
           onSendVoice={sendVoice}
-          onSelectImage={sendImageOrVideo}
+          onSendImage={sendImageOrVideo}
           isBlocked={blockId !== null}
         />
       </div>
       {/* 이미지 확대 뷰어 */}
       {expandedImage && (
-        <ImageViewer 
-          src={expandedImage} 
-          onClose={() => setExpandedImage(null)} 
+        <ImageViewer
+          src={expandedImage}
+          onClose={() => setExpandedImage(null)}
         />
       )}
 
@@ -268,7 +281,11 @@ export default function ChatRoomPage() {
       <ConfirmModal
         isOpen={activeModal === "BLOCK"}
         title={!blockId ? "차단할까요?" : "차단을 해제할까요?"}
-        description={!blockId ? "서로의 프로필이 노출되지 않습니다." : "다시 채팅을 진행할 수 있습니다."}
+        description={
+          !blockId
+            ? "서로의 프로필이 노출되지 않습니다."
+            : "다시 채팅을 진행할 수 있습니다."
+        }
         confirmText={!blockId ? "차단하기" : "차단 해제하기"}
         cancelText="취소"
         isDanger
@@ -286,7 +303,10 @@ export default function ChatRoomPage() {
         cancelText="취소"
         isDanger
         onCancel={() => setActiveModal("NONE")}
-        onConfirm={() => navigate("/message")}
+        onConfirm={async () => {
+          await patchChatRoomLeave(parsedRoomId);
+          navigate("/message");
+        }}
       />
     </div>
   );

@@ -180,16 +180,16 @@ export function MessageBubble({
       )}
 
       {/* 시간 및 읽음 표시 */}
-      {(showTimestamp || (isMe && showRead)) && (
+      {(showTimestamp || (isMe && (!readAt || showRead))) && (
         <div
           className={`flex flex-col justify-end gap-0.5 ${isMe ? "items-end" : "items-start"}`}
         >
-          {isMe && showRead && (
+          {isMe && (
             <span className="text-[12px] font-medium leading-none">
-              {readAt ? (
-                <span className="text-[#636970]">읽음</span>
-              ) : (
+              {!readAt ? (
                 <span className="text-[#FBC02D]">1</span>
+              ) : (
+                showRead && <span className="text-[#636970]">읽음</span>
               )}
             </span>
           )}
