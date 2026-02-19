@@ -316,7 +316,7 @@ const TutorialStep2 = ({ onCloseForever, onClose }: Props) => {
         </svg>
       </div>
 
-      <div className="absolute bottom-[220px] left-1/2 -translate-x-1/2 flex flex-col items-center gap-3 w-full z-50">
+      <div className="absolute bottom-[25vh] left-1/2 -translate-x-1/2 flex flex-col items-center gap-3 w-full z-50">
         <button
           onClick={onClose}
           className="px-8 py-3 bg-[rgba(0,0,0,0.70)] text-white rounded-[22px] text-[16px] border border-white whitespace-nowrap hover:bg-black/90 transition"
