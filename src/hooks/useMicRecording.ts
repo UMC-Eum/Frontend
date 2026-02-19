@@ -113,14 +113,20 @@ export const useMicRecording = (
 
   const stopRecording = useCallback(() => {
     if (mediaRecorderRef.current && status === "recording") {
+      // 1. 채팅창(isChat)이면 시간 제한 없이 통과, 아니면(이상형 찾기 등) 10초 제한
       const minDuration = isChat ? 0 : 10;
+
       if (secondsRef.current < minDuration) {
         setIsShort(true);
+        // 💡 중요: 너무 짧아서 취소될 때 상태를 다시 'inactive'로 돌려줘야 버튼이 안 굳습니다!
+        setStatus("inactive");
         setTimeout(() => {
           setIsShort(false);
         }, 2000);
         return;
       }
+
+      // 2. 정상 범위일 때만 로딩 상태로 진입
       setStatus("loading");
       mediaRecorderRef.current.stop();
     }
