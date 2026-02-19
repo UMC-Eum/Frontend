@@ -96,7 +96,7 @@ const TutorialStep1 = ({ onNext, onClose }: Props) => {
 
       <button
         onClick={onNext}
-        className="absolute bottom-[150px] left-1/2 -translate-x-1/2 px-8 py-2 bg-black/0 text-white rounded-[22px] text-[16px] border border-white whitespace-nowrap z-[10000]"
+        className="absolute bottom-[40px] left-1/2 -translate-x-1/2 px-8 py-2 bg-black/0 text-white rounded-[22px] text-[16px] border border-white whitespace-nowrap z-[10000]"
       >
         다음
       </button>
