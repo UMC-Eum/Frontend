@@ -27,7 +27,8 @@ const NotificationsPage = () => {
         getNotificationHearts({ cursor: pageParam, size: 20 }),
       initialPageParam: null as string | null,
       getNextPageParam: (lastPage) => lastPage.nextCursor,
-      refetchInterval: 1000 * 30,
+      refetchOnWindowFocus: true,
+      refetchInterval: 1000 * 10,
       staleTime: 1000 * 60 * 3,
       gcTime: 1000 * 60 * 5,
     });
