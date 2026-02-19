@@ -3,7 +3,6 @@ import api from "../axiosInstance";
 import { ApiSuccessResponse } from "../../types/api/api";
 import * as DTO from "../../types/api/chats/chatsDTO";
 
-/** 채팅방 생성 (POST) */
 export const createChatRoom = async (body: DTO.IChatsRoomsPostRequest) => {
   const { data } = await api.post<
     ApiSuccessResponse<DTO.IChatsRoomsPostResponse>
@@ -11,7 +10,6 @@ export const createChatRoom = async (body: DTO.IChatsRoomsPostRequest) => {
   return data.success.data;
 };
 
-/** 채팅방 목록 조회 (GET) */
 export const getChatRooms = async (params: {
   cursor?: string | null;
   size: number;
@@ -22,7 +20,6 @@ export const getChatRooms = async (params: {
   return data.success.data;
 };
 
-/** 특정 채팅방 상세 정보 조회 (GET) */
 export const getChatRoomDetail = async (chatRoomId: number) => {
   const { data } = await api.get<
     ApiSuccessResponse<DTO.IChatsRoomIdGetResponse>
@@ -30,28 +27,21 @@ export const getChatRoomDetail = async (chatRoomId: number) => {
   return data.success.data;
 };
 
-/** 메시지 목록 조회 (GET) */
 export const getChatMessages = async (
   chatRoomId: number,
   params: { cursor?: string | null; size?: number } = {},
 ) => {
-  const requestParams = {
-    size: 30,
-    ...params,
-  };
-
+  const requestParams = { size: 30, ...params };
   const { data } = await api.get<
     ApiSuccessResponse<DTO.IChatsRoomIdMessagesGetResponse>
   >(`/v1/chats/rooms/${chatRoomId}/messages`, { params: requestParams });
-
   return data.success.data;
 };
 
-/** 채팅방 내 미디어 업로드 url 발급 (POST) */
+/** 미디어 업로드 URL 발급 */
 export const postChatMediaPresign = async (chatRoomId: number, file: File) => {
   let mediaType = "PHOTO";
-
-  if (file.type.startsWith("audio")) {
+  if (file.type.startsWith("audio") || file.type.includes("mp4")) {
     mediaType = "AUDIO";
   } else if (file.type.startsWith("video")) {
     mediaType = "VIDEO";
@@ -67,26 +57,22 @@ export const postChatMediaPresign = async (chatRoomId: number, file: File) => {
   const { data } = await api.post<
     ApiSuccessResponse<DTO.IChatsRoomIdMediaPresignPostResponse>
   >(`/v1/chats/rooms/${chatRoomId}/media/presign`, payload);
-
   return data.success.data;
 };
 
-/** 채팅방 내 미디어 파일 실제 업로드 (PUT) */
+/** S3 실제 업로드 */
 export const uploadChatFileToS3 = async (
   presignData: DTO.IChatsRoomIdMediaPresignPostResponse,
   file: File,
 ) => {
+  // 💡 서버가 URL 발급 시 지정한 Content-Type이 있다면 그것을 우선 사용 (S3 업로드 규칙)
   const contentType = presignData.requireHeaders?.["Content-Type"] || file.type;
-  const response = await axios.put(presignData.uploadUrl, file, {
-    headers: {
-      "Content-Type": contentType,
-    },
-  });
 
-  return response;
+  return await axios.put(presignData.uploadUrl, file, {
+    headers: { "Content-Type": contentType },
+  });
 };
 
-/** 메시지 전송 (POST) */
 export const sendChatMessage = async (
   chatRoomId: number,
   body: DTO.IChatsRoomIdMessagesPostRequset,
@@ -97,7 +83,6 @@ export const sendChatMessage = async (
   return data.success.data;
 };
 
-/** 메시지 읽음 처리 (PATCH) */
 export const readChatMessage = async (messageId: number) => {
   const { data } = await api.patch<ApiSuccessResponse<null>>(
     `/v1/chats/messages/${messageId}/read`,
@@ -105,7 +90,6 @@ export const readChatMessage = async (messageId: number) => {
   return data.success.data;
 };
 
-/** 메시지 수정/삭제 등 (PATCH) */
 export const patchChatMessage = async (messageId: number) => {
   const { data } = await api.patch<ApiSuccessResponse<null>>(
     `/v1/chats/messages/${messageId}`,
@@ -113,7 +97,6 @@ export const patchChatMessage = async (messageId: number) => {
   return data.success.data;
 };
 
-/** 채팅방 나가기 (PATCH) */
 export const patchChatRoomLeave = async (chatRoomId: number) => {
   const { data } = await api.patch<ApiSuccessResponse<null>>(
     `/v1/chats/rooms/${chatRoomId}/leave`,
