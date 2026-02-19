@@ -4,6 +4,30 @@ import { IChatsRoomIdMessagesGetResponse } from "../../types/api/chats/chatsDTO"
 
 type IMessageItem = IChatsRoomIdMessagesGetResponse["items"][number];
 
+/**
+ * 아이폰/안드로이드 기기에 따라 실제 파일 타입을 체크하고
+ * 적절한 확장자를 가진 파일 객체로 변환해주는 헬퍼 함수
+ */
+const getSafeAudioFile = (file: File): File => {
+  // 실제 MIME 타입 확인 (아이폰은 보통 audio/mp4)
+  const actualType = file.type || "audio/mp4";
+  let extension = "webm";
+
+  // 아이폰(MP4/M4A) 대응 로직
+  if (
+    actualType.includes("mp4") ||
+    actualType.includes("m4a") ||
+    actualType.includes("apple")
+  ) {
+    extension = "m4a";
+  }
+
+  const safeFileName = `${Date.now()}_voice_record.${extension}`;
+
+  // 새로운 파일 객체로 재포장하여 반환
+  return new File([file], safeFileName, { type: actualType });
+};
+
 export const useChatSender = (
   roomId: number,
   myId: number,
@@ -35,7 +59,7 @@ export const useChatSender = (
     setTimeout(scrollToBottom, 100);
   };
 
-  // 임시 URL을 실제 S3 URL로 교체 (이미지 깜빡임 방지 및 즉시 반영)
+  // 임시 URL을 실제 S3 URL로 교체
   const replaceTempMediaUrl = (fromUrl: string, toUrl: string) => {
     setTempMessages((prev) =>
       prev.map((msg) =>
@@ -51,19 +75,24 @@ export const useChatSender = (
     sendMessage(roomId, "TEXT", text);
   };
 
-  // 2. 음성 전송
+  // 2. 음성 전송 (수정됨 ⭐)
   const sendVoice = async (file: File, duration: number) => {
     if (!roomId) return;
 
-    const fakeUrl = URL.createObjectURL(file);
+    // 💡 [수정] 기기별 확장자 세탁 로직 적용
+    const safeFile = getSafeAudioFile(file);
+
+    // 미리보기용 Blob URL 생성
+    const fakeUrl = URL.createObjectURL(safeFile);
     addTempMessage("AUDIO", null, fakeUrl, duration);
 
-    const uploadResult = await uploadMedia(file, roomId);
+    // 💡 [수정] 세탁된 safeFile을 S3에 업로드
+    const uploadResult = await uploadMedia(safeFile, roomId);
 
     if (uploadResult) {
-      // ✅ 임시 URL을 실제 URL로 교체하여 즉시 보이게 함
+      // 임시 URL을 실제 S3 Public URL로 교체하여 즉시 렌더링
       replaceTempMediaUrl(fakeUrl, uploadResult.publicUrl);
-      // ✅ 소켓에는 publicUrl이 아닌 mediaRef를 전송
+      // 백엔드 소켓에는 DB 참조용 mediaRef를 전송
       sendMessage(roomId, "AUDIO", null, uploadResult.mediaRef, duration);
     }
   };
@@ -77,14 +106,14 @@ export const useChatSender = (
     const uiType: IMessageItem["type"] = isVideo ? "VIDEO" : "PHOTO";
 
     let durationSec = 0;
-    
+
     if (isVideo) {
       durationSec = await new Promise<number>((resolve) => {
         const video = document.createElement("video");
         video.preload = "metadata";
         video.onloadedmetadata = () => {
-          window.URL.revokeObjectURL(video.src); // 메모리 누수 방지
-          resolve(Math.round(video.duration));   // 초 단위로 반올림하여 저장
+          window.URL.revokeObjectURL(video.src);
+          resolve(Math.round(video.duration));
         };
         video.src = URL.createObjectURL(file);
       });
@@ -97,7 +126,6 @@ export const useChatSender = (
 
     if (uploadResult) {
       replaceTempMediaUrl(fakeUrl, uploadResult.publicUrl);
-      // ✅ 소켓에는 mediaRef를 전송 (서버 DB 등록을 위해 필수)
       sendMessage(roomId, socketType, null, uploadResult.mediaRef, durationSec);
     }
   };

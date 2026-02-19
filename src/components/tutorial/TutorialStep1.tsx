@@ -38,7 +38,7 @@ const TutorialStep1 = ({ onNext, onClose }: Props) => {
         </svg>
       </button>
 
-      <div className="absolute top-[81.21px] left-1/2 -translate-x-1/2">
+      <div className="absolute top-[10vh] left-1/2 -translate-x-1/2">
         <div className="relative">
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -145,7 +145,7 @@ const TutorialStep1 = ({ onNext, onClose }: Props) => {
         </div>
       </div>
 
-      <div className="absolute top-[164px] left-1/2 -translate-x-1/2 w-[183px]">
+      <div className="absolute top-[20vh] left-1/2 -translate-x-1/2 w-[183px]">
         <p className="text-white text-[20px] font-[500] text-center leading-[140%]">
           좌우로 화면을 넘겨
           <br />
@@ -153,7 +153,7 @@ const TutorialStep1 = ({ onNext, onClose }: Props) => {
         </p>
       </div>
 
-      <div className="absolute top-[245px] left-1/2 -translate-x-1/2 pointer-events-none border border-[1px] border-white rounded-[14px]">
+      <div className="absolute top-[30vh] left-1/2 -translate-x-1/2 pointer-events-none border border-[1px] border-white rounded-[14px]">
         <RecommendCard
           className="w-[362px] h-[453px]"
           targetUserId={MOCK_PROFILE.targetUserId}
@@ -170,7 +170,7 @@ const TutorialStep1 = ({ onNext, onClose }: Props) => {
 
       <button
         onClick={onNext}
-        className="absolute bottom-[69px] left-1/2 -translate-x-1/2 px-8 py-3 bg-[rgba(0,0,0,0.70)] text-white rounded-[22px] text-[16px] border border-white whitespace-nowrap z-[10000] hover:bg-black/90 transition"
+        className="absolute bottom-[8vh] left-1/2 -translate-x-1/2 px-8 py-3 bg-[rgba(0,0,0,0.70)] text-white rounded-[22px] text-[16px] border border-white whitespace-nowrap z-[10000] hover:bg-black/90 transition"
       >
         다음
       </button>
