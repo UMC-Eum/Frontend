@@ -28,6 +28,8 @@ import PersonalitiesRecordPage from "./pages/profile-edit/PersonalitiesRecordPag
 import Like from "./pages/Like";
 import CardTestPage from "./mock/CardTestPage";
 import NotificationsPage from "./pages/NotificationsPage";
+import ProfileSetupMain from "./pages/profileset/ProfileSetupMain";
+
 
 import ErrorPage from "./pages/ErrorPage";
 
@@ -154,6 +156,11 @@ const router = createBrowserRouter([
             path: "/notifications",
             element: <NotificationsPage />,
           },
+          {
+            path: "/profileset",
+            element: <ProfileSetupMain />,
+          },
+
         ],
       },
     ],

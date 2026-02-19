@@ -17,8 +17,8 @@ import PrivacyPolicy from "./terms/PrivacyPolicy";
 import MarketingTerms from "./terms/MarketingTerms";
 import { getMyProfile } from "../../api/users/usersApi";
 import AgeLimitModal from "./overlays/AgeLimitModal";
-import ProfileSetupMain from "../profile-setup/ProfileSetupMain";
 import { IUserProfile } from "../../types/user";
+
 
 const DUMMY_DATA: IAgreementItem[] = [
   { agreementId: 1, body: "서비스 이용약관 상세 내용더미...", type: "POLICY" },
@@ -42,9 +42,10 @@ const AGREEMENT_TYPE_MAP: Record<number, AgreementType> = {
 export default function OnBoardingPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const [step, setStep] = useState<"checking"| "permission" | "setup">(
+  const [step, setStep] = useState<"checking" | "permission">(
     "checking",
   );
+
   const [userProfile, setUserProfile] = useState<IUserProfile | null>(null);
   const [agreements, setAgreements] = useState<IAgreementItem[]>([]);
   const [showAgreement, setShowAgreement] = useState(false);
@@ -68,11 +69,12 @@ export default function OnBoardingPage() {
 
       // step=1 파라미터가 있고 카메라 권한이 있다면 바로 setup으로
       if (searchParams.get("step") === "1" && isCameraGranted) {
-        setStep("setup");
+        navigate("/profileset", { replace: true });
       } else {
         // 그 외에는 권한 허용 여부와 관계없이 PermissionStep 노출
         setStep("permission");
       }
+
     } catch {
       setStep("permission");
     }
@@ -181,9 +183,6 @@ export default function OnBoardingPage() {
     }
   };
 
-  if (step === "setup") {
-    return <ProfileSetupMain />;
-  }
 
   return (
     <div className="relative h-full bg-white">
@@ -251,9 +250,10 @@ export default function OnBoardingPage() {
             if (userProfile?.nickname) {
               navigate(-1);
             } else {
-              setStep("setup");
+              navigate("/profileset", { replace: true });
             }
           }}
+
         />
       )}
     </div>
