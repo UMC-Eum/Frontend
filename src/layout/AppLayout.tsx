@@ -60,9 +60,7 @@ const AppLayout = () => {
   return (
     <div className="flex justify-center bg-gray-100 h-full">
       <div className="relative w-full h-full bg-white flex flex-col overflow-hidden">
-        <main className="flex-1 relative overflow-y-auto w-full no-scrollbar">
-          <Outlet />
-        </main>
+        <Outlet />
 
         {chatNotification && (
           <ChatNotificationToast

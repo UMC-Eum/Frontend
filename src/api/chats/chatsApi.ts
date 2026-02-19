@@ -47,6 +47,7 @@ export const getChatMessages = async (
   return data.success.data;
 };
 
+/** 채팅방 내 미디어 업로드 url 발급 (POST) */
 export const postChatMediaPresign = async (chatRoomId: number, file: File) => {
   let mediaType = "PHOTO";
 
@@ -69,6 +70,8 @@ export const postChatMediaPresign = async (chatRoomId: number, file: File) => {
 
   return data.success.data;
 };
+
+/** 채팅방 내 미디어 파일 실제 업로드 (PUT) */
 export const uploadChatFileToS3 = async (
   presignData: DTO.IChatsRoomIdMediaPresignPostResponse,
   file: File,
@@ -106,6 +109,14 @@ export const readChatMessage = async (messageId: number) => {
 export const patchChatMessage = async (messageId: number) => {
   const { data } = await api.patch<ApiSuccessResponse<null>>(
     `/v1/chats/messages/${messageId}`,
+  );
+  return data.success.data;
+};
+
+/** 채팅방 나가기 (PATCH) */
+export const patchChatRoomLeave = async (chatRoomId: number) => {
+  const { data } = await api.patch<ApiSuccessResponse<null>>(
+    `/v1/chats/rooms/${chatRoomId}/leave`,
   );
   return data.success.data;
 };
