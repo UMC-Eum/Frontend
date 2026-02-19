@@ -76,15 +76,29 @@ export const useChatSender = (
     const socketType = isVideo ? "VIDEO" : "PHOTO";
     const uiType: IMessageItem["type"] = isVideo ? "VIDEO" : "PHOTO";
 
+    let durationSec = 0;
+    
+    if (isVideo) {
+      durationSec = await new Promise<number>((resolve) => {
+        const video = document.createElement("video");
+        video.preload = "metadata";
+        video.onloadedmetadata = () => {
+          window.URL.revokeObjectURL(video.src); // 메모리 누수 방지
+          resolve(Math.round(video.duration));   // 초 단위로 반올림하여 저장
+        };
+        video.src = URL.createObjectURL(file);
+      });
+    }
+
     const fakeUrl = URL.createObjectURL(file);
-    addTempMessage(uiType, null, fakeUrl, 0);
+    addTempMessage(uiType, null, fakeUrl, durationSec);
 
     const uploadResult = await uploadMedia(file, roomId);
 
     if (uploadResult) {
       replaceTempMediaUrl(fakeUrl, uploadResult.publicUrl);
       // ✅ 소켓에는 mediaRef를 전송 (서버 DB 등록을 위해 필수)
-      sendMessage(roomId, socketType, null, uploadResult.mediaRef);
+      sendMessage(roomId, socketType, null, uploadResult.mediaRef, durationSec);
     }
   };
 
