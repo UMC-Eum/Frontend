@@ -33,15 +33,39 @@ export const useMicRecording = (
     return () => clearInterval(interval);
   }, [status]);
 
-  const startRecording = useCallback(() => {
-    if (!stream) {
-      alert("마이크가 연결되지 않았습니다. 권한을 확인해주세요!");
-      navigate("/onboarding");
+  // 💡 핵심 수정 1: async를 붙여서 권한 재요청을 기다릴 수 있게 만듭니다.
+  const startRecording = useCallback(async () => {
+    let activeStream = stream;
+
+    const isStreamDead =
+      !activeStream ||
+      !activeStream.active ||
+      activeStream
+        .getAudioTracks()
+        .every((track) => track.readyState === "ended");
+
+    if (isStreamDead) {
+      try {
+        activeStream = await navigator.mediaDevices.getUserMedia({
+          audio: true,
+        });
+      } catch (err) {
+        console.error("마이크 권한 재요청 실패:", err);
+        alert("마이크가 연결되지 않았습니다. 권한을 확인해주세요!");
+        navigate("/onboarding");
+        return;
+      }
+    }
+
+    // 💡 [해결책] 타입 가드 추가: activeStream이 null이 아님을 확신시켜 줍니다.
+    if (!activeStream) {
+      console.error("스트림을 확보할 수 없습니다.");
       return;
     }
 
     try {
-      const mediaRecorder = new MediaRecorder(stream);
+      // 이제 activeStream은 무조건 MediaStream 타입이므로 에러가 사라집니다!
+      const mediaRecorder = new MediaRecorder(activeStream);
       mediaRecorderRef.current = mediaRecorder;
       chunksRef.current = [];
 
@@ -50,22 +74,18 @@ export const useMicRecording = (
       };
 
       mediaRecorder.onstop = () => {
-        // 1. 녹음된 데이터의 실제 MIME 타입을 가져옵니다.
         let actualMimeType =
           chunksRef.current[0]?.type || mediaRecorder.mimeType || "audio/webm";
 
-        // 💡 2. [핵심] iOS 사파리가 'video/mp4'라고 우겨도 강제로 'audio/mp4'로 세탁합니다!
         if (actualMimeType.includes("mp4")) {
           actualMimeType = "audio/mp4";
         }
 
-        // 3. 확장자 결정 (mp4 계열이면 m4a, 아니면 webm)
         const ext =
           actualMimeType.includes("mp4") || actualMimeType.includes("m4a")
             ? "m4a"
             : "webm";
 
-        // 4. 백엔드가 좋아하는 완벽한 audio/ 타입으로 덮어씌워서 포장합니다.
         const blob = new Blob(chunksRef.current, { type: actualMimeType });
         const file = new File([blob], `voice_record_${Date.now()}.${ext}`, {
           type: actualMimeType,
@@ -89,7 +109,7 @@ export const useMicRecording = (
     } catch (err) {
       console.error("녹음 시작 실패:", err);
     }
-  }, [stream, onRecordingComplete, isChat]);
+  }, [stream, onRecordingComplete, isChat, navigate]);
 
   const stopRecording = useCallback(() => {
     if (mediaRecorderRef.current && status === "recording") {
