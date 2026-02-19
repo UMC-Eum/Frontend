@@ -60,6 +60,8 @@ export function ChatInputBar({
       onSendText(text);
       setText("");
     }
+
+    inputRef.current?.focus();
   };
 
   const handlePlusClick = () => {
