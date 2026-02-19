@@ -5,6 +5,7 @@ import { useUserStore } from "../../stores/useUserStore";
 import { useNavigate } from "react-router-dom";
 import { useScoreStore } from "../../stores/useScoreStore";
 import { updateMyProfile } from "../../api/users/usersApi";
+import { FullButton } from "../../components/standard/CTA";
 
 export default function IdealEditPage() {
   const MAX_SELECT = 30;
@@ -73,17 +74,13 @@ export default function IdealEditPage() {
         </div>
       </div>
       <div className="flex items-center justify-center">
-        <button
-          className={`m-5 px-[149px] py-4 w-full flex items-center justify-center rounded-xl text-[18px] font-semibold leading-[1.2] tracking-normal transition-all ${
-            isChanged && !isLoading
-              ? "bg-[#FF3D77] text-white"
-              : "bg-[#DEE3E5] text-[#A6AFB6] cursor-not-allowed"
-          }`}
+        <FullButton
           onClick={handleSave}
           disabled={!isChanged || isLoading}
+          className="m-5"
         >
           {isLoading ? "저장 중..." : "저장하기"}
-        </button>
+        </FullButton>
       </div>
     </div>
   );

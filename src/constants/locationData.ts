@@ -47,27 +47,27 @@ export const REGIONS: LocationItem[] = [
     "code": "4100000000"
   },
   {
-    "name": "충청북",
+    "name": "충북",
     "fullName": "충청북도",
     "code": "4300000000"
   },
   {
-    "name": "충청남",
+    "name": "충남",
     "fullName": "충청남도",
     "code": "4400000000"
   },
   {
-    "name": "전라남",
+    "name": "전남",
     "fullName": "전라남도",
     "code": "4600000000"
   },
   {
-    "name": "경상북",
+    "name": "경북",
     "fullName": "경상북도",
     "code": "4700000000"
   },
   {
-    "name": "경상남",
+    "name": "경남",
     "fullName": "경상남도",
     "code": "4800000000"
   },
