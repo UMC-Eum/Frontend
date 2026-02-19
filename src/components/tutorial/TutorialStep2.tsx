@@ -1,14 +1,15 @@
 interface Props {
   onCloseForever: () => void;
+
   onClose: () => void;
 }
 
 const TutorialStep2 = ({ onCloseForever, onClose }: Props) => {
   return (
-    <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-between bg-black/70 h-[100dvh] overflow-hidden">
+    <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-black/70 p-4 overflow-hidden">
       <button
         onClick={onClose}
-        className="absolute top-[20px] right-[20px] p-2 hover:opacity-70 transition-opacity z-50"
+        className="absolute top-[20px] right-[37.5px] p-1 hover:opacity-70 transition-opacity z-50"
         aria-label="닫기"
       >
         <svg
@@ -25,12 +26,14 @@ const TutorialStep2 = ({ onCloseForever, onClose }: Props) => {
         </svg>
       </button>
 
-      <main className="flex flex-col items-center justify-center flex-1 z-20 pointer-events-none w-full mt-[10dvh]">
+      <main className="absolute inset-0 flex flex-col items-center justify-center pb-[40px] pointer-events-none">
         <p
-          className="text-center font-semibold mb-[40px] text-white pointer-events-auto"
+          className="text-center font-semibold mb-[40px] text-white z-20 pointer-events-auto"
           style={{
             fontFamily: "Pretendard",
+
             fontSize: "20px",
+
             lineHeight: "140%",
           }}
         >
@@ -41,8 +44,11 @@ const TutorialStep2 = ({ onCloseForever, onClose }: Props) => {
             style={{
               background:
                 "linear-gradient(93deg, #FC3367 -7.07%, #FD7E71 65.84%, #FFCA7A 113.06%, #FFF 158.75%)",
+
               backgroundClip: "text",
+
               WebkitBackgroundClip: "text",
+
               WebkitTextFillColor: "transparent",
             }}
           >
@@ -67,14 +73,17 @@ const TutorialStep2 = ({ onCloseForever, onClose }: Props) => {
               d="M8.47054 18.2274C9.07808 12.2966 14.3785 7.98123 20.3094 8.58877C26.2402 9.19637 30.5556 14.4968 29.9481 20.4276C29.6594 23.2451 28.3099 25.6959 26.3387 27.4296L25.6375 23.7675C25.0777 20.845 22.2544 18.9294 19.3319 19.4892C16.8795 19.9591 15.2725 22.3277 15.742 24.7802L16.7078 29.8261C11.5149 28.5957 7.91201 23.6798 8.47054 18.2274Z"
               fill="#FC3367"
             />
+
             <mask id="path-2-inside-1_2884_5632" fill="white">
               <path d="M0.101562 17.2529C1.18259 6.69982 10.6139 -0.979468 21.167 0.101562C31.7199 1.18275 39.3983 10.6141 38.3174 21.167C37.2364 31.7201 27.805 39.3993 17.252 38.3184C6.69899 37.2373 -0.979208 27.8059 0.101562 17.2529Z" />
             </mask>
+
             <path
               d="M0.101562 17.2529L-0.893232 17.151L-0.893234 17.151L0.101562 17.2529ZM21.167 0.101562L21.2689 -0.89323L21.2689 -0.893232L21.167 0.101562ZM38.3174 21.167L39.3122 21.2689L39.3122 21.2689L38.3174 21.167ZM17.252 38.3184L17.15 39.3132L17.1501 39.3132L17.252 38.3184ZM0.101562 17.2529L1.09636 17.3548C2.12111 7.35108 11.0614 0.0716117 21.0651 1.09636L21.167 0.101562L21.2689 -0.893232C10.1663 -2.03055 0.244073 6.04855 -0.893232 17.151L0.101562 17.2529ZM21.167 0.101562L21.0651 1.09635C31.0685 2.12126 38.3472 11.0616 37.3226 21.0651L38.3174 21.167L39.3122 21.2689C40.4493 10.1666 32.3712 0.244251 21.2689 -0.89323L21.167 0.101562ZM38.3174 21.167L37.3226 21.0651C36.2978 31.0688 27.3575 38.3482 17.3539 37.3236L17.252 38.3184L17.1501 39.3132C28.2526 40.4504 38.1749 32.3713 39.3122 21.2689L38.3174 21.167ZM17.252 38.3184L17.3539 37.3236C7.35035 36.2988 0.0718493 27.3584 1.09636 17.3548L0.101562 17.2529L-0.893234 17.151C-2.03027 28.2533 6.04763 38.1759 17.15 39.3132L17.252 38.3184Z"
               fill="#FC3367"
               mask="url(#path-2-inside-1_2884_5632)"
             />
+
             <rect
               x="14.5901"
               y="21.2667"
@@ -86,6 +95,7 @@ const TutorialStep2 = ({ onCloseForever, onClose }: Props) => {
               stroke="white"
               strokeWidth="2.07979"
             />
+
             <rect
               x="27.6825"
               y="33.6476"
@@ -97,6 +107,7 @@ const TutorialStep2 = ({ onCloseForever, onClose }: Props) => {
               stroke="white"
               strokeWidth="2.07979"
             />
+
             <rect
               x="38.2436"
               y="34.0484"
@@ -108,6 +119,7 @@ const TutorialStep2 = ({ onCloseForever, onClose }: Props) => {
               stroke="white"
               strokeWidth="2.07979"
             />
+
             <rect
               x="48.9103"
               y="34.6407"
@@ -119,22 +131,27 @@ const TutorialStep2 = ({ onCloseForever, onClose }: Props) => {
               stroke="white"
               strokeWidth="2.07979"
             />
+
             <mask id="path-8-inside-2_2884_5632" fill="white">
               <path d="M19.2094 47.2314L60.7988 38.1818L66.2945 63.4383C67.7598 70.1725 63.4885 76.8196 56.7543 78.2849L39.5517 82.0281C32.8175 83.4935 26.1704 79.2222 24.7051 72.488L19.2094 47.2314Z" />
             </mask>
+
             <path
               d="M19.2094 47.2314L60.7988 38.1818L66.2945 63.4383C67.7598 70.1725 63.4885 76.8196 56.7543 78.2849L39.5517 82.0281C32.8175 83.4935 26.1704 79.2222 24.7051 72.488L19.2094 47.2314Z"
               fill="black"
             />
+
             <path
               d="M19.2094 47.2314L60.7988 38.1818L19.2094 47.2314ZM68.3267 62.9961C70.0362 70.8527 65.0531 78.6076 57.1965 80.3172L39.9939 84.0604C32.1373 85.7699 24.3824 80.7868 22.6729 72.9302L26.7373 72.0458C27.9584 77.6576 33.4977 81.217 39.1095 79.9959L56.3121 76.2527C61.9239 75.0316 65.4833 69.4924 64.2622 63.8805L68.3267 62.9961ZM39.9939 84.0604C32.1373 85.7699 24.3824 80.7868 22.6729 72.9302L17.1772 47.6736L21.2416 46.7892L26.7373 72.0458C27.9584 77.6576 33.4977 81.217 39.1095 79.9959L39.9939 84.0604ZM62.831 37.7396L68.3267 62.9961C70.0362 70.8527 65.0531 78.6076 57.1965 80.3172L56.3121 76.2527C61.9239 75.0316 65.4833 69.4924 64.2622 63.8805L58.7665 38.624L62.831 37.7396Z"
               fill="white"
               mask="url(#path-8-inside-2_2884_5632)"
             />
+
             <path
               d="M6.35246 56.8703C8.99557 51.9375 15.6497 50.9539 19.6069 54.9111L32.9933 68.2975C34.7448 70.049 35.0337 72.7864 33.6864 74.8649C31.8807 77.6507 27.9749 78.0819 25.605 75.757L6.35246 56.8703Z"
               fill="black"
             />
+
             <path
               d="M6.72958 56.1158L5.8717 55.5281C5.58738 55.9431 5.64092 56.5021 5.99884 56.8557L6.72958 56.1158ZM12.8828 52.4468L12.8136 53.4844L12.8828 52.4468ZM22.2316 60.3068C22.6444 60.7062 23.3027 60.6953 23.7021 60.2825C24.1014 59.8698 24.0905 59.2114 23.6778 58.8121L22.9547 59.5595L22.2316 60.3068ZM29.3475 78.4551L30.0782 77.7153L7.46033 55.3759L6.72958 56.1158L5.99884 56.8557L28.6167 79.195L29.3475 78.4551ZM6.72958 56.1158L7.58747 56.7035C8.47019 55.415 9.93333 53.2923 12.8136 53.4844L12.8828 52.4468L12.9519 51.4092C8.77354 51.1306 6.69482 54.3266 5.8717 55.5281L6.72958 56.1158ZM12.8828 52.4468L12.8136 53.4844C14.7282 53.612 16.1321 54.378 17.5322 55.5834C18.2453 56.1972 18.9456 56.9151 19.7155 57.7237C20.4764 58.5228 21.3038 59.4092 22.2316 60.3068L22.9547 59.5595L23.6778 58.8121C22.7891 57.9523 22.0007 57.1076 21.2218 56.2895C20.4519 55.481 19.6885 54.6954 18.8892 54.0072C17.2645 52.6086 15.4489 51.5757 12.9519 51.4092L12.8828 52.4468Z"
               fill="white"
@@ -143,15 +160,15 @@ const TutorialStep2 = ({ onCloseForever, onClose }: Props) => {
         </div>
       </main>
 
-      <div className="relative flex flex-col items-center justify-end w-full shrink-0 h-[300px] pb-[6dvh]">
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none z-0 mt-[20px]">
+      <div className="absolute bottom-[68px] left-1/2 -translate-x-1/2 flex items-center justify-center translate-y-[20%] z-0">
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-0 flex items-center justify-center pointer-events-none">
           <svg
             xmlns="http://www.w3.org/2000/svg"
             width="366"
             height="366"
             viewBox="0 0 244 244"
             fill="none"
-            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"
+            className="absolute"
           >
             <circle
               opacity="0.3"
@@ -161,6 +178,7 @@ const TutorialStep2 = ({ onCloseForever, onClose }: Props) => {
               fill="url(#paint0_radial_big)"
               fillOpacity="0.4"
             />
+
             <defs>
               <radialGradient
                 id="paint0_radial_big"
@@ -171,6 +189,7 @@ const TutorialStep2 = ({ onCloseForever, onClose }: Props) => {
                 gradientTransform="translate(122 122) rotate(90) scale(122)"
               >
                 <stop stopOpacity="0" />
+
                 <stop offset="1" stopColor="#D9D9D9" />
               </radialGradient>
             </defs>
@@ -182,13 +201,14 @@ const TutorialStep2 = ({ onCloseForever, onClose }: Props) => {
             height="216"
             viewBox="0 0 144 144"
             fill="none"
-            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"
+            className="absolute"
           >
             <path
               d="M144 72C144 111.765 111.765 144 72 144C32.2355 144 0 111.765 0 72C0 32.2355 32.2355 0 72 0C111.765 0 144 32.2355 144 72ZM36.9736 72C36.9736 91.3445 52.6555 107.026 72 107.026C91.3445 107.026 107.026 91.3445 107.026 72C107.026 52.6555 91.3445 36.9736 72 36.9736C52.6555 36.9736 36.9736 52.6555 36.9736 72Z"
               fill="url(#paint0_radial_small)"
               fillOpacity="0.4"
             />
+
             <defs>
               <radialGradient
                 id="paint0_radial_small"
@@ -199,136 +219,160 @@ const TutorialStep2 = ({ onCloseForever, onClose }: Props) => {
                 gradientTransform="translate(72 72) rotate(90) scale(72)"
               >
                 <stop stopOpacity="0" />
+
                 <stop offset="1" stopColor="#D9D9D9" />
               </radialGradient>
             </defs>
           </svg>
+        </div>
 
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="108"
-            height="108"
-            viewBox="0 0 108 108"
-            fill="none"
-            className="relative z-10"
-          >
-            <g filter="url(#filter0_d_4935_4256)">
-              <circle cx="54" cy="58" r="39" fill="white" />
-            </g>
-            <g filter="url(#filter1_d_4935_4256)">
-              <circle
-                cx="54"
-                cy="58"
-                r="34"
-                fill="url(#paint0_linear_4935_4256)"
-              />
-            </g>
-            <path
-              d="M63.4639 55.9141C64.2173 55.9141 64.8281 56.5249 64.8281 57.2783C64.8281 62.8438 60.6619 67.4319 55.2783 68.1035V70.8877H60.0293C60.7826 70.8879 61.3936 71.4986 61.3936 72.252C61.3936 73.0053 60.7826 73.616 60.0293 73.6162H47.7998C47.0464 73.6162 46.4355 73.0054 46.4355 72.252C46.4355 71.4985 47.0464 70.8877 47.7998 70.8877H52.5498V68.1035C47.1663 67.4319 43 62.8438 43 57.2783C43 56.5249 43.6108 55.9141 44.3643 55.9141C45.1177 55.9141 45.7285 56.5249 45.7285 57.2783C45.7285 61.7991 49.3933 65.4638 53.9141 65.4639C58.4349 65.4639 62.0996 61.7991 62.0996 57.2783C62.0996 56.5249 62.7105 55.9142 63.4639 55.9141ZM53.915 45C56.9287 45.0003 59.372 47.4434 59.3721 50.457V57.2783C59.3721 60.292 56.9287 62.7351 53.915 62.7354C50.9012 62.7353 48.458 60.2922 48.458 57.2783V50.457C48.458 47.4432 50.9012 45 53.915 45ZM53.915 47.7285C52.4081 47.7285 51.1866 48.9501 51.1865 50.457V57.2783C51.1865 58.7853 52.4081 60.0068 53.915 60.0068C55.4218 60.0066 56.6436 58.7851 56.6436 57.2783V50.457C56.6435 48.9503 55.4217 47.7288 53.915 47.7285Z"
-              fill="white"
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="108"
+          height="108"
+          viewBox="0 0 108 108"
+          fill="none"
+          className="relative z-10"
+        >
+          <g filter="url(#filter0_d_4935_4256)">
+            <circle cx="54" cy="58" r="39" fill="white" />
+          </g>
+
+          <g filter="url(#filter1_d_4935_4256)">
+            <circle
+              cx="54"
+              cy="58"
+              r="34"
+              fill="url(#paint0_linear_4935_4256)"
             />
-            <defs>
-              <filter
-                id="filter0_d_4935_4256"
-                x="0"
-                y="0"
-                width="108"
-                height="108"
-                filterUnits="userSpaceOnUse"
-                colorInterpolationFilters="sRGB"
-              >
-                <feFlood floodOpacity="0" result="BackgroundImageFix" />
-                <feColorMatrix
-                  in="SourceAlpha"
-                  type="matrix"
-                  values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0"
-                  result="hardAlpha"
-                />
-                <feOffset dy="-4" />
-                <feGaussianBlur stdDeviation="7.5" />
-                <feComposite in2="hardAlpha" operator="out" />
-                <feColorMatrix
-                  type="matrix"
-                  values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.04 0"
-                />
-                <feBlend
-                  mode="normal"
-                  in2="BackgroundImageFix"
-                  result="effect1_dropShadow_4935_4256"
-                />
-                <feBlend
-                  mode="normal"
-                  in="SourceGraphic"
-                  in2="effect1_dropShadow_4935_4256"
-                  result="shape"
-                />
-              </filter>
-              <filter
-                id="filter1_d_4935_4256"
-                x="5"
-                y="5"
-                width="98"
-                height="98"
-                filterUnits="userSpaceOnUse"
-                colorInterpolationFilters="sRGB"
-              >
-                <feFlood floodOpacity="0" result="BackgroundImageFix" />
-                <feColorMatrix
-                  in="SourceAlpha"
-                  type="matrix"
-                  values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0"
-                  result="hardAlpha"
-                />
-                <feOffset dy="-4" />
-                <feGaussianBlur stdDeviation="7.5" />
-                <feComposite in2="hardAlpha" operator="out" />
-                <feColorMatrix
-                  type="matrix"
-                  values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.04 0"
-                />
-                <feBlend
-                  mode="normal"
-                  in2="BackgroundImageFix"
-                  result="effect1_dropShadow_4935_4256"
-                />
-                <feBlend
-                  mode="normal"
-                  in="SourceGraphic"
-                  in2="effect1_dropShadow_4935_4256"
-                  result="shape"
-                />
-              </filter>
-              <linearGradient
-                id="paint0_linear_4935_4256"
-                x1="88"
-                y1="122.955"
-                x2="54.5073"
-                y2="29.5821"
-                gradientUnits="userSpaceOnUse"
-              >
-                <stop stopColor="white" />
-                <stop offset="0.275557" stopColor="#FFCA7A" />
-                <stop offset="0.560305" stopColor="#FE7E71" />
-                <stop offset="1" stopColor="#FC3367" />
-              </linearGradient>
-            </defs>
-          </svg>
-        </div>
+          </g>
 
-        <div className="flex flex-col items-center gap-3 z-50 w-full relative">
-          <button
-            onClick={onClose}
-            className="px-8 py-3 bg-[rgba(0,0,0,0.70)] text-white rounded-[22px] text-[16px] border border-white whitespace-nowrap hover:bg-black/90 transition"
-          >
-            시작하기
-          </button>
-          <button
-            onClick={onCloseForever}
-            className="text-[#D1D1D1] text-sm underline hover:text-white transition"
-          >
-            다시 보지 않기
-          </button>
-        </div>
+          <path
+            d="M63.4639 55.9141C64.2173 55.9141 64.8281 56.5249 64.8281 57.2783C64.8281 62.8438 60.6619 67.4319 55.2783 68.1035V70.8877H60.0293C60.7826 70.8879 61.3936 71.4986 61.3936 72.252C61.3936 73.0053 60.7826 73.616 60.0293 73.6162H47.7998C47.0464 73.6162 46.4355 73.0054 46.4355 72.252C46.4355 71.4985 47.0464 70.8877 47.7998 70.8877H52.5498V68.1035C47.1663 67.4319 43 62.8438 43 57.2783C43 56.5249 43.6108 55.9141 44.3643 55.9141C45.1177 55.9141 45.7285 56.5249 45.7285 57.2783C45.7285 61.7991 49.3933 65.4638 53.9141 65.4639C58.4349 65.4639 62.0996 61.7991 62.0996 57.2783C62.0996 56.5249 62.7105 55.9142 63.4639 55.9141ZM53.915 45C56.9287 45.0003 59.372 47.4434 59.3721 50.457V57.2783C59.3721 60.292 56.9287 62.7351 53.915 62.7354C50.9012 62.7353 48.458 60.2922 48.458 57.2783V50.457C48.458 47.4432 50.9012 45 53.915 45ZM53.915 47.7285C52.4081 47.7285 51.1866 48.9501 51.1865 50.457V57.2783C51.1865 58.7853 52.4081 60.0068 53.915 60.0068C55.4218 60.0066 56.6436 58.7851 56.6436 57.2783V50.457C56.6435 48.9503 55.4217 47.7288 53.915 47.7285Z"
+            fill="white"
+          />
+
+          <defs>
+            <filter
+              id="filter0_d_4935_4256"
+              x="0"
+              y="0"
+              width="108"
+              height="108"
+              filterUnits="userSpaceOnUse"
+              colorInterpolationFilters="sRGB"
+            >
+              <feFlood floodOpacity="0" result="BackgroundImageFix" />
+
+              <feColorMatrix
+                in="SourceAlpha"
+                type="matrix"
+                values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0"
+                result="hardAlpha"
+              />
+
+              <feOffset dy="-4" />
+
+              <feGaussianBlur stdDeviation="7.5" />
+
+              <feComposite in2="hardAlpha" operator="out" />
+
+              <feColorMatrix
+                type="matrix"
+                values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.04 0"
+              />
+
+              <feBlend
+                mode="normal"
+                in2="BackgroundImageFix"
+                result="effect1_dropShadow_4935_4256"
+              />
+
+              <feBlend
+                mode="normal"
+                in="SourceGraphic"
+                in2="effect1_dropShadow_4935_4256"
+                result="shape"
+              />
+            </filter>
+
+            <filter
+              id="filter1_d_4935_4256"
+              x="5"
+              y="5"
+              width="98"
+              height="98"
+              filterUnits="userSpaceOnUse"
+              colorInterpolationFilters="sRGB"
+            >
+              <feFlood floodOpacity="0" result="BackgroundImageFix" />
+
+              <feColorMatrix
+                in="SourceAlpha"
+                type="matrix"
+                values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0"
+                result="hardAlpha"
+              />
+
+              <feOffset dy="-4" />
+
+              <feGaussianBlur stdDeviation="7.5" />
+
+              <feComposite in2="hardAlpha" operator="out" />
+
+              <feColorMatrix
+                type="matrix"
+                values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.04 0"
+              />
+
+              <feBlend
+                mode="normal"
+                in2="BackgroundImageFix"
+                result="effect1_dropShadow_4935_4256"
+              />
+
+              <feBlend
+                mode="normal"
+                in="SourceGraphic"
+                in2="effect1_dropShadow_4935_4256"
+                result="shape"
+              />
+            </filter>
+
+            <linearGradient
+              id="paint0_linear_4935_4256"
+              x1="88"
+              y1="122.955"
+              x2="54.5073"
+              y2="29.5821"
+              gradientUnits="userSpaceOnUse"
+            >
+              <stop stopColor="white" />
+
+              <stop offset="0.275557" stopColor="#FFCA7A" />
+
+              <stop offset="0.560305" stopColor="#FE7E71" />
+
+              <stop offset="1" stopColor="#FC3367" />
+            </linearGradient>
+          </defs>
+        </svg>
+      </div>
+
+      <div className="absolute bottom-[25vh] left-1/2 -translate-x-1/2 flex flex-col items-center gap-3 w-full z-50">
+        <button
+          onClick={onClose}
+          className="px-8 py-3 bg-[rgba(0,0,0,0.70)] text-white rounded-[22px] text-[16px] border border-white whitespace-nowrap hover:bg-black/90 transition"
+        >
+          시작하기
+        </button>
+
+        <button
+          onClick={onCloseForever}
+          className="text-[#D1D1D1] text-sm underline hover:text-white transition"
+        >
+          다시 보지 않기
+        </button>
       </div>
     </div>
   );
