@@ -23,13 +23,13 @@ export default function Navbar() {
   return (
     <nav
       className="absolute bottom-0 left-0 
-        w-full h-[92px] z-50 
+        w-full h-[72px] z-50 
         bg-white"
       style={{ filter: "drop-shadow(0 -4px 12px rgba(0,0,0,0.08))" }}
     >
       <div
         className="
-        px-4 pb-[39px]
+        px-4 pb-[19px]
         h-full
         items-end
         grid grid-cols-[1fr_1fr_1.1fr_1fr_1fr]
