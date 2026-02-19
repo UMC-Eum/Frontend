@@ -98,12 +98,6 @@ export const useChatSender = (
     if (uploadResult) {
       replaceTempMediaUrl(fakeUrl, uploadResult.publicUrl);
       // ✅ 소켓에는 mediaRef를 전송 (서버 DB 등록을 위해 필수)
-      console.log("🎥 [소켓 전송 데이터 확인]:", {
-        roomId,
-        type: socketType,
-        mediaRef: uploadResult.mediaRef,
-        durationSec
-      });
       sendMessage(roomId, socketType, null, uploadResult.mediaRef, durationSec);
     }
   };
