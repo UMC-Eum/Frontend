@@ -58,7 +58,7 @@ export const useChatSender = (
     const uploadResult = await uploadMedia(file, roomId);
 
     if (uploadResult) {
-      replaceTempMediaUrl(fakeUrl, uploadResult.publicUrl);
+      //replaceTempMediaUrl(fakeUrl, uploadResult.publicUrl);
       sendMessage(roomId, "AUDIO", null, uploadResult.mediaRef, duration);
     }
   };
@@ -89,7 +89,7 @@ export const useChatSender = (
     const uploadResult = await uploadMedia(file, roomId);
 
     if (uploadResult) {
-      replaceTempMediaUrl(fakeUrl, uploadResult.publicUrl);
+      //replaceTempMediaUrl(fakeUrl, uploadResult.publicUrl);
       sendMessage(roomId, socketType, null, uploadResult.mediaRef, durationSec);
     }
   };
