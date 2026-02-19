@@ -1,5 +1,6 @@
 import RecommendCard from "../card/presets/RecommendCard1";
 import avatar_placeholder from "../../assets/avatar_placeholder.svg";
+
 interface Props {
   onNext: () => void;
   onClose: () => void;
@@ -18,10 +19,10 @@ const TutorialStep1 = ({ onNext, onClose }: Props) => {
   };
 
   return (
-    <div className="fixed inset-0 z-[9999] bg-black/70 overflow-hidden">
+    <div className="fixed inset-0 z-[9999] bg-black/70 flex flex-col items-center justify-between py-[6dvh] px-4 h-[100dvh] overflow-hidden">
       <button
         onClick={onClose}
-        className="absolute top-[20px] right-[37.5px] p-1 hover:opacity-70 transition-opacity z-50"
+        className="absolute top-[20px] right-[20px] p-2 hover:opacity-70 transition-opacity z-50"
         aria-label="닫기"
       >
         <svg
@@ -38,14 +39,15 @@ const TutorialStep1 = ({ onNext, onClose }: Props) => {
         </svg>
       </button>
 
-      <div className="absolute top-[10vh] left-1/2 -translate-x-1/2">
-        <div className="relative">
+      <div className="flex flex-col items-center gap-[16px] shrink-0 mt-[4dvh]">
+        <div className="relative w-[196px] h-[44px]">
           <svg
             xmlns="http://www.w3.org/2000/svg"
             width="196"
             height="44"
             viewBox="0 0 196 44"
             fill="none"
+            className="absolute top-0 left-0"
           >
             <path
               d="M192.989 18.8359L192.996 18.8301L195.824 21.6582L174.126 43.3564L171.298 40.5283L187.912 23.9141H112.496C111.981 31.7321 105.478 37.9141 97.5303 37.9141C89.5821 37.9141 83.0791 31.7321 82.5645 23.9141H7.91211L24.5264 40.5283L21.6982 43.3564L0 21.6582L2.82812 18.8301L2.83496 18.8359L21.6709 0L24.499 2.82812L7.41309 19.9141H82.8301C84.2199 13.0673 90.2734 7.91406 97.5303 7.91406C104.787 7.91406 110.841 13.0673 112.23 19.9141H188.411L171.325 2.82812L174.153 0L192.989 18.8359ZM97.5303 11.9141C91.4551 11.9141 86.5303 16.8389 86.5303 22.9141C86.5303 28.9892 91.4551 33.9141 97.5303 33.9141C103.605 33.9141 108.53 28.9892 108.53 22.9141C108.53 16.8389 103.605 11.9141 97.5303 11.9141Z"
@@ -143,9 +145,7 @@ const TutorialStep1 = ({ onNext, onClose }: Props) => {
             </svg>
           </div>
         </div>
-      </div>
 
-      <div className="absolute top-[20vh] left-1/2 -translate-x-1/2 w-[183px]">
         <p className="text-white text-[20px] font-[500] text-center leading-[140%]">
           좌우로 화면을 넘겨
           <br />
@@ -153,24 +153,26 @@ const TutorialStep1 = ({ onNext, onClose }: Props) => {
         </p>
       </div>
 
-      <div className="absolute top-[30vh] left-1/2 -translate-x-1/2 pointer-events-none border border-[1px] border-white rounded-[14px]">
-        <RecommendCard
-          className="w-[362px] h-[453px]"
-          targetUserId={MOCK_PROFILE.targetUserId}
-          profileUrl={MOCK_PROFILE.profileUrl}
-          imageUrl={MOCK_PROFILE.imageUrl}
-          nickname={MOCK_PROFILE.nickname}
-          age={MOCK_PROFILE.age}
-          area={MOCK_PROFILE.area}
-          description={MOCK_PROFILE.description}
-          keywords={MOCK_PROFILE.keywords}
-          onGoProfile={() => {}}
-        />
+      <div className="flex-1 flex items-center justify-center w-full min-h-0 my-[20px] pointer-events-none">
+        <div className="border border-[1px] border-white rounded-[14px] w-[85vw] max-w-[340px] aspect-[4/5] max-h-[60dvh] shrink-0">
+          <RecommendCard
+            className="w-full h-full"
+            targetUserId={MOCK_PROFILE.targetUserId}
+            profileUrl={MOCK_PROFILE.profileUrl}
+            imageUrl={MOCK_PROFILE.imageUrl}
+            nickname={MOCK_PROFILE.nickname}
+            age={MOCK_PROFILE.age}
+            area={MOCK_PROFILE.area}
+            description={MOCK_PROFILE.description}
+            keywords={MOCK_PROFILE.keywords}
+            onGoProfile={() => {}}
+          />
+        </div>
       </div>
 
       <button
         onClick={onNext}
-        className="absolute bottom-[8vh] left-1/2 -translate-x-1/2 px-8 py-3 bg-[rgba(0,0,0,0.70)] text-white rounded-[22px] text-[16px] border border-white whitespace-nowrap z-[10000] hover:bg-black/90 transition"
+        className="shrink-0 mb-[4dvh] px-8 py-3 bg-[rgba(0,0,0,0.70)] text-white rounded-[22px] text-[16px] border border-white whitespace-nowrap z-[10000] hover:bg-black/90 transition"
       >
         다음
       </button>
