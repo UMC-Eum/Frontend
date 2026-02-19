@@ -67,7 +67,7 @@ const MatchingPage = () => {
   }, [isResultPage, setStatus]);
 
   return (
-    <div className="relative h-full overflow-hidden">
+    <div className="relative h-[100dvh] overflow-hidden">
       <BackButton
         onClick={() => {
           navigate("/home");

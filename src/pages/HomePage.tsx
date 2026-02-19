@@ -1,19 +1,26 @@
 import { useNavigate } from "react-router-dom";
 import { useUserStore } from "../stores/useUserStore";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useInfiniteQuery } from "@tanstack/react-query"; // useInfiniteQuery 추가
 import { getRecommendations } from "../api/onboarding/onboardingApi";
+import { getNotificationHearts } from "../api/notifications/notificationsApi"; // 알림 API 추가
 import RecommendCard from "../components/card/presets/RecommendCard1";
 import saypinkbox from "../assets/saypinkbox.svg";
 import bell from "../assets/Bell.svg";
 import norecommend from "../assets/norecommend.svg";
 import Navbar from "../components/standard/Navbar";
 import TutorialMain from "../components/tutorial/TutorialMain";
+import { useMemo } from "react";
 
 const FALLBACK_IMAGE =
   "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=500&h=800&fit=crop";
 
 export default function HomePage() {
-  const { data } = useQuery({
+  const navigate = useNavigate();
+  const user = useUserStore((state) => state.user);
+  const userNickname = user?.nickname ?? "회원";
+
+  // 1. 추천 목록 데이터 조회
+  const { data: recommendData } = useQuery({
     queryKey: ["home", "recommendation"],
     queryFn: () => getRecommendations({ size: 20 }),
     retry: false,
@@ -22,15 +29,31 @@ export default function HomePage() {
     staleTime: 1000 * 60 * 5,
   });
 
-  const user = useUserStore((state) => state.user);
-  const userNickname = user?.nickname ?? "회원";
-  const navigate = useNavigate();
-  
+  // 2. 알림 데이터 조회 (NotificationsPage와 동일한 queryKey 사용)
+  const { data: notificationData } = useInfiniteQuery({
+    queryKey: ["notifications", "HEART"],
+    queryFn: ({ pageParam }) =>
+      getNotificationHearts({ cursor: pageParam, size: 20 }),
+    initialPageParam: null as string | null,
+    getNextPageParam: (lastPage) => lastPage.nextCursor,
+    refetchOnWindowFocus: true,
+    refetchInterval: 1000 * 10, // 10초마다 폴링으로 새 알림 체크
+    staleTime: 1000 * 60, // 1분간 신선도 유지
+  });
+
+  // 3. 안 읽은 알림이 하나라도 있는지 확인
+  const hasUnread = useMemo(() => {
+    return (
+      notificationData?.pages.some((page) =>
+        page.items.some((item) => !item.isRead),
+      ) ?? false
+    );
+  }, [notificationData]);
 
   const isProfileRegistered =
     user?.idealPersonalities && user.idealPersonalities.length > 0;
 
-  const recommendationList = data?.items ?? [];
+  const recommendationList = recommendData?.items ?? [];
 
   const goProfile = (u: any) => {
     navigate(`/home/profile/${u.userId}`, { state: { profile: u } });
@@ -54,13 +77,27 @@ export default function HomePage() {
             <span className="text-[#F22459]">{userNickname}</span>
             님!
           </div>
-          <button className="w-[24px] h-[24px] flex items-center justify-center">
+
+          {/* 알림 아이콘 + N 뱃지 */}
+          <button
+            className="w-[24px] h-[24px] flex items-center justify-center relative"
+            onClick={() => navigate("/notifications")}
+          >
             <img
               src={bell}
-              onClick={() => navigate("/notifications")}
               className="w-full h-full cursor-pointer"
               alt="알림"
             />
+            {hasUnread && (
+              <div className="absolute -top-1 -right-1 w-[15px] h-[15px] bg-[#F22459] rounded-full border border-white flex items-center justify-center">
+                <span
+                  className="text-white text-[9px] font-bold"
+                  style={{ lineHeight: 1 }}
+                >
+                  N
+                </span>
+              </div>
+            )}
           </button>
         </header>
 
