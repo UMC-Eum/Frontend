@@ -1,4 +1,3 @@
-import axios from "axios";
 import api from "../axiosInstance";
 import { ApiSuccessResponse } from "../../types/api/api";
 import * as DTO from "../../types/api/chats/chatsDTO";
@@ -41,7 +40,9 @@ export const getChatMessages = async (
 /** 미디어 업로드 URL 발급 */
 export const postChatMediaPresign = async (chatRoomId: number, file: File) => {
   let mediaType = "PHOTO";
-  if (file.type.startsWith("audio") || file.type.includes("mp4")) {
+
+  // 💡 1. 순수하게 audio로 시작하는지만 검사하도록 수정 (비디오 업로드 에러 방지)
+  if (file.type.startsWith("audio")) {
     mediaType = "AUDIO";
   } else if (file.type.startsWith("video")) {
     mediaType = "VIDEO";
@@ -62,15 +63,32 @@ export const postChatMediaPresign = async (chatRoomId: number, file: File) => {
 
 /** S3 실제 업로드 */
 export const uploadChatFileToS3 = async (
-  presignData: DTO.IChatsRoomIdMediaPresignPostResponse,
+  // 타입 에러 방지를 위해 requiredHeaders 타입 임시 확장
+  presignData: DTO.IChatsRoomIdMediaPresignPostResponse & {
+    requiredHeaders?: Record<string, string>;
+  },
   file: File,
 ) => {
-  // 💡 서버가 URL 발급 시 지정한 Content-Type이 있다면 그것을 우선 사용 (S3 업로드 규칙)
-  const contentType = presignData.requireHeaders?.["Content-Type"] || file.type;
+  // 💡 2. 오타 수정: requireHeaders -> requiredHeaders (백엔드 응답값 일치)
+  const contentType =
+    presignData.requiredHeaders?.["Content-Type"] || file.type;
 
-  return await axios.put(presignData.uploadUrl, file, {
-    headers: { "Content-Type": contentType },
+  // 💡 3. Axios 대신 브라우저 순정 fetch 사용 (S3 서명 불일치 에러 원천 차단)
+  const response = await fetch(presignData.uploadUrl, {
+    method: "PUT",
+    body: file,
+    headers: {
+      "Content-Type": contentType,
+    },
   });
+
+  if (!response.ok) {
+    throw new Error(
+      `S3 업로드 실패: ${response.status} ${response.statusText}`,
+    );
+  }
+
+  return response;
 };
 
 export const sendChatMessage = async (
