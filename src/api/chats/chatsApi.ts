@@ -81,6 +81,7 @@ export const uploadChatFileToS3 = async (
     headers: {
       "Content-Type": contentType,
     },
+    timeout: 0,
   });
 
   return response;
