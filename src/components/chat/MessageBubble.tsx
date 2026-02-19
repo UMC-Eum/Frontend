@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { MessageType } from "../../types/api/chats/chatsDTO";
 import ConfirmModal from "../common/ConfirmModal";
+import { useMicRecording } from "../../hooks/useMicRecording"; // 💡 마이크 훅 가져오기
 
 interface MessageBubbleProps {
   isMe: boolean;
   type: MessageType;
   content: string | null;
-  audioUrl: string | null; 
+  audioUrl: string | null;
   duration: number | null;
   timestamp: string;
   readAt: string | null;
@@ -35,19 +36,21 @@ export function MessageBubble({
 }: MessageBubbleProps) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [showOverlay, setShowOverlay] = useState(false);
-  
-  // 롱프레스 타이머 참조
+  const { stopStream } = useMicRecording(() => {}); // 💡 마이크 제어기 소환
+
   const longPressTimer = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     if (!audioRef.current) return;
     if (isPlayingProp) {
+      // 💡 재생 시작 시 마이크 스트림을 먼저 죽여서 아이폰 스피커를 깨웁니다.
+      stopStream();
       audioRef.current.play().catch(() => {});
     } else {
       audioRef.current.pause();
       audioRef.current.currentTime = 0;
     }
-  }, [isPlayingProp]);
+  }, [isPlayingProp, stopStream]);
 
   const handlePlayClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -59,17 +62,15 @@ export function MessageBubble({
     setShowOverlay(false);
   };
 
-  // 롱프레스 시작 (누를 때)
   const handlePressStart = () => {
     if (!isMe || !onDelete) return;
 
     longPressTimer.current = setTimeout(() => {
       setShowOverlay(true);
       if (navigator.vibrate) navigator.vibrate(50);
-    }, 2000); 
+    }, 2000);
   };
 
-  // 롱프레스 취소 (뗄 때, 마우스 나갈 때)
   const handlePressEnd = () => {
     if (longPressTimer.current) {
       clearTimeout(longPressTimer.current);
@@ -81,7 +82,6 @@ export function MessageBubble({
     <div
       className={`flex items-end gap-1 mb-4 ${isMe ? "flex-row-reverse" : "flex-row"}`}
     >
-      {/* 1. 텍스트 메시지 */}
       {type === "TEXT" && content && (
         <div
           onMouseDown={handlePressStart}
@@ -97,7 +97,6 @@ export function MessageBubble({
         </div>
       )}
 
-      {/* 2. 오디오 메시지 */}
       {type === "AUDIO" && audioUrl && (
         <div
           onMouseDown={handlePressStart}
@@ -114,6 +113,7 @@ export function MessageBubble({
             src={audioUrl}
             onEnded={onPlay}
             className="hidden"
+            playsInline // 💡 모바일 재생 최적화
           />
           <button onClick={handlePlayClick} className="shrink-0 z-10">
             <div
@@ -138,7 +138,6 @@ export function MessageBubble({
         </div>
       )}
 
-      {/* 3. 이미지 메시지 (PHOTO / IMAGE) */}
       {(type === "PHOTO" || (type as string) === "IMAGE") && audioUrl && (
         <div
           onMouseDown={handlePressStart}
@@ -156,7 +155,7 @@ export function MessageBubble({
             style={{ maxHeight: "300px" }}
             onClick={(e) => {
               if (onImageClick) {
-                e.stopPropagation(); 
+                e.stopPropagation();
                 onImageClick(audioUrl);
               }
             }}
@@ -164,7 +163,6 @@ export function MessageBubble({
         </div>
       )}
 
-      {/* 4. 동영상 메시지 (VIDEO) */}
       {(type as string) === "VIDEO" && audioUrl && (
         <div
           onMouseDown={handlePressStart}
@@ -179,7 +177,6 @@ export function MessageBubble({
         </div>
       )}
 
-      {/* 시간 및 읽음 표시 */}
       {(showTimestamp || (isMe && (!readAt || showRead))) && (
         <div
           className={`flex flex-col justify-end gap-0.5 ${isMe ? "items-end" : "items-start"}`}

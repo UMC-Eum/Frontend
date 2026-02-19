@@ -33,7 +33,16 @@ export const useMicRecording = (
     return () => clearInterval(interval);
   }, [status]);
 
-  // 💡 핵심 수정 1: async를 붙여서 권한 재요청을 기다릴 수 있게 만듭니다.
+  // 💡 마이크를 완전히 종료시키는 함수 (아이폰 소리 키우기용)
+  const stopStream = useCallback(() => {
+    if (stream) {
+      stream.getTracks().forEach((track) => {
+        track.stop();
+        track.enabled = false;
+      });
+    }
+  }, [stream]);
+
   const startRecording = useCallback(async () => {
     let activeStream = stream;
 
@@ -57,14 +66,12 @@ export const useMicRecording = (
       }
     }
 
-    // 💡 [해결책] 타입 가드 추가: activeStream이 null이 아님을 확신시켜 줍니다.
     if (!activeStream) {
       console.error("스트림을 확보할 수 없습니다.");
       return;
     }
 
     try {
-      // 이제 activeStream은 무조건 MediaStream 타입이므로 에러가 사라집니다!
       const mediaRecorder = new MediaRecorder(activeStream);
       mediaRecorderRef.current = mediaRecorder;
       chunksRef.current = [];
@@ -113,12 +120,10 @@ export const useMicRecording = (
 
   const stopRecording = useCallback(() => {
     if (mediaRecorderRef.current && status === "recording") {
-      // 1. 채팅창(isChat)이면 시간 제한 없이 통과, 아니면(이상형 찾기 등) 10초 제한
       const minDuration = isChat ? 0 : 10;
 
       if (secondsRef.current < minDuration) {
         setIsShort(true);
-        // 💡 중요: 너무 짧아서 취소될 때 상태를 다시 'inactive'로 돌려줘야 버튼이 안 굳습니다!
         setStatus("inactive");
         setTimeout(() => {
           setIsShort(false);
@@ -126,7 +131,6 @@ export const useMicRecording = (
         return;
       }
 
-      // 2. 정상 범위일 때만 로딩 상태로 진입
       setStatus("loading");
       mediaRecorderRef.current.stop();
     }
@@ -156,5 +160,6 @@ export const useMicRecording = (
     resetStatus,
     startRecording,
     stopRecording,
+    stopStream, // 💡 외부에서 끌 수 있게 반환
   };
 };
