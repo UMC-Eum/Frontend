@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useMediaStore } from "../stores/useMediaStore";
 import { useNavigate } from "react-router-dom";
-import MicRecorder from "mic-recorder-to-mp3";
 
 export type MicStatus = "inactive" | "recording" | "loading";
 
@@ -8,6 +8,7 @@ export const useMicRecording = (
   onRecordingComplete: (file: File, duration: number) => void,
   isChat = false,
 ) => {
+  const { stream } = useMediaStore();
   const navigate = useNavigate();
 
   const [status, setStatus] = useState<MicStatus>("inactive");
@@ -15,11 +16,8 @@ export const useMicRecording = (
   const [isShort, setIsShort] = useState(false);
 
   const secondsRef = useRef(0);
-  const recorderRef = useRef<MicRecorder | null>(null);
-
-  useEffect(() => {
-    recorderRef.current = new MicRecorder({ bitRate: 128 });
-  }, []);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
 
   useEffect(() => {
     let interval: number;
@@ -35,68 +33,71 @@ export const useMicRecording = (
     return () => clearInterval(interval);
   }, [status]);
 
-  const startRecording = useCallback(async () => {
-    if (!recorderRef.current) return;
+  const startRecording = useCallback(() => {
+    if (!stream) {
+      alert("마이크가 연결되지 않았습니다. 권한을 확인해주세요!");
+      navigate("/onboarding");
+      return;
+    }
 
     try {
-      await recorderRef.current.start();
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      chunksRef.current = [];
 
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) chunksRef.current.push(e.data);
+      };
+
+      mediaRecorder.onstop = () => {
+        // 💡 [핵심 수정] 억지로 webm을 씌우지 않고, 기기가 녹음한 진짜 타입을 가져옵니다!
+        // iOS는 보통 'audio/mp4', 안드로이드는 'audio/webm' 입니다.
+        const actualMimeType = mediaRecorder.mimeType || "audio/webm";
+        const ext =
+          actualMimeType.includes("mp4") || actualMimeType.includes("m4a")
+            ? "m4a"
+            : "webm";
+
+        // 진짜 타입 그대로 Blob과 File을 만듭니다.
+        const blob = new Blob(chunksRef.current, { type: actualMimeType });
+        const file = new File([blob], `voice_record_${Date.now()}.${ext}`, {
+          type: actualMimeType,
+        });
+
+        onRecordingComplete(file, secondsRef.current);
+
+        if (isChat) {
+          setStatus("inactive");
+          setSeconds(0);
+          secondsRef.current = 0;
+          setIsShort(false);
+        }
+      };
+
+      mediaRecorder.start();
       setStatus("recording");
       setSeconds(0);
       secondsRef.current = 0;
       setIsShort(false);
     } catch (err) {
-      console.error("녹음 시작 실패 (권한 거부 등):", err);
-      alert("마이크가 연결되지 않았습니다. 권한을 확인해주세요!");
-      navigate("/onboarding");
+      console.error("녹음 시작 실패:", err);
     }
-  }, [navigate]);
+  }, [stream, onRecordingComplete, isChat]);
 
   const stopRecording = useCallback(() => {
-    if (recorderRef.current && status === "recording") {
+    if (mediaRecorderRef.current && status === "recording") {
       const minDuration = isChat ? 0 : 10;
-
       if (secondsRef.current < minDuration) {
         setIsShort(true);
         setTimeout(() => {
           setIsShort(false);
         }, 2000);
-
-        // 💡 수정됨: .catch() 제거 (stop()은 Promise를 반환하지 않음)
-        recorderRef.current.stop();
-        setStatus("inactive");
-        setSeconds(0);
-        secondsRef.current = 0;
         return;
       }
-
       setStatus("loading");
-
-      recorderRef.current
-        .stop()
-        .getMp3()
-        // 💡 수정: 첫 번째 인자(buffer)는 안 쓰니까 '_'로 두고, 두 번째 인자(blob)를 사용합니다!
-        .then(([_, blob]: [Int8Array[], Blob]) => {
-          // 💡 수정: 버퍼 대신 완성된 blob을 배열에 담아 File로 만듭니다. (타입스크립트가 아주 좋아함)
-          const file = new File([blob], `voice_record_${Date.now()}.mp3`, {
-            type: "audio/mpeg",
-          });
-
-          onRecordingComplete(file, secondsRef.current);
-
-          if (isChat) {
-            setStatus("inactive");
-            setSeconds(0);
-            secondsRef.current = 0;
-            setIsShort(false);
-          }
-        })
-        .catch((e: any) => {
-          console.error("MP3 변환 실패:", e);
-          setStatus("inactive");
-        });
+      mediaRecorderRef.current.stop();
     }
-  }, [status, isChat, onRecordingComplete]);
+  }, [status, isChat]);
 
   const handleMicClick = useCallback(() => {
     if (status === "inactive") {
