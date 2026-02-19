@@ -60,6 +60,8 @@ export function ChatInputBar({
       onSendText(text);
       setText("");
     }
+
+    inputRef.current?.focus();
   };
 
   const handlePlusClick = () => {
@@ -181,7 +183,7 @@ export function ChatInputBar({
           <div className="flex-1 bg-gray-100 rounded-[24px] px-4 py-2.5">
             <input
               ref={inputRef}
-              className="w-full bg-transparent outline-none text-[15px]"
+              className="w-full bg-transparent outline-none text-[16px]"
               placeholder={
                 status === "recording" ? "녹음 중..." : "대화를 입력하세요"
               }
