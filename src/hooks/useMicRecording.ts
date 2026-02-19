@@ -50,15 +50,22 @@ export const useMicRecording = (
       };
 
       mediaRecorder.onstop = () => {
-        // 💡 [핵심 수정] 억지로 webm을 씌우지 않고, 기기가 녹음한 진짜 타입을 가져옵니다!
-        // iOS는 보통 'audio/mp4', 안드로이드는 'audio/webm' 입니다.
-        const actualMimeType = mediaRecorder.mimeType || "audio/webm";
+        // 1. 녹음된 데이터의 실제 MIME 타입을 가져옵니다.
+        let actualMimeType =
+          chunksRef.current[0]?.type || mediaRecorder.mimeType || "audio/webm";
+
+        // 💡 2. [핵심] iOS 사파리가 'video/mp4'라고 우겨도 강제로 'audio/mp4'로 세탁합니다!
+        if (actualMimeType.includes("mp4")) {
+          actualMimeType = "audio/mp4";
+        }
+
+        // 3. 확장자 결정 (mp4 계열이면 m4a, 아니면 webm)
         const ext =
           actualMimeType.includes("mp4") || actualMimeType.includes("m4a")
             ? "m4a"
             : "webm";
 
-        // 진짜 타입 그대로 Blob과 File을 만듭니다.
+        // 4. 백엔드가 좋아하는 완벽한 audio/ 타입으로 덮어씌워서 포장합니다.
         const blob = new Blob(chunksRef.current, { type: actualMimeType });
         const file = new File([blob], `voice_record_${Date.now()}.${ext}`, {
           type: actualMimeType,
