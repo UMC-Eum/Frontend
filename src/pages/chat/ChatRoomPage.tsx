@@ -17,7 +17,6 @@ import { ChatInputBar } from "../../components/chat/ChatInputBar";
 import { ReportModal } from "../../components/chat/ReportModal";
 import { formatTime } from "../../hooks/UseFormatTime";
 import ConfirmModal from "../../components/common/ConfirmModal";
-import ToastNotification from "../../components/common/ToastNotification";
 import ReportScreen from "../../components/chat/ReportScreen";
 import { DateSeparator } from "../../components/chat/DateSeparator";
 import { getFormattedDate } from "../../hooks/useFormatDate";
@@ -39,7 +38,7 @@ export default function ChatRoomPage() {
   const { connect, joinRoom, setCurrentChatRoomId } = useSocketStore();
   const [activeModal, setActiveModal] = useState<ModalType>("NONE");
   const [playingId, setPlayingId] = useState<number | null>(null);
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [, setToastMessage] = useState<string | null>(null);
   const [isReportScreenOpen, setIsReportScreenOpen] = useState(false);
   const [expandedImage, setExpandedImage] = useState<string | null>(null);
 
@@ -97,8 +96,8 @@ export default function ChatRoomPage() {
       const isInitialLoad = prevLastId === null;
       const isUserAtBottom = isAtBottomRef.current;
       setTimeout(() => {
-          scrollToBottom("smooth");
-        }, 50);
+        scrollToBottom("smooth");
+      }, 50);
 
       if (isInitialLoad || isMyMessage || isUserAtBottom) {
         scrollToBottom("smooth");
@@ -249,12 +248,6 @@ export default function ChatRoomPage() {
         />
       )}
 
-      {/* 모달 및 알림 컴포넌트들 (기존과 동일) */}
-      <ToastNotification
-        message={toastMessage}
-        isVisible={!!toastMessage}
-        onClose={() => setToastMessage(null)}
-      />
       <ReportModal
         isOpen={isMenuOpen}
         isBlocked={blockId !== null}

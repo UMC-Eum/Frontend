@@ -1,22 +1,19 @@
 import { useEffect } from "react";
-import { Outlet, useLocation, useNavigate } from "react-router-dom";
+import { Outlet, useLocation } from "react-router-dom";
 import LikeModal from "../components/LikeModal";
 import { useSocketStore } from "../stores/useSocketStore";
 import { useNotificationStore } from "../stores/useNotificationStore";
-import ToastNotification from "../components/common/ToastNotification";
 import ChatNotificationToast from "../components/chat/ChatNotificationToast";
 import { useNotificationPolling } from "../hooks/useNotificationPolling";
 import { useGlobalChatNotification } from "../hooks/chat/useGlobalChatNotification";
 
 const AppLayout = () => {
   const location = useLocation();
-  const navigate = useNavigate();
   const { socket } = useSocketStore();
 
   useGlobalChatNotification();
 
-  const { showToast, hideToast, toastMessage, isToastVisible, toastLink } =
-    useNotificationStore();
+  const { showToast } = useNotificationStore();
 
   const { chatNotification, hideChatNotification } = useSocketStore();
 
@@ -50,13 +47,6 @@ const AppLayout = () => {
     };
   }, [socket, location.pathname, showToast]);
 
-  const handleToastClick = () => {
-    if (toastLink) {
-      navigate(toastLink);
-      hideToast();
-    }
-  };
-
   return (
     <div className="flex justify-center bg-gray-100 h-full">
       <div className="relative w-full h-full bg-white flex flex-col overflow-hidden">
@@ -71,19 +61,6 @@ const AppLayout = () => {
             chatRoomId={chatNotification.chatRoomId}
             onClose={hideChatNotification}
           />
-        )}
-
-        {isToastVisible && (
-          <div
-            onClick={handleToastClick}
-            className="absolute top-4 left-0 right-0 z-[9998] px-4 cursor-pointer animate-fade-in-down"
-          >
-            <ToastNotification
-              message={toastMessage}
-              isVisible={isToastVisible}
-              onClose={hideToast}
-            />
-          </div>
         )}
 
         <LikeModal />

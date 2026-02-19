@@ -23,7 +23,6 @@ const PAGE_SIZE = 20;
 const FALLBACK_IMAGE =
   "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=500&h=800&fit=crop";
 
-
 const calculateAge = (birthDateString: string): number => {
   if (!birthDateString) return 25;
   const birthYear = new Date(birthDateString).getFullYear();
@@ -45,12 +44,10 @@ export default function Like() {
       }),
     initialPageParam: null as string | null,
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
-    staleTime: 0, 
+    staleTime: 0,
     refetchOnMount: true,
     retry: 0,
   });
-
-  
 
   const receivedQuery = useInfiniteQuery({
     queryKey: ["hearts", "received"],
@@ -62,7 +59,7 @@ export default function Like() {
       }),
     initialPageParam: null as string | null,
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
-    staleTime: 0, 
+    staleTime: 0,
     refetchOnMount: true,
     retry: 0,
   });
@@ -83,7 +80,7 @@ export default function Like() {
       id: targetUserId,
       heartId: heartId,
       name: u.nickname,
-      age: calculateAge(u.birthdate),
+      age: calculateAge(u.birthdate) - 1,
       imageUrl: u.profileImageUrl || FALLBACK_IMAGE,
       location: u.address?.fullName || "지역 미설정",
       introText: u.introText || "",
@@ -111,9 +108,6 @@ export default function Like() {
   const currentCards = tab === "sent" ? sentCards : receivedCards;
   const isLoading =
     tab === "sent" ? sentQuery.isLoading : receivedQuery.isLoading;
-
-
-
 
   return (
     <div className="h-screen flex flex-col bg-[#F8FAFB]">
@@ -166,23 +160,24 @@ export default function Like() {
                       initialHeartId={tab === "sent" ? item.heartId : null}
                       isReceived={tab === "received"}
                       onClick={() => {
-                      navigate(`/home/profile/${item.id}`, {
-                        state: {
-                          profile: {
-                            ...item.rawProfile,
-                            userId: item.id,
-                            nickname: item.name,
-                            age: item.age,
-                            profileImageUrl: item.imageUrl,
-                            areaName: item.location,
-                            introText: item.introText,
-                            keywords: item.keywords,
-                            isLiked: tab === "sent",
-                            likedHeartId: tab === "sent" ? item.heartId : null,
+                        navigate(`/home/profile/${item.id}`, {
+                          state: {
+                            profile: {
+                              ...item.rawProfile,
+                              userId: item.id,
+                              nickname: item.name,
+                              age: item.age,
+                              profileImageUrl: item.imageUrl,
+                              areaName: item.location,
+                              introText: item.introText,
+                              keywords: item.keywords,
+                              isLiked: tab === "sent",
+                              likedHeartId:
+                                tab === "sent" ? item.heartId : null,
+                            },
                           },
-                        },
-                      });
-                    }}
+                        });
+                      }}
                     />
                   </div>
                 ))}
