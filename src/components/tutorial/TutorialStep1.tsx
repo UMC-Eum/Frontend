@@ -19,7 +19,7 @@ const TutorialStep1 = ({ onNext, onClose }: Props) => {
   };
 
   return (
-    <div className="absolute inset-0 z-[9999] bg-black/70 overflow-hidden">
+    <div className="absolute inset-0 z-[9999] bg-black/85 overflow-hidden">
       <button
         onClick={onClose}
         className="absolute top-[20px] right-[20px] p-2 hover:opacity-70 transition-opacity z-50"
@@ -75,7 +75,7 @@ const TutorialStep1 = ({ onNext, onClose }: Props) => {
                   </p>
                 </div>
 
-                <div className="pointer-events-none border-[1.5px] border-white rounded-[16px] overflow-hidden bg-white shadow-lg">
+                <div className="pointer-events-none border-[1px] border-white rounded-[16px] overflow-hidden bg-white shadow-lg">
                   <RecommendCard
                     targetUserId={MOCK_PROFILE.targetUserId}
                     profileUrl={MOCK_PROFILE.profileUrl}
@@ -96,7 +96,7 @@ const TutorialStep1 = ({ onNext, onClose }: Props) => {
 
       <button
         onClick={onNext}
-        className="absolute bottom-[40px] left-1/2 -translate-x-1/2 px-8 py-3 bg-[rgba(0,0,0,0.70)] text-white rounded-[22px] text-[16px] border border-white whitespace-nowrap z-[10000] hover:bg-black/90 transition"
+        className="absolute bottom-[150px] left-1/2 -translate-x-1/2 px-8 py-2 bg-black/0 text-white rounded-[22px] text-[16px] border border-white whitespace-nowrap z-[10000]"
       >
         다음
       </button>

@@ -48,7 +48,7 @@ const TutorialStep2 = ({ onCloseForever, onClose }: Props) => {
       </main>
 
       {/* 시작하기 & 다시 보지 않기 버튼 */}
-      <div className="absolute bottom-[160px] left-1/2 -translate-x-1/2 flex flex-col items-center gap-3 w-full z-50">
+      <div className="absolute bottom-[300px] left-1/2 -translate-x-1/2 flex flex-col items-center gap-3 w-full z-50">
         <button
           onClick={onClose}
           className="px-8 py-3 bg-[rgba(0,0,0,0.70)] text-white rounded-[22px] text-[16px] border border-white whitespace-nowrap hover:bg-black/90 transition"
