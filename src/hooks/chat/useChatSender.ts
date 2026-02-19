@@ -4,26 +4,6 @@ import { IChatsRoomIdMessagesGetResponse } from "../../types/api/chats/chatsDTO"
 
 type IMessageItem = IChatsRoomIdMessagesGetResponse["items"][number];
 
-/**
- * 기기별 실제 파일 타입을 체크하여 적절한 확장자로 변환하는 헬퍼 함수
- */
-const getSafeAudioFile = (file: File): File => {
-  const actualType = file.type || "audio/mp4";
-  let extension = "webm";
-
-  // 아이폰(MP4/M4A) 대응 로직
-  if (
-    actualType.includes("mp4") ||
-    actualType.includes("m4a") ||
-    actualType.includes("apple")
-  ) {
-    extension = "m4a";
-  }
-
-  const safeFileName = `${Date.now()}_voice_record.${extension}`;
-  return new File([file], safeFileName, { type: actualType });
-};
-
 export const useChatSender = (
   roomId: number,
   myId: number,
@@ -71,13 +51,11 @@ export const useChatSender = (
   const sendVoice = async (file: File, duration: number) => {
     if (!roomId) return;
 
-    // 💡 파일 확장자 및 타입 세탁
-    const safeFile = getSafeAudioFile(file);
-
-    const fakeUrl = URL.createObjectURL(safeFile);
+    // 💡 더 이상 확장자 세탁이 필요 없습니다! (이미 완벽한 MP3로 들어옴)
+    const fakeUrl = URL.createObjectURL(file);
     addTempMessage("AUDIO", null, fakeUrl, duration);
 
-    const uploadResult = await uploadMedia(safeFile, roomId);
+    const uploadResult = await uploadMedia(file, roomId);
 
     if (uploadResult) {
       replaceTempMediaUrl(fakeUrl, uploadResult.publicUrl);
