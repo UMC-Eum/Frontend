@@ -28,13 +28,12 @@ export default function SetGender({ onNext }: SetGenderProps) {
         <p className="text-gray-500 text-[15px] mt-2">
           추후에 변경이 불가능해요.
         </p>
-
-        <div className="mt-24 flex flex-col items-center gap-12">
-          <MaleButton active={gender === "M"} onClick={() => setGender("M")} />
-          <FemaleButton active={gender === "F"} onClick={() => setGender("F")} />
-        </div>
       </div>
 
+      <div className="flex-1 flex flex-col items-center justify-center gap-[min(24px,5dvh)]">
+        <MaleButton active={gender === "M"} onClick={() => setGender("M")} />
+        <FemaleButton active={gender === "F"} onClick={() => setGender("F")} />
+      </div>
 
       <FullButton onClick={handleNext} disabled={!isValid}>
         다음

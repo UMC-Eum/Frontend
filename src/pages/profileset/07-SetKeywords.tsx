@@ -57,8 +57,8 @@ export default function SetKeywords({ onNext }: SetKeywordsProps) {
   const isValid = selectedKeywords.length > 0;
 
   return (
-    <div className="flex-1 flex flex-col justify-between">
-      <div className="mt-[28px]">
+    <div className="flex-1 flex flex-col justify-between min-h-0">
+      <div className="mt-[28px] overflow-y-auto no-scrollbar shrink">
         <h1 className="text-[26px] font-bold text-black leading-tight">
           이 내용이 {user?.nickname}님을
           <br />잘 표현하나요?
@@ -69,7 +69,7 @@ export default function SetKeywords({ onNext }: SetKeywordsProps) {
           최대 {MAX_SELECT}개까지 고를 수 있어요.
         </p>
 
-        <div className="flex flex-wrap gap-[9px] mt-[40px]">
+        <div className="flex flex-wrap gap-[9px] mt-[40px] pb-6">
           <KeywordChips
             allKeywords={allKeywords}
             selectedKeywords={selectedKeywords}
@@ -81,12 +81,14 @@ export default function SetKeywords({ onNext }: SetKeywordsProps) {
 
       <div className="flex-1" />
 
-      <p className="text-center text-gray-500 text-[14px] mb-[18px]">
-        키워드는 프로필에서 언제든 수정할 수 있어요!
-      </p>
-      <FullButton onClick={handleNext} disabled={!isValid}>
-        다음
-      </FullButton>
+      <div className="shrink-0">
+        <p className="text-center text-gray-500 text-[14px] mb-[18px]">
+          키워드는 프로필에서 언제든 수정할 수 있어요!
+        </p>
+        <FullButton onClick={handleNext} disabled={!isValid}>
+          다음
+        </FullButton>
+      </div>
     </div>
   );
 }
