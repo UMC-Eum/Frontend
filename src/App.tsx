@@ -19,7 +19,7 @@ import PersonalitiesEditPage from "./pages/profile-edit/PersonalitiesEditPage";
 import IdealEditPage from "./pages/profile-edit/IdealEditPage";
 import IdealRecordPage from "./pages/profile-edit/IdealRecordPage";
 import LocationEditPage from "./pages/profile-edit/LocationEditPage";
-
+//버셀 배포용 주석
 import LoginPage from "./pages/onboarding/LoginPage";
 import OAuthCallbackPage from "./pages/OAuthCallbackPage";
 
@@ -29,7 +29,6 @@ import Like from "./pages/Like";
 import CardTestPage from "./mock/CardTestPage";
 import NotificationsPage from "./pages/NotificationsPage";
 import ProfileSetupMain from "./pages/profileset/ProfileSetupMain";
-
 
 import ErrorPage from "./pages/ErrorPage";
 
@@ -160,7 +159,6 @@ const router = createBrowserRouter([
             path: "/profileset",
             element: <ProfileSetupMain />,
           },
-
         ],
       },
     ],
