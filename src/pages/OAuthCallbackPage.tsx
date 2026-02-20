@@ -47,17 +47,14 @@ export default function OAuthCallbackPage() {
               })
               .catch((err) => {
                 console.error("로그인 완료 처리 실패:", err);
-                alert("로그인 처리 중 문제가 발생했습니다. 다시 시도해주세요.");
                 navigate("/login");
               });
           } else {
-            console.error("토큰이 응답에 없습니다!");
             navigate("/login");
           }
         })
         .catch((err) => {
           console.error("로그인 실패 원인:", err.response?.data || err);
-          alert("로그인 실패! 관리자에게 문의하세요.");
           navigate("/login");
         });
     }
