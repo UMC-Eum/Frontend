@@ -19,7 +19,6 @@ import { getMyProfile } from "../../api/users/usersApi";
 import AgeLimitModal from "./overlays/AgeLimitModal";
 import { IUserProfile } from "../../types/user";
 
-
 const DUMMY_DATA: IAgreementItem[] = [
   { agreementId: 1, body: "서비스 이용약관 상세 내용더미...", type: "POLICY" },
   {
@@ -42,11 +41,9 @@ const AGREEMENT_TYPE_MAP: Record<number, AgreementType> = {
 export default function OnBoardingPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const [step, setStep] = useState<"checking" | "permission">(
-    "checking",
-  );
+  const [step, setStep] = useState<"checking" | "permission">("checking");
 
-  const [userProfile, setUserProfile] = useState<IUserProfile | null>(null);
+  const [_, setUserProfile] = useState<IUserProfile | null>(null);
   const [agreements, setAgreements] = useState<IAgreementItem[]>([]);
   const [showAgreement, setShowAgreement] = useState(false);
   const [currentTerm, setCurrentTerm] = useState<AgreementType | null>(null);
@@ -74,7 +71,6 @@ export default function OnBoardingPage() {
         // 그 외에는 권한 허용 여부와 관계없이 PermissionStep 노출
         setStep("permission");
       }
-
     } catch {
       setStep("permission");
     }
@@ -183,7 +179,6 @@ export default function OnBoardingPage() {
     }
   };
 
-
   return (
     <div className="relative h-full bg-white">
       {step === "checking" && (
@@ -254,7 +249,6 @@ export default function OnBoardingPage() {
             //   navigate("/profileset", { replace: true });
             // }
           }}
-
         />
       )}
     </div>
