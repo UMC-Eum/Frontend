@@ -246,12 +246,13 @@ export default function OnBoardingPage() {
       {step === "permission" && (
         <PermissionStep
           onFinish={() => {
-            // 이미 닉네임이 있다면(가입 완료 상태) 이전 페이지로 이동
-            if (userProfile?.nickname) {
-              navigate(-1);
-            } else {
-              navigate("/profileset", { replace: true });
-            }
+            navigate("/profileset", { replace: true });
+            // // 이미 닉네임이 있다면(가입 완료 상태) 이전 페이지로 이동
+            // if (userProfile?.nickname) {
+            //   navigate(-1);
+            // } else {
+            //   navigate("/profileset", { replace: true });
+            // }
           }}
 
         />
