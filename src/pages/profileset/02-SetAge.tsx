@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useUserStore } from "../../stores/useUserStore";
 import { FullButton } from "../../components/standard/CTA";
 
@@ -26,10 +26,10 @@ export default function SetAge({ onNext }: SetAgeProps) {
         <p className="text-gray-500 text-[15px] mt-2">
           만나이로 알려주세요! 추후에 변경이 불가능해요.
         </p>
+      </div>
 
-        <div className="mt-10">
-          <WheelPicker onChange={setAge} />
-        </div>
+      <div className="flex-1 flex flex-col justify-center items-center">
+        <WheelPicker onChange={setAge} />
       </div>
 
       <FullButton onClick={handleNext}>다음</FullButton>
@@ -48,8 +48,24 @@ const WheelPicker = ({ onChange }: WheelPickerProps) => {
   const ageList = Array.from({ length: 51 }, (_, i) => i + 50);
 
   const ITEM_HEIGHT = 60;
-  const CONTAINER_HEIGHT = 420;
-  const SPACER_HEIGHT = (CONTAINER_HEIGHT - ITEM_HEIGHT) / 2;
+  const [containerHeight, setContainerHeight] = useState(420);
+
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerHeight < 660) {
+        setContainerHeight(180); // 3 items
+      } else if (window.innerHeight < 800) {
+        setContainerHeight(300); // 5 items
+      } else {
+        setContainerHeight(420); // 7 items
+      }
+    };
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  const SPACER_HEIGHT = (containerHeight - ITEM_HEIGHT) / 2;
 
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const currentScroll = e.currentTarget.scrollTop;
@@ -75,7 +91,7 @@ const WheelPicker = ({ onChange }: WheelPickerProps) => {
   return (
     <div
       className="relative overflow-hidden"
-      style={{ height: CONTAINER_HEIGHT }}
+      style={{ height: containerHeight }}
     >
       <div
         ref={containerRef}
@@ -103,11 +119,11 @@ const WheelPicker = ({ onChange }: WheelPickerProps) => {
       <div className="pointer-events-none absolute inset-0 flex justify-center">
         <div
           className="absolute w-[120px] h-px bg-[#FC3367]"
-          style={{ top: (CONTAINER_HEIGHT - ITEM_HEIGHT) / 2 }}
+          style={{ top: (containerHeight - ITEM_HEIGHT) / 2 }}
         />
         <div
           className="absolute w-[120px] h-px bg-[#FC3367]"
-          style={{ top: (CONTAINER_HEIGHT + ITEM_HEIGHT) / 2 }}
+          style={{ top: (containerHeight + ITEM_HEIGHT) / 2 }}
         />
       </div>
     </div>

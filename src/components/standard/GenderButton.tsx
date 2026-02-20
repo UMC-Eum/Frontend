@@ -15,9 +15,12 @@ const GenderButton = forwardRef<HTMLButtonElement, GenderButtonProps>(
       <button
         ref={ref}
         className={`
-            w-[150px] h-[150px]
+            w-[130px] h-[130px]
+            short:w-[110px] short:h-[110px]
+            sm:w-[150px] sm:h-[150px]
             rounded-full
             border-[2px]
+            flex items-center justify-center
             ${
               active
                 ? "bg-[#FFF0F3] border-[#FC3367]"

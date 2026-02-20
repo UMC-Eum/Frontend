@@ -78,18 +78,20 @@ export default function SetImage({ onNext }: SetImageProps) {
 
   return (
     <div className="flex-1 flex flex-col justify-between">
-      <h1 className="text-[26px] font-bold text-black leading-tight">
-        사진을 등록해주세요.
-      </h1>
-      <p className="text-gray-500 text-[15px] mt-2">
-        따뜻한 미소가 담긴 사진은 매칭에 큰 도움이 됩니다.
-      </p>
+      <div>
+        <h1 className="text-[26px] font-bold text-black leading-tight">
+          사진을 등록해주세요.
+        </h1>
+        <p className="text-gray-500 text-[15px] mt-2">
+          따뜻한 미소가 담긴 사진은 매칭에 큰 도움이 됩니다.
+        </p>
+      </div>
 
-      <div className="flex flex-col items-center justify-center mt-[106px]">
+      <div className="flex-1 flex flex-col items-center justify-center">
         <div
           className={`relative w-40 h-40 rounded-full p-[3px] ${
             isValid
-              ? "bg-gradient-to-tr from-[#FFBD66] v ia-[#FF3D77] to-[#FF3D77]"
+              ? "bg-gradient-to-tr from-[#FFBD66] via-[#FF3D77] to-[#FF3D77]"
               : "bg-gray-300"
           } flex items-center justify-center`}
         >
