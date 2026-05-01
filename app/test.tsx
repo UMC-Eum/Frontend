@@ -1,7 +1,7 @@
-import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from "expo-router";
+import React, { useState } from "react";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 // --- feature_basic-components 브랜치 컴포넌트 ---
 import { Chip } from "../components/Chip";
@@ -10,9 +10,15 @@ import { ListItem } from "../components/ListItem";
 import { Navbar } from "../components/Navbar";
 
 // --- dev 브랜치 컴포넌트 ---
-import { Header1, Header2, Header3, Header4, Header5 } from '@/components/header';
-import ProgressBar from '@/components/progress-bar';
-import TxtBox from '@/components/txt-box';
+import {
+  Header1,
+  Header2,
+  Header3,
+  Header4,
+  Header5,
+} from "@/components/header";
+import ProgressBar from "@/components/progress-bar";
+import TxtBox from "@/components/txt-box";
 
 export default function TestPage() {
   const router = useRouter();
@@ -23,11 +29,11 @@ export default function TestPage() {
   const [selectedCards, setSelectedCards] = useState<number[]>([1]);
 
   // --- dev 상태 ---
-  const [v1, setV1] = useState('');
-  const [v2, setV2] = useState('');
-  const [v3, setV3] = useState('텍스트');
-  const [v4, setV4] = useState('텍스트');
-  const [v5, setV5] = useState('텍스트');
+  const [v1, setV1] = useState("");
+  const [v2, setV2] = useState("");
+  const [v3, setV3] = useState("텍스트");
+  const [v4, setV4] = useState("텍스트");
+  const [v5, setV5] = useState("텍스트");
 
   const toggleCard = (id: number) => {
     setSelectedCards((prev) =>
@@ -38,9 +44,8 @@ export default function TestPage() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
+    <SafeAreaView style={styles.safeArea} edges={["top"]}>
       <ScrollView contentContainerStyle={styles.scrollContainer}>
-        
         {/* ── Header ── */}
         <Text style={styles.sectionTitle}>Header</Text>
         <View style={styles.devSection}>
@@ -169,7 +174,6 @@ export default function TestPage() {
             <Chip label="텍스트" variant="ghost" size="small" />
           </View>
         </View>
-
       </ScrollView>
     </SafeAreaView>
   );
@@ -178,7 +182,7 @@ export default function TestPage() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#F9FAFB", 
+    backgroundColor: "#F9FAFB",
   },
   scrollContainer: {
     paddingHorizontal: 16,
