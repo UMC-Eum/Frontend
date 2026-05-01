@@ -33,6 +33,15 @@ export default function Index() {
           📱 메인 탭 화면 열기
         </Text>
       </Pressable>
+
+      <Pressable
+        style={[styles.button, styles.profileButton]}
+        onPress={() => router.push("/profile/name" as any)}
+      >
+        <Text style={[styles.buttonText, styles.profileButtonText]}>
+          👤 프로필 설정 테스트
+        </Text>
+      </Pressable>
     </View>
   );
 }
@@ -76,5 +85,11 @@ const styles = StyleSheet.create({
   },
   tabButtonText: {
     color: "#4338CA",
+  },
+  profileButton: {
+    backgroundColor: "#FFF1F4",
+  },
+  profileButtonText: {
+    color: "#FF3E70",
   },
 });
