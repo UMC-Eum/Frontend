@@ -10,6 +10,7 @@ import { ListItem } from "../components/ListItem";
 import { Navbar } from "../components/Navbar";
 
 // --- dev 브랜치 컴포넌트 ---
+import DevBackHeader from "@/components/DevBackHeader";
 import {
   Header1,
   Header2,
@@ -45,6 +46,7 @@ export default function TestPage() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={["top"]}>
+      <DevBackHeader title="컴포넌트 테스트" />
       <ScrollView contentContainerStyle={styles.scrollContainer}>
         {/* ── Header ── */}
         <Text style={styles.sectionTitle}>Header</Text>
