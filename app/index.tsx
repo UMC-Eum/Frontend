@@ -42,6 +42,15 @@ export default function Index() {
           👤 프로필 설정 테스트
         </Text>
       </Pressable>
+
+      <Pressable
+        style={[styles.button, styles.profileDetailButton]}
+        onPress={() => router.push("/profile-detail")}
+      >
+        <Text style={[styles.buttonText, styles.profileDetailButtonText]}>
+          💬 프로필 상세 테스트
+        </Text>
+      </Pressable>
     </View>
   );
 }
@@ -91,5 +100,11 @@ const styles = StyleSheet.create({
   },
   profileButtonText: {
     color: "#FF3E70",
+  },
+  profileDetailButton: {
+    backgroundColor: "#F0FDF4",
+  },
+  profileDetailButtonText: {
+    color: "#16A34A",
   },
 });
