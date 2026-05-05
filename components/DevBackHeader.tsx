@@ -24,8 +24,8 @@ const DevBackHeader = ({ title = "" }: DevBackHeaderProps) => {
         style={styles.backButton}
         hitSlop={12}
       >
-        <Ionicons name="chevron-back" size={26} color="#1F2937" />
-        <Text style={styles.backText}>돌아가기</Text>
+        <Ionicons name="chevron-back" size={26} color="#A6AFB6" />
+        <Text style={styles.backText}>{title}</Text>
       </Pressable>
       {title ? <Text style={styles.title}>{title}</Text> : null}
       {/* 오른쪽 빈 공간 (중앙 정렬용) */}
