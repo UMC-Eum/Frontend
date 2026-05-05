@@ -35,6 +35,15 @@ export default function Index() {
       </Pressable>
 
       <Pressable
+        style={[styles.button, styles.searchButton]}
+        onPress={() => router.push("/search" as any)}
+      >
+        <Text style={[styles.buttonText, styles.searchButtonText]}>
+          🔎 검색 화면 확인하기
+        </Text>
+      </Pressable>
+
+      <Pressable
         style={[styles.button, styles.profileButton]}
         onPress={() => router.push("/profile/name" as any)}
       >
@@ -43,6 +52,26 @@ export default function Index() {
         </Text>
       </Pressable>
 
+      {/* 👇 새로 추가된 채팅방 이동 버튼 👇 */}
+      <Pressable
+        style={[styles.button, styles.chatButton]}
+        onPress={() => router.push("/chat" as any)}
+      >
+        <Text style={[styles.buttonText, styles.chatButtonText]}>
+          💬 채팅방 리스트 뷰 확인하기
+        </Text>
+      </Pressable>
+
+      <Pressable
+        style={[styles.button, styles.chatButton]}
+        onPress={() => router.push("/heart" as any)}
+      >
+        <Text style={[styles.buttonText, styles.chatButtonText]}>
+          ❤️ 마음 페이지확인하기
+        </Text>
+      </Pressable>
+
+      {/* 👇 프로필 상세 테스트 버튼 👇 */}
       <Pressable
         style={[styles.button, styles.profileDetailButton]}
         onPress={() => router.push("/profile-detail")}
@@ -95,12 +124,26 @@ const styles = StyleSheet.create({
   tabButtonText: {
     color: "#4338CA",
   },
+  searchButton: {
+    backgroundColor: "#F1F5F9",
+  },
+  searchButtonText: {
+    color: "#334155",
+  },
   profileButton: {
     backgroundColor: "#FFF1F4",
   },
   profileButtonText: {
     color: "#FF3E70",
   },
+  // 👇 새로 추가된 채팅방 버튼 스타일 👇
+  chatButton: {
+    backgroundColor: "#ECFDF5", // 연한 초록색 배경
+  },
+  chatButtonText: {
+    color: "#059669", // 진한 초록색 글씨
+  },
+  // 👇 프로필 상세 버튼 스타일 👇
   profileDetailButton: {
     backgroundColor: "#F0FDF4",
   },
