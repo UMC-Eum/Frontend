@@ -61,12 +61,23 @@ export default function Index() {
           💬 채팅방 리스트 뷰 확인하기
         </Text>
       </Pressable>
+
       <Pressable
         style={[styles.button, styles.chatButton]}
         onPress={() => router.push("/heart" as any)}
       >
         <Text style={[styles.buttonText, styles.chatButtonText]}>
           ❤️ 마음 페이지확인하기
+        </Text>
+      </Pressable>
+
+      {/* 👇 프로필 상세 테스트 버튼 👇 */}
+      <Pressable
+        style={[styles.button, styles.profileDetailButton]}
+        onPress={() => router.push("/profile-detail")}
+      >
+        <Text style={[styles.buttonText, styles.profileDetailButtonText]}>
+          💬 프로필 상세 테스트
         </Text>
       </Pressable>
     </View>
@@ -131,5 +142,12 @@ const styles = StyleSheet.create({
   },
   chatButtonText: {
     color: "#059669", // 진한 초록색 글씨
+  },
+  // 👇 프로필 상세 버튼 스타일 👇
+  profileDetailButton: {
+    backgroundColor: "#F0FDF4",
+  },
+  profileDetailButtonText: {
+    color: "#16A34A",
   },
 });
