@@ -35,6 +35,24 @@ export default function Index() {
       </Pressable>
 
       <Pressable
+        style={[styles.button, styles.homeButton]}
+        onPress={() => router.push("/home" as any)}
+      >
+        <Text style={[styles.buttonText, styles.homeButtonText]}>
+          🏠 홈페이지 확인하기
+        </Text>
+      </Pressable>
+
+      <Pressable
+        style={[styles.button, styles.recordingButton]}
+        onPress={() => router.push("/ideal-recording" as any)}
+      >
+        <Text style={[styles.buttonText, styles.recordingButtonText]}>
+          🎙 이상형 녹음 페이지 확인하기
+        </Text>
+      </Pressable>
+
+      <Pressable
         style={[styles.button, styles.searchButton]}
         onPress={() => router.push("/search" as any)}
       >
@@ -123,6 +141,18 @@ const styles = StyleSheet.create({
   },
   tabButtonText: {
     color: "#4338CA",
+  },
+  homeButton: {
+    backgroundColor: "#EEF2FF",
+  },
+  homeButtonText: {
+    color: "#3730A3",
+  },
+  recordingButton: {
+    backgroundColor: "#FFF7ED",
+  },
+  recordingButtonText: {
+    color: "#C2410C",
   },
   searchButton: {
     backgroundColor: "#F1F5F9",
