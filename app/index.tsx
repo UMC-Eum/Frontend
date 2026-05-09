@@ -98,6 +98,26 @@ export default function Index() {
           💬 프로필 상세 테스트
         </Text>
       </Pressable>
+
+      {/* 동호회 생성 플로우 확인 버튼입니다. */}
+      <Pressable
+        style={[styles.button, styles.clubCreateButton]}
+        onPress={() => router.push("/club-create")}
+      >
+        <Text style={[styles.buttonText, styles.clubCreateButtonText]}>
+          🏃 동호회 생성 테스트
+        </Text>
+      </Pressable>
+
+      {/* 동호회 홈 화면 확인 버튼입니다. */}
+      <Pressable
+        style={[styles.button, styles.clubHomeButton]}
+        onPress={() => router.push("/club-home")}
+      >
+        <Text style={[styles.buttonText, styles.clubHomeButtonText]}>
+          🏠 동호회 홈 테스트
+        </Text>
+      </Pressable>
     </View>
   );
 }
@@ -179,5 +199,17 @@ const styles = StyleSheet.create({
   },
   profileDetailButtonText: {
     color: "#16A34A",
+  },
+  clubCreateButton: {
+    backgroundColor: "#FFF1F4",
+  },
+  clubCreateButtonText: {
+    color: "#FC3367",
+  },
+  clubHomeButton: {
+    backgroundColor: "#F1F5F9",
+  },
+  clubHomeButtonText: {
+    color: "#0F172A",
   },
 });

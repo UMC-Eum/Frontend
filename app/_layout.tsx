@@ -22,6 +22,8 @@ export default function RootLayout() {
         <Stack.Screen name="onboarding" options={{ headerShown: false }} />
         <Stack.Screen name="profile" options={{ headerShown: false }} />
         <Stack.Screen name="profile-detail" options={{ headerShown: false }} />
+        <Stack.Screen name="club-create" options={{ headerShown: false }} />
+        <Stack.Screen name="club-home" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="search" options={{ headerShown: false }} />
         <Stack.Screen
