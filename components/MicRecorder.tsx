@@ -23,7 +23,7 @@ interface MicRecorderProps {
   containerStyle?: ViewStyle;
 }
 
-const PINK = "#FF1B4D";
+const PINK = "#FF3E70";
 const TEXT = "#5F6770";
 const MUTED = "#9EA8AF";
 const WHITE = "#FFFFFF";
@@ -179,7 +179,7 @@ export default function MicRecorder({
             onPress={onRecordPress}
           >
             {currentStatus === "idle" ? (
-              <Ionicons name="mic-outline" size={42} color={WHITE} />
+              <Ionicons name="mic-outline" size={34} color={WHITE} />
             ) : null}
 
             {currentStatus === "recording" ? <Waveform /> : null}
@@ -199,7 +199,7 @@ export default function MicRecorder({
           >
             <Ionicons
               name="send-sharp"
-              size={24}
+              size={21}
               color={hasRecording ? PINK : TEXT}
             />
           </Pressable>
@@ -216,7 +216,7 @@ export default function MicRecorder({
         onPress={onResetPress}
         disabled={!hasRecording}
       >
-        <Ionicons name="refresh" size={25} color={MUTED} />
+        <Ionicons name="refresh" size={22} color={MUTED} />
       </Pressable>
     </View>
   );
@@ -228,70 +228,70 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   timer: {
-    marginBottom: 22,
-    fontSize: 18,
-    lineHeight: 24,
+    marginBottom: 16,
+    fontSize: 16,
+    lineHeight: 22,
     fontWeight: "600",
     color: TEXT,
   },
   controlsRow: {
     width: "100%",
-    maxWidth: 316,
-    height: 94,
+    maxWidth: 252,
+    height: 70,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
   },
   sideSlot: {
-    width: 72,
-    height: 94,
+    width: 58,
+    height: 70,
     alignItems: "center",
     justifyContent: "center",
   },
   centerSlot: {
-    width: 94,
-    height: 94,
+    width: 70,
+    height: 70,
     alignItems: "center",
     justifyContent: "center",
   },
   cancelButton: {
-    width: 64,
-    height: 52,
+    width: 56,
+    height: 44,
     alignItems: "center",
     justifyContent: "center",
   },
   cancelText: {
-    fontSize: 16,
-    lineHeight: 22,
+    fontSize: 14,
+    lineHeight: 20,
     fontWeight: "500",
     color: TEXT,
   },
   circleSideButton: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: WHITE,
     shadowColor: "#000000",
-    shadowOffset: { width: 0, height: 5 },
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 4,
+    shadowRadius: 10,
+    elevation: 3,
   },
   sendButtonIdle: {
     opacity: 0.95,
   },
   centerButton: {
-    width: 94,
-    height: 94,
-    borderRadius: 47,
+    width: 70,
+    height: 70,
+    borderRadius: 35,
     alignItems: "center",
     justifyContent: "center",
     shadowColor: PINK,
-    shadowOffset: { width: 0, height: 10 },
+    shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.28,
-    shadowRadius: 18,
+    shadowRadius: 12,
     elevation: 8,
   },
   primaryButton: {
@@ -306,34 +306,34 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   waveform: {
-    height: 30,
+    height: 24,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 7,
+    gap: 5,
   },
   waveBar: {
-    width: 7,
-    height: 20,
-    borderRadius: 4,
+    width: 5,
+    height: 16,
+    borderRadius: 3,
     backgroundColor: PINK,
   },
   recordedDots: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 8,
+    gap: 6,
   },
   recordedDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
     backgroundColor: WHITE,
   },
   resetButton: {
-    width: 44,
-    height: 44,
-    marginTop: 18,
+    width: 40,
+    height: 40,
+    marginTop: 10,
     alignItems: "center",
     justifyContent: "center",
   },
