@@ -1,12 +1,16 @@
 import { useRouter } from "expo-router";
 import React from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text } from "react-native";
 
 export default function Index() {
   const router = useRouter();
 
   return (
-    <View style={styles.container}>
+    <ScrollView
+      style={styles.scroll}
+      contentContainerStyle={styles.container}
+      showsVerticalScrollIndicator={false}
+    >
       <Text style={styles.title}>🛠 개발 메뉴</Text>
 
       <Pressable
@@ -118,18 +122,22 @@ export default function Index() {
           🏠 동호회 홈 테스트
         </Text>
       </Pressable>
-    </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
+  // contentContainerStyle for ScrollView
   container: {
-    flex: 1,
-    justifyContent: "center",
     alignItems: "center",
     backgroundColor: "#FFFFFF",
     paddingHorizontal: 20,
+    paddingTop: 24,
     gap: 16,
+  },
+  // ScrollView style to fill available space
+  scroll: {
+    flex: 1,
   },
   title: {
     fontSize: 24,
