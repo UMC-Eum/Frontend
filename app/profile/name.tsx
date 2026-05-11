@@ -46,6 +46,7 @@ export default function NameScreen() {
     <ProfileStepLayout
       title="성함이 어떻게 되세요?"
       subtitle="실명도, 닉네임도 모두 괜찮아요."
+      step={1}
       buttonEnabled={isValid}
       onNext={handleNext}
     >
@@ -82,14 +83,16 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   input: {
-    height: 52,
-    borderWidth: 1.5,
-    borderColor: "#E5E7EB",
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingRight: 44,
-    fontSize: 16,
-    color: "#1F2937",
+    height: 62,
+    borderWidth: 2,
+    borderColor: "#DEE3E5",
+    borderRadius: 14,
+    paddingHorizontal: 20,
+    paddingRight: 48,
+    fontSize: 18,
+    fontWeight: "500",
+    color: "#202020",
+    lineHeight: 23,
     backgroundColor: "#FFFFFF",
   },
   inputFocused: {
