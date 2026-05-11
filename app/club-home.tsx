@@ -128,7 +128,14 @@ export default function ClubHomeScreen() {
             { id: "my", iconName: "person", label: "마이" },
           ]}
           activeTabId="index"
-          onTabPress={(id) => router.push(`/(tabs)/${id}` as never)}
+          onTabPress={(id) => {
+            if (id === "index") {
+              router.push("/home" as never);
+              return;
+            }
+
+            router.push(`/(tabs)/${id}` as never);
+          }}
           activeColor="#1F2937"
           inactiveColor="#9CA3AF"
         />
