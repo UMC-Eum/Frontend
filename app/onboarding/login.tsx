@@ -1,6 +1,13 @@
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import {
+  Image,
+  Pressable,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import AgeRestrictionModal from "@/components/onboarding/AgeRestrictionModal";
@@ -8,17 +15,23 @@ import TermsBottomSheet from "@/components/onboarding/TermsBottomSheet";
 
 /**
  * 로그인 화면
- * - 상단: 일러스트 placeholder (핑크 원형)
+ * - 상단: 온보딩 일러스트 이미지
  * - 중앙: 타이틀 + 서브타이틀
- * - 하단: 카카오 로그인 버튼
+ * - 하단: 카카오 로그인 이미지 버튼
  * - 모달: 나이 제한 / 이용약관
  */
 export default function LoginScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { width, height } = useWindowDimensions();
 
   const [showAgeModal, setShowAgeModal] = useState(false);
   const [showTermsSheet, setShowTermsSheet] = useState(false);
+
+  // Figma 기준 프레임(412x892)을 작은 화면에서도 자연스럽게 줄여 적용한다.
+  const layoutScale = Math.min(width / 412, height / 892, 1);
+  const illustrationWidth = 280 * layoutScale;
+  const illustrationHeight = 326 * layoutScale;
 
   // 카카오 로그인 버튼 클릭 시
   const handleKakaoLogin = () => {
@@ -40,13 +53,18 @@ export default function LoginScreen() {
   return (
     <View style={[styles.container, { paddingBottom: insets.bottom + 24 }]}>
       {/* 상단: 일러스트 영역 */}
-      <View style={styles.illustrationArea}>
-        {/* 일러스트 placeholder — 나중에 Image 컴포넌트로 교체 */}
-        <View style={styles.illustrationCircle}>
-          <View style={styles.illustrationPlaceholder}>
-            <Text style={styles.illustrationEmoji}>👫</Text>
-          </View>
-        </View>
+      <View
+        style={[styles.illustrationArea, { marginTop: 221 * layoutScale }]}
+      >
+        {/* Figma에서 추출한 온보딩 일러스트 */}
+        <Image
+          source={require("@/assets/images/onboarding-background-image.png")}
+          style={[
+            styles.illustrationImage,
+            { width: illustrationWidth, height: illustrationHeight },
+          ]}
+          resizeMode="contain"
+        />
       </View>
 
       {/* 중앙: 타이틀 + 서브타이틀 */}
@@ -58,7 +76,7 @@ export default function LoginScreen() {
       </View>
 
       {/* 하단: 카카오 로그인 버튼 */}
-      <View style={styles.bottomArea}>
+      <View style={[styles.bottomArea, { marginTop: 112 * layoutScale }]}>
         <Pressable
           style={({ pressed }) => [
             styles.kakaoButton,
@@ -66,8 +84,12 @@ export default function LoginScreen() {
           ]}
           onPress={handleKakaoLogin}
         >
-          <Text style={styles.kakaoIcon}>💬</Text>
-          <Text style={styles.kakaoButtonText}>카카오 로그인</Text>
+          {/* Figma에서 추출한 카카오 로그인 버튼 이미지 */}
+          <Image
+            source={require("@/assets/images/kakao-login-button.png")}
+            style={styles.kakaoButtonImage}
+            resizeMode="contain"
+          />
         </Pressable>
       </View>
 
@@ -94,68 +116,48 @@ const styles = StyleSheet.create({
   },
   // 상단 일러스트 영역
   illustrationArea: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingTop: 60,
-  },
-  illustrationCircle: {
-    width: 260,
-    height: 260,
-    borderRadius: 130,
-    backgroundColor: "#FFE0E8",
-    justifyContent: "center",
-    alignItems: "center",
-    overflow: "hidden",
-  },
-  illustrationPlaceholder: {
-    width: "100%",
-    height: "100%",
-    justifyContent: "center",
     alignItems: "center",
   },
-  illustrationEmoji: {
-    fontSize: 80,
+  illustrationImage: {
+    width: 280,
+    height: 326,
   },
   // 텍스트 영역
   textArea: {
     alignItems: "center",
     paddingHorizontal: 24,
-    paddingBottom: 40,
+    marginTop: 2,
   },
   title: {
-    fontSize: 28,
-    fontWeight: "800",
-    color: "#1F2937",
+    fontSize: 32,
+    fontWeight: "700",
+    color: "#000000",
+    lineHeight: 45,
     marginBottom: 8,
   },
   subtitle: {
-    fontSize: 15,
-    color: "#6B7280",
-    lineHeight: 22,
+    fontSize: 18,
+    fontWeight: "500",
+    color: "#000000",
+    lineHeight: 24,
   },
   // 하단 버튼 영역
   bottomArea: {
-    paddingHorizontal: 24,
+    paddingHorizontal: 20,
+    alignItems: "center",
   },
   kakaoButton: {
-    flexDirection: "row",
-    height: 54,
-    backgroundColor: "#FEE500",
-    borderRadius: 14,
+    width: "100%",
+    maxWidth: 367,
+    height: 55,
     justifyContent: "center",
     alignItems: "center",
-    gap: 8,
   },
   kakaoButtonPressed: {
     opacity: 0.85,
   },
-  kakaoIcon: {
-    fontSize: 20,
-  },
-  kakaoButtonText: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "rgba(0, 0, 0, 0.85)",
+  kakaoButtonImage: {
+    width: "100%",
+    height: 55,
   },
 });
