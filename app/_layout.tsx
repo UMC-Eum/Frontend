@@ -25,6 +25,11 @@ export default function RootLayout() {
         <Stack.Screen name="ideal-recording" options={{ headerShown: false }} />
         <Stack.Screen name="profile-detail" options={{ headerShown: false }} />
         <Stack.Screen name="club-create" options={{ headerShown: false }} />
+        <Stack.Screen name="meeting-create" options={{ headerShown: false }} />
+        <Stack.Screen
+          name="meeting-create-complete"
+          options={{ headerShown: false }}
+        />
         <Stack.Screen name="club-home" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="search" options={{ headerShown: false }} />

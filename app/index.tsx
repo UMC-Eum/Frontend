@@ -113,6 +113,26 @@ export default function Index() {
         </Text>
       </Pressable>
 
+      {/* 정기모임 생성 플로우 확인 버튼입니다. */}
+      <Pressable
+        style={[styles.button, styles.meetingCreateButton]}
+        onPress={() => router.push("/meeting-create" as any)}
+      >
+        <Text style={[styles.buttonText, styles.meetingCreateButtonText]}>
+          📅 정기모임 생성 테스트
+        </Text>
+      </Pressable>
+
+      {/* 정기모임 생성 완료 화면 단독 확인 버튼입니다. */}
+      <Pressable
+        style={[styles.button, styles.meetingCompleteButton]}
+        onPress={() => router.push("/meeting-create-complete" as any)}
+      >
+        <Text style={[styles.buttonText, styles.meetingCompleteButtonText]}>
+          ✅ 정기모임 생성 완료 테스트
+        </Text>
+      </Pressable>
+
       {/* 동호회 홈 화면 확인 버튼입니다. */}
       <Pressable
         style={[styles.button, styles.clubHomeButton]}
@@ -213,6 +233,20 @@ const styles = StyleSheet.create({
   },
   clubCreateButtonText: {
     color: "#FC3367",
+  },
+  meetingCreateButton: {
+    backgroundColor: "#FFF0F2",
+  },
+  meetingCreateButtonText: {
+    color: "#FF3E70",
+  },
+  meetingCompleteButton: {
+    backgroundColor: "#F8FAFB",
+    borderWidth: 1,
+    borderColor: "#DEE3E5",
+  },
+  meetingCompleteButtonText: {
+    color: "#636970",
   },
   clubHomeButton: {
     backgroundColor: "#F1F5F9",
