@@ -42,8 +42,10 @@ export default function MeetingCreateCompleteScreen() {
             <Ionicons name="checkmark" size={54} color={MEETING_COLORS.white} />
           </View>
           <View style={styles.titleBlock}>
-            <Text style={styles.title}>정기모임이 생성 되었어요!🎉</Text>
-            <Text style={styles.subtitle}>이제 정기모임의 멤버를 모아볼까요?</Text>
+            <Text style={styles.title}>정기모임이 생성되었어요!🎉</Text>
+            <Text style={styles.subtitle}>
+              이제 정기모임의 멤버를 모아볼까요?
+            </Text>
           </View>
         </View>
 
@@ -65,7 +67,11 @@ export default function MeetingCreateCompleteScreen() {
           <View style={styles.shareRow}>
             <ShareAction label="카카오톡" icon="chatbubble" variant="kakao" />
             <ShareAction label="링크 복사" icon="copy" variant="copy" />
-            <ShareAction label="외부 공유" icon="share-outline" variant="share" />
+            <ShareAction
+              label="외부 공유"
+              icon="share-outline"
+              variant="share"
+            />
           </View>
         </View>
       </View>

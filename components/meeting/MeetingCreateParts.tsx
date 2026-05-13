@@ -2,6 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import React from "react";
 import {
   Pressable,
+  LayoutChangeEvent,
   StyleSheet,
   Text,
   TextInput,
@@ -28,6 +29,7 @@ interface MeetingFieldSectionProps {
   label: string;
   optional?: boolean;
   icon?: keyof typeof Ionicons.glyphMap;
+  onLayout?: (event: LayoutChangeEvent) => void;
   children: React.ReactNode;
 }
 
@@ -35,10 +37,11 @@ export function MeetingFieldSection({
   label,
   optional = false,
   icon,
+  onLayout,
   children,
 }: MeetingFieldSectionProps) {
   return (
-    <View style={styles.section}>
+    <View style={styles.section} onLayout={onLayout}>
       <View style={styles.labelRow}>
         {icon ? <Ionicons name={icon} size={24} color={MEETING_COLORS.gray700} /> : null}
         <Text style={styles.label}>
@@ -58,6 +61,8 @@ export function MeetingFieldSection({
 interface MeetingInputProps extends TextInputProps {
   minHeight?: number;
   showCounter?: boolean;
+  hasError?: boolean;
+  errorMessage?: string;
 }
 
 export function MeetingInput({
@@ -65,25 +70,32 @@ export function MeetingInput({
   showCounter = false,
   maxLength,
   multiline,
+  hasError = false,
+  errorMessage,
   style,
   ...props
 }: MeetingInputProps) {
   const currentLength = String(props.value ?? "").length;
 
   return (
-    <View style={[styles.inputBox, { minHeight }]}>
-      <TextInput
-        {...props}
-        multiline={multiline}
-        maxLength={maxLength}
-        placeholderTextColor={MEETING_COLORS.gray500}
-        textAlignVertical={multiline ? "top" : "center"}
-        style={[styles.input, multiline && styles.multilineInput, style]}
-      />
-      {showCounter && maxLength ? (
-        <Text style={styles.counter}>
-          {currentLength}/{maxLength}
-        </Text>
+    <View style={styles.inputWrap}>
+      <View style={[styles.inputBox, { minHeight }, hasError && styles.inputBoxError]}>
+        <TextInput
+          {...props}
+          multiline={multiline}
+          maxLength={maxLength}
+          placeholderTextColor={MEETING_COLORS.gray500}
+          textAlignVertical={multiline ? "top" : "center"}
+          style={[styles.input, multiline && styles.multilineInput, style]}
+        />
+        {showCounter && maxLength ? (
+          <Text style={[styles.counter, hasError && styles.counterError]}>
+            {currentLength}/{maxLength}
+          </Text>
+        ) : null}
+      </View>
+      {hasError && errorMessage ? (
+        <Text style={styles.errorMessage}>{errorMessage}</Text>
       ) : null}
     </View>
   );
@@ -236,6 +248,10 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "500",
   },
+  inputWrap: {
+    width: "100%",
+    gap: 6,
+  },
   inputBox: {
     width: "100%",
     borderRadius: 10,
@@ -244,6 +260,10 @@ const styles = StyleSheet.create({
     backgroundColor: MEETING_COLORS.gray100,
     paddingHorizontal: 16,
     paddingVertical: 12,
+  },
+  inputBoxError: {
+    borderColor: MEETING_COLORS.pink,
+    backgroundColor: MEETING_COLORS.pink50,
   },
   input: {
     flex: 1,
@@ -263,6 +283,15 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     textAlign: "right",
     marginTop: 4,
+  },
+  counterError: {
+    color: MEETING_COLORS.pink,
+  },
+  errorMessage: {
+    color: MEETING_COLORS.pink,
+    fontSize: 13,
+    fontWeight: "500",
+    lineHeight: 18,
   },
   memberRow: {
     flexDirection: "row",
