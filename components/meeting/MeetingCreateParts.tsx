@@ -1,8 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
 import React from "react";
 import {
-  Pressable,
   LayoutChangeEvent,
+  Pressable,
   StyleSheet,
   Text,
   TextInput,
@@ -10,7 +10,7 @@ import {
   View,
   ViewStyle,
 } from "react-native";
-
+//깃헙 웹훅 테스트 주석
 export type MeetingJoinType = "free" | "approval";
 
 export const MEETING_COLORS = {
@@ -43,7 +43,9 @@ export function MeetingFieldSection({
   return (
     <View style={styles.section} onLayout={onLayout}>
       <View style={styles.labelRow}>
-        {icon ? <Ionicons name={icon} size={24} color={MEETING_COLORS.gray700} /> : null}
+        {icon ? (
+          <Ionicons name={icon} size={24} color={MEETING_COLORS.gray700} />
+        ) : null}
         <Text style={styles.label}>
           {label}
           {optional ? (
@@ -79,7 +81,13 @@ export function MeetingInput({
 
   return (
     <View style={styles.inputWrap}>
-      <View style={[styles.inputBox, { minHeight }, hasError && styles.inputBoxError]}>
+      <View
+        style={[
+          styles.inputBox,
+          { minHeight },
+          hasError && styles.inputBoxError,
+        ]}
+      >
         <TextInput
           {...props}
           multiline={multiline}
@@ -119,10 +127,18 @@ export function MeetingMemberCounter({
         <Text style={styles.memberUnit}>명</Text>
       </View>
       <View style={styles.stepper}>
-        <Pressable style={styles.stepperButtonLeft} onPress={onDecrease} hitSlop={8}>
+        <Pressable
+          style={styles.stepperButtonLeft}
+          onPress={onDecrease}
+          hitSlop={8}
+        >
           <Ionicons name="remove" size={22} color={MEETING_COLORS.gray500} />
         </Pressable>
-        <Pressable style={styles.stepperButtonRight} onPress={onIncrease} hitSlop={8}>
+        <Pressable
+          style={styles.stepperButtonRight}
+          onPress={onIncrease}
+          hitSlop={8}
+        >
           <Ionicons name="add" size={22} color={MEETING_COLORS.gray500} />
         </Pressable>
       </View>
@@ -148,7 +164,9 @@ export function MeetingJoinOption({
       style={[styles.optionCard, selected && styles.optionCardSelected]}
       onPress={onPress}
     >
-      <Text style={[styles.optionTitle, selected && styles.optionTitleSelected]}>
+      <Text
+        style={[styles.optionTitle, selected && styles.optionTitleSelected]}
+      >
         {title}
       </Text>
       <Text style={styles.optionDescription}>{description}</Text>
@@ -206,7 +224,12 @@ interface ShareActionProps {
   onPress?: () => void;
 }
 
-export function ShareAction({ label, icon, variant, onPress }: ShareActionProps) {
+export function ShareAction({
+  label,
+  icon,
+  variant,
+  onPress,
+}: ShareActionProps) {
   return (
     <Pressable style={styles.shareAction} onPress={onPress}>
       <View style={[styles.shareIconCircle, styles[`${variant}Circle`]]}>
