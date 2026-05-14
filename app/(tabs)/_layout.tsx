@@ -1,9 +1,11 @@
-import { Tabs } from "expo-router";
+import { Tabs, useRouter } from "expo-router";
 import React from "react";
 
 import { Navbar } from "@/components/Navbar";
 
 export default function TabLayout() {
+  const router = useRouter();
+
   return (
     <Tabs
       tabBar={(props) => {
@@ -20,7 +22,14 @@ export default function TabLayout() {
           <Navbar
             tabs={tabsData as any}
             activeTabId={currentRouteName}
-            onTabPress={(id) => props.navigation.navigate(id)}
+            onTabPress={(id) => {
+              if (id === "index") {
+                router.push("/home" as never);
+                return;
+              }
+
+              props.navigation.navigate(id);
+            }}
             activeColor="#1F2937"
             inactiveColor="#9CA3AF"
           />

@@ -1,12 +1,16 @@
 import { useRouter } from "expo-router";
 import React from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text } from "react-native";
 
 export default function Index() {
   const router = useRouter();
 
   return (
-    <View style={styles.container}>
+    <ScrollView
+      style={styles.scroll}
+      contentContainerStyle={styles.container}
+      showsVerticalScrollIndicator={false}
+    >
       <Text style={styles.title}>🛠 개발 메뉴</Text>
 
       <Pressable
@@ -31,6 +35,24 @@ export default function Index() {
       >
         <Text style={[styles.buttonText, styles.tabButtonText]}>
           📱 메인 탭 화면 열기
+        </Text>
+      </Pressable>
+
+      <Pressable
+        style={[styles.button, styles.homeButton]}
+        onPress={() => router.push("/home" as any)}
+      >
+        <Text style={[styles.buttonText, styles.homeButtonText]}>
+          🏠 홈페이지 확인하기
+        </Text>
+      </Pressable>
+
+      <Pressable
+        style={[styles.button, styles.recordingButton]}
+        onPress={() => router.push("/ideal-recording" as any)}
+      >
+        <Text style={[styles.buttonText, styles.recordingButtonText]}>
+          🎙 이상형 녹음 페이지 확인하기
         </Text>
       </Pressable>
 
@@ -80,18 +102,95 @@ export default function Index() {
           💬 프로필 상세 테스트
         </Text>
       </Pressable>
-    </View>
+
+      {/* 동호회 생성 플로우 확인 버튼입니다. */}
+      <Pressable
+        style={[styles.button, styles.clubCreateButton]}
+        onPress={() => router.push("/club/create" as any)}
+      >
+        <Text style={[styles.buttonText, styles.clubCreateButtonText]}>
+          🏃 동호회 생성 테스트
+        </Text>
+      </Pressable>
+
+      {/* 정기모임 생성 플로우 확인 버튼입니다. */}
+      <Pressable
+        style={[styles.button, styles.meetingCreateButton]}
+        onPress={() => router.push("/meeting-create" as any)}
+      >
+        <Text style={[styles.buttonText, styles.meetingCreateButtonText]}>
+          📅 정기모임 생성 테스트
+        </Text>
+      </Pressable>
+
+      {/* 정기모임 생성 완료 화면 단독 확인 버튼입니다. */}
+      <Pressable
+        style={[styles.button, styles.meetingCompleteButton]}
+        onPress={() => router.push("/meeting-create-complete" as any)}
+      >
+        <Text style={[styles.buttonText, styles.meetingCompleteButtonText]}>
+          ✅ 정기모임 생성 완료 테스트
+        </Text>
+      </Pressable>
+
+      {/* 동호회 홈 화면 확인 버튼입니다. */}
+      <Pressable
+        style={[styles.button, styles.clubHomeButton]}
+        onPress={() => router.push("/club/home" as any)}
+      >
+        <Text style={[styles.buttonText, styles.clubHomeButtonText]}>
+          🏠 동호회 홈 테스트
+        </Text>
+      </Pressable>
+
+      {/* 동호회 게시글 작성/상세 플로우 확인 버튼입니다. */}
+      <Pressable
+        style={[styles.button, styles.clubPostButton]}
+        onPress={() => router.push("/club/post-create" as any)}
+      >
+        <Text style={[styles.buttonText, styles.clubPostButtonText]}>
+          ✍️ 동호회 글쓰기 테스트
+        </Text>
+      </Pressable>
+
+      <Pressable
+        style={[styles.button, styles.clubPostDetailButton]}
+        onPress={() => router.push("/club/post-detail" as any)}
+      >
+        <Text style={[styles.buttonText, styles.clubPostDetailButtonText]}>
+          📝 게시글 상세 테스트
+        </Text>
+      </Pressable>
+
+      <Pressable
+        style={[styles.button, styles.clubPostGuestButton]}
+        onPress={() =>
+          router.push({
+            pathname: "/club/post-detail",
+            params: { mode: "guest" },
+          } as any)
+        }
+      >
+        <Text style={[styles.buttonText, styles.clubPostGuestButtonText]}>
+          🚨 게시글 신고 메뉴 테스트
+        </Text>
+      </Pressable>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
+  // contentContainerStyle for ScrollView
   container: {
-    flex: 1,
-    justifyContent: "center",
     alignItems: "center",
     backgroundColor: "#FFFFFF",
     paddingHorizontal: 20,
+    paddingTop: 24,
     gap: 16,
+  },
+  // ScrollView style to fill available space
+  scroll: {
+    flex: 1,
   },
   title: {
     fontSize: 24,
@@ -124,6 +223,18 @@ const styles = StyleSheet.create({
   tabButtonText: {
     color: "#4338CA",
   },
+  homeButton: {
+    backgroundColor: "#EEF2FF",
+  },
+  homeButtonText: {
+    color: "#3730A3",
+  },
+  recordingButton: {
+    backgroundColor: "#FFF7ED",
+  },
+  recordingButtonText: {
+    color: "#C2410C",
+  },
   searchButton: {
     backgroundColor: "#F1F5F9",
   },
@@ -149,5 +260,51 @@ const styles = StyleSheet.create({
   },
   profileDetailButtonText: {
     color: "#16A34A",
+  },
+  clubCreateButton: {
+    backgroundColor: "#FFF1F4",
+  },
+  clubCreateButtonText: {
+    color: "#FC3367",
+  },
+  meetingCreateButton: {
+    backgroundColor: "#FFF0F2",
+  },
+  meetingCreateButtonText: {
+    color: "#FF3E70",
+  },
+  meetingCompleteButton: {
+    backgroundColor: "#F8FAFB",
+    borderWidth: 1,
+    borderColor: "#DEE3E5",
+  },
+  meetingCompleteButtonText: {
+    color: "#636970",
+  },
+  clubHomeButton: {
+    backgroundColor: "#F1F5F9",
+  },
+  clubHomeButtonText: {
+    color: "#0F172A",
+  },
+  clubPostButton: {
+    backgroundColor: "#FFF1F4",
+  },
+  clubPostButtonText: {
+    color: "#FC3367",
+  },
+  clubPostDetailButton: {
+    backgroundColor: "#F8FAFB",
+    borderWidth: 1,
+    borderColor: "#DEE3E5",
+  },
+  clubPostDetailButtonText: {
+    color: "#202020",
+  },
+  clubPostGuestButton: {
+    backgroundColor: "#FEF2F2",
+  },
+  clubPostGuestButtonText: {
+    color: "#DC2626",
   },
 });

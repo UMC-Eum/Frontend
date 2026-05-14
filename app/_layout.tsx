@@ -21,7 +21,15 @@ export default function RootLayout() {
       <Stack>
         <Stack.Screen name="onboarding" options={{ headerShown: false }} />
         <Stack.Screen name="profile" options={{ headerShown: false }} />
+        <Stack.Screen name="home" options={{ headerShown: false }} />
+        <Stack.Screen name="ideal-recording" options={{ headerShown: false }} />
         <Stack.Screen name="profile-detail" options={{ headerShown: false }} />
+        <Stack.Screen name="club" options={{ headerShown: false }} />
+        <Stack.Screen name="meeting-create" options={{ headerShown: false }} />
+        <Stack.Screen
+          name="meeting-create-complete"
+          options={{ headerShown: false }}
+        />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="search" options={{ headerShown: false }} />
         <Stack.Screen

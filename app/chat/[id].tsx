@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   FlatList,
   KeyboardAvoidingView,
@@ -16,6 +16,7 @@ import ChatActionSheet from "@/components/chat/ChatActionSheet";
 import ChatInput from "@/components/chat/ChatInput";
 import ChatMessage, { ChatMessageData } from "@/components/chat/ChatMessage";
 import ConfirmModal from "@/components/chat/ConfirmModal";
+import MicRecorder from "@/components/MicRecorder";
 
 const PROFILE_BY_CHAT_ID: Record<string, { name: string; age: number; area: string }> = {
   "1": { name: "루시", age: 53, area: "서울시 관악구" },
@@ -140,7 +141,21 @@ export default function ChatRoom() {
   const [showBlockModal, setShowBlockModal] = useState(false);
   const [isBlocked, setIsBlocked] = useState(false);
   const [isAttachmentOpen, setIsAttachmentOpen] = useState(false);
+  const [isVoiceRecorderOpen, setIsVoiceRecorderOpen] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingTime, setRecordingTime] = useState(0);
   const [toastMessage, setToastMessage] = useState("");
+
+  // 음성 녹음 중에는 1초 단위로 녹음 시간을 갱신합니다.
+  useEffect(() => {
+    if (!isRecording) return;
+
+    const interval = setInterval(() => {
+      setRecordingTime((prevTime) => prevTime + 1);
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [isRecording]);
 
   const showToast = (message: string) => {
     setToastMessage(message);
@@ -179,6 +194,49 @@ export default function ChatRoom() {
 
     setMessages((prevMessages) => [...prevMessages, nextMessage]);
     setIsAttachmentOpen(false);
+  };
+
+  const formatVoiceDuration = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+
+    return `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
+  };
+
+  const resetVoiceRecorder = () => {
+    setIsRecording(false);
+    setRecordingTime(0);
+  };
+
+  const handleVoiceButtonPress = () => {
+    setIsAttachmentOpen(false);
+    setIsVoiceRecorderOpen(true);
+    setIsRecording(true);
+  };
+
+  const handleVoiceCancel = () => {
+    resetVoiceRecorder();
+    setIsVoiceRecorderOpen(false);
+  };
+
+  const handleVoiceRecord = () => {
+    setIsRecording((prevRecording) => !prevRecording);
+  };
+
+  const handleVoiceSend = () => {
+    if (recordingTime <= 0) return;
+
+    const nextMessage: ChatMessageData = {
+      id: `message-${Date.now()}`,
+      type: "voice",
+      duration: formatVoiceDuration(recordingTime),
+      isMine: true,
+      time: "오후 07:39",
+      isPlaying: false,
+    };
+
+    setMessages((prevMessages) => [...prevMessages, nextMessage]);
+    handleVoiceCancel();
   };
 
   const renderProfileInfo = () => (
@@ -220,7 +278,7 @@ export default function ChatRoom() {
         keyboardVerticalOffset={0}
       >
         <FlatList
-          data={messages}
+          data={isVoiceRecorderOpen ? [] : messages}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => <ChatMessage message={item} />}
           ListHeaderComponent={renderProfileInfo}
@@ -229,9 +287,27 @@ export default function ChatRoom() {
         />
 
         {!isBlocked && !isAttachmentOpen ? (
-          <Pressable style={styles.voiceButton}>
-            <Ionicons name="mic-outline" size={34} color="#FFFFFF" />
-          </Pressable>
+          isVoiceRecorderOpen ? (
+            <View style={styles.voiceRecorderPosition}>
+              {/* 기존 채팅 마이크 버튼 위치에서 녹음 컨트롤을 보여줍니다. */}
+              <MicRecorder
+                isRecording={isRecording}
+                recordingTime={recordingTime}
+                onRecordPress={handleVoiceRecord}
+                onCancelPress={handleVoiceCancel}
+                onSendPress={handleVoiceSend}
+                onResetPress={resetVoiceRecorder}
+                containerStyle={styles.voiceRecorder}
+              />
+            </View>
+          ) : (
+            <Pressable
+              style={styles.voiceButton}
+              onPress={handleVoiceButtonPress}
+            >
+              <Ionicons name="mic-outline" size={34} color="#FFFFFF" />
+            </Pressable>
+          )
         ) : null}
 
         {isBlocked ? (
@@ -243,6 +319,8 @@ export default function ChatRoom() {
               </Text>
             </View>
           </View>
+        ) : isVoiceRecorderOpen ? (
+          <View style={styles.chatInputPlaceholder} />
         ) : (
           <ChatInput
             onSend={handleSend}
@@ -381,6 +459,19 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 8,
     marginBottom: 10,
+  },
+  voiceRecorderPosition: {
+    width: "100%",
+    paddingHorizontal: 22,
+    alignItems: "center",
+    marginBottom: -40,
+  },
+  voiceRecorder: {
+    width: "100%",
+  },
+  chatInputPlaceholder: {
+    height: 64,
+    backgroundColor: "transparent",
   },
   blockedInputArea: {
     flexDirection: "row",

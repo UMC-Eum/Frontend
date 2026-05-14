@@ -1,184 +1,394 @@
-import DevBackHeader from "@/components/DevBackHeader";
 import { Ionicons } from "@expo/vector-icons";
-import React, { useState } from "react";
+import { useRouter } from "expo-router";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
-  Dimensions,
   FlatList,
   ImageBackground,
   Pressable,
   StyleSheet,
   Text,
+  useWindowDimensions,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-const { width } = Dimensions.get("window");
-const CARD_WIDTH = (width - 32 - 16) / 2;
+import {
+  HeartProfile,
+  HeartTab,
+  RECEIVED_HEART_COUNT,
+  RECEIVED_HEARTS,
+  SENT_HEARTS,
+} from "@/constants/heart";
 
-// 초기 더미 데이터를 생성하는 함수
-const generateDummyData = (startIndex: number, count: number) => {
-  return Array.from({ length: count }).map((_, i) => ({
-    id: (startIndex + i).toString(),
-    name: "김성수",
-    age: 64,
-    location: "죽전",
-    image: `https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?q=80&w=400&auto=format&fit=crop&sig=${startIndex + i}`, // 이미지 캐싱 방지용 sig 추가
-    isLiked: true,
-  }));
+const PINK = "#FF3E70";
+const BLACK = "#202020";
+const GRAY_100 = "#F8FAFB";
+const GRAY_150 = "#E9ECED";
+const GRAY_700 = "#636970";
+
+// API 연동 지점입니다. 실제 엔드포인트가 생기면 함수 내부만 교체하면 됩니다.
+const heartApi = {
+  async getHeartProfiles(tab: HeartTab) {
+    return new Promise<HeartProfile[]>((resolve) => {
+      setTimeout(() => {
+        resolve(tab === "received" ? RECEIVED_HEARTS : SENT_HEARTS);
+      }, 250);
+    });
+  },
+  async updateHeart(profileId: string, isLiked: boolean) {
+    return new Promise<{ profileId: string; isLiked: boolean }>((resolve) => {
+      setTimeout(() => resolve({ profileId, isLiked }), 180);
+    });
+  },
 };
 
 export default function HeartScreen() {
-  const [activeTab, setActiveTab] = useState<"sent" | "received">("sent");
+  const router = useRouter();
+  const { width } = useWindowDimensions();
+  const [activeTab, setActiveTab] = useState<HeartTab>("received");
+  const [profilesByTab, setProfilesByTab] = useState<Record<HeartTab, HeartProfile[]>>({
+    received: [],
+    sent: [],
+  });
+  const [isLoading, setIsLoading] = useState(true);
+  const [pendingIds, setPendingIds] = useState<Set<string>>(() => new Set());
 
-  // ✨ 무한 스크롤을 위한 상태 관리
-  const [data, setData] = useState(generateDummyData(0, 10)); // 처음에 10개 로드
-  const [isLoading, setIsLoading] = useState(false); // 로딩 상태
+  const cardWidth = useMemo(() => (width - 40 - 12) / 2, [width]);
+  const profiles = profilesByTab[activeTab];
 
-  // ✨ 스크롤이 바닥에 닿았을 때 실행되는 함수
-  const loadMoreData = () => {
-    if (isLoading) return; // 이미 불러오는 중이면 중복 실행 방지
+  useEffect(() => {
+    let isMounted = true;
 
-    setIsLoading(true);
-    console.log("새로운 데이터 불러오는 중... 🔄");
+    async function loadProfiles() {
+      setIsLoading(true);
+      const [received, sent] = await Promise.all([
+        heartApi.getHeartProfiles("received"),
+        heartApi.getHeartProfiles("sent"),
+      ]);
 
-    // 실제 환경의 API 호출을 흉내 내기 위해 1초(1000ms) 딜레이를 줍니다.
-    setTimeout(() => {
-      const newData = generateDummyData(data.length, 10); // 기존 개수 이후부터 10개 새로 생성
-      setData((prev) => [...prev, ...newData]); // 기존 데이터에 새 데이터 이어붙이기
-      setIsLoading(false);
-    }, 1000);
-  };
+      if (isMounted) {
+        setProfilesByTab({ received, sent });
+        setIsLoading(false);
+      }
+    }
 
-  const renderTopTabs = () => (
-    <View style={styles.topTabs}>
-      <Pressable style={styles.tabButton} onPress={() => setActiveTab("sent")}>
-        <Text
-          style={[styles.tabText, activeTab === "sent" && styles.activeTabText]}
-        >
-          내가 누른
-        </Text>
-        {activeTab === "sent" && <View style={styles.activeIndicator} />}
-      </Pressable>
-      <Pressable
-        style={styles.tabButton}
-        onPress={() => setActiveTab("received")}
-      >
-        <Text
-          style={[
-            styles.tabText,
-            activeTab === "received" && styles.activeTabText,
-          ]}
-        >
-          나를 마음한
-        </Text>
-        {activeTab === "received" && <View style={styles.activeIndicator} />}
-      </Pressable>
-    </View>
+    loadProfiles();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // 하트는 먼저 화면 상태를 바꾸고, API 실패 시 이전 상태로 되돌립니다.
+  const handleToggleHeart = useCallback(
+    async (profileId: string) => {
+      const targetProfile = profilesByTab[activeTab].find((item) => item.id === profileId);
+      if (!targetProfile || pendingIds.has(profileId)) return;
+
+      const nextLiked = !targetProfile.isLiked;
+
+      setPendingIds((prev) => new Set(prev).add(profileId));
+      setProfilesByTab((prev) => ({
+        ...prev,
+        [activeTab]: prev[activeTab].map((item) =>
+          item.id === profileId ? { ...item, isLiked: nextLiked } : item,
+        ),
+      }));
+
+      try {
+        await heartApi.updateHeart(profileId, nextLiked);
+      } catch {
+        setProfilesByTab((prev) => ({
+          ...prev,
+          [activeTab]: prev[activeTab].map((item) =>
+            item.id === profileId ? { ...item, isLiked: targetProfile.isLiked } : item,
+          ),
+        }));
+      } finally {
+        setPendingIds((prev) => {
+          const next = new Set(prev);
+          next.delete(profileId);
+          return next;
+        });
+      }
+    },
+    [activeTab, pendingIds, profilesByTab],
   );
-
-  const renderCard = ({ item }: { item: any }) => (
-    <ImageBackground
-      source={{ uri: item.image }}
-      style={styles.card}
-      imageStyle={styles.cardImage}
-    >
-      <View style={styles.cardDarkOverlay} />
-      <View style={styles.cardContent}>
-        <Ionicons
-          name="heart"
-          size={24}
-          color="#FF3E70"
-          style={styles.heartIcon}
-        />
-        <View>
-          <Text style={styles.cardName}>
-            {item.name} · {item.age}세
-          </Text>
-          <Text style={styles.cardLocation}>{item.location}</Text>
-        </View>
-      </View>
-    </ImageBackground>
-  );
-
-  // 데이터 로딩 중일 때 맨 밑에 빙글빙글 도는 스피너 보여주기
-  const renderFooter = () => {
-    if (!isLoading) return null;
-    return (
-      <View style={styles.loaderFooter}>
-        <ActivityIndicator size="small" color="#FF3E70" />
-      </View>
-    );
-  };
 
   return (
     <SafeAreaView style={styles.safeArea} edges={["top"]}>
-      <DevBackHeader title="마음" />
-      {renderTopTabs()}
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>마음</Text>
+      </View>
 
-      {/* ✨ 해결: FlatList를 감싸는 View와 FlatList 자체에 flex: 1을 추가했습니다! */}
-      <View style={{ flex: 1 }}>
-        <FlatList
-          style={{ flex: 1 }}
-          data={data}
-          keyExtractor={(item) => item.id}
-          numColumns={2}
-          renderItem={renderCard}
-          contentContainerStyle={styles.listContent}
-          columnWrapperStyle={styles.columnWrapper}
-          showsVerticalScrollIndicator={false}
-          onEndReached={loadMoreData}
-          onEndReachedThreshold={0.5}
-          ListFooterComponent={renderFooter}
+      <View style={styles.tabGroup}>
+        <HeartTabButton
+          label="받은 마음"
+          isActive={activeTab === "received"}
+          onPress={() => setActiveTab("received")}
+        />
+        <HeartTabButton
+          label="보낸 마음"
+          isActive={activeTab === "sent"}
+          onPress={() => setActiveTab("sent")}
         />
       </View>
+
+      {isLoading ? (
+        <View style={styles.loadingWrap}>
+          <ActivityIndicator color={PINK} />
+        </View>
+      ) : (
+        <FlatList
+          data={profiles}
+          keyExtractor={(item) => item.id}
+          numColumns={2}
+          renderItem={({ item }) => (
+            <HeartProfileCard
+              profile={item}
+              width={cardWidth}
+              isPending={pendingIds.has(item.id)}
+              onPress={() => router.push("/profile-detail" as never)}
+              onPressHeart={() => handleToggleHeart(item.id)}
+            />
+          )}
+          columnWrapperStyle={styles.cardRow}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+          ListHeaderComponent={
+            activeTab === "received" ? (
+              <View style={styles.receivedSummary}>
+                <Text style={styles.receivedSummaryText}>
+                  총 <Text style={styles.receivedSummaryCount}>{RECEIVED_HEART_COUNT}명</Text>이
+                  마음을 보냈어요💕
+                </Text>
+              </View>
+            ) : null
+          }
+        />
+      )}
     </SafeAreaView>
   );
 }
 
+type HeartTabButtonProps = {
+  label: string;
+  isActive: boolean;
+  onPress: () => void;
+};
+
+function HeartTabButton({ label, isActive, onPress }: HeartTabButtonProps) {
+  return (
+    <Pressable
+      style={styles.tabButton}
+      onPress={onPress}
+      accessibilityRole="tab"
+      accessibilityState={{ selected: isActive }}
+    >
+      <Text style={[styles.tabText, isActive ? styles.tabTextActive : null]}>{label}</Text>
+      {isActive ? <View style={styles.tabUnderline} /> : null}
+    </Pressable>
+  );
+}
+
+type HeartProfileCardProps = {
+  profile: HeartProfile;
+  width: number;
+  isPending: boolean;
+  onPress: () => void;
+  onPressHeart: () => void;
+};
+
+function HeartProfileCard({
+  profile,
+  width,
+  isPending,
+  onPress,
+  onPressHeart,
+}: HeartProfileCardProps) {
+  return (
+    <Pressable style={[styles.card, { width, height: width * 1.38 }]} onPress={onPress}>
+      <ImageBackground source={{ uri: profile.image }} style={styles.cardImage} imageStyle={styles.cardRadius}>
+        <View style={styles.cardBottomOverlay} />
+        <Pressable
+          style={[styles.heartButton, isPending ? styles.heartButtonPending : null]}
+          onPress={(event) => {
+            event.stopPropagation();
+            onPressHeart();
+          }}
+          hitSlop={8}
+        >
+          <Ionicons
+            name={profile.isLiked ? "heart" : "heart-outline"}
+            size={19}
+            color={profile.isLiked ? PINK : "#FFFFFF"}
+          />
+        </Pressable>
+
+        <View style={styles.cardInfo}>
+          <View style={styles.nameRow}>
+            <Text style={styles.cardName} numberOfLines={1}>
+              {profile.name}
+            </Text>
+            <View style={styles.nameDot} />
+            <Text style={styles.cardName}>{profile.age}세</Text>
+          </View>
+          <Text style={styles.cardLocation} numberOfLines={1}>
+            {profile.location}
+          </Text>
+        </View>
+      </ImageBackground>
+    </Pressable>
+  );
+}
+
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: "#FFF" },
-  topTabs: {
+  safeArea: {
+    flex: 1,
+    backgroundColor: "#FFFFFF",
+  },
+  header: {
+    height: 56,
+    justifyContent: "center",
+    paddingHorizontal: 20,
+    backgroundColor: "#FFFFFF",
+  },
+  headerTitle: {
+    fontSize: 24,
+    lineHeight: 30,
+    fontWeight: "700",
+    color: BLACK,
+  },
+  tabGroup: {
+    height: 48,
     flexDirection: "row",
+    alignItems: "flex-end",
+    paddingHorizontal: 20,
     borderBottomWidth: 1,
-    borderBottomColor: "#F3F4F6",
+    borderBottomColor: GRAY_150,
+    backgroundColor: "#FFFFFF",
   },
   tabButton: {
     flex: 1,
+    height: 40,
+    minHeight: 44,
     alignItems: "center",
+    justifyContent: "center",
+  },
+  tabText: {
+    fontSize: 18,
+    lineHeight: 23,
+    fontWeight: "600",
+    color: GRAY_700,
+  },
+  tabTextActive: {
+    fontWeight: "700",
+    color: BLACK,
+  },
+  tabUnderline: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: -1,
+    height: 2,
+    backgroundColor: BLACK,
+  },
+  loadingWrap: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  listContent: {
+    paddingHorizontal: 20,
     paddingTop: 16,
+    paddingBottom: 120,
+  },
+  receivedSummary: {
+    height: 34,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 16,
+    borderRadius: 10,
+    backgroundColor: GRAY_100,
+  },
+  receivedSummaryText: {
+    fontSize: 16,
+    lineHeight: 24,
+    fontWeight: "500",
+    color: GRAY_700,
+  },
+  receivedSummaryCount: {
+    color: PINK,
+  },
+  cardRow: {
+    justifyContent: "space-between",
+    marginBottom: 12,
+  },
+  card: {
+    borderRadius: 14,
+    overflow: "hidden",
+    backgroundColor: GRAY_150,
+  },
+  cardImage: {
+    flex: 1,
+    justifyContent: "flex-end",
+  },
+  cardRadius: {
+    borderRadius: 14,
+  },
+  cardBottomOverlay: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: "42%",
+    borderBottomLeftRadius: 14,
+    borderBottomRightRadius: 14,
+    backgroundColor: "rgba(0,0,0,0.58)",
+  },
+  heartButton: {
+    position: "absolute",
+    top: 12,
+    right: 12,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.46)",
+    backgroundColor: "rgba(255,255,255,0.24)",
+  },
+  heartButtonPending: {
+    opacity: 0.64,
+  },
+  cardInfo: {
+    paddingHorizontal: 12,
     paddingBottom: 12,
   },
-  tabText: { fontSize: 15, color: "#9CA3AF", fontWeight: "600" },
-  activeTabText: { color: "#1F2937" },
-  activeIndicator: {
-    position: "absolute",
-    bottom: -1,
-    width: "100%",
-    height: 2,
-    backgroundColor: "#FF3E70",
+  nameRow: {
+    flexDirection: "row",
+    alignItems: "center",
   },
-  listContent: { padding: 16, paddingBottom: 120 },
-  columnWrapper: { justifyContent: "space-between", marginBottom: 16 },
-  card: { width: CARD_WIDTH, height: CARD_WIDTH * 1.4, borderRadius: 12 },
-  cardImage: { borderRadius: 12 },
-  cardDarkOverlay: {
-    position: "absolute",
-    bottom: 0,
-    width: "100%",
-    height: "50%",
-    backgroundColor: "rgba(0,0,0,0.4)",
-    borderBottomLeftRadius: 12,
-    borderBottomRightRadius: 12,
-  },
-  cardContent: { flex: 1, justifyContent: "space-between", padding: 12 },
-  heartIcon: { alignSelf: "flex-end" },
   cardName: {
-    color: "#FFF",
-    fontSize: 15,
-    fontWeight: "bold",
-    marginBottom: 4,
+    fontSize: 16,
+    lineHeight: 24,
+    fontWeight: "600",
+    color: "#FFFFFF",
   },
-  cardLocation: { color: "#FFF", fontSize: 13 },
-  loaderFooter: { paddingVertical: 20, alignItems: "center" },
+  nameDot: {
+    width: 2,
+    height: 2,
+    marginHorizontal: 6,
+    borderRadius: 1,
+    backgroundColor: "#FFFFFF",
+  },
+  cardLocation: {
+    marginTop: 1,
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: "500",
+    color: "#FFFFFF",
+  },
 });
