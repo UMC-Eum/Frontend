@@ -5,6 +5,7 @@ export default function ClubLayout() {
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="home" />
       <Stack.Screen name="create" />
+      <Stack.Screen name="detail" />
       <Stack.Screen name="post-create" />
       <Stack.Screen name="post-detail" />
     </Stack>

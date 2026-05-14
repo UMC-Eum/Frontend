@@ -103,6 +103,16 @@ export default function Index() {
         </Text>
       </Pressable>
 
+      {/* 구독 결제 플로우 확인 버튼입니다. */}
+      <Pressable
+        style={[styles.button, styles.paymentButton]}
+        onPress={() => router.push("/payment" as any)}
+      >
+        <Text style={[styles.buttonText, styles.paymentButtonText]}>
+          💳 구독 결제 플로우 테스트
+        </Text>
+      </Pressable>
+
       {/* 동호회 생성 플로우 확인 버튼입니다. */}
       <Pressable
         style={[styles.button, styles.clubCreateButton]}
@@ -140,6 +150,30 @@ export default function Index() {
       >
         <Text style={[styles.buttonText, styles.clubHomeButtonText]}>
           🏠 동호회 홈 테스트
+        </Text>
+      </Pressable>
+
+      {/* 동호회 상세 가입 신청 플로우 확인 버튼입니다. */}
+      <Pressable
+        style={[styles.button, styles.clubJoinButton]}
+        onPress={() => router.push("/club/detail" as any)}
+      >
+        <Text style={[styles.buttonText, styles.clubJoinButtonText]}>
+          🙋 동호회 가입 신청 테스트
+        </Text>
+      </Pressable>
+
+      <Pressable
+        style={[styles.button, styles.clubApprovalButton]}
+        onPress={() =>
+          router.push({
+            pathname: "/club/detail",
+            params: { mode: "approval" },
+          } as any)
+        }
+      >
+        <Text style={[styles.buttonText, styles.clubApprovalButtonText]}>
+          🕒 가입 승인제 동호회 테스트
         </Text>
       </Pressable>
 
@@ -261,6 +295,14 @@ const styles = StyleSheet.create({
   profileDetailButtonText: {
     color: "#16A34A",
   },
+  paymentButton: {
+    backgroundColor: "#FFF1F4",
+    borderWidth: 1,
+    borderColor: "#FFB8C8",
+  },
+  paymentButtonText: {
+    color: "#FC3367",
+  },
   clubCreateButton: {
     backgroundColor: "#FFF1F4",
   },
@@ -286,6 +328,22 @@ const styles = StyleSheet.create({
   },
   clubHomeButtonText: {
     color: "#0F172A",
+  },
+  clubJoinButton: {
+    backgroundColor: "#FFF1F4",
+    borderWidth: 1,
+    borderColor: "#FFB8C8",
+  },
+  clubJoinButtonText: {
+    color: "#FC3367",
+  },
+  clubApprovalButton: {
+    backgroundColor: "#FEF2F2",
+    borderWidth: 1,
+    borderColor: "#FECACA",
+  },
+  clubApprovalButtonText: {
+    color: "#DC2626",
   },
   clubPostButton: {
     backgroundColor: "#FFF1F4",
