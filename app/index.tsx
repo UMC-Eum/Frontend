@@ -106,7 +106,7 @@ export default function Index() {
       {/* 동호회 생성 플로우 확인 버튼입니다. */}
       <Pressable
         style={[styles.button, styles.clubCreateButton]}
-        onPress={() => router.push("/club-create")}
+        onPress={() => router.push("/club/create" as any)}
       >
         <Text style={[styles.buttonText, styles.clubCreateButtonText]}>
           🏃 동호회 생성 테스트
@@ -136,10 +136,43 @@ export default function Index() {
       {/* 동호회 홈 화면 확인 버튼입니다. */}
       <Pressable
         style={[styles.button, styles.clubHomeButton]}
-        onPress={() => router.push("/club-home")}
+        onPress={() => router.push("/club/home" as any)}
       >
         <Text style={[styles.buttonText, styles.clubHomeButtonText]}>
           🏠 동호회 홈 테스트
+        </Text>
+      </Pressable>
+
+      {/* 동호회 게시글 작성/상세 플로우 확인 버튼입니다. */}
+      <Pressable
+        style={[styles.button, styles.clubPostButton]}
+        onPress={() => router.push("/club/post-create" as any)}
+      >
+        <Text style={[styles.buttonText, styles.clubPostButtonText]}>
+          ✍️ 동호회 글쓰기 테스트
+        </Text>
+      </Pressable>
+
+      <Pressable
+        style={[styles.button, styles.clubPostDetailButton]}
+        onPress={() => router.push("/club/post-detail" as any)}
+      >
+        <Text style={[styles.buttonText, styles.clubPostDetailButtonText]}>
+          📝 게시글 상세 테스트
+        </Text>
+      </Pressable>
+
+      <Pressable
+        style={[styles.button, styles.clubPostGuestButton]}
+        onPress={() =>
+          router.push({
+            pathname: "/club/post-detail",
+            params: { mode: "guest" },
+          } as any)
+        }
+      >
+        <Text style={[styles.buttonText, styles.clubPostGuestButtonText]}>
+          🚨 게시글 신고 메뉴 테스트
         </Text>
       </Pressable>
     </ScrollView>
@@ -253,5 +286,25 @@ const styles = StyleSheet.create({
   },
   clubHomeButtonText: {
     color: "#0F172A",
+  },
+  clubPostButton: {
+    backgroundColor: "#FFF1F4",
+  },
+  clubPostButtonText: {
+    color: "#FC3367",
+  },
+  clubPostDetailButton: {
+    backgroundColor: "#F8FAFB",
+    borderWidth: 1,
+    borderColor: "#DEE3E5",
+  },
+  clubPostDetailButtonText: {
+    color: "#202020",
+  },
+  clubPostGuestButton: {
+    backgroundColor: "#FEF2F2",
+  },
+  clubPostGuestButtonText: {
+    color: "#DC2626",
   },
 });
