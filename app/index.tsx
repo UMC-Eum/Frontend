@@ -143,6 +143,16 @@ export default function Index() {
         </Text>
       </Pressable>
 
+      {/* 동호회 가입 전 상세 화면 확인 버튼입니다. */}
+      <Pressable
+        style={[styles.button, styles.clubDetailButton]}
+        onPress={() => router.push("/club/detail" as any)}
+      >
+        <Text style={[styles.buttonText, styles.clubDetailButtonText]}>
+          🏔 동호회 상세 가입 테스트
+        </Text>
+      </Pressable>
+
       {/* 동호회 게시글 작성/상세 플로우 확인 버튼입니다. */}
       <Pressable
         style={[styles.button, styles.clubPostButton]}
@@ -286,6 +296,12 @@ const styles = StyleSheet.create({
   },
   clubHomeButtonText: {
     color: "#0F172A",
+  },
+  clubDetailButton: {
+    backgroundColor: "#EEF2FF",
+  },
+  clubDetailButtonText: {
+    color: "#3730A3",
   },
   clubPostButton: {
     backgroundColor: "#FFF1F4",
