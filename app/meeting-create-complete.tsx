@@ -78,7 +78,7 @@ export default function MeetingCreateCompleteScreen() {
 
       <Cta
         label="정기모임 바로가기"
-        onPress={() => router.push("/club-home" as never)}
+        onPress={() => router.push("/club/home" as never)}
         containerStyle={styles.ctaContainer}
       />
     </SafeAreaView>

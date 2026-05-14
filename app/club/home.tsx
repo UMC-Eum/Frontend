@@ -82,8 +82,8 @@ export default function ClubHomeScreen() {
       >
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>내 동호회</Text>
-          <Pressable onPress={() => router.push("/club-create" as never)}>
-            <Text style={styles.sectionLink}>동호회 만들기 | 전체보기</Text>
+          <Pressable onPress={() => router.push("/club/post-create" as never)}>
+            <Text style={styles.sectionLink}>글쓰기 | 전체보기</Text>
           </Pressable>
         </View>
 
@@ -95,7 +95,7 @@ export default function ClubHomeScreen() {
           {MY_CLUBS.map((club) => (
             <MyClubCard key={club.id} title={club.title} image={club.image} />
           ))}
-          <CreateClubCard onPress={() => router.push("/club-create" as never)} />
+          <CreateClubCard onPress={() => router.push("/club/create" as never)} />
         </ScrollView>
 
         {/* 카테고리 아이콘 자리입니다. 아이콘 확정 전까지 동일한 크기의 플레이스홀더를 유지합니다. */}
