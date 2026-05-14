@@ -78,7 +78,7 @@ export default function ClubPostDetailScreen() {
           style={styles.scrollView}
           contentContainerStyle={[
             styles.scrollContent,
-            { paddingBottom: insets.bottom + 92 },
+            styles.scrollContentBottom,
           ]}
           showsVerticalScrollIndicator={false}
         >
@@ -155,6 +155,9 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingTop: 8,
+  },
+  scrollContentBottom: {
+    paddingBottom: 16,
   },
   postBody: {
     paddingHorizontal: 20,
