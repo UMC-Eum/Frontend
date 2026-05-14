@@ -10,7 +10,7 @@ import {
   View,
   ViewStyle,
 } from "react-native";
-//깃헙 웹훅 테스트 주석
+
 export type MeetingJoinType = "free" | "approval";
 
 export const MEETING_COLORS = {
