@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 
 import ProfileStepLayout from "@/components/profile/ProfileStepLayout";
+import { useOnboardingDraftStore } from "@/stores/onboardingDraftStore";
 
 // 한글만 허용하는 정규식 (자음/모음 단독 제외, 완성된 글자만)
 const KOREAN_REGEX = /^[가-힣]+$/;
@@ -15,7 +16,9 @@ const KOREAN_REGEX = /^[가-힣]+$/;
  */
 export default function NameScreen() {
   const router = useRouter();
-  const [name, setName] = useState("");
+  const draftNickname = useOnboardingDraftStore((state) => state.nickname);
+  const setDraftNickname = useOnboardingDraftStore((state) => state.setNickname);
+  const [name, setName] = useState(draftNickname);
   const [isFocused, setIsFocused] = useState(false);
 
   const isKorean = KOREAN_REGEX.test(name);
@@ -35,6 +38,7 @@ export default function NameScreen() {
   };
 
   const handleNext = () => {
+    setDraftNickname(name);
     router.push("/profile/age" as any);
   };
 

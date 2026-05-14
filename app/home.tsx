@@ -17,6 +17,11 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { Navbar } from "@/components/Navbar";
+import {
+  useRecommendationsInfiniteQuery,
+  useSendRecommendationHeartMutation,
+} from "@/hooks/api/useRecommendations";
+import { useMyProfileQuery } from "@/hooks/api/useUsers";
 
 const PINK = "#FF1B4D";
 const BLACK = "#202020";
@@ -27,6 +32,7 @@ type HomeTab = "home" | "club";
 
 type Profile = {
   id: string;
+  targetUserId?: number;
   name: string;
   age: number;
   location: string;
@@ -42,6 +48,8 @@ type Viewer = {
 };
 
 const USER_NICKNAME = "루씨";
+const FALLBACK_PROFILE_IMAGE =
+  "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=85&w=1200&auto=format&fit=crop";
 
 const RECOMMENDED_PROFILES: Profile[] = [
   {
@@ -147,8 +155,20 @@ export default function HomePage() {
   const [imageIndex, setImageIndex] = useState(0);
   const [countdown, setCountdown] = useState(getCountdownText);
   const [, setLikedCount] = useState(0);
+  const myProfileQuery = useMyProfileQuery();
+  const recommendationsQuery = useRecommendationsInfiniteQuery();
+  const sendHeartMutation = useSendRecommendationHeartMutation();
 
-  const profile = RECOMMENDED_PROFILES[profileIndex];
+  const recommendedProfiles = mapRecommendationProfiles(recommendationsQuery.data);
+  const isRecommendationFallback =
+    recommendationsQuery.isError && recommendedProfiles.length === 0;
+  const profiles = isRecommendationFallback
+    ? RECOMMENDED_PROFILES
+    : recommendedProfiles.length > 0
+      ? recommendedProfiles
+      : RECOMMENDED_PROFILES;
+  const profile = profiles[profileIndex % profiles.length];
+  const nickname = myProfileQuery.data?.nickname ?? USER_NICKNAME;
   const cardWidth = width - 40;
 
   // 실시간 추천 마감 카운트다운을 1초마다 갱신합니다.
@@ -191,12 +211,27 @@ export default function HomePage() {
 
   // 별로예요를 누르면 다음 추천 프로필로 넘깁니다.
   const handleDislike = () => {
-    setProfileIndex((prev) => (prev + 1) % RECOMMENDED_PROFILES.length);
+    setProfileIndex((prev) => {
+      const nextIndex = (prev + 1) % profiles.length;
+
+      if (
+        nextIndex >= profiles.length - 2 &&
+        recommendationsQuery.hasNextPage &&
+        !recommendationsQuery.isFetchingNextPage
+      ) {
+        recommendationsQuery.fetchNextPage();
+      }
+
+      return nextIndex;
+    });
   };
 
   // 마음이들어요를 누르면 내부 카운트를 올리고 마음 탭으로 이동합니다.
   const handleLike = () => {
     setLikedCount((prev) => prev + 1);
+    if (profile.targetUserId) {
+      sendHeartMutation.mutate(profile.targetUserId);
+    }
     router.push("/(tabs)/heart" as never);
   };
 
@@ -212,7 +247,7 @@ export default function HomePage() {
         >
           {/* 홈 상단 헤더: 닉네임과 알림 진입 버튼을 노출합니다. */}
           <View style={styles.header}>
-            <Text style={styles.headerTitle}>환영합니다 {USER_NICKNAME}님!</Text>
+            <Text style={styles.headerTitle}>환영합니다 {nickname}님!</Text>
             <Pressable
               style={styles.headerIconButton}
               onPress={() => router.push("/(tabs)" as never)}
@@ -333,6 +368,33 @@ export default function HomePage() {
         />
       </View>
     </SafeAreaView>
+  );
+}
+
+function mapRecommendationProfiles(data?: {
+  pages: {
+    items: {
+      userId: number;
+      nickname: string;
+      age: number;
+      areaName: string;
+      introText: string;
+      profileImageUrl: string;
+    }[];
+  }[];
+}): Profile[] {
+  return (
+    data?.pages.flatMap((page) =>
+      page.items.map((item) => ({
+        id: `recommendation-${item.userId}`,
+        targetUserId: item.userId,
+        name: item.nickname,
+        age: item.age,
+        location: item.areaName,
+        intro: item.introText,
+        images: item.profileImageUrl ? [item.profileImageUrl] : [FALLBACK_PROFILE_IMAGE],
+      })),
+    ) ?? []
   );
 }
 

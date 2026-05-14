@@ -3,6 +3,8 @@ import React from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { useOnboardingDraftStore } from "@/stores/onboardingDraftStore";
+
 /**
  * 환영 / 음성 녹음 안내 화면
  * - "반갑습니다! {이름}님"
@@ -11,9 +13,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
  */
 export default function WelcomeScreen() {
   const insets = useSafeAreaInsets();
-
-  // TODO: 이전 단계에서 입력한 이름을 전역 상태(zustand 등)에서 가져오기
-  const userName = "사용자";
+  const userName = useOnboardingDraftStore((state) => state.nickname) || "사용자";
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>

@@ -3,6 +3,12 @@ import { useRouter } from "expo-router";
 import React, { useCallback, useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
+import {
+  useAgreementsQuery,
+  useUpdateMarketingAgreementsMutation,
+} from "@/hooks/api/useAgreements";
+import { AgreementType } from "@/types/api/agreements/agreementsDTO";
+
 interface TermsBottomSheetProps {
   visible: boolean;
   onConfirm: () => void;
@@ -13,6 +19,8 @@ interface TermItem {
   id: string;
   title: string;
   required: boolean;
+  type?: AgreementType;
+  agreementId?: number;
 }
 
 const TERMS_LIST: TermItem[] = [
@@ -33,20 +41,33 @@ const TermsBottomSheet = ({
 }: TermsBottomSheetProps) => {
   const router = useRouter();
   const [checkedItems, setCheckedItems] = useState<Record<string, boolean>>({});
+  const agreementsQuery = useAgreementsQuery();
+  const updateMarketingMutation = useUpdateMarketingAgreementsMutation();
+  const terms = useMemo(
+    () =>
+      agreementsQuery.data?.map((item) => ({
+        id: String(item.agreementId),
+        title: getAgreementTitle(item.type, item.body),
+        required: item.type !== "MARKETING",
+        type: item.type,
+        agreementId: item.agreementId,
+      })) ?? TERMS_LIST,
+    [agreementsQuery.data],
+  );
 
   // 전체 동의 여부
   const isAllChecked = useMemo(
-    () => TERMS_LIST.every((item) => checkedItems[item.id]),
-    [checkedItems],
+    () => terms.every((item) => checkedItems[item.id]),
+    [checkedItems, terms],
   );
 
   // 필수 항목 모두 체크 여부
   const isRequiredAllChecked = useMemo(
     () =>
-      TERMS_LIST.filter((item) => item.required).every(
+      terms.filter((item) => item.required).every(
         (item) => checkedItems[item.id],
       ),
-    [checkedItems],
+    [checkedItems, terms],
   );
 
   // 개별 항목 토글
@@ -63,16 +84,38 @@ const TermsBottomSheet = ({
       setCheckedItems({});
     } else {
       const allChecked: Record<string, boolean> = {};
-      TERMS_LIST.forEach((item) => {
+      terms.forEach((item) => {
         allChecked[item.id] = true;
       });
       setCheckedItems(allChecked);
     }
-  }, [isAllChecked]);
+  }, [isAllChecked, terms]);
 
   // 상세 보기
   const onDetailPress = (id: string) => {
     router.push("/onboarding/terms-detail" as any);
+  };
+
+  // 선택 약관인 마케팅 동의 여부만 서버 API에 반영합니다.
+  const handleConfirm = () => {
+    const marketingAgreements = terms
+      .filter(
+        (item): item is TermItem & { agreementId: number } =>
+          item.type === "MARKETING" && typeof item.agreementId === "number",
+      )
+      .map((item) => ({
+        marketingAgreementId: item.agreementId,
+        isAgreed: !!checkedItems[item.id],
+      }));
+
+    if (marketingAgreements.length === 0) {
+      onConfirm();
+      return;
+    }
+
+    updateMarketingMutation.mutate(marketingAgreements, {
+      onSettled: onConfirm,
+    });
   };
 
   if (!visible) return null;
@@ -88,7 +131,7 @@ const TermsBottomSheet = ({
 
           {/* 체크리스트 */}
           <View style={styles.listContainer}>
-            {TERMS_LIST.map((item) => (
+            {terms.map((item) => (
               <View key={item.id} style={styles.listItem}>
                 <Pressable
                   style={styles.checkboxRow}
@@ -147,8 +190,8 @@ const TermsBottomSheet = ({
                 : styles.confirmButtonDisabled,
               pressed && isRequiredAllChecked && styles.confirmButtonPressed,
             ]}
-            onPress={isRequiredAllChecked ? onConfirm : undefined}
-            disabled={!isRequiredAllChecked}
+            onPress={isRequiredAllChecked ? handleConfirm : undefined}
+            disabled={!isRequiredAllChecked || updateMarketingMutation.isPending}
           >
             <Text
               style={[
@@ -166,6 +209,14 @@ const TermsBottomSheet = ({
     </View>
   );
 };
+
+function getAgreementTitle(type: AgreementType | undefined, body: string) {
+  if (type === "POLICY") return "서비스이용약관";
+  if (type === "PERSONAL_INFORMATION") return "개인정보처리방침";
+  if (type === "MARKETING") return "마케팅정보수신";
+
+  return body.slice(0, 18) || "이용약관";
+}
 
 const styles = StyleSheet.create({
   overlay: {

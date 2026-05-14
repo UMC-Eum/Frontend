@@ -1,7 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
+  ActivityIndicator,
   FlatList,
   Pressable,
   StyleSheet,
@@ -12,11 +13,16 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import NotificationItem from "@/components/NotificationItem";
+import {
+  useNotificationsInfiniteQuery,
+  useReadNotificationMutation,
+} from "@/hooks/api/useNotifications";
 
 type NotificationTab = "heart" | "club";
 
 type NotificationData = {
   id: string;
+  apiId?: number;
   isRead: boolean;
   userId: string;
   userName: string;
@@ -89,35 +95,55 @@ export default function HomeScreen() {
   const router = useRouter();
   const { width } = useWindowDimensions();
   const [activeTab, setActiveTab] = useState<NotificationTab>("heart");
-  const [heartNotifications, setHeartNotifications] =
-    useState<NotificationData[]>(HEART_NOTIFICATIONS);
-  const [clubNotifications, setClubNotifications] =
-    useState<NotificationData[]>(CLUB_NOTIFICATIONS);
+  const [readIds, setReadIds] = useState<Set<string>>(() => new Set());
+  const heartQuery = useNotificationsInfiniteQuery("heart");
+  const clubQuery = useNotificationsInfiniteQuery("chat");
+  const readNotificationMutation = useReadNotificationMutation();
 
+  const heartNotifications = useMemo(
+    () =>
+      mapNotificationPages(heartQuery.data).map((item) => ({
+        ...item,
+        isRead: item.isRead || readIds.has(item.id),
+      })),
+    [heartQuery.data, readIds],
+  );
+  const clubNotifications = useMemo(
+    () =>
+      mapNotificationPages(clubQuery.data).map((item) => ({
+        ...item,
+        isRead: item.isRead || readIds.has(item.id),
+      })),
+    [clubQuery.data, readIds],
+  );
+  const isHeartFallback = heartQuery.isError && heartNotifications.length === 0;
+  const isClubFallback = clubQuery.isError && clubNotifications.length === 0;
   const notifications =
-    activeTab === "heart" ? heartNotifications : clubNotifications;
+    activeTab === "heart"
+      ? isHeartFallback
+        ? HEART_NOTIFICATIONS
+        : heartNotifications
+      : isClubFallback
+        ? CLUB_NOTIFICATIONS
+        : clubNotifications;
+  const activeQuery = activeTab === "heart" ? heartQuery : clubQuery;
   const hasUnreadHeart = heartNotifications.some((item) => !item.isRead);
   const hasUnreadClub = clubNotifications.some((item) => !item.isRead);
+  const isInitialLoading =
+    activeQuery.isLoading && notifications.length === 0;
 
-  // 알림 항목을 누르면 현재 탭의 해당 알림만 읽음 상태로 변경합니다.
-  const markNotificationAsRead = (notificationId: string) => {
-    const updateReadState = (items: NotificationData[]) =>
-      items.map((item) =>
-        item.id === notificationId ? { ...item, isRead: true } : item,
-      );
-
-    if (activeTab === "heart") {
-      setHeartNotifications(updateReadState);
-      return;
+  // 알림 항목을 누르면 화면에 먼저 읽음 처리를 반영하고 서버 상태를 동기화합니다.
+  const markNotificationAsRead = (item: NotificationData) => {
+    setReadIds((prev) => new Set(prev).add(item.id));
+    if (item.apiId) {
+      readNotificationMutation.mutate(item.apiId);
     }
-
-    setClubNotifications(updateReadState);
   };
 
   const renderNotification = ({ item }: { item: NotificationData }) => (
     <NotificationItem
       isRead={item.isRead}
-      onPress={() => markNotificationAsRead(item.id)}
+      onPress={() => markNotificationAsRead(item)}
       userId={item.userId}
       userName={item.userName}
       userProfileImage={item.userProfileImage}
@@ -160,17 +186,69 @@ export default function HomeScreen() {
         />
       </View>
 
-      <FlatList
-        data={notifications}
-        keyExtractor={(item) => item.id}
-        renderItem={renderNotification}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={[
-          styles.listContent,
-          notifications.length === 0 && styles.emptyListContent,
-        ]}
-      />
+      {isInitialLoading ? (
+        <View style={styles.loadingWrap}>
+          <ActivityIndicator color="#FF4F7E" />
+        </View>
+      ) : (
+        <FlatList
+          data={notifications}
+          keyExtractor={(item) => item.id}
+          renderItem={renderNotification}
+          showsVerticalScrollIndicator={false}
+          onEndReached={() => {
+            if (activeQuery.hasNextPage && !activeQuery.isFetchingNextPage) {
+              activeQuery.fetchNextPage();
+            }
+          }}
+          onEndReachedThreshold={0.35}
+          ListFooterComponent={
+            activeQuery.isFetchingNextPage ? (
+              <View style={styles.footerLoading}>
+                <ActivityIndicator color="#FF4F7E" />
+              </View>
+            ) : null
+          }
+          contentContainerStyle={[
+            styles.listContent,
+            notifications.length === 0 && styles.emptyListContent,
+          ]}
+        />
+      )}
     </SafeAreaView>
+  );
+}
+
+function mapNotificationPages(data?: {
+  pages: {
+    items: {
+      notificationId: number;
+      isRead: boolean;
+      body: string;
+      title: string;
+      createdAt: string;
+      sender: {
+        id: number;
+        nickname: string;
+        profileImageUrl: string;
+      };
+    }[];
+  }[];
+}): NotificationData[] {
+  return (
+    data?.pages.flatMap((page) =>
+      page.items.map((item) => ({
+        id: String(item.notificationId),
+        apiId: item.notificationId,
+        isRead: item.isRead,
+        userId: String(item.sender.id),
+        userName: item.sender.nickname,
+        userProfileImage: item.sender.profileImageUrl,
+        notificationContent: item.body || item.title,
+        timeLabel: "",
+        timestamp: new Date(item.createdAt),
+      })),
+    ) ?? []
   );
 }
 
@@ -286,5 +364,15 @@ const styles = StyleSheet.create({
   },
   emptyListContent: {
     flexGrow: 1,
+  },
+  loadingWrap: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  footerLoading: {
+    height: 56,
+    alignItems: "center",
+    justifyContent: "center",
   },
 });

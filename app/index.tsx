@@ -146,7 +146,12 @@ export default function Index() {
       {/* 동호회 게시글 작성/상세 플로우 확인 버튼입니다. */}
       <Pressable
         style={[styles.button, styles.clubPostButton]}
-        onPress={() => router.push("/club/post-create" as any)}
+        onPress={() =>
+          router.push({
+            pathname: "/club/post-create",
+            params: { clubId: "1" },
+          } as any)
+        }
       >
         <Text style={[styles.buttonText, styles.clubPostButtonText]}>
           ✍️ 동호회 글쓰기 테스트
@@ -155,7 +160,12 @@ export default function Index() {
 
       <Pressable
         style={[styles.button, styles.clubPostDetailButton]}
-        onPress={() => router.push("/club/post-detail" as any)}
+        onPress={() =>
+          router.push({
+            pathname: "/club/post-detail",
+            params: { postId: "1" },
+          } as any)
+        }
       >
         <Text style={[styles.buttonText, styles.clubPostDetailButtonText]}>
           📝 게시글 상세 테스트
@@ -167,7 +177,7 @@ export default function Index() {
         onPress={() =>
           router.push({
             pathname: "/club/post-detail",
-            params: { mode: "guest" },
+            params: { postId: "1", mode: "guest" },
           } as any)
         }
       >

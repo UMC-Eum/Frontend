@@ -1,17 +1,16 @@
 import axios, { AxiosRequestConfig, AxiosError } from "axios";
 import { ApiSuccessResponse, ApiFailResponse } from "../types/api/api";
 import { ITokenRefreshResponse } from "../types/api/auth/authDTO";
-
-let accessToken: string | null = null;
+import { getAuthAccessToken, useAuthStore } from "../stores/authStore";
 
 export const setAccessToken = (token: string | null) => {
-  accessToken = token;
+  useAuthStore.getState().setAccessToken(token);
 };
 
-export const getAccessToken = () => accessToken;
+export const getAccessToken = () => getAuthAccessToken();
 
 export const clearAccessToken = () => {
-  accessToken = null;
+  useAuthStore.getState().clearAuth();
 };
 
 const api = axios.create({
@@ -25,12 +24,31 @@ api.interceptors.request.use((config) => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+  if (__DEV__) {
+    const method = config.method?.toUpperCase() ?? "GET";
+    console.log(`[API Request] ${method} ${config.baseURL}${config.url}`);
+  }
   return config;
 });
 
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    if (__DEV__) {
+      const method = response.config.method?.toUpperCase() ?? "GET";
+      console.log(
+        `[API Response] ${response.status} ${method} ${response.config.url}`,
+      );
+    }
+    return response;
+  },
   async (error: AxiosError) => {
+    if (__DEV__) {
+      const method = error.config?.method?.toUpperCase() ?? "GET";
+      console.log(
+        `[API Error] ${error.response?.status ?? "NETWORK"} ${method} ${error.config?.url}`,
+        error.response?.data ?? error.message,
+      );
+    }
     const originalRequest = error.config as AxiosRequestConfig & {
       _retry?: boolean;
     };

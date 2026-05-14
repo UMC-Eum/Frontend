@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useState } from "react";
 import {
+  Alert,
   Image,
   ScrollView,
   StyleSheet,
@@ -11,6 +12,13 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { useLogoutMutation } from "@/hooks/api/useAuth";
+import { useReceivedHeartsInfiniteQuery } from "@/hooks/api/useSocials";
+import {
+  useDeactivateUserMutation,
+  useMyProfileQuery,
+} from "@/hooks/api/useUsers";
+
 const ACCENT = "#FC3367";
 const TEXT = "#202020";
 const SUB_TEXT = "#636970";
@@ -20,6 +28,38 @@ const PROFILE_IMAGE =
 
 export default function MyTabScreen() {
   const [notificationEnabled, setNotificationEnabled] = useState(true);
+  const myProfileQuery = useMyProfileQuery();
+  const receivedHeartsQuery = useReceivedHeartsInfiniteQuery();
+  const logoutMutation = useLogoutMutation();
+  const deactivateUserMutation = useDeactivateUserMutation();
+  const profile = myProfileQuery.data;
+  const receivedHeartCount =
+    receivedHeartsQuery.data?.pages.reduce(
+      (total, page) => total + page.items.length,
+      0,
+    ) ?? 12;
+
+  // 계정 액션은 mutation으로 서버에 반영하고 로컬 Query 캐시를 정리합니다.
+  const handleLogout = () => {
+    logoutMutation.mutate(undefined, {
+      onSettled: () => Alert.alert("로그아웃", "로그아웃되었습니다."),
+    });
+  };
+
+  const handleDeactivate = () => {
+    Alert.alert("탈퇴하기", "정말 탈퇴하시겠어요?", [
+      { text: "취소", style: "cancel" },
+      {
+        text: "탈퇴",
+        style: "destructive",
+        onPress: () =>
+          deactivateUserMutation.mutate(undefined, {
+            onSuccess: () => Alert.alert("탈퇴 완료", "계정이 비활성화되었습니다."),
+            onError: () => Alert.alert("탈퇴 실패", "다시 시도해주세요."),
+          }),
+      },
+    ]);
+  };
 
   return (
     <SafeAreaView edges={["top"]} style={styles.safeArea}>
@@ -38,7 +78,7 @@ export default function MyTabScreen() {
             <View style={styles.avatar}>
               <View style={styles.avatarImageClip}>
                 <Image
-                  source={{ uri: PROFILE_IMAGE }}
+                  source={{ uri: profile?.profileImageUrl || PROFILE_IMAGE }}
                   style={styles.avatarImage}
                   resizeMode="cover"
                 />
@@ -54,8 +94,8 @@ export default function MyTabScreen() {
 
             <View style={styles.profileInfo}>
               <View style={styles.nameRow}>
-                <Text style={styles.name}>루시</Text>
-                <Text style={styles.age}> · 54세</Text>
+                <Text style={styles.name}>{profile?.nickname ?? "루시"}</Text>
+                <Text style={styles.age}> · {profile?.age ?? 54}세</Text>
                 <View style={styles.verifiedBadge}>
                   <Ionicons name="checkmark" size={13} color="#FFFFFF" />
                 </View>
@@ -63,7 +103,9 @@ export default function MyTabScreen() {
 
               <View style={styles.locationRow}>
                 <Ionicons name="location-sharp" size={21} color="#687076" />
-                <Text style={styles.location}>서울시 광진구</Text>
+                <Text style={styles.location}>
+                  {profile?.area.name ?? "서울시 광진구"}
+                </Text>
                 <TouchableOpacity activeOpacity={0.7}>
                   <Text style={styles.editText}>수정</Text>
                 </TouchableOpacity>
@@ -74,8 +116,8 @@ export default function MyTabScreen() {
           <View style={styles.bioBox}>
             <Text style={styles.bioLabel}>나의 소개</Text>
             <Text style={styles.bioText} numberOfLines={2}>
-              안녕하세요 등산이 취미인 사람입니다. 같이 즐겁게 등산하실분
-              구해요~ 등산 경험 여러 있습니다. 😄 편하게 연...
+              {profile?.introText ||
+                "안녕하세요 등산이 취미인 사람입니다. 같이 즐겁게 등산하실분 구해요~ 등산 경험 여러 있습니다. 편하게 연..."}
             </Text>
           </View>
 
@@ -94,7 +136,7 @@ export default function MyTabScreen() {
             </View>
             <View style={styles.matchDivider} />
             <View style={styles.matchItem}>
-              <Text style={styles.matchNumber}>12</Text>
+              <Text style={styles.matchNumber}>{receivedHeartCount}</Text>
               <Text style={styles.matchLabel}>받은 마음</Text>
             </View>
           </View>
@@ -163,12 +205,16 @@ export default function MyTabScreen() {
             />
           </View>
           <View style={styles.thinDivider} />
-          <TouchableOpacity activeOpacity={0.7}>
+          <TouchableOpacity activeOpacity={0.7} onPress={handleLogout}>
             <Text style={styles.logoutText}>로그아웃</Text>
           </TouchableOpacity>
         </View>
 
-        <TouchableOpacity style={styles.withdrawCard} activeOpacity={0.7}>
+        <TouchableOpacity
+          style={styles.withdrawCard}
+          activeOpacity={0.7}
+          onPress={handleDeactivate}
+        >
           <Text style={styles.withdrawText}>탈퇴하기</Text>
         </TouchableOpacity>
       </ScrollView>
