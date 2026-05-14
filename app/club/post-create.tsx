@@ -3,6 +3,7 @@ import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import React, { useMemo, useState } from "react";
 import {
+  Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -22,8 +23,6 @@ import {
 } from "@/components/club/ClubPostParts";
 
 const CATEGORIES = ["공지", "가입인사", "후기", "자유게시판"];
-const SAMPLE_IMAGE =
-  "https://images.unsplash.com/photo-1495908333425-29a1e0918c5f?q=80&w=400&auto=format&fit=crop";
 
 /**
  * 동호회 게시글 작성 화면
@@ -47,7 +46,7 @@ export default function ClubPostCreateScreen() {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
 
     if (!permission.granted) {
-      setImages((current) => (current.length > 0 ? current : [SAMPLE_IMAGE]));
+      Alert.alert("앨범 권한 필요", "사진을 첨부하려면 앨범 접근 권한이 필요합니다.");
       return;
     }
 
@@ -64,7 +63,7 @@ export default function ClubPostCreateScreen() {
   };
 
   const handleCameraMock = () => {
-    setImages((current) => (current.length > 0 ? current : [SAMPLE_IMAGE, SAMPLE_IMAGE]));
+    Alert.alert("준비 중", "카메라 촬영 기능은 추후 연결 예정입니다.");
   };
 
   const handleRemoveImage = (index: number) => {
@@ -113,10 +112,10 @@ export default function ClubPostCreateScreen() {
 
           <View style={styles.dividerBand} />
 
-          {/* 제목은 선택값이지만 입력되면 피그마 상태처럼 진한 텍스트로 표시됩니다. */}
+          {/* 제목 입력 영역입니다. 현재 등록 조건은 API 정책 확정 전 임시로 제목을 필수로 둡니다. */}
           <View style={styles.titleFieldWrap}>
             <TextInput
-              style={styles.titleInput}
+              style={[styles.titleInput, !title && styles.titleInputEmpty]}
               placeholder="제목 (선택)"
               placeholderTextColor={CLUB_COLORS.gray500}
               value={title}
@@ -164,7 +163,7 @@ const styles = StyleSheet.create({
     backgroundColor: CLUB_COLORS.white,
   },
   scrollContent: {
-    minHeight: 712,
+    flexGrow: 1,
   },
   categorySection: {
     paddingHorizontal: 20,
@@ -187,6 +186,9 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: "600",
     lineHeight: 25,
+  },
+  titleInputEmpty: {
+    fontWeight: "500",
   },
   contentSection: {
     paddingHorizontal: 20,

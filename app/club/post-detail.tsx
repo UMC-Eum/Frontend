@@ -31,7 +31,7 @@ const POST_IMAGE =
 /**
  * 동호회 게시글 상세 화면
  * - 게시글 본문, 반응, 댓글, 댓글 입력창을 조합합니다.
- * - `mode=guest` 쿼리로 진입하면 신고/차단 액션시트가 열립니다.
+ * - 더보기 버튼을 누르면 내 글/타인 글 상태에 맞는 액션시트가 열립니다.
  */
 export default function ClubPostDetailScreen() {
   const router = useRouter();
@@ -41,6 +41,12 @@ export default function ClubPostDetailScreen() {
   const [comment, setComment] = useState("");
 
   const actionSheetMode: ClubActionSheetMode = params.mode === "guest" ? "guest" : "owner";
+
+  const handleSendComment = () => {
+    if (comment.trim().length === 0) return;
+
+    setComment("");
+  };
 
   return (
     <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
@@ -109,6 +115,7 @@ export default function ClubPostDetailScreen() {
           value={comment}
           onChangeText={setComment}
           bottomPadding={insets.bottom + 12}
+          onSend={handleSendComment}
         />
 
         <ClubPostActionSheet

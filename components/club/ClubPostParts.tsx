@@ -207,10 +207,12 @@ export function ClubCommentItem({
   name,
   time,
   text,
+  onMorePress,
 }: {
   name: string;
   time: string;
   text: string;
+  onMorePress?: () => void;
 }) {
   return (
     <View style={styles.commentRow}>
@@ -221,9 +223,15 @@ export function ClubCommentItem({
             <Text style={styles.commentName}>{name}</Text>
             <Text style={styles.commentTime}>{time}</Text>
           </View>
-          <Pressable hitSlop={10}>
-            <Ionicons name="ellipsis-vertical" size={22} color={CLUB_COLORS.gray500} />
-          </Pressable>
+          {onMorePress ? (
+            <Pressable onPress={onMorePress} hitSlop={10}>
+              <Ionicons name="ellipsis-vertical" size={22} color={CLUB_COLORS.gray500} />
+            </Pressable>
+          ) : (
+            <View style={styles.commentMoreIcon}>
+              <Ionicons name="ellipsis-vertical" size={22} color={CLUB_COLORS.gray500} />
+            </View>
+          )}
         </View>
         <Text style={styles.commentText}>{text}</Text>
         <Text style={styles.replyText}>답글 달기</Text>
@@ -236,11 +244,15 @@ export function ClubCommentInputBar({
   value,
   onChangeText,
   bottomPadding,
+  onSend,
 }: {
   value: string;
   onChangeText: (value: string) => void;
   bottomPadding: number;
+  onSend?: () => void;
 }) {
+  const canSend = value.trim().length > 0 && !!onSend;
+
   return (
     <View style={[styles.inputBar, { paddingBottom: bottomPadding }]}>
       <TextInput
@@ -250,8 +262,17 @@ export function ClubCommentInputBar({
         value={value}
         onChangeText={onChangeText}
       />
-      <Pressable style={styles.sendButton} hitSlop={12}>
-        <Ionicons name="send" size={24} color={CLUB_COLORS.gray500} />
+      <Pressable
+        style={[styles.sendButton, !canSend && styles.sendButtonDisabled]}
+        onPress={onSend}
+        disabled={!canSend}
+        hitSlop={12}
+      >
+        <Ionicons
+          name="send"
+          size={24}
+          color={canSend ? CLUB_COLORS.pink : CLUB_COLORS.gray500}
+        />
       </Pressable>
     </View>
   );
@@ -570,6 +591,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 4,
   },
+  commentMoreIcon: {
+    width: 22,
+    height: 22,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   commentName: {
     color: CLUB_COLORS.black,
     fontSize: 16,
@@ -617,6 +644,9 @@ const styles = StyleSheet.create({
     height: 48,
     alignItems: "center",
     justifyContent: "center",
+  },
+  sendButtonDisabled: {
+    opacity: 0.6,
   },
   sheetOverlay: {
     flex: 1,
