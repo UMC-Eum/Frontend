@@ -1,5 +1,6 @@
 import * as ImagePicker from "expo-image-picker";
-import { useRouter } from "expo-router";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import React, { useMemo, useState } from "react";
 import {
@@ -21,8 +22,17 @@ import {
   CLUB_COLORS,
   RequiredLabel,
 } from "@/components/club/ClubPostParts";
+import { createClubPost } from "@/api/clubs/clubPostsApi";
+import { queryKeys } from "@/hooks/api/queryKeys";
+import { ClubPostCategory } from "@/types/api/clubs/clubPostsDTO";
 
-const CATEGORIES = ["공지", "가입인사", "후기", "자유게시판"];
+const CATEGORY_OPTIONS: { label: string; value: ClubPostCategory }[] = [
+  { label: "공지", value: "NOTICE" },
+  { label: "가입인사", value: "GREETING" },
+  { label: "후기", value: "REVIEW" },
+  { label: "자유게시판", value: "FREE" },
+];
+const CATEGORY_LABELS = CATEGORY_OPTIONS.map((category) => category.label);
 
 /**
  * 동호회 게시글 작성 화면
@@ -31,16 +41,46 @@ const CATEGORIES = ["공지", "가입인사", "후기", "자유게시판"];
  */
 export default function ClubPostCreateScreen() {
   const router = useRouter();
+  const queryClient = useQueryClient();
+  const params = useLocalSearchParams<{ clubId?: string }>();
   const insets = useSafeAreaInsets();
-  const [category, setCategory] = useState(CATEGORIES[0]);
+  const [categoryLabel, setCategoryLabel] = useState(CATEGORY_OPTIONS[0].label);
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [images, setImages] = useState<string[]>([]);
 
+  const clubId = Number(params.clubId);
+  const selectedCategory =
+    CATEGORY_OPTIONS.find((category) => category.label === categoryLabel)?.value ??
+    CATEGORY_OPTIONS[0].value;
   const canSubmit = useMemo(
-    () => title.trim().length > 0 && content.trim().length > 0,
-    [content, title],
+    () => Number.isFinite(clubId) && content.trim().length > 0,
+    [clubId, content],
   );
+  const createPostMutation = useMutation({
+    mutationFn: () => {
+      const remoteImageUrls = images.filter((uri) => uri.startsWith("http"));
+
+      return createClubPost(clubId, {
+        category: selectedCategory,
+        title: title.trim() || null,
+        content: content.trim(),
+        imageUrls: remoteImageUrls,
+      });
+    },
+    onSuccess: ({ postId }) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.clubs.posts() });
+      router.replace({
+        pathname: "/club/post-detail",
+        params: { postId: String(postId) },
+      } as never);
+    },
+    onError: (error) => {
+      const message =
+        error instanceof Error ? error.message : "게시글 등록 중 문제가 발생했습니다.";
+      Alert.alert("등록 실패", message);
+    },
+  });
 
   const handlePickImages = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -71,9 +111,14 @@ export default function ClubPostCreateScreen() {
   };
 
   const handleSubmit = () => {
-    if (!canSubmit) return;
+    if (!Number.isFinite(clubId)) {
+      Alert.alert("동호회 정보 없음", "게시글을 작성할 동호회 정보를 찾을 수 없습니다.");
+      return;
+    }
 
-    router.push("/club/post-detail" as never);
+    if (!canSubmit || createPostMutation.isPending) return;
+
+    createPostMutation.mutate();
   };
 
   return (
@@ -86,7 +131,7 @@ export default function ClubPostCreateScreen() {
         <ClubHeader
           title="글쓰기"
           rightText="등록"
-          rightTextDisabled={!canSubmit}
+          rightTextDisabled={!canSubmit || createPostMutation.isPending}
           onBack={() => router.back()}
           onRightPress={handleSubmit}
         />
@@ -104,15 +149,15 @@ export default function ClubPostCreateScreen() {
           <View style={styles.categorySection}>
             <RequiredLabel label="카테고리" />
             <ClubCategoryChips
-              categories={CATEGORIES}
-              selected={category}
-              onSelect={setCategory}
+              categories={CATEGORY_LABELS}
+              selected={categoryLabel}
+              onSelect={setCategoryLabel}
             />
           </View>
 
           <View style={styles.dividerBand} />
 
-          {/* 제목 입력 영역입니다. 현재 등록 조건은 API 정책 확정 전 임시로 제목을 필수로 둡니다. */}
+          {/* 제목 입력 영역입니다. 제목은 선택값이므로 내용만 입력해도 등록할 수 있습니다. */}
           <View style={styles.titleFieldWrap}>
             <TextInput
               style={[styles.titleInput, !title && styles.titleInputEmpty]}

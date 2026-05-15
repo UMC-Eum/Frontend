@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -20,6 +20,12 @@ import {
   RECEIVED_HEARTS,
   SENT_HEARTS,
 } from "@/constants/heart";
+import {
+  usePatchHeartMutation,
+  useReceivedHeartsInfiniteQuery,
+  useSendHeartMutation,
+  useSentHeartsInfiniteQuery,
+} from "@/hooks/api/useSocials";
 
 const PINK = "#FF3E70";
 const BLACK = "#202020";
@@ -27,93 +33,99 @@ const GRAY_100 = "#F8FAFB";
 const GRAY_150 = "#E9ECED";
 const GRAY_700 = "#636970";
 
-// API 연동 지점입니다. 실제 엔드포인트가 생기면 함수 내부만 교체하면 됩니다.
-const heartApi = {
-  async getHeartProfiles(tab: HeartTab) {
-    return new Promise<HeartProfile[]>((resolve) => {
-      setTimeout(() => {
-        resolve(tab === "received" ? RECEIVED_HEARTS : SENT_HEARTS);
-      }, 250);
-    });
-  },
-  async updateHeart(profileId: string, isLiked: boolean) {
-    return new Promise<{ profileId: string; isLiked: boolean }>((resolve) => {
-      setTimeout(() => resolve({ profileId, isLiked }), 180);
-    });
-  },
+type ScreenHeartProfile = HeartProfile & {
+  heartId?: number;
+  targetUserId?: number;
 };
 
 export default function HeartScreen() {
   const router = useRouter();
   const { width } = useWindowDimensions();
   const [activeTab, setActiveTab] = useState<HeartTab>("received");
-  const [profilesByTab, setProfilesByTab] = useState<Record<HeartTab, HeartProfile[]>>({
-    received: [],
-    sent: [],
-  });
-  const [isLoading, setIsLoading] = useState(true);
   const [pendingIds, setPendingIds] = useState<Set<string>>(() => new Set());
+  const [optimisticHeartState, setOptimisticHeartState] = useState<
+    Record<string, boolean>
+  >({});
+  const receivedQuery = useReceivedHeartsInfiniteQuery();
+  const sentQuery = useSentHeartsInfiniteQuery();
+  const sendHeartMutation = useSendHeartMutation();
+  const patchHeartMutation = usePatchHeartMutation();
 
   const cardWidth = useMemo(() => (width - 40 - 12) / 2, [width]);
-  const profiles = profilesByTab[activeTab];
+  const receivedProfiles = useMemo(
+    () => mapReceivedHeartProfiles(receivedQuery.data),
+    [receivedQuery.data],
+  );
+  const sentProfiles = useMemo(
+    () => mapSentHeartProfiles(sentQuery.data),
+    [sentQuery.data],
+  );
+  const isReceivedFallback = receivedQuery.isError && receivedProfiles.length === 0;
+  const isSentFallback = sentQuery.isError && sentProfiles.length === 0;
+  const profiles =
+    activeTab === "received"
+      ? applyOptimisticHeartState(
+          isReceivedFallback ? RECEIVED_HEARTS : receivedProfiles,
+          optimisticHeartState,
+        )
+      : applyOptimisticHeartState(
+          isSentFallback ? SENT_HEARTS : sentProfiles,
+          optimisticHeartState,
+        );
+  const activeQuery = activeTab === "received" ? receivedQuery : sentQuery;
+  const isLoading = activeQuery.isLoading && profiles.length === 0;
+  const receivedCount = isReceivedFallback
+    ? RECEIVED_HEART_COUNT
+    : receivedProfiles.length;
 
-  useEffect(() => {
-    let isMounted = true;
-
-    async function loadProfiles() {
-      setIsLoading(true);
-      const [received, sent] = await Promise.all([
-        heartApi.getHeartProfiles("received"),
-        heartApi.getHeartProfiles("sent"),
-      ]);
-
-      if (isMounted) {
-        setProfilesByTab({ received, sent });
-        setIsLoading(false);
-      }
-    }
-
-    loadProfiles();
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
-
-  // 하트는 먼저 화면 상태를 바꾸고, API 실패 시 이전 상태로 되돌립니다.
+  // 하트 액션은 서버 반영 후 관련 목록을 invalidate하는 mutation 훅에서 동기화합니다.
   const handleToggleHeart = useCallback(
-    async (profileId: string) => {
-      const targetProfile = profilesByTab[activeTab].find((item) => item.id === profileId);
-      if (!targetProfile || pendingIds.has(profileId)) return;
+    (profile: ScreenHeartProfile) => {
+      const profileId = profile.id;
+      if (pendingIds.has(profileId)) return;
 
-      const nextLiked = !targetProfile.isLiked;
+      const nextLiked = !profile.isLiked;
 
       setPendingIds((prev) => new Set(prev).add(profileId));
-      setProfilesByTab((prev) => ({
+      setOptimisticHeartState((prev) => ({
         ...prev,
-        [activeTab]: prev[activeTab].map((item) =>
-          item.id === profileId ? { ...item, isLiked: nextLiked } : item,
-        ),
+        [profileId]: nextLiked,
       }));
 
-      try {
-        await heartApi.updateHeart(profileId, nextLiked);
-      } catch {
-        setProfilesByTab((prev) => ({
-          ...prev,
-          [activeTab]: prev[activeTab].map((item) =>
-            item.id === profileId ? { ...item, isLiked: targetProfile.isLiked } : item,
-          ),
-        }));
-      } finally {
+      const resetPending = () => {
         setPendingIds((prev) => {
           const next = new Set(prev);
           next.delete(profileId);
           return next;
         });
+      };
+      const rollbackHeartState = () => {
+        setOptimisticHeartState((prev) => ({
+          ...prev,
+          [profileId]: profile.isLiked,
+        }));
+      };
+
+      if (profile.isLiked && profile.heartId) {
+        patchHeartMutation.mutate(profile.heartId, {
+          onError: rollbackHeartState,
+          onSettled: resetPending,
+        });
+        return;
       }
+
+      if (profile.targetUserId) {
+        sendHeartMutation.mutate(profile.targetUserId, {
+          onError: rollbackHeartState,
+          onSettled: resetPending,
+        });
+        return;
+      }
+
+      // 개발용 fallback 목데이터는 서버 식별자가 없으므로 화면 상태만 즉시 반영합니다.
+      resetPending();
     },
-    [activeTab, pendingIds, profilesByTab],
+    [patchHeartMutation, pendingIds, sendHeartMutation],
   );
 
   return (
@@ -150,17 +162,30 @@ export default function HeartScreen() {
               width={cardWidth}
               isPending={pendingIds.has(item.id)}
               onPress={() => router.push("/profile-detail" as never)}
-              onPressHeart={() => handleToggleHeart(item.id)}
+              onPressHeart={() => handleToggleHeart(item)}
             />
           )}
           columnWrapperStyle={styles.cardRow}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
+          onEndReached={() => {
+            if (activeQuery.hasNextPage && !activeQuery.isFetchingNextPage) {
+              activeQuery.fetchNextPage();
+            }
+          }}
+          onEndReachedThreshold={0.35}
+          ListFooterComponent={
+            activeQuery.isFetchingNextPage ? (
+              <View style={styles.footerLoading}>
+                <ActivityIndicator color={PINK} />
+              </View>
+            ) : null
+          }
           ListHeaderComponent={
             activeTab === "received" ? (
               <View style={styles.receivedSummary}>
                 <Text style={styles.receivedSummaryText}>
-                  총 <Text style={styles.receivedSummaryCount}>{RECEIVED_HEART_COUNT}명</Text>이
+                  총 <Text style={styles.receivedSummaryCount}>{receivedCount}명</Text>이
                   마음을 보냈어요💕
                 </Text>
               </View>
@@ -169,6 +194,75 @@ export default function HeartScreen() {
         />
       )}
     </SafeAreaView>
+  );
+}
+
+function applyOptimisticHeartState<T extends HeartProfile>(
+  profiles: T[],
+  optimisticState: Record<string, boolean>,
+) {
+  return profiles.map((profile) =>
+    Object.prototype.hasOwnProperty.call(optimisticState, profile.id)
+      ? { ...profile, isLiked: optimisticState[profile.id] }
+      : profile,
+  );
+}
+
+function mapReceivedHeartProfiles(data?: {
+  pages: {
+    items: {
+      heartId: number;
+      fromUserId: number;
+      fromUser: {
+        nickname: string;
+        age: number;
+        profileImageUrl: string;
+      };
+    }[];
+  }[];
+}): ScreenHeartProfile[] {
+  return (
+    data?.pages.flatMap((page) =>
+      page.items.map((item) => ({
+        id: `received-${item.heartId}`,
+        heartId: item.heartId,
+        targetUserId: item.fromUserId,
+        name: item.fromUser.nickname,
+        age: item.fromUser.age,
+        location: "",
+        image: item.fromUser.profileImageUrl,
+        isLiked: false,
+      })),
+    ) ?? []
+  );
+}
+
+function mapSentHeartProfiles(data?: {
+  pages: {
+    items: {
+      heartId: number;
+      targetUserId: number;
+      targetUser: {
+        nickname: string;
+        age: number;
+        profileImageUrl: string;
+      };
+    }[];
+  }[];
+}): ScreenHeartProfile[] {
+  return (
+    data?.pages.flatMap((page) =>
+      page.items.map((item) => ({
+        id: `sent-${item.heartId}`,
+        heartId: item.heartId,
+        targetUserId: item.targetUserId,
+        name: item.targetUser.nickname,
+        age: item.targetUser.age,
+        location: "",
+        image: item.targetUser.profileImageUrl,
+        isLiked: true,
+      })),
+    ) ?? []
   );
 }
 
@@ -296,6 +390,11 @@ const styles = StyleSheet.create({
   },
   loadingWrap: {
     flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  footerLoading: {
+    height: 56,
     alignItems: "center",
     justifyContent: "center",
   },
