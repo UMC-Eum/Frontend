@@ -17,6 +17,12 @@ import ChatInput from "@/components/chat/ChatInput";
 import ChatMessage, { ChatMessageData } from "@/components/chat/ChatMessage";
 import ConfirmModal from "@/components/chat/ConfirmModal";
 import MicRecorder from "@/components/MicRecorder";
+import {
+  useChatMessagesInfiniteQuery,
+  useChatRoomDetailQuery,
+  useLeaveChatRoomMutation,
+  useSendChatMessageMutation,
+} from "@/hooks/api/useChats";
 
 const PROFILE_BY_CHAT_ID: Record<string, { name: string; age: number; area: string }> = {
   "1": { name: "루시", age: 53, area: "서울시 관악구" },
@@ -131,11 +137,29 @@ const initialMessages: ChatMessageData[] = [
 export default function ChatRoom() {
   const { id } = useLocalSearchParams<{ id?: string }>();
   const router = useRouter();
+  const chatRoomId = Number(id);
+  const hasChatRoomId = Number.isFinite(chatRoomId);
+  const roomDetailQuery = useChatRoomDetailQuery(chatRoomId, hasChatRoomId);
+  const messagesQuery = useChatMessagesInfiniteQuery(chatRoomId, 30, hasChatRoomId);
+  const sendMessageMutation = useSendChatMessageMutation(chatRoomId);
+  const leaveChatRoomMutation = useLeaveChatRoomMutation(chatRoomId);
   const profile = useMemo(
-    () => PROFILE_BY_CHAT_ID[id ?? "1"] ?? PROFILE_BY_CHAT_ID["1"],
-    [id],
+    () =>
+      roomDetailQuery.data
+        ? {
+            name: roomDetailQuery.data.peer.nickname,
+            age: roomDetailQuery.data.peer.age,
+            area: roomDetailQuery.data.peer.areaName,
+            image: roomDetailQuery.data.peer.profileImageUrl,
+          }
+        : PROFILE_BY_CHAT_ID[id ?? "1"] ?? PROFILE_BY_CHAT_ID["1"],
+    [id, roomDetailQuery.data],
   );
-  const [messages, setMessages] = useState<ChatMessageData[]>(initialMessages);
+  const apiMessages = useMemo(
+    () => mapChatMessages(messagesQuery.data, roomDetailQuery.data?.peer.profileImageUrl),
+    [messagesQuery.data, roomDetailQuery.data?.peer.profileImageUrl],
+  );
+  const [optimisticMessages, setOptimisticMessages] = useState<ChatMessageData[]>([]);
   const [showActionSheet, setShowActionSheet] = useState(false);
   const [showLeaveModal, setShowLeaveModal] = useState(false);
   const [showBlockModal, setShowBlockModal] = useState(false);
@@ -145,6 +169,10 @@ export default function ChatRoom() {
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const [toastMessage, setToastMessage] = useState("");
+  const messages =
+    messagesQuery.isError && apiMessages.length === 0
+      ? [...initialMessages, ...optimisticMessages]
+      : [...apiMessages, ...optimisticMessages];
 
   // 음성 녹음 중에는 1초 단위로 녹음 시간을 갱신합니다.
   useEffect(() => {
@@ -192,8 +220,32 @@ export default function ChatRoom() {
       time: "오후 07:39",
     };
 
-    setMessages((prevMessages) => [...prevMessages, nextMessage]);
+    setOptimisticMessages((prevMessages) => [...prevMessages, nextMessage]);
     setIsAttachmentOpen(false);
+
+    if (!hasChatRoomId) return;
+
+    sendMessageMutation.mutate(
+      {
+        type: "TEXT",
+        text,
+        mediaUrl: "",
+        durationSec: 0,
+      },
+      {
+        onSuccess: () => {
+          setOptimisticMessages((prevMessages) =>
+            prevMessages.filter((message) => message.id !== nextMessage.id),
+          );
+        },
+        onError: () => {
+          setOptimisticMessages((prevMessages) =>
+            prevMessages.filter((message) => message.id !== nextMessage.id),
+          );
+          showToast("메시지를 보내지 못했습니다.");
+        },
+      },
+    );
   };
 
   const formatVoiceDuration = (seconds: number) => {
@@ -235,7 +287,7 @@ export default function ChatRoom() {
       isPlaying: false,
     };
 
-    setMessages((prevMessages) => [...prevMessages, nextMessage]);
+    setOptimisticMessages((prevMessages) => [...prevMessages, nextMessage]);
     handleVoiceCancel();
   };
 
@@ -282,8 +334,26 @@ export default function ChatRoom() {
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => <ChatMessage message={item} />}
           ListHeaderComponent={renderProfileInfo}
+          ListFooterComponent={
+            messagesQuery.isFetchingNextPage ? (
+              <View style={styles.paginationLoading}>
+                <Text style={styles.paginationLoadingText}>
+                  이전 대화를 불러오는 중...
+                </Text>
+              </View>
+            ) : null
+          }
           contentContainerStyle={styles.messageList}
           showsVerticalScrollIndicator={false}
+          onEndReached={() => {
+            if (
+              messagesQuery.hasNextPage &&
+              !messagesQuery.isFetchingNextPage
+            ) {
+              messagesQuery.fetchNextPage();
+            }
+          }}
+          onEndReachedThreshold={0.35}
         />
 
         {!isBlocked && !isAttachmentOpen ? (
@@ -356,7 +426,14 @@ export default function ChatRoom() {
         onClose={() => setShowLeaveModal(false)}
         onConfirm={() => {
           setShowLeaveModal(false);
-          router.replace("/(tabs)/chat" as never);
+          if (!hasChatRoomId) {
+            router.replace("/(tabs)/chat" as never);
+            return;
+          }
+
+          leaveChatRoomMutation.mutate(undefined, {
+            onSettled: () => router.replace("/(tabs)/chat" as never),
+          });
         }}
       />
 
@@ -375,6 +452,74 @@ export default function ChatRoom() {
       />
     </SafeAreaView>
   );
+}
+
+function mapChatMessages(
+  data:
+    | {
+        pages: {
+          items: {
+            messageId: number;
+            type: "TEXT" | "AUDIO" | "PHOTO" | "VIDEO";
+            text: string | null;
+            durationSec: number;
+            isMine: boolean;
+            sentAt: string;
+          }[];
+        }[];
+      }
+    | undefined,
+  peerAvatar?: string,
+): ChatMessageData[] {
+  return (
+    data?.pages.flatMap((page) =>
+      page.items.map((item) => {
+        const base = {
+          id: `message-${item.messageId}`,
+          isMine: item.isMine,
+          time: formatChatTime(item.sentAt),
+          avatar: item.isMine ? undefined : peerAvatar,
+        };
+
+        if (item.type === "AUDIO") {
+          return {
+            ...base,
+            type: "voice" as const,
+            duration: formatDuration(item.durationSec),
+            isPlaying: false,
+          };
+        }
+
+        return {
+          ...base,
+          type: "text" as const,
+          text:
+            item.type === "PHOTO"
+              ? item.text ?? "[사진]"
+              : item.type === "VIDEO"
+                ? item.text ?? "[동영상]"
+                : item.text ?? "",
+        };
+      }),
+    ) ?? []
+  );
+}
+
+function formatChatTime(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+
+  return date.toLocaleTimeString("ko-KR", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function formatDuration(seconds: number) {
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+
+  return `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
 }
 
 const styles = StyleSheet.create({
@@ -411,6 +556,15 @@ const styles = StyleSheet.create({
   messageList: {
     paddingHorizontal: 16,
     paddingBottom: 18,
+  },
+  paginationLoading: {
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  paginationLoadingText: {
+    fontSize: 13,
+    lineHeight: 18,
+    color: "#A6AFB6",
   },
   profileHeader: {
     alignItems: "center",

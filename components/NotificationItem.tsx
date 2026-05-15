@@ -21,7 +21,7 @@ const NotificationItem = ({
   timestamp,
   timeLabel,
 }: NotificationItemProps) => {
-  const displayTime = timeLabel ?? formatRelativeTime(timestamp);
+  const displayTime = timeLabel || formatRelativeTime(timestamp);
 
   return (
     <Pressable

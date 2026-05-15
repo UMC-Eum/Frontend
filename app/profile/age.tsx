@@ -3,6 +3,7 @@ import React, { useRef, useState } from "react";
 import { Animated, PanResponder, StyleSheet, Text, View } from "react-native";
 
 import ProfileStepLayout from "@/components/profile/ProfileStepLayout";
+import { useOnboardingDraftStore } from "@/stores/onboardingDraftStore";
 
 const MIN_AGE = 20;
 const MAX_AGE = 80;
@@ -17,9 +18,13 @@ const VISIBLE_ITEMS = 5;
  */
 export default function AgeScreen() {
   const router = useRouter();
-  const [selectedAge, setSelectedAge] = useState(DEFAULT_AGE);
-  const scrollY = useRef(new Animated.Value(0)).current;
-  const lastOffset = useRef((DEFAULT_AGE - MIN_AGE) * ITEM_HEIGHT);
+  const draftAge = useOnboardingDraftStore((state) => state.age);
+  const setDraftAge = useOnboardingDraftStore((state) => state.setAge);
+  const initialAge = draftAge ?? DEFAULT_AGE;
+  const initialOffset = (initialAge - MIN_AGE) * ITEM_HEIGHT;
+  const [selectedAge, setSelectedAge] = useState(initialAge);
+  const scrollY = useRef(new Animated.Value(initialOffset)).current;
+  const lastOffset = useRef(initialOffset);
 
   const ages = Array.from(
     { length: MAX_AGE - MIN_AGE + 1 },
@@ -62,6 +67,7 @@ export default function AgeScreen() {
   ).current;
 
   const handleNext = () => {
+    setDraftAge(selectedAge);
     router.push("/profile/gender" as any);
   };
 

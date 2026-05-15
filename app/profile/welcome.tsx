@@ -4,6 +4,7 @@ import React from "react";
 import { StyleSheet, Text, View } from "react-native";
 
 import ProfileStepLayout from "@/components/profile/ProfileStepLayout";
+import { useOnboardingDraftStore } from "@/stores/onboardingDraftStore";
 
 /**
  * 환영 / 음성 녹음 안내 화면
@@ -13,9 +14,7 @@ import ProfileStepLayout from "@/components/profile/ProfileStepLayout";
  */
 export default function WelcomeScreen() {
   const router = useRouter();
-
-  // TODO: 이전 단계에서 입력한 이름을 전역 상태(zustand 등)에서 가져오기
-  const userName = "사용자";
+  const userName = useOnboardingDraftStore((state) => state.nickname) || "사용자";
 
   return (
     <ProfileStepLayout

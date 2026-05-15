@@ -7,11 +7,15 @@ import { Club } from "@/types/search";
 type ClubRowProps = {
   club: Club;
   featured?: boolean;
+  onPress?: () => void;
 };
 
-export default function ClubRow({ club, featured = false }: ClubRowProps) {
+export default function ClubRow({ club, featured = false, onPress }: ClubRowProps) {
   return (
-    <Pressable style={[styles.clubRow, featured && styles.featuredClubRow]}>
+    <Pressable
+      style={[styles.clubRow, featured && styles.featuredClubRow]}
+      onPress={onPress}
+    >
       <View style={styles.clubThumbnail} />
       <View style={styles.clubInfo}>
         <Text style={styles.clubTitle} numberOfLines={1}>

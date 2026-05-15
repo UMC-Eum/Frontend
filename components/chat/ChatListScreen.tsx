@@ -1,7 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import React from "react";
+import React, { useMemo } from "react";
 import {
+  ActivityIndicator,
   FlatList,
   Image,
   ListRenderItem,
@@ -12,6 +13,8 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { useChatRoomsInfiniteQuery } from "@/hooks/api/useChats";
+
 type ChatPreview = {
   id: string;
   name: string;
@@ -19,6 +22,7 @@ type ChatPreview = {
   lastMessage: string;
   timeLabel: string;
   unreadCount: number;
+  image?: string;
 };
 
 type ActiveMember = {
@@ -118,7 +122,17 @@ export default function ChatListScreen({
   showActiveMembers = true,
 }: ChatListScreenProps) {
   const router = useRouter();
-  const activeMembers = showActiveMembers ? ACTIVE_MEMBERS : [];
+  const chatRoomsQuery = useChatRoomsInfiniteQuery();
+  const apiChatPreviews = useMemo(
+    () => mapChatRooms(chatRoomsQuery.data),
+    [chatRoomsQuery.data],
+  );
+  const isFallback = chatRoomsQuery.isError && apiChatPreviews.length === 0;
+  const chatPreviews = isFallback ? CHAT_PREVIEWS : apiChatPreviews;
+  const activeMembers = showActiveMembers
+    ? mapActiveMembers(chatPreviews).slice(0, 8)
+    : [];
+  const isInitialLoading = chatRoomsQuery.isLoading && chatPreviews.length === 0;
 
   const openChatRoom = (chatId: string) => {
     router.push({
@@ -138,7 +152,11 @@ export default function ChatListScreen({
       accessibilityRole="button"
       accessibilityLabel={`${item.name}님과의 대화`}
     >
-      <View style={styles.avatarPlaceholder} />
+      {item.image ? (
+        <Image source={{ uri: item.image }} style={styles.avatarPlaceholder} />
+      ) : (
+        <View style={styles.avatarPlaceholder} />
+      )}
       <View style={styles.chatContent}>
         <View style={styles.chatMetaRow}>
           <Text style={styles.chatName} numberOfLines={1}>
@@ -164,7 +182,7 @@ export default function ChatListScreen({
     <View style={styles.activeMember}>
       <Image source={{ uri: item.image }} style={styles.activeImage} />
       <Text style={styles.activeName} numberOfLines={1}>
-        {item.name} · {item.age}
+        {item.age > 0 ? `${item.name} · ${item.age}` : item.name}
       </Text>
     </View>
   );
@@ -205,15 +223,101 @@ export default function ChatListScreen({
   return (
     <SafeAreaView style={styles.safeArea} edges={["top"]}>
       <FlatList
-        data={CHAT_PREVIEWS}
+        data={chatPreviews}
         keyExtractor={(item) => item.id}
         renderItem={renderChatPreview}
         ListHeaderComponent={renderHeader}
+        ListEmptyComponent={
+          isInitialLoading ? (
+            <View style={styles.loadingWrap}>
+              <ActivityIndicator color="#FF3E70" />
+            </View>
+          ) : (
+            <View style={styles.emptyWrap}>
+              <Text style={styles.emptyText}>아직 대화가 없습니다.</Text>
+            </View>
+          )
+        }
+        ListFooterComponent={
+          chatRoomsQuery.isFetchingNextPage ? (
+            <View style={styles.footerLoading}>
+              <ActivityIndicator color="#FF3E70" />
+            </View>
+          ) : null
+        }
+        onEndReached={() => {
+          if (chatRoomsQuery.hasNextPage && !chatRoomsQuery.isFetchingNextPage) {
+            chatRoomsQuery.fetchNextPage();
+          }
+        }}
+        onEndReachedThreshold={0.35}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.listContent}
       />
     </SafeAreaView>
   );
+}
+
+function mapChatRooms(data?: {
+  pages: {
+    items: {
+      chatRoomId: number;
+      peer: {
+        nickname: string;
+        profileImageUrl: string;
+        areaName: string;
+      };
+      lastMessage: {
+        textPreview: string;
+        sentAt: string;
+      };
+      unreadCount: number;
+    }[];
+  }[];
+}): ChatPreview[] {
+  return (
+    data?.pages.flatMap((page) =>
+      page.items.map((room) => ({
+        id: String(room.chatRoomId),
+        name: room.peer.nickname,
+        location: room.peer.areaName,
+        lastMessage: room.lastMessage.textPreview || "새로운 대화를 시작해보세요.",
+        timeLabel: formatRelativeTime(room.lastMessage.sentAt),
+        unreadCount: room.unreadCount,
+        image: room.peer.profileImageUrl,
+      })),
+    ) ?? []
+  );
+}
+
+function mapActiveMembers(items: ChatPreview[]): ActiveMember[] {
+  const fromChats = items
+    .filter((item) => item.image)
+    .map((item) => ({
+      id: `active-${item.id}`,
+      name: item.name,
+      age: 0,
+      image: item.image ?? "",
+    }));
+
+  return fromChats.length > 0 ? fromChats : ACTIVE_MEMBERS;
+}
+
+function formatRelativeTime(value: string) {
+  const date = new Date(value);
+  const timestamp = date.getTime();
+
+  if (Number.isNaN(timestamp)) return "";
+
+  const diffMinutes = Math.max(0, Math.floor((Date.now() - timestamp) / 60000));
+  if (diffMinutes < 1) return "방금 전";
+  if (diffMinutes < 60) return `${diffMinutes}분 전`;
+
+  const diffHours = Math.floor(diffMinutes / 60);
+  if (diffHours < 24) return `${diffHours}시간 전`;
+
+  const diffDays = Math.floor(diffHours / 24);
+  return `${diffDays}일 전`;
 }
 
 const styles = StyleSheet.create({
@@ -223,6 +327,26 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingBottom: 28,
+  },
+  loadingWrap: {
+    minHeight: 180,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  emptyWrap: {
+    minHeight: 180,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  emptyText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#A6AFB6",
+  },
+  footerLoading: {
+    height: 56,
+    alignItems: "center",
+    justifyContent: "center",
   },
   header: {
     height: 92,

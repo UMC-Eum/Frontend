@@ -1,9 +1,17 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
+import {
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import React, { useState } from "react";
 import {
+  ActivityIndicator,
+  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -24,9 +32,21 @@ import {
   ClubReactionSummary,
   CLUB_COLORS,
 } from "@/components/club/ClubPostParts";
+import {
+  createClubPostComment,
+  deleteClubPost,
+  getClubPostComments,
+  getClubPostDetail,
+} from "@/api/clubs/clubPostsApi";
+import { queryKeys } from "@/hooks/api/queryKeys";
+import { ClubPostCategory } from "@/types/api/clubs/clubPostsDTO";
 
-const POST_IMAGE =
-  "https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?q=85&w=1200&auto=format&fit=crop";
+const CATEGORY_LABELS: Record<ClubPostCategory, string> = {
+  NOTICE: "공지",
+  GREETING: "가입인사",
+  REVIEW: "후기",
+  FREE: "자유게시판",
+};
 
 /**
  * 동호회 게시글 상세 화면
@@ -36,16 +56,93 @@ const POST_IMAGE =
 export default function ClubPostDetailScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const params = useLocalSearchParams<{ mode?: ClubActionSheetMode }>();
+  const queryClient = useQueryClient();
+  const params = useLocalSearchParams<{ mode?: ClubActionSheetMode; postId?: string }>();
   const [isActionSheetVisible, setActionSheetVisible] = useState(false);
   const [comment, setComment] = useState("");
 
-  const actionSheetMode: ClubActionSheetMode = params.mode === "guest" ? "guest" : "owner";
+  const postId = Number(params.postId);
+  const hasPostId = Number.isFinite(postId);
+  const postQuery = useQuery({
+    queryKey: queryKeys.clubs.post(postId),
+    queryFn: () => getClubPostDetail(postId),
+    enabled: hasPostId,
+  });
+  const commentsQuery = useInfiniteQuery({
+    queryKey: queryKeys.clubs.comments(postId),
+    queryFn: ({ pageParam }) =>
+      getClubPostComments(postId, { cursor: pageParam, size: 20 }),
+    initialPageParam: null as string | null,
+    getNextPageParam: (lastPage) => lastPage.nextCursor,
+    enabled: hasPostId,
+  });
+  const createCommentMutation = useMutation({
+    mutationFn: () =>
+      createClubPostComment(postId, {
+        content: comment.trim(),
+      }),
+    onSuccess: () => {
+      setComment("");
+      queryClient.invalidateQueries({ queryKey: queryKeys.clubs.post(postId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.clubs.comments(postId) });
+    },
+    onError: () => {
+      Alert.alert("댓글 등록 실패", "댓글을 등록하는 중 문제가 발생했습니다.");
+    },
+  });
+  const deletePostMutation = useMutation({
+    mutationFn: () => deleteClubPost(postId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.clubs.posts() });
+      router.back();
+    },
+    onError: () => {
+      Alert.alert("삭제 실패", "게시글을 삭제하는 중 문제가 발생했습니다.");
+    },
+  });
+
+  const post = postQuery.data;
+  const comments = commentsQuery.data?.pages.flatMap((page) => page.items) ?? [];
+  const actionSheetMode: ClubActionSheetMode =
+    post?.isMine === true
+      ? "owner"
+      : "guest";
 
   const handleSendComment = () => {
-    if (comment.trim().length === 0) return;
+    if (!hasPostId || comment.trim().length === 0 || createCommentMutation.isPending) {
+      return;
+    }
 
-    setComment("");
+    createCommentMutation.mutate();
+  };
+
+  const handlePrimaryAction = () => {
+    setActionSheetVisible(false);
+
+    if (actionSheetMode === "owner") {
+      Alert.alert("준비 중", "게시글 수정 화면은 추후 연결 예정입니다.");
+      return;
+    }
+
+    Alert.alert("준비 중", "게시글 신고 API 명세 확인 후 연결 예정입니다.");
+  };
+
+  const handleSecondaryAction = () => {
+    setActionSheetVisible(false);
+
+    if (actionSheetMode === "owner") {
+      Alert.alert("게시글 삭제", "게시글을 삭제하시겠어요?", [
+        { text: "취소", style: "cancel" },
+        {
+          text: "삭제",
+          style: "destructive",
+          onPress: () => deletePostMutation.mutate(),
+        },
+      ]);
+      return;
+    }
+
+    Alert.alert("준비 중", "사용자 차단 API 명세 확인 후 연결 예정입니다.");
   };
 
   return (
@@ -82,33 +179,69 @@ export default function ClubPostDetailScreen() {
           ]}
           showsVerticalScrollIndicator={false}
         >
-          {/* 작성자와 게시글 메타 정보입니다. */}
-          <ClubAuthorMeta name="등산하는 사람" time="30분전" category="공지" />
+          {!hasPostId ? (
+            <StatusMessage text="게시글 정보를 찾을 수 없습니다." />
+          ) : postQuery.isLoading ? (
+            <View style={styles.statusBox}>
+              <ActivityIndicator color={CLUB_COLORS.pink} />
+            </View>
+          ) : postQuery.isError || !post ? (
+            <StatusMessage text="게시글을 불러오지 못했습니다." />
+          ) : (
+            <>
+              {/* 작성자와 게시글 메타 정보입니다. */}
+              <ClubAuthorMeta
+                name={post.author.nickname}
+                time={formatRelativeTime(post.createdAt)}
+                category={CATEGORY_LABELS[post.category]}
+                avatarUri={post.author.profileImageUrl ?? undefined}
+              />
 
-          <View style={styles.postBody}>
-            <Text style={styles.postTitle}>오늘 새벽 등산 후기⛰️</Text>
-            <Text style={styles.postContent}>
-              오늘 아침 등반은 정말 상쾌했어요! 멋진 일출을 보니 힘든 일도
-              잊혀지네요.ㅎㅎ{"\n\n"}
-              새벽 5시에 출발해서 6시 30분쯤 정상에 도착했는데, 마침 해가
-              떠오르는 시간이라 정말 환상적이었어요. 사진으로는 그 감동을 다
-              담을 수 없을 정도였어요.{"\n\n"}
-              다들 고생 많으셨고, 다음 주에 또 만나요! 다음에는 도시락도
-              챙겨가요 🍱
-            </Text>
-            <Image source={{ uri: POST_IMAGE }} style={styles.postImage} contentFit="cover" />
-          </View>
+              <View style={styles.postBody}>
+                {post.title ? <Text style={styles.postTitle}>{post.title}</Text> : null}
+                <Text style={styles.postContent}>{post.content}</Text>
+                {post.images.map((image) => (
+                  <Image
+                    key={image.imageId}
+                    source={{ uri: image.imageUrl }}
+                    style={styles.postImage}
+                    contentFit="cover"
+                  />
+                ))}
+              </View>
 
-          <ClubReactionSummary likeCount={23} commentCount={1} />
+              <ClubReactionSummary
+                likeCount={post.likeCount}
+                commentCount={post.commentCount}
+              />
 
-          <View style={styles.dividerBand} />
+              <View style={styles.dividerBand} />
 
-          {/* 댓글 목록은 상세 화면 검증을 위한 목 데이터입니다. */}
-          <ClubCommentItem
-            name="새벽이슬"
-            time="10분 전"
-            text="와 일출 사진 진짜 멋져요!! 다음 산행 때 저도 꼭 같이 가고 싶어요 🥺"
-          />
+              {comments.map((item) => (
+                <ClubCommentItem
+                  key={item.commentId}
+                  name={item.author.nickname}
+                  time={formatRelativeTime(item.createdAt)}
+                  text={item.content}
+                  avatarUri={item.author.profileImageUrl ?? undefined}
+                />
+              ))}
+              {comments.length === 0 ? (
+                <StatusMessage text="아직 댓글이 없습니다." compact />
+              ) : null}
+              {commentsQuery.hasNextPage ? (
+                <Pressable
+                  style={styles.moreCommentsButton}
+                  onPress={() => commentsQuery.fetchNextPage()}
+                  disabled={commentsQuery.isFetchingNextPage}
+                >
+                  <Text style={styles.moreCommentsText}>
+                    {commentsQuery.isFetchingNextPage ? "불러오는 중" : "댓글 더보기"}
+                  </Text>
+                </Pressable>
+              ) : null}
+            </>
+          )}
         </ScrollView>
 
         <ClubCommentInputBar
@@ -122,10 +255,39 @@ export default function ClubPostDetailScreen() {
           visible={isActionSheetVisible}
           mode={actionSheetMode}
           onClose={() => setActionSheetVisible(false)}
+          onPrimaryPress={handlePrimaryAction}
+          onSecondaryPress={handleSecondaryAction}
         />
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
+}
+
+function StatusMessage({ text, compact = false }: { text: string; compact?: boolean }) {
+  return (
+    <View style={[styles.statusBox, compact && styles.statusBoxCompact]}>
+      <Text style={styles.statusText}>{text}</Text>
+    </View>
+  );
+}
+
+function formatRelativeTime(value: string) {
+  const date = new Date(value);
+  const timestamp = date.getTime();
+
+  if (Number.isNaN(timestamp)) return value;
+
+  const diffMs = Date.now() - timestamp;
+  const diffMinutes = Math.max(0, Math.floor(diffMs / 60000));
+
+  if (diffMinutes < 1) return "방금 전";
+  if (diffMinutes < 60) return `${diffMinutes}분 전`;
+
+  const diffHours = Math.floor(diffMinutes / 60);
+  if (diffHours < 24) return `${diffHours}시간 전`;
+
+  const diffDays = Math.floor(diffHours / 24);
+  return `${diffDays}일 전`;
 }
 
 const styles = StyleSheet.create({
@@ -185,5 +347,33 @@ const styles = StyleSheet.create({
   dividerBand: {
     height: 8,
     backgroundColor: CLUB_COLORS.gray100,
+  },
+  statusBox: {
+    minHeight: 160,
+    paddingHorizontal: 20,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  statusBoxCompact: {
+    minHeight: 72,
+  },
+  statusText: {
+    color: CLUB_COLORS.gray500,
+    fontSize: 15,
+    fontWeight: "500",
+  },
+  moreCommentsButton: {
+    height: 44,
+    marginHorizontal: 20,
+    marginTop: 4,
+    borderRadius: 10,
+    backgroundColor: CLUB_COLORS.gray100,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  moreCommentsText: {
+    color: CLUB_COLORS.gray700,
+    fontSize: 14,
+    fontWeight: "600",
   },
 });
