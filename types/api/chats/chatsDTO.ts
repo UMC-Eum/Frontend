@@ -66,7 +66,7 @@ export interface IChatsRoomIdMessagesGetResponse {
     mediaUrl: string;
     durationSec: number;
     senderUserId: number;
-    sendAt: string;
+    sentAt: string;
     readAt: string | null;
     isMine: boolean;
   }[];
@@ -82,7 +82,7 @@ export interface IChatsRoomIdMessagesPostRequset {
 }
 export interface IChatsRoomIdMessagesPostResponse {
   messageId: number;
-  sendAt: string;
+  sentAt: string;
 }
 //v1/chats/rooms/{chatRoomId}/media/presign(post)
 export interface IChatsRoomIdMediaPresignPostRequest {
@@ -95,7 +95,7 @@ export interface IChatsRoomIdMediaPresignPostResponse {
   uploadUrl: string;
   mediaRef: string;
   expiresAt: string;
-  requireHeaders: {
+  requiredHeaders: {
     "Content-Type": string;
   };
 }

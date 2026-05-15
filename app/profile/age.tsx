@@ -21,9 +21,10 @@ export default function AgeScreen() {
   const draftAge = useOnboardingDraftStore((state) => state.age);
   const setDraftAge = useOnboardingDraftStore((state) => state.setAge);
   const initialAge = draftAge ?? DEFAULT_AGE;
+  const initialOffset = (initialAge - MIN_AGE) * ITEM_HEIGHT;
   const [selectedAge, setSelectedAge] = useState(initialAge);
-  const scrollY = useRef(new Animated.Value(0)).current;
-  const lastOffset = useRef((initialAge - MIN_AGE) * ITEM_HEIGHT);
+  const scrollY = useRef(new Animated.Value(initialOffset)).current;
+  const lastOffset = useRef(initialOffset);
 
   const ages = Array.from(
     { length: MAX_AGE - MIN_AGE + 1 },

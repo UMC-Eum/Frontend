@@ -16,6 +16,3 @@ export interface IUserProfile {
   profileImageUrl: string;
   age: number;
 }
-export interface IUserProfileExtend extends IUserProfile {
-  age: number;
-}

@@ -28,7 +28,7 @@ type NotificationData = {
   userName: string;
   userProfileImage: string;
   notificationContent: string;
-  timeLabel: string;
+  timeLabel?: string;
   timestamp: Date;
 };
 
@@ -149,7 +149,7 @@ export default function HomeScreen() {
       userProfileImage={item.userProfileImage}
       notificationContent={item.notificationContent}
       timestamp={item.timestamp}
-      timeLabel={item.timeLabel}
+      timeLabel={item.timeLabel || undefined}
     />
   );
 

@@ -49,7 +49,7 @@ export interface IBlocksResponse {
 }
 //v1/blocks(get)
 export interface IBlocksGetResponse {
-  nextCursor: "opaque_cursor" | null;
+  nextCursor: string | null;
   items: {
     blockId: number;
     targetUserId: number;

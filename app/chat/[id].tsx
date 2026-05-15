@@ -334,8 +334,26 @@ export default function ChatRoom() {
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => <ChatMessage message={item} />}
           ListHeaderComponent={renderProfileInfo}
+          ListFooterComponent={
+            messagesQuery.isFetchingNextPage ? (
+              <View style={styles.paginationLoading}>
+                <Text style={styles.paginationLoadingText}>
+                  이전 대화를 불러오는 중...
+                </Text>
+              </View>
+            ) : null
+          }
           contentContainerStyle={styles.messageList}
           showsVerticalScrollIndicator={false}
+          onEndReached={() => {
+            if (
+              messagesQuery.hasNextPage &&
+              !messagesQuery.isFetchingNextPage
+            ) {
+              messagesQuery.fetchNextPage();
+            }
+          }}
+          onEndReachedThreshold={0.35}
         />
 
         {!isBlocked && !isAttachmentOpen ? (
@@ -446,7 +464,7 @@ function mapChatMessages(
             text: string | null;
             durationSec: number;
             isMine: boolean;
-            sendAt: string;
+            sentAt: string;
           }[];
         }[];
       }
@@ -459,7 +477,7 @@ function mapChatMessages(
         const base = {
           id: `message-${item.messageId}`,
           isMine: item.isMine,
-          time: formatChatTime(item.sendAt),
+          time: formatChatTime(item.sentAt),
           avatar: item.isMine ? undefined : peerAvatar,
         };
 
@@ -538,6 +556,15 @@ const styles = StyleSheet.create({
   messageList: {
     paddingHorizontal: 16,
     paddingBottom: 18,
+  },
+  paginationLoading: {
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  paginationLoadingText: {
+    fontSize: 13,
+    lineHeight: 18,
+    color: "#A6AFB6",
   },
   profileHeader: {
     alignItems: "center",

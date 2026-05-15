@@ -63,13 +63,9 @@ export const postChatMediaPresign = async (chatRoomId: number, file: File) => {
 
 /** S3 실제 업로드 */
 export const uploadChatFileToS3 = async (
-  // 타입 에러 방지를 위해 requiredHeaders 타입 임시 확장
-  presignData: DTO.IChatsRoomIdMediaPresignPostResponse & {
-    requiredHeaders?: Record<string, string>;
-  },
+  presignData: DTO.IChatsRoomIdMediaPresignPostResponse,
   file: File,
 ) => {
-  // 💡 2. 오타 수정: requireHeaders -> requiredHeaders (백엔드 응답값 일치)
   const contentType =
     presignData.requiredHeaders?.["Content-Type"] || file.type;
 

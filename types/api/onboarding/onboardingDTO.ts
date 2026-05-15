@@ -5,11 +5,9 @@ export interface IPresignRequest {
   purpose: string;
 }
 export interface IPresignResponse {
-  data: {
-    uploadUrl: string;
-    fileUrl: string;
-    expiresAt: string;
-  };
+  uploadUrl: string;
+  fileUrl: string;
+  expiresAt: string;
 }
 //v1/onboarding/voice-profile/analyze(post)
 export interface IPersonality {
@@ -28,11 +26,13 @@ export interface IAnalyzeRequest {
   userId: number;
   audioUrl: string;
   language: "ko-KR";
+  analysisType: "profile" | "ideal-type";
 }
 export interface IAnalyzeResponse {
   transcript: string;
   summary: string;
-  keywordsCandidates: IKeywordscandidate[];
+  keywordCandidates: IKeywordscandidate;
+  vibeVector: number[];
 }
 //v1/onboarding/profile(post)
 export interface IProfileRequest {
@@ -64,7 +64,7 @@ export interface IItemRecommendation {
   matchScore: number;
   matchReasons: string[];
   isLiked: boolean;
-  likedHeartId: number;
+  likedHeartId: number | null;
 }
 export interface IRecommendationsRequest {
   cursor?: string;

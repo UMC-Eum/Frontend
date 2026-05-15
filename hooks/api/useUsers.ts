@@ -8,6 +8,7 @@ import {
   putPersonalities,
   updateMyProfile,
 } from "@/api/users/usersApi";
+import { useAuthStore } from "@/stores/authStore";
 import { IPatchUserProfileRequest, IKeywordsRequest, IPutIdealRequest } from "@/types/api/users/usersDTO";
 
 import { queryKeys } from "./queryKeys";
@@ -32,10 +33,12 @@ export function useUpdateMyProfileMutation() {
 
 export function useDeactivateUserMutation() {
   const queryClient = useQueryClient();
+  const clearAuth = useAuthStore((state) => state.clearAuth);
 
   return useMutation({
     mutationFn: deactivateUser,
     onSuccess: () => {
+      clearAuth();
       queryClient.clear();
     },
   });

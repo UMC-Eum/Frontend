@@ -38,6 +38,8 @@ type Profile = {
   location: string;
   intro: string;
   images: string[];
+  isLiked: boolean;
+  likedHeartId: number | null;
 };
 
 type Viewer = {
@@ -58,6 +60,8 @@ const RECOMMENDED_PROFILES: Profile[] = [
     age: 67,
     location: "서울 광진구",
     intro: "저는 산책하는걸 즐기는 사람입니다!~~",
+    isLiked: false,
+    likedHeartId: null,
     images: [
       "https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?q=85&w=1200&auto=format&fit=crop",
       "https://images.unsplash.com/photo-1470770903676-69b98201ea1c?q=85&w=1200&auto=format&fit=crop",
@@ -70,6 +74,8 @@ const RECOMMENDED_PROFILES: Profile[] = [
     age: 63,
     location: "서울 성동구",
     intro: "따뜻한 차 한잔과 동네 산책을 좋아해요.",
+    isLiked: false,
+    likedHeartId: null,
     images: [
       "https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=85&w=1200&auto=format&fit=crop",
       "https://images.unsplash.com/photo-1517841905240-472988babdf9?q=85&w=1200&auto=format&fit=crop",
@@ -82,6 +88,8 @@ const RECOMMENDED_PROFILES: Profile[] = [
     age: 69,
     location: "서울 송파구",
     intro: "주말마다 한강을 걷고 사진을 찍습니다.",
+    isLiked: false,
+    likedHeartId: null,
     images: [
       "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=85&w=1200&auto=format&fit=crop",
       "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=85&w=1200&auto=format&fit=crop",
@@ -229,7 +237,7 @@ export default function HomePage() {
   // 마음이들어요를 누르면 내부 카운트를 올리고 마음 탭으로 이동합니다.
   const handleLike = () => {
     setLikedCount((prev) => prev + 1);
-    if (profile.targetUserId) {
+    if (profile.targetUserId && !profile.isLiked) {
       sendHeartMutation.mutate(profile.targetUserId);
     }
     router.push("/(tabs)/heart" as never);
@@ -380,6 +388,8 @@ function mapRecommendationProfiles(data?: {
       areaName: string;
       introText: string;
       profileImageUrl: string;
+      isLiked: boolean;
+      likedHeartId: number | null;
     }[];
   }[];
 }): Profile[] {
@@ -392,6 +402,8 @@ function mapRecommendationProfiles(data?: {
         age: item.age,
         location: item.areaName,
         intro: item.introText,
+        isLiked: item.isLiked,
+        likedHeartId: item.likedHeartId,
         images: item.profileImageUrl ? [item.profileImageUrl] : [FALLBACK_PROFILE_IMAGE],
       })),
     ) ?? []
