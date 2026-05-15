@@ -239,6 +239,9 @@ export default function ChatRoom() {
           );
         },
         onError: () => {
+          setOptimisticMessages((prevMessages) =>
+            prevMessages.filter((message) => message.id !== nextMessage.id),
+          );
           showToast("메시지를 보내지 못했습니다.");
         },
       },
@@ -452,31 +455,34 @@ function mapChatMessages(
 ): ChatMessageData[] {
   return (
     data?.pages.flatMap((page) =>
-      page.items
-        .filter((item) => item.type === "TEXT" || item.type === "AUDIO")
-        .map((item) => {
-          const base = {
-            id: `message-${item.messageId}`,
-            isMine: item.isMine,
-            time: formatChatTime(item.sendAt),
-            avatar: item.isMine ? undefined : peerAvatar,
-          };
+      page.items.map((item) => {
+        const base = {
+          id: `message-${item.messageId}`,
+          isMine: item.isMine,
+          time: formatChatTime(item.sendAt),
+          avatar: item.isMine ? undefined : peerAvatar,
+        };
 
-          if (item.type === "AUDIO") {
-            return {
-              ...base,
-              type: "voice" as const,
-              duration: formatDuration(item.durationSec),
-              isPlaying: false,
-            };
-          }
-
+        if (item.type === "AUDIO") {
           return {
             ...base,
-            type: "text" as const,
-            text: item.text ?? "",
+            type: "voice" as const,
+            duration: formatDuration(item.durationSec),
+            isPlaying: false,
           };
-        }),
+        }
+
+        return {
+          ...base,
+          type: "text" as const,
+          text:
+            item.type === "PHOTO"
+              ? item.text ?? "[사진]"
+              : item.type === "VIDEO"
+                ? item.text ?? "[동영상]"
+                : item.text ?? "",
+        };
+      }),
     ) ?? []
   );
 }

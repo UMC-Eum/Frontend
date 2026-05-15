@@ -59,17 +59,13 @@ export default function ClubPostCreateScreen() {
   );
   const createPostMutation = useMutation({
     mutationFn: () => {
-      const unsupportedLocalImages = images.filter((uri) => !uri.startsWith("http"));
-
-      if (unsupportedLocalImages.length > 0) {
-        throw new Error("이미지 업로드 API 연결 후 사진 첨부 게시글을 등록할 수 있습니다.");
-      }
+      const remoteImageUrls = images.filter((uri) => uri.startsWith("http"));
 
       return createClubPost(clubId, {
         category: selectedCategory,
         title: title.trim() || null,
         content: content.trim(),
-        imageUrls: images,
+        imageUrls: remoteImageUrls,
       });
     },
     onSuccess: ({ postId }) => {

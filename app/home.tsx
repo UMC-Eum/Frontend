@@ -161,12 +161,12 @@ export default function HomePage() {
 
   const recommendedProfiles = mapRecommendationProfiles(recommendationsQuery.data);
   const isRecommendationFallback =
-    recommendationsQuery.isError && recommendedProfiles.length === 0;
+    __DEV__ &&
+    recommendationsQuery.isError &&
+    recommendedProfiles.length === 0;
   const profiles = isRecommendationFallback
     ? RECOMMENDED_PROFILES
-    : recommendedProfiles.length > 0
-      ? recommendedProfiles
-      : RECOMMENDED_PROFILES;
+    : recommendedProfiles;
   const profile = profiles[profileIndex % profiles.length];
   const nickname = myProfileQuery.data?.nickname ?? USER_NICKNAME;
   const cardWidth = width - 40;

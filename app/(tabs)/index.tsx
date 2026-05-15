@@ -245,7 +245,6 @@ function mapNotificationPages(data?: {
         userName: item.sender.nickname,
         userProfileImage: item.sender.profileImageUrl,
         notificationContent: item.body || item.title,
-        timeLabel: "",
         timestamp: new Date(item.createdAt),
       })),
     ) ?? []

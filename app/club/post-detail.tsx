@@ -106,11 +106,7 @@ export default function ClubPostDetailScreen() {
   const actionSheetMode: ClubActionSheetMode =
     post?.isMine === true
       ? "owner"
-      : post?.isMine === false
-        ? "guest"
-        : params.mode === "guest"
-          ? "guest"
-          : "owner";
+      : "guest";
 
   const handleSendComment = () => {
     if (!hasPostId || comment.trim().length === 0 || createCommentMutation.isPending) {

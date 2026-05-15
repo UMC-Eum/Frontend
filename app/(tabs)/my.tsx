@@ -37,7 +37,7 @@ export default function MyTabScreen() {
     receivedHeartsQuery.data?.pages.reduce(
       (total, page) => total + page.items.length,
       0,
-    ) ?? 12;
+    ) ?? (receivedHeartsQuery.isSuccess ? 0 : undefined);
 
   // 계정 액션은 mutation으로 서버에 반영하고 로컬 Query 캐시를 정리합니다.
   const handleLogout = () => {
