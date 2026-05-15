@@ -208,15 +208,21 @@ export function ClubCommentItem({
   time,
   text,
   onMorePress,
+  avatarUri,
 }: {
   name: string;
   time: string;
   text: string;
   onMorePress?: () => void;
+  avatarUri?: string | null;
 }) {
   return (
     <View style={styles.commentRow}>
-      <View style={styles.commentAvatar} />
+      {avatarUri ? (
+        <Image source={{ uri: avatarUri }} style={styles.commentAvatar} contentFit="cover" />
+      ) : (
+        <View style={styles.commentAvatar} />
+      )}
       <View style={styles.commentContent}>
         <View style={styles.commentTopRow}>
           <View style={styles.commentNameRow}>
@@ -282,10 +288,14 @@ export function ClubPostActionSheet({
   visible,
   mode,
   onClose,
+  onPrimaryPress,
+  onSecondaryPress,
 }: {
   visible: boolean;
   mode: ClubActionSheetMode;
   onClose: () => void;
+  onPrimaryPress?: () => void;
+  onSecondaryPress?: () => void;
 }) {
   const primaryLabel = mode === "owner" ? "수정하기" : "신고하기";
   const secondaryLabel = mode === "owner" ? "삭제하기" : "차단하기";
@@ -302,13 +312,13 @@ export function ClubPostActionSheet({
               label={primaryLabel}
               danger={primaryDanger}
               position="top"
-              onPress={onClose}
+              onPress={onPrimaryPress ?? onClose}
             />
             <SheetButton
               label={secondaryLabel}
               danger={secondaryDanger}
               position="bottom"
-              onPress={onClose}
+              onPress={onSecondaryPress ?? onClose}
             />
           </View>
           <SheetButton label="취소" position="single" onPress={onClose} />

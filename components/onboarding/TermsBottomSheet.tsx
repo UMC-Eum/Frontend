@@ -1,7 +1,20 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useCallback, useMemo, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  Alert,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
+
+import {
+  useAgreementsQuery,
+  useUpdateMarketingAgreementsMutation,
+} from "@/hooks/api/useAgreements";
+import { AgreementType } from "@/types/api/agreements/agreementsDTO";
 
 interface TermsBottomSheetProps {
   visible: boolean;
@@ -13,13 +26,9 @@ interface TermItem {
   id: string;
   title: string;
   required: boolean;
+  type?: AgreementType;
+  agreementId?: number;
 }
-
-const TERMS_LIST: TermItem[] = [
-  { id: "service", title: "서비스이용약관", required: true },
-  { id: "privacy", title: "개인정보처리방침", required: true },
-  { id: "marketing", title: "마케팅정보수신", required: false },
-];
 
 /**
  * 이용약관 동의 바텀시트
@@ -33,21 +42,39 @@ const TermsBottomSheet = ({
 }: TermsBottomSheetProps) => {
   const router = useRouter();
   const [checkedItems, setCheckedItems] = useState<Record<string, boolean>>({});
+  const agreementsQuery = useAgreementsQuery();
+  const updateMarketingMutation = useUpdateMarketingAgreementsMutation();
+  const terms = useMemo<TermItem[]>(
+    () =>
+      agreementsQuery.data?.map((item) => ({
+        id: String(item.agreementId),
+        title: getAgreementTitle(item.type, item.body),
+        required: item.type !== "MARKETING",
+        type: item.type,
+        agreementId: item.agreementId,
+      })) ?? [],
+    [agreementsQuery.data],
+  );
+  const isAgreementsReady = agreementsQuery.isSuccess && terms.length > 0;
 
   // 전체 동의 여부
   const isAllChecked = useMemo(
-    () => TERMS_LIST.every((item) => checkedItems[item.id]),
-    [checkedItems],
+    () => terms.every((item) => checkedItems[item.id]),
+    [checkedItems, terms],
   );
 
   // 필수 항목 모두 체크 여부
   const isRequiredAllChecked = useMemo(
     () =>
-      TERMS_LIST.filter((item) => item.required).every(
+      terms.filter((item) => item.required).every(
         (item) => checkedItems[item.id],
-      ),
-    [checkedItems],
+    ),
+    [checkedItems, terms],
   );
+  const canConfirm =
+    isAgreementsReady &&
+    isRequiredAllChecked &&
+    !updateMarketingMutation.isPending;
 
   // 개별 항목 토글
   const toggleItem = useCallback((id: string) => {
@@ -63,16 +90,49 @@ const TermsBottomSheet = ({
       setCheckedItems({});
     } else {
       const allChecked: Record<string, boolean> = {};
-      TERMS_LIST.forEach((item) => {
+      terms.forEach((item) => {
         allChecked[item.id] = true;
       });
       setCheckedItems(allChecked);
     }
-  }, [isAllChecked]);
+  }, [isAllChecked, terms]);
 
   // 상세 보기
   const onDetailPress = (id: string) => {
     router.push("/onboarding/terms-detail" as any);
+  };
+
+  // 선택 약관인 마케팅 동의 여부만 서버 API에 반영합니다.
+  const handleConfirm = () => {
+    if (!isAgreementsReady) {
+      Alert.alert("약관을 불러오지 못했습니다", "잠시 후 다시 시도해주세요.");
+      return;
+    }
+
+    const marketingAgreements = terms
+      .filter(
+        (item): item is TermItem & { agreementId: number } =>
+          item.type === "MARKETING" && typeof item.agreementId === "number",
+      )
+      .map((item) => ({
+        marketingAgreementId: item.agreementId,
+        isAgreed: !!checkedItems[item.id],
+      }));
+
+    if (marketingAgreements.length === 0) {
+      onConfirm();
+      return;
+    }
+
+    updateMarketingMutation.mutate(marketingAgreements, {
+      onSuccess: onConfirm,
+      onError: () => {
+        Alert.alert(
+          "동의 저장 실패",
+          "마케팅 수신 동의를 저장하지 못했습니다. 다시 시도해주세요.",
+        );
+      },
+    });
   };
 
   if (!visible) return null;
@@ -88,35 +148,51 @@ const TermsBottomSheet = ({
 
           {/* 체크리스트 */}
           <View style={styles.listContainer}>
-            {TERMS_LIST.map((item) => (
-              <View key={item.id} style={styles.listItem}>
-                <Pressable
-                  style={styles.checkboxRow}
-                  onPress={() => toggleItem(item.id)}
-                  hitSlop={8}
-                >
-                  <View
-                    style={[
-                      styles.checkbox,
-                      checkedItems[item.id] && styles.checkboxActive,
-                    ]}
-                  >
-                    {checkedItems[item.id] && (
-                      <Ionicons name="checkmark" size={14} color="#FFFFFF" />
-                    )}
-                  </View>
-                  <Text style={styles.itemTitle}>
-                    <Text style={styles.itemTitleLink}>{item.title}</Text> 동의
-                  </Text>
-                  <Text style={styles.itemBadge}>
-                    {item.required ? "(필수)" : "(선택)"}
-                  </Text>
-                </Pressable>
-                <Pressable onPress={() => onDetailPress(item.id)} hitSlop={8}>
-                  <Ionicons name="chevron-forward" size={20} color="#CBD5E1" />
-                </Pressable>
+            {agreementsQuery.isLoading ? (
+              <View style={styles.statusRow}>
+                <ActivityIndicator color="#FF1B4D" />
+                <Text style={styles.statusText}>약관을 불러오는 중입니다.</Text>
               </View>
-            ))}
+            ) : agreementsQuery.isError || terms.length === 0 ? (
+              <Text style={styles.errorText}>
+                약관을 불러오지 못했습니다. 다시 시도해주세요.
+              </Text>
+            ) : (
+              terms.map((item) => (
+                <View key={item.id} style={styles.listItem}>
+                  <Pressable
+                    style={styles.checkboxRow}
+                    onPress={() => toggleItem(item.id)}
+                    hitSlop={8}
+                  >
+                    <View
+                      style={[
+                        styles.checkbox,
+                        checkedItems[item.id] && styles.checkboxActive,
+                      ]}
+                    >
+                      {checkedItems[item.id] && (
+                        <Ionicons name="checkmark" size={14} color="#FFFFFF" />
+                      )}
+                    </View>
+                    <Text style={styles.itemTitle}>
+                      <Text style={styles.itemTitleLink}>{item.title}</Text>{" "}
+                      동의
+                    </Text>
+                    <Text style={styles.itemBadge}>
+                      {item.required ? "(필수)" : "(선택)"}
+                    </Text>
+                  </Pressable>
+                  <Pressable onPress={() => onDetailPress(item.id)} hitSlop={8}>
+                    <Ionicons
+                      name="chevron-forward"
+                      size={20}
+                      color="#CBD5E1"
+                    />
+                  </Pressable>
+                </View>
+              ))
+            )}
           </View>
 
           {/* 구분선 */}
@@ -142,18 +218,18 @@ const TermsBottomSheet = ({
           <Pressable
             style={({ pressed }) => [
               styles.confirmButton,
-              isRequiredAllChecked
+              canConfirm
                 ? styles.confirmButtonActive
                 : styles.confirmButtonDisabled,
-              pressed && isRequiredAllChecked && styles.confirmButtonPressed,
+              pressed && canConfirm && styles.confirmButtonPressed,
             ]}
-            onPress={isRequiredAllChecked ? onConfirm : undefined}
-            disabled={!isRequiredAllChecked}
+            onPress={canConfirm ? handleConfirm : undefined}
+            disabled={!canConfirm}
           >
             <Text
               style={[
                 styles.confirmButtonText,
-                isRequiredAllChecked
+                canConfirm
                   ? styles.confirmButtonTextActive
                   : styles.confirmButtonTextDisabled,
               ]}
@@ -166,6 +242,14 @@ const TermsBottomSheet = ({
     </View>
   );
 };
+
+function getAgreementTitle(type: AgreementType | undefined, body: string) {
+  if (type === "POLICY") return "서비스이용약관";
+  if (type === "PERSONAL_INFORMATION") return "개인정보처리방침";
+  if (type === "MARKETING") return "마케팅정보수신";
+
+  return body.slice(0, 18) || "이용약관";
+}
 
 const styles = StyleSheet.create({
   overlay: {
@@ -190,6 +274,28 @@ const styles = StyleSheet.create({
   },
   listContainer: {
     gap: 4,
+  },
+  statusRow: {
+    minHeight: 72,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+  },
+  statusText: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: "#64748B",
+    fontWeight: "600",
+  },
+  errorText: {
+    minHeight: 72,
+    textAlign: "center",
+    textAlignVertical: "center",
+    fontSize: 14,
+    lineHeight: 20,
+    color: "#EF4444",
+    fontWeight: "600",
   },
   listItem: {
     flexDirection: "row",

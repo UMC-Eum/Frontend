@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import ProfileStepLayout from "@/components/profile/ProfileStepLayout";
+import { useOnboardingDraftStore } from "@/stores/onboardingDraftStore";
 
 type Gender = "male" | "female" | null;
 
@@ -25,9 +26,16 @@ const GENDERS: GenderOption[] = [
  */
 export default function GenderScreen() {
   const router = useRouter();
-  const [selected, setSelected] = useState<Gender>(null);
+  const draftGender = useOnboardingDraftStore((state) => state.gender);
+  const setDraftGender = useOnboardingDraftStore((state) => state.setGender);
+  const [selected, setSelected] = useState<Gender>(
+    draftGender === "M" ? "male" : draftGender === "F" ? "female" : null,
+  );
 
   const handleNext = () => {
+    if (selected) {
+      setDraftGender(selected === "male" ? "M" : "F");
+    }
     router.push("/profile/photo" as any);
   };
 

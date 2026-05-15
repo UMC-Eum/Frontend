@@ -82,7 +82,14 @@ export default function ClubHomeScreen() {
       >
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>내 동호회</Text>
-          <Pressable onPress={() => router.push("/club/post-create" as never)}>
+          <Pressable
+            onPress={() =>
+              router.push({
+                pathname: "/club/post-create",
+                params: { clubId: "1" },
+              } as never)
+            }
+          >
             <Text style={styles.sectionLink}>글쓰기 | 전체보기</Text>
           </Pressable>
         </View>

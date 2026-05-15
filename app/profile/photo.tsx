@@ -14,8 +14,9 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import ProfileStepLayout from "@/components/profile/ProfileStepLayout";
+import { useOnboardingDraftStore } from "@/stores/onboardingDraftStore";
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
+const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const CIRCLE_SIZE = SCREEN_WIDTH * 0.75;
 
 /**
@@ -28,7 +29,13 @@ const CIRCLE_SIZE = SCREEN_WIDTH * 0.75;
 export default function PhotoScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const [photoUri, setPhotoUri] = useState<string | null>(null);
+  const draftProfileImageUri = useOnboardingDraftStore(
+    (state) => state.profileImageUri,
+  );
+  const setDraftProfileImageUri = useOnboardingDraftStore(
+    (state) => state.setProfileImageUri,
+  );
+  const [photoUri, setPhotoUri] = useState<string | null>(draftProfileImageUri);
   const [showActionSheet, setShowActionSheet] = useState(false);
   const [previewUri, setPreviewUri] = useState<string | null>(null);
 
@@ -92,6 +99,7 @@ export default function PhotoScreen() {
   };
 
   const handleNext = () => {
+    setDraftProfileImageUri(photoUri);
     router.push("/profile/welcome" as any);
   };
 
