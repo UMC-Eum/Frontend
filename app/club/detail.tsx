@@ -290,7 +290,7 @@ export default function ClubDetailScreen() {
           setJoinModalVisible(false);
           setTriedJoinSubmit(false);
           setJoined(true);
-          setActiveTab("album");
+          setActiveTab("home");
         }}
       />
 
@@ -785,7 +785,7 @@ function JoinRequestModal({
             {showMessageRequired ? (
               <View style={styles.requiredNotice}>
                 <Text style={styles.requiredNoticeText}>
-                  가입 승인제 동호회에요. 운영자 확인 후 알림을 드려요.
+                  가입 메시지를 입력해주세요.
                 </Text>
               </View>
             ) : null}
@@ -1390,11 +1390,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "700",
     backgroundColor: "#F0F2F3",
-  },
-  chatInputPlaceholder: {
-    color: "#A6AFB6",
-    fontSize: 16,
-    fontWeight: "700",
   },
   clubChatAttachmentPanel: {
     height: 104,
