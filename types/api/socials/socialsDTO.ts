@@ -68,3 +68,13 @@ export interface IReportsRequest {
 export interface IReportsResponse {
   reportId: { reportId: number };
 }
+
+// v1/socials/report/club(post)
+export interface IClubReportRequest {
+  clubId: number;
+  reason: string;
+  category?: string;
+}
+export interface IClubReportResponse {
+  reportId: number;
+}

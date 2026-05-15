@@ -42,6 +42,14 @@ export interface IClubPostCreateRequest {
 
 export interface IClubPostCreateResponse {
   postId: number;
+  articleId?: number;
+}
+
+export interface IClubPostUpdateRequest {
+  category?: ClubPostCategory;
+  title?: string | null;
+  content?: string;
+  imageUrls?: string[];
 }
 
 export interface IClubPostCommentCreateRequest {
@@ -55,4 +63,35 @@ export interface IClubPostCommentCreateResponse {
 export interface IClubPostCommentsGetResponse {
   nextCursor: string | null;
   items: IClubPostCommentItem[];
+}
+
+export interface IClubPostCommentUpdateRequest {
+  content: string;
+}
+
+export interface IClubPostsGetRequest {
+  cursor?: string | null;
+  size: number;
+  category?: ClubPostCategory | "ALL";
+}
+
+export interface IClubPostListItem {
+  postId: number;
+  clubId: number;
+  category: ClubPostCategory;
+  title?: string | null;
+  content: string;
+  author: IClubPostAuthor;
+  thumbnailImageUrl?: string | null;
+  imageCount?: number;
+  likeCount: number;
+  commentCount: number;
+  isPinned?: boolean;
+  isMine?: boolean;
+  createdAt: string;
+}
+
+export interface IClubPostsGetResponse {
+  nextCursor: string | null;
+  items: IClubPostListItem[];
 }

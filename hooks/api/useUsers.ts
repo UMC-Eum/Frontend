@@ -1,22 +1,69 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
+  createProfileVisit,
   deactivateUser,
+  getMyIdealVoice,
+  getMyNotificationSettings,
   getMyProfile,
+  getMyProfileVisitors,
   putIdealPersonalities,
   putInterestKeywords,
   putPersonalities,
+  updateMyNotificationSettings,
   updateMyProfile,
 } from "@/api/users/usersApi";
 import { useAuthStore } from "@/stores/authStore";
-import { IPatchUserProfileRequest, IKeywordsRequest, IPutIdealRequest } from "@/types/api/users/usersDTO";
+import {
+  IKeywordsRequest,
+  INotificationSettingsPatchRequest,
+  IPatchUserProfileRequest,
+  IPutIdealRequest,
+} from "@/types/api/users/usersDTO";
 
 import { queryKeys } from "./queryKeys";
+
+const DEFAULT_PAGE_SIZE = 20;
 
 export function useMyProfileQuery() {
   return useQuery({
     queryKey: queryKeys.users.me(),
     queryFn: getMyProfile,
+  });
+}
+
+export function useMyProfileVisitorsInfiniteQuery(size = DEFAULT_PAGE_SIZE) {
+  return useInfiniteQuery({
+    queryKey: queryKeys.users.visitors(size),
+    queryFn: ({ pageParam }) =>
+      getMyProfileVisitors({ cursor: pageParam, size }),
+    initialPageParam: null as string | null,
+    getNextPageParam: (lastPage) => lastPage.nextCursor,
+  });
+}
+
+export function useCreateProfileVisitMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (userId: number) => createProfileVisit(userId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.users.visitors(DEFAULT_PAGE_SIZE) });
+    },
+  });
+}
+
+export function useMyIdealVoiceQuery() {
+  return useQuery({
+    queryKey: queryKeys.users.idealVoice(),
+    queryFn: getMyIdealVoice,
+  });
+}
+
+export function useMyNotificationSettingsQuery() {
+  return useQuery({
+    queryKey: queryKeys.users.notificationSettings(),
+    queryFn: getMyNotificationSettings,
   });
 }
 
@@ -73,6 +120,20 @@ export function usePutIdealPersonalitiesMutation() {
     mutationFn: (body: IPutIdealRequest) => putIdealPersonalities(body),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.users.me() });
+    },
+  });
+}
+
+export function useUpdateMyNotificationSettingsMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (body: INotificationSettingsPatchRequest) =>
+      updateMyNotificationSettings(body),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.users.notificationSettings(),
+      });
     },
   });
 }

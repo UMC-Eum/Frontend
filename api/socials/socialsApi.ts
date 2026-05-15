@@ -86,3 +86,11 @@ export const createReport = async (body: DTO.IReportsRequest) => {
   );
   return data.success.data;
 };
+
+export const createClubReport = async (body: DTO.IClubReportRequest) => {
+  const { data } = await api.post<ApiSuccessResponse<DTO.IClubReportResponse>>(
+    "/v1/socials/report/club",
+    body,
+  );
+  return data.success.data;
+};
