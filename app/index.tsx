@@ -103,6 +103,16 @@ export default function Index() {
         </Text>
       </Pressable>
 
+      {/* 구독 결제 플로우 확인 버튼입니다. */}
+      <Pressable
+        style={[styles.button, styles.paymentButton]}
+        onPress={() => router.push("/payment" as any)}
+      >
+        <Text style={[styles.buttonText, styles.paymentButtonText]}>
+          💳 구독 결제 플로우 테스트
+        </Text>
+      </Pressable>
+
       {/* 동호회 생성 플로우 확인 버튼입니다. */}
       <Pressable
         style={[styles.button, styles.clubCreateButton]}
@@ -280,6 +290,14 @@ const styles = StyleSheet.create({
   },
   profileDetailButtonText: {
     color: "#16A34A",
+  },
+  paymentButton: {
+    backgroundColor: "#FFF1F4",
+    borderWidth: 1,
+    borderColor: "#FFB8C8",
+  },
+  paymentButtonText: {
+    color: "#FC3367",
   },
   clubCreateButton: {
     backgroundColor: "#FFF1F4",

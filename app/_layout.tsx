@@ -8,9 +8,9 @@ import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import "react-native-reanimated";
 
+import GlobalUiOverlay from "@/components/GlobalUiOverlay";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { useStableQueryClient } from "@/hooks/use-query-client";
-import GlobalUiOverlay from "@/components/GlobalUiOverlay";
 
 export const unstable_settings = {
   anchor: "(tabs)",
@@ -29,6 +29,7 @@ export default function RootLayout() {
           <Stack.Screen name="home" options={{ headerShown: false }} />
           <Stack.Screen name="ideal-recording" options={{ headerShown: false }} />
           <Stack.Screen name="profile-detail" options={{ headerShown: false }} />
+          <Stack.Screen name="payment" options={{ headerShown: false }} />
           <Stack.Screen name="club" options={{ headerShown: false }} />
           <Stack.Screen name="meeting-create" options={{ headerShown: false }} />
           <Stack.Screen

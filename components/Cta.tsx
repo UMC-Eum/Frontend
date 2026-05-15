@@ -1,5 +1,12 @@
 import React from "react";
-import { Pressable, StyleSheet, Text, View, ViewStyle } from "react-native";
+import {
+  Pressable,
+  StyleSheet,
+  Text,
+  TextStyle,
+  View,
+  ViewStyle,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 interface CtaProps {
@@ -7,6 +14,8 @@ interface CtaProps {
   onPress?: () => void;
   disabled?: boolean;
   containerStyle?: ViewStyle;
+  buttonStyle?: ViewStyle;
+  labelStyle?: TextStyle;
 }
 
 /**
@@ -18,6 +27,8 @@ export default function Cta({
   onPress,
   disabled = false,
   containerStyle,
+  buttonStyle,
+  labelStyle,
 }: CtaProps) {
   const insets = useSafeAreaInsets();
 
@@ -30,11 +41,11 @@ export default function Cta({
       ]}
     >
       <Pressable
-        style={[styles.button, disabled && styles.buttonDisabled]}
+        style={[styles.button, buttonStyle, disabled && styles.buttonDisabled]}
         onPress={onPress}
         disabled={disabled}
       >
-        <Text style={[styles.label, disabled && styles.labelDisabled]}>
+        <Text style={[styles.label, labelStyle, disabled && styles.labelDisabled]}>
           {label}
         </Text>
       </Pressable>
