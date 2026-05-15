@@ -110,12 +110,14 @@ export default function ClubHomeScreen() {
           accent="루씨"
           clubs={localClubs}
           showMore
+          onClubPress={() => router.push("/club/detail" as never)}
         />
 
         <ClubSection
           title="오늘의 추천 동호회"
           icon="sparkles"
           clubs={todayClubs}
+          onClubPress={() => router.push("/club/detail" as never)}
         />
       </ScrollView>
 
@@ -172,12 +174,14 @@ function ClubSection({
   icon,
   clubs,
   showMore = false,
+  onClubPress,
 }: {
   title: string;
   accent?: string;
   icon?: "sparkles";
   clubs: typeof CLUBS;
   showMore?: boolean;
+  onClubPress?: () => void;
 }) {
   return (
     <View style={styles.clubSection}>
@@ -191,7 +195,7 @@ function ClubSection({
 
       <View style={styles.clubList}>
         {clubs.map((club) => (
-          <ClubRow key={club.id} club={club} />
+          <ClubRow key={club.id} club={club} onPress={onClubPress} />
         ))}
       </View>
 

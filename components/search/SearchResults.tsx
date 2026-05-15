@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
 import React from "react";
 import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 
@@ -18,6 +19,7 @@ export default function SearchResults({
   sortOption,
   onPressSort,
 }: SearchResultsProps) {
+  const router = useRouter();
   const hasResults = results.length > 0;
 
   return (
@@ -37,7 +39,13 @@ export default function SearchResults({
           {!hasResults && <EmptyState />}
         </>
       }
-      renderItem={({ item }) => <ClubRow club={item} featured />}
+      renderItem={({ item }) => (
+        <ClubRow
+          club={item}
+          featured
+          onPress={() => router.push("/club/detail" as never)}
+        />
+      )}
       ListFooterComponent={
         <>
           <RecommendedSection />
@@ -62,11 +70,17 @@ function EmptyState() {
 }
 
 function RecommendedSection() {
+  const router = useRouter();
+
   return (
     <View style={styles.recommendedSection}>
       <Text style={styles.recommendedTitle}>✦ 이런 동호회도 있어요!</Text>
       {RECOMMENDED_CLUBS.map((club) => (
-        <ClubRow key={club.id} club={club} />
+        <ClubRow
+          key={club.id}
+          club={club}
+          onPress={() => router.push("/club/detail" as never)}
+        />
       ))}
     </View>
   );
