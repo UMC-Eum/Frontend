@@ -12,6 +12,7 @@ import {
   Text,
   TouchableOpacity,
   View,
+  useWindowDimensions,
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -32,15 +33,16 @@ const profile = {
 };
 
 const clubs = [
-  { id: 1, title: "새벽 등산 동호회", meta: "서울시 서대문구 · 루씨" },
-  { id: 2, title: "새벽 등산 동호회", meta: "서울시 서대문구 · 루씨" },
-  { id: 3, title: "새벽 등산 동호회", meta: "서울시 서대문구 · 루씨" },
-  { id: 4, title: "새벽 등산 동호회", meta: "서울시 서대문구 · 루씨" },
+  { id: 1, title: "새벽 등산 동호회", meta: "서울시 서대문구 · 루시" },
+  { id: 2, title: "새벽 등산 동호회", meta: "서울시 서대문구 · 루시" },
+  { id: 3, title: "새벽 등산 동호회", meta: "서울시 서대문구 · 루시" },
+  { id: 4, title: "새벽 등산 동호회", meta: "서울시 서대문구 · 루시" },
 ];
 
 export default function ProfileDetailScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { height: windowHeight } = useWindowDimensions();
   const [liked, setLiked] = useState(false);
   const [menuVisible, setMenuVisible] = useState(false);
 
@@ -63,7 +65,7 @@ export default function ProfileDetailScreen() {
         {/* 프로필 대표 사진과 상단 액션 영역입니다. */}
         <ImageBackground
           source={{ uri: PROFILE_IMAGE }}
-          style={styles.hero}
+          style={[styles.hero, { height: Math.round(windowHeight * 0.665) }]}
           imageStyle={styles.heroImage}
         >
           <View style={[styles.topActions, { paddingTop: insets.top + 12 }]}>
@@ -101,10 +103,10 @@ export default function ProfileDetailScreen() {
                 <Text style={styles.profileName}>
                   {profile.name} {profile.age}
                 </Text>
-                <Ionicons name="checkmark-circle" size={16} color="#FFFFFF" />
+                <Ionicons name="checkmark-circle" size={18} color="#FF3E70" />
               </View>
               <View style={styles.locationRow}>
-                <Ionicons name="location-sharp" size={15} color="#FFFFFF" />
+                <Ionicons name="location-sharp" size={18} color="#FFFFFF" />
                 <Text style={styles.locationText}>
                   {profile.location} · {profile.distance}
                 </Text>
@@ -119,7 +121,7 @@ export default function ProfileDetailScreen() {
               <Ionicons
                 name={liked ? "heart" : "heart-outline"}
                 size={28}
-                color={liked ? "#FC3367" : "#FFFFFF"}
+                color="#FF3E70"
               />
             </TouchableOpacity>
           </View>
@@ -304,7 +306,6 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
   },
   hero: {
-    height: 430,
     justifyContent: "flex-end",
     backgroundColor: "#D9D9D9",
   },
@@ -320,7 +321,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 12,
+    paddingHorizontal: 16,
   },
   rightActions: {
     flexDirection: "row",
@@ -328,14 +329,15 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   iconButton: {
-    width: 34,
-    height: 34,
+    width: 38,
+    height: 38,
     alignItems: "center",
     justifyContent: "center",
+    borderRadius: 19,
   },
   heroGradient: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0, 0, 0, 0.18)",
+    backgroundColor: "rgba(0, 0, 0, 0.14)",
     borderBottomLeftRadius: 0,
     borderBottomRightRadius: 0,
   },
@@ -345,17 +347,17 @@ const styles = StyleSheet.create({
     alignItems: "flex-end",
     justifyContent: "space-between",
     paddingHorizontal: 20,
-    paddingBottom: 42,
+    paddingBottom: 46,
   },
   nameRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 5,
-    marginBottom: 8,
+    gap: 6,
+    marginBottom: 10,
   },
   profileName: {
-    fontSize: 18,
-    fontWeight: "800",
+    fontSize: 24,
+    fontWeight: "600",
     color: "#FFFFFF",
   },
   locationRow: {
@@ -364,109 +366,110 @@ const styles = StyleSheet.create({
     gap: 3,
   },
   locationText: {
-    fontSize: 12,
-    fontWeight: "600",
+    fontSize: 16,
+    lineHeight: 24,
+    fontWeight: "500",
     color: "#FFFFFF",
   },
   likeButton: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(77, 73, 60, 0.82)",
+    backgroundColor: "rgba(255, 255, 255, 0.24)",
   },
   pagination: {
     position: "absolute",
-    bottom: 20,
+    bottom: 22,
     left: 0,
     right: 0,
     zIndex: 1,
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
-    gap: 4,
+    gap: 6,
   },
   activeDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
     backgroundColor: "#FFFFFF",
   },
   dot: {
-    width: 5,
-    height: 5,
+    width: 6,
+    height: 6,
     borderRadius: 3,
     backgroundColor: "rgba(255, 255, 255, 0.48)",
   },
   content: {
     paddingHorizontal: 20,
-    paddingTop: 20,
+    paddingTop: 24,
   },
   sectionTitle: {
-    marginBottom: 12,
-    fontSize: 16,
-    fontWeight: "700",
+    marginBottom: 14,
+    fontSize: 20,
+    lineHeight: 25,
+    fontWeight: "600",
     color: "#202020",
   },
   introCard: {
-    minHeight: 108,
-    paddingHorizontal: 18,
-    paddingVertical: 16,
-    borderRadius: 10,
+    minHeight: 118,
+    paddingHorizontal: 16,
+    paddingVertical: 18,
+    marginBottom: 26,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: "#DEE3E5",
     backgroundColor: "#FFFFFF",
-    shadowColor: "#000000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 2,
   },
   introText: {
     fontSize: 13,
-    lineHeight: 22,
-    color: "#565E64",
+    lineHeight: 23,
+    fontWeight: "500",
+    color: "#636970",
   },
   chipList: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 8,
-    marginBottom: 22,
+    marginBottom: 26,
   },
   profileChip: {
-    minHeight: 28,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
+    minHeight: 34,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 8,
   },
   profileChipText: {
-    fontSize: 12,
+    fontSize: 13,
+    fontWeight: "700",
   },
   divider: {
     height: 8,
-    marginTop: 6,
-    backgroundColor: "#F5F6F7",
+    marginTop: 2,
+    backgroundColor: "#F4F6F8",
   },
   clubCard: {
-    minHeight: 104,
+    minHeight: 122,
     flexDirection: "row",
     alignItems: "center",
-    padding: 14,
+    padding: 20,
     marginBottom: 12,
-    borderRadius: 10,
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: "#E5E8EA",
+    borderColor: "#DEE3E5",
     backgroundColor: "#FFFFFF",
     shadowColor: "#000000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 1,
   },
   clubThumbnail: {
-    width: 66,
-    height: 66,
-    borderRadius: 8,
+    width: 82,
+    height: 82,
+    borderRadius: 14,
     marginRight: 14,
     backgroundColor: "#D9D9D9",
   },
@@ -474,16 +477,16 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   clubTitle: {
-    marginBottom: 4,
-    fontSize: 14,
-    fontWeight: "800",
+    marginBottom: 7,
+    fontSize: 18,
+    fontWeight: "600",
     color: "#202020",
   },
   clubMeta: {
-    marginBottom: 9,
-    fontSize: 11,
-    fontWeight: "600",
-    color: "#818B92",
+    marginBottom: 11,
+    fontSize: 14,
+    fontWeight: "500",
+    color: "#636970",
   },
   memberRow: {
     flexDirection: "row",
@@ -491,8 +494,8 @@ const styles = StyleSheet.create({
     gap: 3,
   },
   memberText: {
-    fontSize: 11,
-    fontWeight: "600",
+    fontSize: 14,
+    fontWeight: "500",
     color: "#A6AFB6",
   },
   ctaWrap: {
@@ -501,20 +504,18 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     paddingHorizontal: 20,
-    paddingTop: 16,
+    paddingTop: 14,
     backgroundColor: "#FFFFFF",
-    borderTopWidth: 1,
-    borderTopColor: "#F0F1F2",
   },
   ctaButton: {
-    height: 50,
-    borderRadius: 8,
+    height: 54,
+    borderRadius: 14,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#FC3367",
+    backgroundColor: "#FF3E70",
   },
   ctaText: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: "800",
     color: "#FFFFFF",
   },

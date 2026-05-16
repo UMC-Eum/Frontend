@@ -75,6 +75,7 @@ export default function AgeScreen() {
     <ProfileStepLayout
       title="나이가 어떻게 되세요?"
       subtitle="만나이로 알려주세요 추후에 수정이 불가능해요!"
+      step={2}
       buttonEnabled
       onNext={handleNext}
     >
@@ -162,10 +163,10 @@ const styles = StyleSheet.create({
   },
   highlightBar: {
     position: "absolute",
-    width: 100,
+    width: 120,
     height: ITEM_HEIGHT,
-    backgroundColor: "rgba(255, 62, 112, 0.08)",
-    borderRadius: 12,
+    backgroundColor: "rgba(255, 62, 112, 0.1)",
+    borderRadius: 14,
     zIndex: 1,
   },
   pickerItem: {
@@ -177,12 +178,12 @@ const styles = StyleSheet.create({
   },
   pickerText: {
     fontSize: 24,
-    fontWeight: "600",
-    color: "#9CA3AF",
+    fontWeight: "500",
+    color: "#A6AFB6",
   },
   pickerTextSelected: {
     fontSize: 32,
-    fontWeight: "800",
+    fontWeight: "700",
     color: "#FF3E70",
   },
 });

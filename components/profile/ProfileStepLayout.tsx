@@ -3,6 +3,7 @@ import { useRouter } from "expo-router";
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import ProgressBar from "../progress-bar";
 
 interface ProfileStepLayoutProps {
   /** 상단 제목 */
@@ -17,6 +18,10 @@ interface ProfileStepLayoutProps {
   onNext?: () => void;
   /** 뒤로가기 표시 여부 */
   showBack?: boolean;
+  /** 현재 프로필 설정 단계 */
+  step?: number;
+  /** 전체 프로필 설정 단계 수 */
+  totalSteps?: number;
   /** 자식 컴포넌트 (메인 컨텐츠 영역) */
   children: React.ReactNode;
 }
@@ -36,6 +41,8 @@ const ProfileStepLayout = ({
   buttonEnabled = false,
   onNext,
   showBack = true,
+  step = 1,
+  totalSteps = 5,
   children,
 }: ProfileStepLayoutProps) => {
   const router = useRouter();
@@ -43,14 +50,22 @@ const ProfileStepLayout = ({
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
-      {/* 헤더: 뒤로가기 */}
-      {showBack && (
-        <View style={styles.header}>
+      {/* 헤더: 뒤로가기 + 진행 상태 */}
+      <View style={styles.header}>
+        {showBack ? (
           <Pressable onPress={() => router.back()} hitSlop={12}>
-            <Ionicons name="chevron-back" size={28} color="#1F2937" />
+            <Ionicons name="chevron-back" size={24} color="#202020" />
           </Pressable>
-        </View>
-      )}
+        ) : (
+          <View style={styles.headerSpacer} />
+        )}
+      </View>
+      <ProgressBar
+        value={step}
+        max={totalSteps}
+        height={4}
+        style={styles.progress}
+      />
 
       {/* 제목 + 서브타이틀 */}
       <View style={styles.titleArea}>
@@ -94,30 +109,42 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
   },
   header: {
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    height: 48,
+    justifyContent: "center",
+    paddingHorizontal: 20,
+  },
+  headerSpacer: {
+    width: 24,
+    height: 24,
+  },
+  progress: {
+    paddingHorizontal: 20,
+    height: 12,
   },
   titleArea: {
-    paddingHorizontal: 24,
-    paddingBottom: 24,
+    paddingHorizontal: 20,
+    paddingTop: 24,
+    paddingBottom: 20,
+    gap: 4,
   },
   title: {
-    fontSize: 24,
-    fontWeight: "800",
-    color: "#1F2937",
-    marginBottom: 6,
+    fontSize: 28,
+    fontWeight: "600",
+    color: "#202020",
+    lineHeight: 36,
   },
   subtitle: {
     fontSize: 14,
-    color: "#9CA3AF",
+    fontWeight: "500",
+    color: "#636970",
     lineHeight: 20,
   },
   content: {
     flex: 1,
-    paddingHorizontal: 24,
+    paddingHorizontal: 20,
   },
   bottomArea: {
-    paddingHorizontal: 24,
+    paddingHorizontal: 20,
   },
   nextButton: {
     height: 54,
@@ -129,20 +156,21 @@ const styles = StyleSheet.create({
     backgroundColor: "#FF3E70",
   },
   nextButtonDisabled: {
-    backgroundColor: "#E5E7EB",
+    backgroundColor: "#E9ECED",
   },
   nextButtonPressed: {
     opacity: 0.85,
   },
   nextButtonText: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: "600",
+    lineHeight: 23,
   },
   nextButtonTextActive: {
     color: "#FFFFFF",
   },
   nextButtonTextDisabled: {
-    color: "#9CA3AF",
+    color: "#636970",
   },
 });
 
