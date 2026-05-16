@@ -147,6 +147,7 @@ export default function PhotoScreen() {
     <ProfileStepLayout
       title="사진을 등록해주세요."
       subtitle="따뜻한 미소가 담긴 사진은 매칭에 큰 도움이 됩니다."
+      step={4}
       buttonEnabled={photoUri !== null}
       onNext={handleNext}
     >
@@ -233,14 +234,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   photoContainer: {
-    width: 180,
-    height: 180,
+    width: 188,
+    height: 188,
   },
   photoCircle: {
-    width: 180,
-    height: 180,
-    borderRadius: 90,
-    backgroundColor: "#F3F4F6",
+    width: 188,
+    height: 188,
+    borderRadius: 94,
+    backgroundColor: "#E9ECED",
     justifyContent: "center",
     alignItems: "center",
     overflow: "hidden",
@@ -255,16 +256,16 @@ const styles = StyleSheet.create({
   },
   cameraBadge: {
     position: "absolute",
-    bottom: 6,
-    right: 6,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "#E5E7EB",
+    bottom: 8,
+    right: 8,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "#FFFFFF",
     justifyContent: "center",
     alignItems: "center",
-    borderWidth: 3,
-    borderColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#DEE3E5",
   },
 
   // === 액션시트 모달 ===

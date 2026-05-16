@@ -43,6 +43,7 @@ export default function GenderScreen() {
     <ProfileStepLayout
       title="성별을 선택해주세요."
       subtitle="추후에 수정이 불가능해요!"
+      step={3}
       buttonEnabled={selected !== null}
       onNext={handleNext}
     >
@@ -84,15 +85,15 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    gap: 32,
+    gap: 20,
   },
   genderCircle: {
-    width: 150,
-    height: 150,
-    borderRadius: 75,
+    width: 160,
+    height: 160,
+    borderRadius: 80,
     borderWidth: 2,
-    borderColor: "#E5E7EB",
-    backgroundColor: "#F9FAFB",
+    borderColor: "#DEE3E5",
+    backgroundColor: "#FFFFFF",
     justifyContent: "center",
     alignItems: "center",
     gap: 8,
@@ -102,9 +103,9 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
   },
   genderLabel: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: "600",
-    color: "#D1D5DB",
+    color: "#A6AFB6",
   },
   genderLabelActive: {
     color: "#FF3E70",
