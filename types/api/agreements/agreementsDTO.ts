@@ -1,7 +1,7 @@
 export type AgreementType = "POLICY" | "PERSONAL_INFORMATION" | "MARKETING";
 
 export interface IAgreementItem {
-  agreementId: number;
+  agreementId: number | string;
   body: string;
   type?: AgreementType;
 }

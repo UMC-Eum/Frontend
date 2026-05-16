@@ -63,13 +63,18 @@ const TermsBottomSheet = ({
 
   const terms = useMemo<TermItem[]>(
     () =>
-      agreementsQuery.data?.map((item) => ({
-        id: String(item.agreementId),
-        title: getAgreementTitle(item.type, item.body),
-        required: item.type !== "MARKETING",
-        type: item.type,
-        agreementId: item.agreementId,
-      })) ?? [],
+      agreementsQuery.data?.map((item) => {
+        const agreementId = Number(item.agreementId);
+        const type = item.type ?? getAgreementTypeById(agreementId);
+
+        return {
+          id: String(item.agreementId),
+          title: getAgreementTitle(type, item.body),
+          required: type !== "MARKETING",
+          type,
+          agreementId,
+        };
+      }) ?? [],
     [agreementsQuery.data],
   );
 
@@ -343,6 +348,13 @@ function getAgreementTitle(type: AgreementType | undefined, body: string) {
   if (type === "MARKETING") return "마케팅정보수신";
 
   return body.slice(0, 18) || "이용약관";
+}
+
+function getAgreementTypeById(agreementId: number): AgreementType | undefined {
+  if (agreementId === 1) return "POLICY";
+  if (agreementId === 2) return "PERSONAL_INFORMATION";
+  if (agreementId === 3) return "MARKETING";
+  return undefined;
 }
 
 const styles = StyleSheet.create({

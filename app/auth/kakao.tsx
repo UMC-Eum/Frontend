@@ -10,6 +10,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { getAgreementStatus } from "@/api/agreements/agreementsApi";
 import { KAKAO_REDIRECT_URI } from "@/constants/auth";
 import { useKakaoLoginMutation } from "@/hooks/api/useAuth";
 
@@ -31,7 +32,11 @@ export default function KakaoAuthCallbackScreen() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    void WebBrowser.dismissBrowser();
+    WebBrowser.dismissBrowser().catch((error) => {
+      if (__DEV__) {
+        console.log("[Kakao Login] no browser to dismiss:", error);
+      }
+    });
   }, []);
 
   useEffect(() => {
@@ -64,7 +69,16 @@ export default function KakaoAuthCallbackScreen() {
           redirectUri: KAKAO_REDIRECT_URI,
         });
 
-        if (auth.onboardingRequired || auth.isNewUser) {
+        const needsOnboarding = auth.onboardingRequired || auth.isNewUser;
+
+        if (needsOnboarding) {
+          const hasPassedAgreements = await getAgreementStatus();
+
+          if (hasPassedAgreements) {
+            router.replace("/onboarding/permissions" as any);
+            return;
+          }
+
           router.replace({
             pathname: "/onboarding/login",
             params: { showTerms: "1" },
