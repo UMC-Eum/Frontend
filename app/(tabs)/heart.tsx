@@ -78,6 +78,23 @@ export default function HeartScreen() {
     ? RECEIVED_HEART_COUNT
     : receivedProfiles.length;
 
+  const openProfileDetail = (profile: ScreenHeartProfile) => {
+    router.push({
+      pathname: "/profile-detail",
+      params: {
+        targetUserId: profile.targetUserId
+          ? String(profile.targetUserId)
+          : undefined,
+        heartId: profile.heartId ? String(profile.heartId) : undefined,
+        isLiked: String(profile.isLiked),
+        name: profile.name,
+        age: String(profile.age),
+        location: profile.location,
+        image: profile.image,
+      },
+    } as never);
+  };
+
   // 하트 액션은 서버 반영 후 관련 목록을 invalidate하는 mutation 훅에서 동기화합니다.
   const handleToggleHeart = useCallback(
     (profile: ScreenHeartProfile) => {
@@ -161,7 +178,7 @@ export default function HeartScreen() {
               profile={item}
               width={cardWidth}
               isPending={pendingIds.has(item.id)}
-              onPress={() => router.push("/profile-detail" as never)}
+              onPress={() => openProfileDetail(item)}
               onPressHeart={() => handleToggleHeart(item)}
             />
           )}

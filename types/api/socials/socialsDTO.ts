@@ -59,10 +59,18 @@ export interface IBlocksGetResponse {
   }[];
 }
 //v1/reports(post)
+export type ReportCategory =
+  | "Inappropriate"
+  | "Sexual"
+  | "Fraud"
+  | "Abusive"
+  | "Spam"
+  | "Other";
+
 export interface IReportsRequest {
   targetUserId: number;
   reason: string;
-  category: string;
+  category: ReportCategory;
   chatRoomId: number;
 }
 export interface IReportsResponse {

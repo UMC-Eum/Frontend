@@ -175,7 +175,10 @@ export default function HomePage() {
   const profiles = isRecommendationFallback
     ? RECOMMENDED_PROFILES
     : recommendedProfiles;
-  const profile = profiles[profileIndex % profiles.length];
+  const hasProfiles = profiles.length > 0;
+  const profile = hasProfiles ? profiles[profileIndex % profiles.length] : null;
+  const isRecommendationLoading =
+    recommendationsQuery.isLoading && recommendedProfiles.length === 0;
   const nickname = myProfileQuery.data?.nickname ?? USER_NICKNAME;
   const cardWidth = width - 40;
 
@@ -210,6 +213,8 @@ export default function HomePage() {
 
   // 사진 슬라이더의 현재 페이지를 점 인디케이터와 동기화합니다.
   const handleImageScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    if (!profile) return;
+
     const nextIndex = Math.min(
       profile.images.length - 1,
       Math.max(0, Math.round(event.nativeEvent.contentOffset.x / cardWidth)),
@@ -219,6 +224,8 @@ export default function HomePage() {
 
   // 별로예요를 누르면 다음 추천 프로필로 넘깁니다.
   const handleDislike = () => {
+    if (!hasProfiles) return;
+
     setProfileIndex((prev) => {
       const nextIndex = (prev + 1) % profiles.length;
 
@@ -236,11 +243,33 @@ export default function HomePage() {
 
   // 마음이들어요를 누르면 내부 카운트를 올리고 마음 탭으로 이동합니다.
   const handleLike = () => {
+    if (!profile) return;
+
     setLikedCount((prev) => prev + 1);
     if (profile.targetUserId && !profile.isLiked) {
       sendHeartMutation.mutate(profile.targetUserId);
     }
     router.push("/(tabs)/heart" as never);
+  };
+
+  const openProfileDetail = (selectedProfile: Profile) => {
+    router.push({
+      pathname: "/profile-detail",
+      params: {
+        targetUserId: selectedProfile.targetUserId
+          ? String(selectedProfile.targetUserId)
+          : undefined,
+        heartId: selectedProfile.likedHeartId
+          ? String(selectedProfile.likedHeartId)
+          : undefined,
+        isLiked: String(selectedProfile.isLiked),
+        name: selectedProfile.name,
+        age: String(selectedProfile.age),
+        location: selectedProfile.location,
+        intro: selectedProfile.intro,
+        image: selectedProfile.images[0],
+      },
+    } as never);
   };
 
   return (
@@ -291,16 +320,26 @@ export default function HomePage() {
             </View>
           </View>
 
-          <ProfileCard
-            profile={profile}
-            cardWidth={cardWidth}
-            imageIndex={imageIndex}
-            scrollRef={profileImageScrollRef}
-            onImageScroll={handleImageScroll}
-            onPress={() => router.push("/profile-detail" as never)}
-            onDislike={handleDislike}
-            onLike={handleLike}
-          />
+          {profile ? (
+            <ProfileCard
+              profile={profile}
+              cardWidth={cardWidth}
+              imageIndex={imageIndex}
+              scrollRef={profileImageScrollRef}
+              onImageScroll={handleImageScroll}
+              onPress={() => openProfileDetail(profile)}
+              onDislike={handleDislike}
+              onLike={handleLike}
+            />
+          ) : (
+            <RecommendationEmptyCard
+              message={
+                isRecommendationLoading
+                  ? "추천 프로필을 불러오는 중이에요."
+                  : "지금 보여드릴 추천 프로필이 없어요."
+              }
+            />
+          )}
 
           {/* 내 프로필 조회자 목록입니다. */}
           <View style={styles.viewerSection}>
@@ -429,6 +468,15 @@ function HomeTabButton({ label, isActive, onPress }: HomeTabButtonProps) {
       </Text>
       {isActive ? <View style={styles.homeTabUnderline} /> : null}
     </Pressable>
+  );
+}
+
+function RecommendationEmptyCard({ message }: { message: string }) {
+  return (
+    <View style={styles.emptyRecommendationCard}>
+      <Ionicons name="heart-outline" size={32} color={PINK} />
+      <Text style={styles.emptyRecommendationText}>{message}</Text>
+    </View>
   );
 }
 
@@ -617,6 +665,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     backgroundColor: "#FFFFFF",
     borderRadius: 16,
+  },
+  emptyRecommendationCard: {
+    height: 492,
+    marginHorizontal: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 12,
+    backgroundColor: "#F8FAFB",
+  },
+  emptyRecommendationText: {
+    marginTop: 12,
+    fontSize: 15,
+    lineHeight: 22,
+    fontWeight: "700",
+    color: "#636970",
   },
   profilePressable: {
     height: 492,

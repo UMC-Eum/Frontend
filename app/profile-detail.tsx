@@ -1,8 +1,9 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
   ImageBackground,
   Modal,
@@ -17,11 +18,35 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Chip } from "@/components/Chip";
+import { useCreateChatRoomMutation } from "@/hooks/api/useChats";
+import { useRecommendationsInfiniteQuery } from "@/hooks/api/useRecommendations";
+import {
+  useBlockUserMutation,
+  useCreateReportMutation,
+  usePatchHeartMutation,
+  useSendHeartMutation,
+} from "@/hooks/api/useSocials";
+import type { ReportCategory } from "@/types/api/socials/socialsDTO";
 
 const PROFILE_IMAGE =
   "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=1200&q=85&auto=format&fit=crop";
 
-const profile = {
+type DetailProfile = {
+  targetUserId?: number;
+  chatRoomId?: number | null;
+  name: string;
+  age: number;
+  location: string;
+  distance: string;
+  intro: string;
+  interests: string[];
+  preferences: string[];
+  image: string;
+  isLiked: boolean;
+  likedHeartId: number | null;
+};
+
+const FALLBACK_PROFILE: DetailProfile = {
   name: "루시",
   age: 55,
   location: "서울시 서대문구",
@@ -30,24 +55,214 @@ const profile = {
     "안녕하세요.\n하루를 마무리하며 나누는 소소한 대화를 좋아합니다. 서두르지 않고, 편안하게 이야기할 수 있는 인연을 만나고 싶어요. 먼저 대화를 주도하는 편입니다! 친해져 지내봐요 ㅎㅎ",
   interests: ["헬스", "요리", "여행", "음악듣기"],
   preferences: ["귀여운", "다정한", "친절한", "가까이 사는", "솔직한", "친절한"],
+  image: PROFILE_IMAGE,
+  isLiked: false,
+  likedHeartId: null,
 };
 
-const clubs = [
-  { id: 1, title: "새벽 등산 동호회", meta: "서울시 서대문구 · 루시" },
-  { id: 2, title: "새벽 등산 동호회", meta: "서울시 서대문구 · 루시" },
-  { id: 3, title: "새벽 등산 동호회", meta: "서울시 서대문구 · 루시" },
-  { id: 4, title: "새벽 등산 동호회", meta: "서울시 서대문구 · 루시" },
+const REPORT_CATEGORIES: { label: string; value: ReportCategory }[] = [
+  { label: "불쾌한 메세지", value: "Inappropriate" },
+  { label: "성희롱/성적 표현", value: "Sexual" },
+  { label: "사기/금전 요구", value: "Fraud" },
+  { label: "욕설/비하/혐오", value: "Abusive" },
+  { label: "스팸/광고", value: "Spam" },
+  { label: "기타", value: "Other" },
 ];
 
 export default function ProfileDetailScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{
+    targetUserId?: string;
+    chatRoomId?: string;
+    heartId?: string;
+    isLiked?: string;
+    name?: string;
+    age?: string;
+    location?: string;
+    intro?: string;
+    image?: string;
+  }>();
   const insets = useSafeAreaInsets();
   const { height: windowHeight } = useWindowDimensions();
-  const [liked, setLiked] = useState(false);
   const [menuVisible, setMenuVisible] = useState(false);
+  const [reportVisible, setReportVisible] = useState(false);
+  const recommendationsQuery = useRecommendationsInfiniteQuery();
+  const sendHeartMutation = useSendHeartMutation();
+  const patchHeartMutation = usePatchHeartMutation();
+  const createChatRoomMutation = useCreateChatRoomMutation();
+  const blockUserMutation = useBlockUserMutation();
+  const createReportMutation = useCreateReportMutation();
 
-  const handleComingSoon = (message: string) => {
-    Alert.alert(message);
+  const targetUserId = parseOptionalNumber(params.targetUserId);
+  const routeChatRoomId = parseOptionalNumber(params.chatRoomId);
+  const routeHeartId = parseOptionalNumber(params.heartId);
+  const routeLiked = parseOptionalBoolean(params.isLiked);
+  const apiProfile = useMemo(
+    () => mapRecommendationDetailProfile(recommendationsQuery.data, targetUserId),
+    [recommendationsQuery.data, targetUserId],
+  );
+  const routeProfile = useMemo(
+    () => mapRouteDetailProfile(params, targetUserId, routeChatRoomId),
+    [params, routeChatRoomId, targetUserId],
+  );
+  const profile = apiProfile ?? routeProfile ?? FALLBACK_PROFILE;
+  const chatRoomId = profile.chatRoomId ?? routeChatRoomId ?? null;
+  const [liked, setLiked] = useState(profile.isLiked);
+  const [likedHeartId, setLikedHeartId] = useState(profile.likedHeartId);
+  const isHeartPending = sendHeartMutation.isPending || patchHeartMutation.isPending;
+  const locationText = profile.distance
+    ? `${profile.location} · ${profile.distance}`
+    : profile.location;
+
+  useEffect(() => {
+    setLiked(apiProfile?.isLiked ?? routeLiked ?? profile.isLiked);
+    setLikedHeartId(apiProfile?.likedHeartId ?? routeHeartId ?? profile.likedHeartId);
+  }, [
+    apiProfile?.isLiked,
+    apiProfile?.likedHeartId,
+    profile.isLiked,
+    profile.likedHeartId,
+    routeHeartId,
+    routeLiked,
+    targetUserId,
+  ]);
+
+  const handleComingSoon = (message: string) => Alert.alert(message);
+
+  const handleToggleHeart = () => {
+    if (!profile.targetUserId || isHeartPending) return;
+
+    const previousLiked = liked;
+    const previousHeartId = likedHeartId;
+    const rollback = () => {
+      setLiked(previousLiked);
+      setLikedHeartId(previousHeartId);
+    };
+
+    if (previousLiked) {
+      if (!previousHeartId) {
+        Alert.alert("마음 정보를 찾을 수 없어요.", "잠시 후 다시 시도해 주세요.");
+        return;
+      }
+
+      setLiked(false);
+      setLikedHeartId(null);
+      patchHeartMutation.mutate(previousHeartId, {
+        onError: () => {
+          rollback();
+          Alert.alert("마음을 취소하지 못했어요.", "잠시 후 다시 시도해 주세요.");
+        },
+      });
+      return;
+    }
+
+    setLiked(true);
+    sendHeartMutation.mutate(profile.targetUserId, {
+      onSuccess: (data) => setLikedHeartId(data.heartId),
+      onError: () => {
+        rollback();
+        Alert.alert("마음을 보내지 못했어요.", "잠시 후 다시 시도해 주세요.");
+      },
+    });
+  };
+
+  const handleOpenChat = () => {
+    if (!profile.targetUserId || createChatRoomMutation.isPending) {
+      Alert.alert("대화할 프로필 정보를 찾을 수 없어요.");
+      return;
+    }
+
+    createChatRoomMutation.mutate(
+      { targetUserId: profile.targetUserId },
+      {
+        onSuccess: (data) => {
+          router.push({
+            pathname: "/chat/[id]",
+            params: { id: String(data.chatRoomId) },
+          });
+        },
+        onError: () => {
+          Alert.alert("대화방을 열지 못했어요.", "잠시 후 다시 시도해 주세요.");
+        },
+      },
+    );
+  };
+
+  const handleReportPress = () => {
+    setMenuVisible(false);
+
+    if (!profile.targetUserId) {
+      Alert.alert("신고할 프로필 정보를 찾을 수 없어요.");
+      return;
+    }
+
+    if (!chatRoomId) {
+      Alert.alert("신고할 채팅방이 없어요.");
+      return;
+    }
+
+    setReportVisible(true);
+  };
+
+  const handleReportCategory = (category: {
+    label: string;
+    value: ReportCategory;
+  }) => {
+    if (!profile.targetUserId || !chatRoomId || createReportMutation.isPending) return;
+
+    createReportMutation.mutate(
+      {
+        targetUserId: profile.targetUserId,
+        chatRoomId,
+        category: category.value,
+        reason: category.label,
+      },
+      {
+        onSuccess: () => {
+          setReportVisible(false);
+          Alert.alert("신고가 접수되었습니다.");
+        },
+        onError: () => {
+          Alert.alert("신고를 접수하지 못했어요.", "잠시 후 다시 시도해 주세요.");
+        },
+      },
+    );
+  };
+
+  const handleBlockPress = () => {
+    setMenuVisible(false);
+
+    if (!profile.targetUserId) {
+      Alert.alert("차단할 프로필 정보를 찾을 수 없어요.");
+      return;
+    }
+
+    if (!chatRoomId) {
+      Alert.alert("차단할 채팅방이 없어요.");
+      return;
+    }
+
+    Alert.alert("차단할까요?", `${profile.name}님과 대화할 수 없게 됩니다.`, [
+      { text: "취소", style: "cancel" },
+      {
+        text: "차단하기",
+        style: "destructive",
+        onPress: () => {
+          blockUserMutation.mutate(
+            { targetUserId: profile.targetUserId!, reason: "Other" },
+            {
+              onSuccess: () => {
+                Alert.alert("차단되었습니다.");
+                router.back();
+              },
+              onError: () => {
+                Alert.alert("차단하지 못했어요.", "잠시 후 다시 시도해 주세요.");
+              },
+            },
+          );
+        },
+      },
+    ]);
   };
 
   return (
@@ -64,7 +279,7 @@ export default function ProfileDetailScreen() {
       >
         {/* 프로필 대표 사진과 상단 액션 영역입니다. */}
         <ImageBackground
-          source={{ uri: PROFILE_IMAGE }}
+          source={{ uri: profile.image }}
           style={[styles.hero, { height: Math.round(windowHeight * 0.665) }]}
           imageStyle={styles.heroImage}
         >
@@ -107,22 +322,25 @@ export default function ProfileDetailScreen() {
               </View>
               <View style={styles.locationRow}>
                 <Ionicons name="location-sharp" size={18} color="#FFFFFF" />
-                <Text style={styles.locationText}>
-                  {profile.location} · {profile.distance}
-                </Text>
+                <Text style={styles.locationText}>{locationText}</Text>
               </View>
             </View>
 
             <TouchableOpacity
-              style={styles.likeButton}
+              style={[styles.likeButton, isHeartPending ? styles.pendingButton : null]}
               activeOpacity={0.82}
-              onPress={() => setLiked((prev) => !prev)}
+              onPress={handleToggleHeart}
+              disabled={isHeartPending}
             >
-              <Ionicons
-                name={liked ? "heart" : "heart-outline"}
-                size={28}
-                color="#FF3E70"
-              />
+              {isHeartPending ? (
+                <ActivityIndicator color="#FF3E70" />
+              ) : (
+                <Ionicons
+                  name={liked ? "heart" : "heart-outline"}
+                  size={28}
+                  color="#FF3E70"
+                />
+              )}
             </TouchableOpacity>
           </View>
 
@@ -141,75 +359,77 @@ export default function ProfileDetailScreen() {
             <Text style={styles.introText}>{profile.intro}</Text>
           </View>
 
-          <SectionTitle title="저의 관심사에요." />
-          <View style={styles.chipList}>
-            {profile.interests.map((interest, index) => (
-              <Chip
-                key={interest}
-                label={interest}
-                variant={index === 0 ? "outlineActive" : "outline"}
-                shape="rect"
-                size="small"
-                style={styles.profileChip}
-                textStyle={styles.profileChipText}
-              />
-            ))}
-          </View>
+          {profile.interests.length > 0 ? (
+            <>
+              <SectionTitle title="저의 관심사에요." />
+              <View style={styles.chipList}>
+                {profile.interests.map((interest, index) => (
+                  <Chip
+                    key={interest}
+                    label={interest}
+                    variant={index === 0 ? "outlineActive" : "outline"}
+                    shape="rect"
+                    size="small"
+                    style={styles.profileChip}
+                    textStyle={styles.profileChipText}
+                  />
+                ))}
+              </View>
+            </>
+          ) : null}
 
-          <SectionTitle title="이런 사람이 좋아요." />
-          <View style={styles.chipList}>
-            {profile.preferences.map((preference, index) => (
-              <Chip
-                key={`${preference}-${index}`}
-                label={preference}
-                variant={index === 1 || index === 2 ? "outlineActive" : "outline"}
-                shape="rect"
-                size="small"
-                style={styles.profileChip}
-                textStyle={styles.profileChipText}
-              />
-            ))}
-          </View>
+          {profile.preferences.length > 0 ? (
+            <>
+              <SectionTitle title="이런 사람이 좋아요." />
+              <View style={styles.chipList}>
+                {profile.preferences.map((preference, index) => (
+                  <Chip
+                    key={`${preference}-${index}`}
+                    label={preference}
+                    variant={index === 1 || index === 2 ? "outlineActive" : "outline"}
+                    shape="rect"
+                    size="small"
+                    style={styles.profileChip}
+                    textStyle={styles.profileChipText}
+                  />
+                ))}
+              </View>
+            </>
+          ) : null}
         </View>
 
         <View style={styles.divider} />
-
-        {/* 동호회 정보는 동일한 카드 패턴으로 재사용되도록 분리했습니다. */}
-        <View style={styles.content}>
-          <SectionTitle title="이런 동호회를 참여하고있어요" />
-          {clubs.slice(0, 2).map((club) => (
-            <ClubCard key={`joined-${club.id}`} club={club} />
-          ))}
-
-          <SectionTitle title="이런 동호회를 운영해요" />
-          {clubs.slice(2).map((club) => (
-            <ClubCard key={`owned-${club.id}`} club={club} />
-          ))}
-        </View>
       </ScrollView>
 
       {/* 스크롤 위치와 상관없이 하단에 붙어 있는 CTA입니다. */}
       <View style={[styles.ctaWrap, { paddingBottom: insets.bottom + 16 }]}>
         <TouchableOpacity
-          style={styles.ctaButton}
+          style={[
+            styles.ctaButton,
+            createChatRoomMutation.isPending ? styles.pendingButton : null,
+          ]}
           activeOpacity={0.85}
-          onPress={() => handleComingSoon("대화 기능은 준비 중입니다.")}
+          onPress={handleOpenChat}
+          disabled={createChatRoomMutation.isPending}
         >
-          <Text style={styles.ctaText}>바로 대화하기</Text>
+          <Text style={styles.ctaText}>
+            {createChatRoomMutation.isPending ? "대화방 여는 중..." : "바로 대화하기"}
+          </Text>
         </TouchableOpacity>
       </View>
 
       <ActionSheetModal
         visible={menuVisible}
         onClose={() => setMenuVisible(false)}
-        onReport={() => {
-          setMenuVisible(false);
-          handleComingSoon("신고 기능은 준비 중입니다.");
-        }}
-        onBlock={() => {
-          setMenuVisible(false);
-          handleComingSoon("차단 기능은 준비 중입니다.");
-        }}
+        onReport={handleReportPress}
+        onBlock={handleBlockPress}
+      />
+
+      <ReportCategoryModal
+        visible={reportVisible}
+        isPending={createReportMutation.isPending}
+        onClose={() => setReportVisible(false)}
+        onSelect={handleReportCategory}
       />
     </SafeAreaView>
   );
@@ -219,26 +439,41 @@ function SectionTitle({ title }: { title: string }) {
   return <Text style={styles.sectionTitle}>{title}</Text>;
 }
 
-function ClubCard({
-  club,
+function ReportCategoryModal({
+  visible,
+  isPending,
+  onClose,
+  onSelect,
 }: {
-  club: {
-    title: string;
-    meta: string;
-  };
+  visible: boolean;
+  isPending: boolean;
+  onClose: () => void;
+  onSelect: (category: { label: string; value: ReportCategory }) => void;
 }) {
   return (
-    <View style={styles.clubCard}>
-      <View style={styles.clubThumbnail} />
-      <View style={styles.clubInfo}>
-        <Text style={styles.clubTitle}>{club.title}</Text>
-        <Text style={styles.clubMeta}>{club.meta}</Text>
-        <View style={styles.memberRow}>
-          <Ionicons name="person" size={14} color="#A6AFB6" />
-          <Text style={styles.memberText}>6명 참석중 (6/15)</Text>
-        </View>
-      </View>
-    </View>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      onRequestClose={onClose}
+    >
+      <Pressable style={styles.modalBackdrop} onPress={onClose}>
+        <Pressable style={styles.reportSheet}>
+          <Text style={styles.reportTitle}>신고 사유를 선택해 주세요</Text>
+          {REPORT_CATEGORIES.map((category) => (
+            <TouchableOpacity
+              key={category.value}
+              style={styles.reportOption}
+              activeOpacity={0.75}
+              disabled={isPending}
+              onPress={() => onSelect(category)}
+            >
+              <Text style={styles.actionText}>{category.label}</Text>
+            </TouchableOpacity>
+          ))}
+        </Pressable>
+      </Pressable>
+    </Modal>
   );
 }
 
@@ -291,6 +526,102 @@ function ActionSheetModal({
       </Pressable>
     </Modal>
   );
+}
+
+function parseOptionalNumber(value?: string | string[]) {
+  const rawValue = Array.isArray(value) ? value[0] : value;
+  if (!rawValue) return undefined;
+
+  const parsed = Number(rawValue);
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+function parseOptionalBoolean(value?: string | string[]) {
+  const rawValue = Array.isArray(value) ? value[0] : value;
+  if (rawValue === "true") return true;
+  if (rawValue === "false") return false;
+  return undefined;
+}
+
+function mapRouteDetailProfile(
+  params: {
+    name?: string | string[];
+    age?: string | string[];
+    location?: string | string[];
+    intro?: string | string[];
+    image?: string | string[];
+    heartId?: string | string[];
+    isLiked?: string | string[];
+  },
+  targetUserId?: number,
+  chatRoomId?: number,
+): DetailProfile | null {
+  const name = getParamString(params.name);
+  const age = parseOptionalNumber(params.age);
+
+  if (!name || !age) return null;
+
+  return {
+    targetUserId,
+    chatRoomId,
+    name,
+    age,
+    location: getParamString(params.location) ?? "",
+    distance: "",
+    intro: getParamString(params.intro) ?? "",
+    interests: [],
+    preferences: [],
+    image: getParamString(params.image) ?? PROFILE_IMAGE,
+    isLiked: parseOptionalBoolean(params.isLiked) ?? false,
+    likedHeartId: parseOptionalNumber(params.heartId) ?? null,
+  };
+}
+
+function mapRecommendationDetailProfile(
+  data:
+    | {
+        pages: {
+          items: {
+            userId: number;
+            nickname: string;
+            age: number;
+            areaName: string;
+            keywords: string[];
+            introText: string;
+            profileImageUrl: string;
+            isLiked: boolean;
+            likedHeartId: number | null;
+          }[];
+        }[];
+      }
+    | undefined,
+  targetUserId?: number,
+): DetailProfile | null {
+  if (!targetUserId) return null;
+
+  const item = data?.pages
+    .flatMap((page) => page.items)
+    .find((profile) => profile.userId === targetUserId);
+
+  if (!item) return null;
+
+  return {
+    targetUserId: item.userId,
+    name: item.nickname,
+    age: item.age,
+    location: item.areaName,
+    distance: "",
+    intro: item.introText,
+    interests: item.keywords,
+    preferences: [],
+    image: item.profileImageUrl || PROFILE_IMAGE,
+    isLiked: item.isLiked,
+    likedHeartId: item.likedHeartId,
+  };
+}
+
+function getParamString(value?: string | string[]) {
+  return Array.isArray(value) ? value[0] : value;
 }
 
 const styles = StyleSheet.create({
@@ -378,6 +709,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "rgba(255, 255, 255, 0.24)",
+  },
+  pendingButton: {
+    opacity: 0.68,
   },
   pagination: {
     position: "absolute",
@@ -528,6 +862,26 @@ const styles = StyleSheet.create({
   },
   actionSheet: {
     gap: 8,
+  },
+  reportSheet: {
+    overflow: "hidden",
+    borderRadius: 12,
+    backgroundColor: "#FFFFFF",
+  },
+  reportTitle: {
+    paddingHorizontal: 18,
+    paddingTop: 18,
+    paddingBottom: 10,
+    fontSize: 15,
+    fontWeight: "800",
+    color: "#202020",
+  },
+  reportOption: {
+    minHeight: 48,
+    justifyContent: "center",
+    paddingHorizontal: 18,
+    borderTopWidth: 1,
+    borderTopColor: "#EEF0F2",
   },
   actionGroup: {
     overflow: "hidden",

@@ -51,7 +51,7 @@ export const patchHeart = async (heartId: number) => {
 // 차단하기 (POST)
 export const blockUser = async (body: DTO.IBlocksRequest) => {
   const { data } = await api.post<ApiSuccessResponse<DTO.IBlocksResponse>>(
-    "/v1/blocks",
+    "/v1/block",
     body,
   );
   return data.success.data;
