@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { useEffect, useMemo, useState } from "react";
+import { useState } from "react";
 import {
   Alert,
   Image,
@@ -13,16 +13,11 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { useMyClubsInfiniteQuery } from "@/hooks/api/useClubs";
 import { useLogoutMutation } from "@/hooks/api/useAuth";
-import { useMatchCountQuery } from "@/hooks/api/useMatches";
 import { useReceivedHeartsInfiniteQuery } from "@/hooks/api/useSocials";
 import {
   useDeactivateUserMutation,
-  useMyIdealVoiceQuery,
-  useMyNotificationSettingsQuery,
   useMyProfileQuery,
-  useUpdateMyNotificationSettingsMutation,
 } from "@/hooks/api/useUsers";
 
 const ACCENT = "#FC3367";
@@ -37,46 +32,24 @@ export default function MyTabScreen() {
   const [notificationEnabled, setNotificationEnabled] = useState(true);
   const myProfileQuery = useMyProfileQuery();
   const receivedHeartsQuery = useReceivedHeartsInfiniteQuery();
-  const matchCountQuery = useMatchCountQuery();
-  const idealVoiceQuery = useMyIdealVoiceQuery();
-  const notificationSettingsQuery = useMyNotificationSettingsQuery();
-  const myClubsQuery = useMyClubsInfiniteQuery(2);
   const logoutMutation = useLogoutMutation();
   const deactivateUserMutation = useDeactivateUserMutation();
-  const updateNotificationSettingsMutation =
-    useUpdateMyNotificationSettingsMutation();
   const profile = myProfileQuery.data;
   const receivedHeartCount =
     receivedHeartsQuery.data?.pages.reduce(
       (total, page) => total + page.items.length,
       0,
     ) ?? (receivedHeartsQuery.isSuccess ? 0 : undefined);
-  const myClubs = useMemo(
-    () => myClubsQuery.data?.pages.flatMap((page) => page.items) ?? [],
-    [myClubsQuery.data],
-  );
-  const notificationSettingEnabled =
-    notificationSettingsQuery.data?.enabled ??
-    notificationSettingsQuery.data?.heartEnabled ??
-    true;
-
-  useEffect(() => {
-    setNotificationEnabled(notificationSettingEnabled);
-  }, [notificationSettingEnabled]);
+  const myClubs: {
+    clubId: number;
+    title?: string;
+    name?: string;
+    memberCount?: number;
+    currentMemberCount?: number;
+  }[] = [];
 
   const handleNotificationToggle = (enabled: boolean) => {
-    const previousValue = notificationEnabled;
-
     setNotificationEnabled(enabled);
-    updateNotificationSettingsMutation.mutate(
-      { enabled },
-      {
-        onError: () => {
-          setNotificationEnabled(previousValue);
-          Alert.alert("알림 설정 실패", "다시 시도해주세요.");
-        },
-      },
-    );
   };
 
   // 계정 액션은 mutation으로 서버에 반영하고 로컬 Query 캐시를 정리합니다.
@@ -176,7 +149,7 @@ export default function MyTabScreen() {
           <View style={styles.matchPanel}>
             <View style={styles.matchItem}>
               <Text style={styles.matchNumber}>
-                {matchCountQuery.data?.count ?? "-"}
+                -
               </Text>
               <Text style={styles.matchLabel}>현재 매칭</Text>
             </View>
@@ -204,14 +177,10 @@ export default function MyTabScreen() {
             <View style={styles.settingTextBlock}>
               <Text style={styles.settingTitle}>음성으로 말하기</Text>
               <Text style={[styles.settingSubtitle, styles.voiceSubtitle]}>
-                {idealVoiceQuery.data?.exists
-                  ? "현재 녹음된 이상형 있음"
-                  : "아직 녹음된 이상형 없음"}
+                이상형 음성을 녹음해보세요
               </Text>
             </View>
-            <Text style={styles.reRecordText}>
-              {idealVoiceQuery.data?.exists ? "재녹음" : "녹음"}
-            </Text>
+            <Text style={styles.reRecordText}>녹음</Text>
             <Ionicons name="chevron-forward" size={20} color={ACCENT} />
           </TouchableOpacity>
 
@@ -243,9 +212,7 @@ export default function MyTabScreen() {
             ))
           ) : (
             <Text style={styles.clubEmptyText}>
-              {myClubsQuery.isLoading
-                ? "내 동호회를 불러오는 중이에요."
-                : "가입한 동호회가 없어요."}
+              가입한 동호회가 없어요.
             </Text>
           )}
 
@@ -264,7 +231,6 @@ export default function MyTabScreen() {
             <Switch
               value={notificationEnabled}
               onValueChange={handleNotificationToggle}
-              disabled={updateNotificationSettingsMutation.isPending}
               trackColor={{ false: "#E5E7EB", true: ACCENT }}
               thumbColor="#FFFFFF"
               ios_backgroundColor="#E5E7EB"

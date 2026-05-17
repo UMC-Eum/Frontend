@@ -2,7 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Animated,
@@ -18,21 +18,8 @@ import {
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
-import {
-  useClubArchivesInfiniteQuery,
-  useClubDetailQuery,
-  useClubMeetingsInfiniteQuery,
-  useClubPostsInfiniteQuery,
-  useJoinClubMutation,
-  useLeaveClubMutation,
-  useLikeClubMutation,
-  useUnlikeClubMutation,
-} from "@/hooks/api/useClubs";
 import { IClubMeeting } from "@/types/api/clubs/clubsDTO";
-import {
-  ClubPostCategory,
-  IClubPostListItem,
-} from "@/types/api/clubs/clubPostsDTO";
+import { ClubPostCategory } from "@/types/api/clubs/clubPostsDTO";
 
 const PINK = "#FF3E70";
 const BLACK = "#202020";
@@ -179,7 +166,6 @@ export default function ClubDetailScreen() {
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const clubId = parseClubId(params.clubId);
-  const hasClubId = Number.isFinite(clubId);
   const [activeTab, setActiveTab] = useState<ClubDetailTab>("home");
   const [isFavorite, setFavorite] = useState(false);
   const [isJoinModalVisible, setJoinModalVisible] = useState(false);
@@ -188,56 +174,25 @@ export default function ClubDetailScreen() {
   const [isJoined, setJoined] = useState(false);
   const [isLeaveSheetVisible, setLeaveSheetVisible] = useState(false);
   const [isLeaveConfirmVisible, setLeaveConfirmVisible] = useState(false);
-  const clubDetailQuery = useClubDetailQuery(clubId, hasClubId);
-  const meetingsQuery = useClubMeetingsInfiniteQuery(clubId, 3, hasClubId);
-  const archivesQuery = useClubArchivesInfiniteQuery(clubId, 12, hasClubId);
-  const joinClubMutation = useJoinClubMutation(clubId);
-  const leaveClubMutation = useLeaveClubMutation(clubId);
-  const likeClubMutation = useLikeClubMutation(clubId);
-  const unlikeClubMutation = useUnlikeClubMutation(clubId);
-
   const bottomBarHeight = isJoined
     ? insets.bottom + (activeTab === "board" ? 110 : 24)
     : insets.bottom + 96;
   const albumItemSize = width / 3;
   const trimmedJoinMessage = joinMessage.trim();
-  const club = clubDetailQuery.data;
-  const meetings =
-    meetingsQuery.data?.pages.flatMap((page) => page.items) ?? [];
-  const archives =
-    archivesQuery.data?.pages.flatMap((page) => page.items) ?? [];
-  const heroImage =
-    club?.imageUrls?.[0] ??
-    club?.imageUrl ??
-    club?.thumbnailImageUrl ??
-    HERO_IMAGE;
-  const clubTitle = club?.title ?? club?.name ?? "새벽 등산 동호회";
-  const categoryText = club?.category ?? "운동 / 스포츠";
-  const areaText = club?.area?.name ?? club?.location ?? "서울시 서대문구";
-  const hostName = club?.host?.nickname ?? "루씨";
-  const memberCount = club?.memberCount ?? club?.currentMemberCount ?? 6;
-  const maxMemberCount = club?.maxMemberCount ?? 15;
+  const meetings: IClubMeeting[] = [];
+  const archives: { archiveId: number; imageUrl: string }[] = [];
+  const heroImage = HERO_IMAGE;
+  const clubTitle = "새벽 등산 동호회";
+  const categoryText = "운동 / 스포츠";
+  const areaText = "서울시 서대문구";
+  const hostName = "루씨";
+  const memberCount = 6;
+  const maxMemberCount = 15;
   const description =
-    club?.intro ??
-    club?.introduction ??
-    club?.description ??
     "해 뜨기 전에 산에 올라 일출 보고 내려옵니다. 평일 새벽이라 부담 없이 운동 삼아 나오시는 분들 많아요. 초보도 환영해요~~😁😁";
 
-  useEffect(() => {
-    if (!club) return;
-
-    setFavorite(Boolean(club.isLiked));
-    setJoined(Boolean(club.isJoined || club.membershipStatus === "APPROVED"));
-  }, [club]);
-
   const handleFavoritePress = () => {
-    const nextFavorite = !isFavorite;
-
-    setFavorite(nextFavorite);
-    const mutation = nextFavorite ? likeClubMutation : unlikeClubMutation;
-    mutation.mutate(undefined, {
-      onError: () => setFavorite(!nextFavorite),
-    });
+    setFavorite((prev) => !prev);
   };
 
   const handleJoinSubmit = () => {
@@ -246,27 +201,16 @@ export default function ClubDetailScreen() {
       return;
     }
 
-    joinClubMutation.mutate(
-      { message: trimmedJoinMessage },
-      {
-        onSuccess: () => {
-          setJoinModalVisible(false);
-          setTriedJoinSubmit(false);
-          setJoined(true);
-          setActiveTab("home");
-        },
-      },
-    );
+    setJoinModalVisible(false);
+    setTriedJoinSubmit(false);
+    setJoined(true);
+    setActiveTab("home");
   };
 
   const handleLeaveConfirm = () => {
-    leaveClubMutation.mutate(undefined, {
-      onSuccess: () => {
-        setLeaveConfirmVisible(false);
-        setJoined(false);
-        setActiveTab("home");
-      },
-    });
+    setLeaveConfirmVisible(false);
+    setJoined(false);
+    setActiveTab("home");
   };
 
   return (
@@ -348,11 +292,6 @@ export default function ClubDetailScreen() {
           ))}
         </View>
 
-        {clubDetailQuery.isLoading ? (
-          <View style={styles.statusBox}>
-            <ActivityIndicator color={PINK} />
-          </View>
-        ) : null}
         {activeTab === "home" ? (
           <ClubHomeTab
             description={description}
@@ -362,8 +301,6 @@ export default function ClubDetailScreen() {
         ) : null}
         {activeTab === "board" ? (
           <BoardTab
-            clubId={clubId}
-            enabled={hasClubId}
             onPostPress={(postId) =>
               router.push({
                 pathname: "/club/post-detail",
@@ -375,7 +312,7 @@ export default function ClubDetailScreen() {
         {activeTab === "album" ? (
           <AlbumTab
             archives={archives}
-            isLoading={archivesQuery.isLoading}
+            isLoading={false}
             itemSize={albumItemSize}
           />
         ) : null}
@@ -417,7 +354,6 @@ export default function ClubDetailScreen() {
           </Pressable>
           <Pressable
             style={styles.joinButton}
-            disabled={joinClubMutation.isPending}
             onPress={() => {
               setTriedJoinSubmit(false);
               setJoinModalVisible(true);
@@ -590,36 +526,18 @@ function MeetingInfo({ label, value }: { label: string; value: string }) {
 }
 
 function BoardTab({
-  clubId,
-  enabled,
   onPostPress,
 }: {
-  clubId: number;
-  enabled: boolean;
   onPostPress: (postId: number) => void;
 }) {
   const [activeCategory, setActiveCategory] =
     useState<ClubPostCategory | "ALL">("ALL");
-  const postsQuery = useClubPostsInfiniteQuery(
-    clubId,
-    activeCategory,
-    20,
-    enabled,
-  );
-  const apiPosts = useMemo(
-    () =>
-      postsQuery.data?.pages
-        .flatMap((page) => page.items)
-        .map(mapClubPostItem) ?? [],
-    [postsQuery.data],
-  );
-  const fallbackPosts =
+  const posts =
     activeCategory === "ALL"
       ? BOARD_POSTS
       : BOARD_POSTS.filter(
           (post) => post.category === CATEGORY_LABELS[activeCategory],
         );
-  const posts = postsQuery.isError && apiPosts.length === 0 ? fallbackPosts : apiPosts;
   const pinnedPosts = posts.filter((post) => post.isPinned);
   const normalPosts = posts.filter((post) => !post.isPinned);
 
@@ -659,11 +577,6 @@ function BoardTab({
       </View>
 
       <View style={styles.postList}>
-        {postsQuery.isLoading && posts.length === 0 ? (
-          <View style={styles.statusBox}>
-            <ActivityIndicator color={PINK} />
-          </View>
-        ) : null}
         {normalPosts.map((post) => (
           <BoardPostItem
             key={post.id}
@@ -675,51 +588,9 @@ function BoardTab({
             }}
           />
         ))}
-        {postsQuery.hasNextPage ? (
-          <Pressable
-            style={styles.moreButton}
-            onPress={() => postsQuery.fetchNextPage()}
-          >
-            <Text style={styles.moreButtonText}>더보기</Text>
-          </Pressable>
-        ) : null}
       </View>
     </View>
   );
-}
-
-function mapClubPostItem(item: IClubPostListItem): BoardPost {
-  return {
-    id: `post-${item.postId}`,
-    apiId: item.postId,
-    author: item.author.nickname,
-    time: formatRelativeTime(item.createdAt),
-    category: CATEGORY_LABELS[item.category],
-    content: item.title ? `${item.title}\n${item.content}` : item.content,
-    likes: item.likeCount,
-    comments: item.commentCount,
-    hasImage: Boolean(item.thumbnailImageUrl || item.imageCount),
-    isPinned: item.isPinned,
-  };
-}
-
-function formatRelativeTime(value: string) {
-  const date = new Date(value);
-  const diffMs = Date.now() - date.getTime();
-
-  if (Number.isNaN(date.getTime())) return "";
-
-  const diffMinutes = Math.floor(diffMs / (1000 * 60));
-  if (diffMinutes < 1) return "방금 전";
-  if (diffMinutes < 60) return `${diffMinutes}분전`;
-
-  const diffHours = Math.floor(diffMinutes / 60);
-  if (diffHours < 24) return `${diffHours}시간전`;
-
-  const diffDays = Math.floor(diffHours / 24);
-  if (diffDays < 7) return `${diffDays}일전`;
-
-  return `${date.getMonth() + 1}/${date.getDate()}`;
 }
 
 function PinnedPost({ text }: { text: string }) {

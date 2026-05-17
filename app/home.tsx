@@ -23,10 +23,7 @@ import {
   useSendRecommendationHeartMutation,
 } from "@/hooks/api/useRecommendations";
 import { useNotificationsInfiniteQuery } from "@/hooks/api/useNotifications";
-import {
-  useMyProfileQuery,
-  useMyProfileVisitorsInfiniteQuery,
-} from "@/hooks/api/useUsers";
+import { useMyProfileQuery } from "@/hooks/api/useUsers";
 
 const PINK = "#FF1B4D";
 const BLACK = "#202020";
@@ -170,7 +167,6 @@ export default function HomePage() {
   const [, setLikedCount] = useState(0);
   const myProfileQuery = useMyProfileQuery();
   const recommendationsQuery = useRecommendationsInfiniteQuery();
-  const profileVisitorsQuery = useMyProfileVisitorsInfiniteQuery();
   const heartNotificationsQuery = useNotificationsInfiniteQuery("heart");
   const chatNotificationsQuery = useNotificationsInfiniteQuery("chat");
   const sendHeartMutation = useSendRecommendationHeartMutation();
@@ -178,10 +174,6 @@ export default function HomePage() {
   const recommendedProfiles = useMemo(
     () => mapRecommendationProfiles(recommendationsQuery.data),
     [recommendationsQuery.data],
-  );
-  const profileVisitors = useMemo(
-    () => mapProfileVisitors(profileVisitorsQuery.data),
-    [profileVisitorsQuery.data],
   );
   const heartUnreadCount = useMemo(
     () => countUnreadNotifications(heartNotificationsQuery.data),
@@ -195,14 +187,10 @@ export default function HomePage() {
     __DEV__ &&
     recommendationsQuery.isError &&
     recommendedProfiles.length === 0;
-  const isVisitorFallback =
-    __DEV__ &&
-    profileVisitorsQuery.isError &&
-    profileVisitors.length === 0;
   const profiles = isRecommendationFallback
     ? RECOMMENDED_PROFILES
     : recommendedProfiles;
-  const viewers = isVisitorFallback ? PROFILE_VIEWERS : profileVisitors;
+  const viewers = __DEV__ ? PROFILE_VIEWERS : [];
   const profile =
     profiles.length > 0 ? profiles[profileIndex % profiles.length] : null;
   const nickname = myProfileQuery.data?.nickname ?? USER_NICKNAME;
@@ -357,12 +345,7 @@ export default function HomePage() {
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.viewerList}
             >
-              {profileVisitorsQuery.isLoading && viewers.length === 0 ? (
-                <View style={styles.viewerStatusCard}>
-                  <ActivityIndicator color={PINK} />
-                </View>
-              ) : null}
-              {!profileVisitorsQuery.isLoading && viewers.length === 0 ? (
+              {viewers.length === 0 ? (
                 <View style={styles.viewerStatusCard}>
                   <Text style={styles.viewerStatusText}>
                     아직 프로필을 본 인연이 없어요.
@@ -495,28 +478,6 @@ function mapRecommendationProfiles(data?: {
         isLiked: item.isLiked,
         likedHeartId: item.likedHeartId,
         images: item.profileImageUrl ? [item.profileImageUrl] : [FALLBACK_PROFILE_IMAGE],
-      })),
-    ) ?? []
-  );
-}
-
-function mapProfileVisitors(data?: {
-  pages: {
-    items: {
-      userId: number;
-      nickname: string;
-      age?: number;
-      profileImageUrl?: string | null;
-    }[];
-  }[];
-}): Viewer[] {
-  return (
-    data?.pages.flatMap((page) =>
-      page.items.map((item) => ({
-        id: `visitor-${item.userId}`,
-        name: item.nickname,
-        age: item.age,
-        image: item.profileImageUrl || FALLBACK_PROFILE_IMAGE,
       })),
     ) ?? []
   );
