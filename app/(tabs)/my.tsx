@@ -1,5 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useState } from "react";
+import { useRouter } from "expo-router";
+import { useEffect, useMemo, useState } from "react";
 import {
   Alert,
   Image,
@@ -12,11 +13,16 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { useMyClubsInfiniteQuery } from "@/hooks/api/useClubs";
 import { useLogoutMutation } from "@/hooks/api/useAuth";
+import { useMatchCountQuery } from "@/hooks/api/useMatches";
 import { useReceivedHeartsInfiniteQuery } from "@/hooks/api/useSocials";
 import {
   useDeactivateUserMutation,
+  useMyIdealVoiceQuery,
+  useMyNotificationSettingsQuery,
   useMyProfileQuery,
+  useUpdateMyNotificationSettingsMutation,
 } from "@/hooks/api/useUsers";
 
 const ACCENT = "#FC3367";
@@ -27,17 +33,51 @@ const PROFILE_IMAGE =
   "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=240&h=240&fit=crop&crop=faces";
 
 export default function MyTabScreen() {
+  const router = useRouter();
   const [notificationEnabled, setNotificationEnabled] = useState(true);
   const myProfileQuery = useMyProfileQuery();
   const receivedHeartsQuery = useReceivedHeartsInfiniteQuery();
+  const matchCountQuery = useMatchCountQuery();
+  const idealVoiceQuery = useMyIdealVoiceQuery();
+  const notificationSettingsQuery = useMyNotificationSettingsQuery();
+  const myClubsQuery = useMyClubsInfiniteQuery(2);
   const logoutMutation = useLogoutMutation();
   const deactivateUserMutation = useDeactivateUserMutation();
+  const updateNotificationSettingsMutation =
+    useUpdateMyNotificationSettingsMutation();
   const profile = myProfileQuery.data;
   const receivedHeartCount =
     receivedHeartsQuery.data?.pages.reduce(
       (total, page) => total + page.items.length,
       0,
     ) ?? (receivedHeartsQuery.isSuccess ? 0 : undefined);
+  const myClubs = useMemo(
+    () => myClubsQuery.data?.pages.flatMap((page) => page.items) ?? [],
+    [myClubsQuery.data],
+  );
+  const notificationSettingEnabled =
+    notificationSettingsQuery.data?.enabled ??
+    notificationSettingsQuery.data?.heartEnabled ??
+    true;
+
+  useEffect(() => {
+    setNotificationEnabled(notificationSettingEnabled);
+  }, [notificationSettingEnabled]);
+
+  const handleNotificationToggle = (enabled: boolean) => {
+    const previousValue = notificationEnabled;
+
+    setNotificationEnabled(enabled);
+    updateNotificationSettingsMutation.mutate(
+      { enabled },
+      {
+        onError: () => {
+          setNotificationEnabled(previousValue);
+          Alert.alert("알림 설정 실패", "다시 시도해주세요.");
+        },
+      },
+    );
+  };
 
   // 계정 액션은 mutation으로 서버에 반영하고 로컬 Query 캐시를 정리합니다.
   const handleLogout = () => {
@@ -104,7 +144,7 @@ export default function MyTabScreen() {
               <View style={styles.locationRow}>
                 <Ionicons name="location-sharp" size={21} color="#687076" />
                 <Text style={styles.location}>
-                  {profile?.area.name ?? "서울시 광진구"}
+                  {profile?.area?.name ?? "서울시 광진구"}
                 </Text>
                 <TouchableOpacity activeOpacity={0.7}>
                   <Text style={styles.editText}>수정</Text>
@@ -121,7 +161,11 @@ export default function MyTabScreen() {
             </Text>
           </View>
 
-          <TouchableOpacity style={styles.profileEditButton} activeOpacity={0.7}>
+          <TouchableOpacity
+            style={styles.profileEditButton}
+            activeOpacity={0.7}
+            onPress={() => router.push("/profile/name" as any)}
+          >
             <Text style={styles.profileEditText}>프로필 수정</Text>
             <Ionicons name="chevron-forward" size={18} color={ACCENT} />
           </TouchableOpacity>
@@ -131,12 +175,16 @@ export default function MyTabScreen() {
           <Text style={styles.sectionTitle}>매칭 현황</Text>
           <View style={styles.matchPanel}>
             <View style={styles.matchItem}>
-              <Text style={styles.matchNumber}>3</Text>
+              <Text style={styles.matchNumber}>
+                {matchCountQuery.data?.count ?? "-"}
+              </Text>
               <Text style={styles.matchLabel}>현재 매칭</Text>
             </View>
             <View style={styles.matchDivider} />
             <View style={styles.matchItem}>
-              <Text style={styles.matchNumber}>{receivedHeartCount}</Text>
+              <Text style={styles.matchNumber}>
+                {receivedHeartCount ?? "-"}
+              </Text>
               <Text style={styles.matchLabel}>받은 마음</Text>
             </View>
           </View>
@@ -148,6 +196,7 @@ export default function MyTabScreen() {
           <TouchableOpacity
             style={[styles.settingRow, styles.voiceSettingRow]}
             activeOpacity={0.7}
+            onPress={() => router.push("/ideal-recording" as any)}
           >
             <View style={[styles.settingIcon, styles.voiceIcon]}>
               <Ionicons name="mic" size={24} color="#FFFFFF" />
@@ -155,10 +204,14 @@ export default function MyTabScreen() {
             <View style={styles.settingTextBlock}>
               <Text style={styles.settingTitle}>음성으로 말하기</Text>
               <Text style={[styles.settingSubtitle, styles.voiceSubtitle]}>
-                현재 녹음된 이상형 있음
+                {idealVoiceQuery.data?.exists
+                  ? "현재 녹음된 이상형 있음"
+                  : "아직 녹음된 이상형 없음"}
               </Text>
             </View>
-            <Text style={styles.reRecordText}>재녹음</Text>
+            <Text style={styles.reRecordText}>
+              {idealVoiceQuery.data?.exists ? "재녹음" : "녹음"}
+            </Text>
             <Ionicons name="chevron-forward" size={20} color={ACCENT} />
           </TouchableOpacity>
 
@@ -177,18 +230,30 @@ export default function MyTabScreen() {
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>내 동호회</Text>
 
-          <ClubRow
-            title="한강 러닝 모임🔥"
-            subtitle="멤버 24명"
-            variant="running"
-          />
-          <ClubRow
-            title="등산을 좋아하는 동호회"
-            subtitle="멤버 10명"
-            variant="mountain"
-          />
+          {myClubs.length > 0 ? (
+            myClubs.map((club, index) => (
+              <ClubRow
+                key={club.clubId}
+                title={club.title || club.name || "이름 없는 동호회"}
+                subtitle={`멤버 ${
+                  club.memberCount ?? club.currentMemberCount ?? 0
+                }명`}
+                variant={index % 2 === 0 ? "running" : "mountain"}
+              />
+            ))
+          ) : (
+            <Text style={styles.clubEmptyText}>
+              {myClubsQuery.isLoading
+                ? "내 동호회를 불러오는 중이에요."
+                : "가입한 동호회가 없어요."}
+            </Text>
+          )}
 
-          <TouchableOpacity style={styles.viewAllButton} activeOpacity={0.75}>
+          <TouchableOpacity
+            style={styles.viewAllButton}
+            activeOpacity={0.75}
+            onPress={() => router.push("/club/home" as any)}
+          >
             <Text style={styles.viewAllText}>전체 보기</Text>
           </TouchableOpacity>
         </View>
@@ -198,7 +263,8 @@ export default function MyTabScreen() {
             <Text style={styles.notificationText}>알림 설정</Text>
             <Switch
               value={notificationEnabled}
-              onValueChange={setNotificationEnabled}
+              onValueChange={handleNotificationToggle}
+              disabled={updateNotificationSettingsMutation.isPending}
               trackColor={{ false: "#E5E7EB", true: ACCENT }}
               thumbColor="#FFFFFF"
               ios_backgroundColor="#E5E7EB"
@@ -558,6 +624,13 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   clubSubtitle: {
+    color: SUB_TEXT,
+    fontSize: 13,
+    fontWeight: "500",
+    lineHeight: 18,
+  },
+  clubEmptyText: {
+    marginBottom: 10,
     color: SUB_TEXT,
     fontSize: 13,
     fontWeight: "500",

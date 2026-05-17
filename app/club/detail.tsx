@@ -1,9 +1,10 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
+  ActivityIndicator,
   Animated,
   Easing,
   Modal,
@@ -16,6 +17,22 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+
+import {
+  useClubArchivesInfiniteQuery,
+  useClubDetailQuery,
+  useClubMeetingsInfiniteQuery,
+  useClubPostsInfiniteQuery,
+  useJoinClubMutation,
+  useLeaveClubMutation,
+  useLikeClubMutation,
+  useUnlikeClubMutation,
+} from "@/hooks/api/useClubs";
+import { IClubMeeting } from "@/types/api/clubs/clubsDTO";
+import {
+  ClubPostCategory,
+  IClubPostListItem,
+} from "@/types/api/clubs/clubPostsDTO";
 
 const PINK = "#FF3E70";
 const BLACK = "#202020";
@@ -33,11 +50,41 @@ const CLUB_TABS: { id: ClubDetailTab; label: string }[] = [
   { id: "chat", label: "채팅" },
 ];
 
-const BOARD_CATEGORIES = ["전체", "공지", "후기", "가입인사", "자유게시판"];
+const BOARD_CATEGORIES: {
+  label: string;
+  value: ClubPostCategory | "ALL";
+}[] = [
+  { label: "전체", value: "ALL" },
+  { label: "공지", value: "NOTICE" },
+  { label: "후기", value: "REVIEW" },
+  { label: "가입인사", value: "GREETING" },
+  { label: "자유게시판", value: "FREE" },
+];
 
-const BOARD_POSTS = [
+const CATEGORY_LABELS: Record<ClubPostCategory, string> = {
+  NOTICE: "공지",
+  GREETING: "가입인사",
+  REVIEW: "후기",
+  FREE: "자유게시판",
+};
+
+type BoardPost = {
+  id: string;
+  apiId?: number;
+  author: string;
+  time: string;
+  category: string;
+  content: string;
+  likes: number;
+  comments: number;
+  hasImage: boolean;
+  isPinned?: boolean;
+};
+
+const BOARD_POSTS: BoardPost[] = [
   {
     id: "post-1",
+    apiId: 1,
     author: "등산하는 사람",
     time: "2일전",
     category: "후기",
@@ -49,6 +96,7 @@ const BOARD_POSTS = [
   },
   {
     id: "post-2",
+    apiId: 2,
     author: "밤먹는거북이",
     time: "7일전",
     category: "자유게시판",
@@ -60,6 +108,7 @@ const BOARD_POSTS = [
   },
   {
     id: "post-3",
+    apiId: 3,
     author: "루시",
     time: "30분전",
     category: "가입인사",
@@ -71,6 +120,7 @@ const BOARD_POSTS = [
   },
   {
     id: "post-4",
+    apiId: 4,
     author: "광진구등산",
     time: "3/20",
     category: "자유게시판",
@@ -82,6 +132,7 @@ const BOARD_POSTS = [
   },
   {
     id: "post-5",
+    apiId: 5,
     author: "도봉산모임",
     time: "3/19",
     category: "후기",
@@ -93,6 +144,7 @@ const BOARD_POSTS = [
   },
   {
     id: "post-6",
+    apiId: 6,
     author: "한강등산클럽",
     time: "1일전",
     category: "가입인사",
@@ -104,6 +156,7 @@ const BOARD_POSTS = [
   },
   {
     id: "post-7",
+    apiId: 7,
     author: "관악산사랑",
     time: "5일전",
     category: "자유게시판",
@@ -122,8 +175,11 @@ const BOARD_POSTS = [
  */
 export default function ClubDetailScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ clubId?: string }>();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
+  const clubId = parseClubId(params.clubId);
+  const hasClubId = Number.isFinite(clubId);
   const [activeTab, setActiveTab] = useState<ClubDetailTab>("home");
   const [isFavorite, setFavorite] = useState(false);
   const [isJoinModalVisible, setJoinModalVisible] = useState(false);
@@ -132,12 +188,86 @@ export default function ClubDetailScreen() {
   const [isJoined, setJoined] = useState(false);
   const [isLeaveSheetVisible, setLeaveSheetVisible] = useState(false);
   const [isLeaveConfirmVisible, setLeaveConfirmVisible] = useState(false);
+  const clubDetailQuery = useClubDetailQuery(clubId, hasClubId);
+  const meetingsQuery = useClubMeetingsInfiniteQuery(clubId, 3, hasClubId);
+  const archivesQuery = useClubArchivesInfiniteQuery(clubId, 12, hasClubId);
+  const joinClubMutation = useJoinClubMutation(clubId);
+  const leaveClubMutation = useLeaveClubMutation(clubId);
+  const likeClubMutation = useLikeClubMutation(clubId);
+  const unlikeClubMutation = useUnlikeClubMutation(clubId);
 
   const bottomBarHeight = isJoined
     ? insets.bottom + (activeTab === "board" ? 110 : 24)
     : insets.bottom + 96;
   const albumItemSize = width / 3;
   const trimmedJoinMessage = joinMessage.trim();
+  const club = clubDetailQuery.data;
+  const meetings =
+    meetingsQuery.data?.pages.flatMap((page) => page.items) ?? [];
+  const archives =
+    archivesQuery.data?.pages.flatMap((page) => page.items) ?? [];
+  const heroImage =
+    club?.imageUrls?.[0] ??
+    club?.imageUrl ??
+    club?.thumbnailImageUrl ??
+    HERO_IMAGE;
+  const clubTitle = club?.title ?? club?.name ?? "새벽 등산 동호회";
+  const categoryText = club?.category ?? "운동 / 스포츠";
+  const areaText = club?.area?.name ?? club?.location ?? "서울시 서대문구";
+  const hostName = club?.host?.nickname ?? "루씨";
+  const memberCount = club?.memberCount ?? club?.currentMemberCount ?? 6;
+  const maxMemberCount = club?.maxMemberCount ?? 15;
+  const description =
+    club?.intro ??
+    club?.introduction ??
+    club?.description ??
+    "해 뜨기 전에 산에 올라 일출 보고 내려옵니다. 평일 새벽이라 부담 없이 운동 삼아 나오시는 분들 많아요. 초보도 환영해요~~😁😁";
+
+  useEffect(() => {
+    if (!club) return;
+
+    setFavorite(Boolean(club.isLiked));
+    setJoined(Boolean(club.isJoined || club.membershipStatus === "APPROVED"));
+  }, [club]);
+
+  const handleFavoritePress = () => {
+    const nextFavorite = !isFavorite;
+
+    setFavorite(nextFavorite);
+    const mutation = nextFavorite ? likeClubMutation : unlikeClubMutation;
+    mutation.mutate(undefined, {
+      onError: () => setFavorite(!nextFavorite),
+    });
+  };
+
+  const handleJoinSubmit = () => {
+    if (trimmedJoinMessage.length === 0) {
+      setTriedJoinSubmit(true);
+      return;
+    }
+
+    joinClubMutation.mutate(
+      { message: trimmedJoinMessage },
+      {
+        onSuccess: () => {
+          setJoinModalVisible(false);
+          setTriedJoinSubmit(false);
+          setJoined(true);
+          setActiveTab("home");
+        },
+      },
+    );
+  };
+
+  const handleLeaveConfirm = () => {
+    leaveClubMutation.mutate(undefined, {
+      onSuccess: () => {
+        setLeaveConfirmVisible(false);
+        setJoined(false);
+        setActiveTab("home");
+      },
+    });
+  };
 
   return (
     <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
@@ -176,20 +306,22 @@ export default function ClubDetailScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <Image source={{ uri: HERO_IMAGE }} style={styles.heroImage} contentFit="cover" />
+        <Image source={{ uri: heroImage }} style={styles.heroImage} contentFit="cover" />
 
         <View style={styles.summary}>
           <View style={styles.categoryChip}>
-            <Text style={styles.categoryText}>운동 / 스포츠</Text>
+            <Text style={styles.categoryText}>{categoryText}</Text>
           </View>
-          <Text style={styles.clubTitle}>⛰️ 새벽 등산 동호회</Text>
+          <Text style={styles.clubTitle}>{clubTitle}</Text>
           <View style={styles.metaRow}>
-            <Text style={styles.metaText}>서울시 서대문구</Text>
+            <Text style={styles.metaText}>{areaText}</Text>
             <Text style={styles.metaDot}>·</Text>
-            <Text style={styles.metaText}>루씨</Text>
+            <Text style={styles.metaText}>{hostName}</Text>
             <Text style={styles.metaDot}>·</Text>
             <Ionicons name="person" size={16} color={GRAY} />
-            <Text style={styles.memberText}>6명 참석중 (6/15)</Text>
+            <Text style={styles.memberText}>
+              {memberCount}명 참석중 ({memberCount}/{maxMemberCount})
+            </Text>
           </View>
         </View>
 
@@ -216,11 +348,37 @@ export default function ClubDetailScreen() {
           ))}
         </View>
 
-        {activeTab === "home" ? <ClubHomeTab isJoined={isJoined} /> : null}
-        {activeTab === "board" ? (
-          <BoardTab onPostPress={() => router.push("/club/post-detail" as never)} />
+        {clubDetailQuery.isLoading ? (
+          <View style={styles.statusBox}>
+            <ActivityIndicator color={PINK} />
+          </View>
         ) : null}
-        {activeTab === "album" ? <AlbumTab itemSize={albumItemSize} /> : null}
+        {activeTab === "home" ? (
+          <ClubHomeTab
+            description={description}
+            isJoined={isJoined}
+            meetings={meetings}
+          />
+        ) : null}
+        {activeTab === "board" ? (
+          <BoardTab
+            clubId={clubId}
+            enabled={hasClubId}
+            onPostPress={(postId) =>
+              router.push({
+                pathname: "/club/post-detail",
+                params: { postId: String(postId), clubId: String(clubId) },
+              } as never)
+            }
+          />
+        ) : null}
+        {activeTab === "album" ? (
+          <AlbumTab
+            archives={archives}
+            isLoading={archivesQuery.isLoading}
+            itemSize={albumItemSize}
+          />
+        ) : null}
         {activeTab === "chat" ? (
           isJoined ? (
             <ChatTab bottomPadding={0} />
@@ -233,7 +391,12 @@ export default function ClubDetailScreen() {
       {isJoined && activeTab === "board" ? (
         <Pressable
           style={[styles.boardFab, { bottom: insets.bottom + 24 }]}
-          onPress={() => router.push("/club/post-create" as never)}
+          onPress={() =>
+            router.push({
+              pathname: "/club/post-create",
+              params: { clubId: String(clubId) },
+            } as never)
+          }
         >
           <Ionicons name="add" size={38} color="#FFFFFF" />
         </Pressable>
@@ -243,7 +406,7 @@ export default function ClubDetailScreen() {
         <View style={[styles.bottomBar, { paddingBottom: insets.bottom + 16 }]}>
           <Pressable
             style={styles.favoriteButton}
-            onPress={() => setFavorite((prev) => !prev)}
+            onPress={handleFavoritePress}
             hitSlop={10}
           >
             <Ionicons
@@ -254,6 +417,7 @@ export default function ClubDetailScreen() {
           </Pressable>
           <Pressable
             style={styles.joinButton}
+            disabled={joinClubMutation.isPending}
             onPress={() => {
               setTriedJoinSubmit(false);
               setJoinModalVisible(true);
@@ -281,17 +445,7 @@ export default function ClubDetailScreen() {
           setJoinModalVisible(false);
           setTriedJoinSubmit(false);
         }}
-        onSubmit={() => {
-          if (trimmedJoinMessage.length === 0) {
-            setTriedJoinSubmit(true);
-            return;
-          }
-
-          setJoinModalVisible(false);
-          setTriedJoinSubmit(false);
-          setJoined(true);
-          setActiveTab("home");
-        }}
+        onSubmit={handleJoinSubmit}
       />
 
       <LeaveActionSheet
@@ -306,46 +460,87 @@ export default function ClubDetailScreen() {
       <LeaveConfirmModal
         visible={isLeaveConfirmVisible}
         onCancel={() => setLeaveConfirmVisible(false)}
-        onConfirm={() => {
-          setLeaveConfirmVisible(false);
-          setJoined(false);
-          setActiveTab("home");
-        }}
+        onConfirm={handleLeaveConfirm}
       />
     </SafeAreaView>
   );
 }
 
-function ClubHomeTab({ isJoined }: { isJoined: boolean }) {
+function parseClubId(value?: string) {
+  if (!value) return 1;
+
+  const numericValue = Number(value);
+  if (Number.isFinite(numericValue)) return numericValue;
+
+  const match = value.match(/\d+/);
+  return match ? Number(match[0]) : 1;
+}
+
+function ClubHomeTab({
+  description,
+  isJoined,
+  meetings,
+}: {
+  description: string;
+  isJoined: boolean;
+  meetings: IClubMeeting[];
+}) {
+  const firstMeeting = meetings[0];
+
   return (
     <View style={styles.homeContent}>
-      {/* 동호회 소개 문구입니다. 실제 API 연결 전까지 가입 전 상세의 흐름 확인용으로 사용합니다. */}
-      <Text style={styles.descriptionText}>
-        해 뜨기 전에 산에 올라 일출 보고 내려옵니다. 평일 새벽이라 부담 없이
-        운동 삼아 나오시는 분들 많아요. 초보도 환영해요~~😁😁
-      </Text>
+      <Text style={styles.descriptionText}>{description}</Text>
 
       <View style={styles.meetingSection}>
         <Text style={styles.sectionTitle}>정기모임</Text>
         <View style={styles.meetingCard}>
           <View style={styles.meetingTitleRow}>
             <View style={styles.dDayBadge}>
-              <Text style={styles.dDayText}>D-4</Text>
+              <Text style={styles.dDayText}>
+                {firstMeeting?.startsAt
+                  ? formatDday(firstMeeting.startsAt)
+                  : "D-4"}
+              </Text>
             </View>
-            <Text style={styles.meetingTitle}>매주하는 새벽등산🔥</Text>
+            <Text style={styles.meetingTitle}>
+              {firstMeeting?.title ?? "매주하는 새벽등산🔥"}
+            </Text>
           </View>
 
           <View style={styles.meetingInfoList}>
-            <MeetingInfo label="일시" value="매주 목요일 저녁 19시" />
-            <MeetingInfo label="위치" value="종로역 1번 출구 앞" />
-            <MeetingInfo label="비용" value="n만원" />
+            <MeetingInfo
+              label="일시"
+              value={
+                firstMeeting?.dateText ??
+                formatDateTime(firstMeeting?.startsAt) ??
+                "매주 목요일 저녁 19시"
+              }
+            />
+            <MeetingInfo
+              label="위치"
+              value={firstMeeting?.location ?? "종로역 1번 출구 앞"}
+            />
+            <MeetingInfo
+              label="비용"
+              value={
+                firstMeeting?.costText ??
+                (typeof firstMeeting?.cost === "number"
+                  ? `${firstMeeting.cost.toLocaleString()}원`
+                  : "n만원")
+              }
+            />
           </View>
 
           <View style={styles.attendeeRow}>
             <View style={styles.attendeeAvatar} />
             <View style={[styles.attendeeAvatar, styles.attendeeOverlap]} />
             <View style={[styles.attendeeAvatar, styles.attendeeOverlap]} />
-            <Text style={styles.attendeeText}>4명 참석중 (4/8)</Text>
+            <Text style={styles.attendeeText}>
+              {firstMeeting?.attendeeCount ?? firstMeeting?.currentAttendeeCount ?? 4}
+              명 참석중 (
+              {firstMeeting?.attendeeCount ?? firstMeeting?.currentAttendeeCount ?? 4}/
+              {firstMeeting?.maxAttendeeCount ?? 8})
+            </Text>
           </View>
 
           {isJoined ? (
@@ -359,6 +554,32 @@ function ClubHomeTab({ isJoined }: { isJoined: boolean }) {
   );
 }
 
+function formatDday(value: string) {
+  const target = new Date(value);
+  const now = new Date();
+
+  if (Number.isNaN(target.getTime())) {
+    return "D-?";
+  }
+
+  const diffDays = Math.ceil(
+    (target.setHours(0, 0, 0, 0) - now.setHours(0, 0, 0, 0)) /
+      (1000 * 60 * 60 * 24),
+  );
+
+  if (diffDays === 0) return "D-Day";
+  return diffDays > 0 ? `D-${diffDays}` : `D+${Math.abs(diffDays)}`;
+}
+
+function formatDateTime(value?: string) {
+  if (!value) return undefined;
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return undefined;
+
+  return `${date.getMonth() + 1}/${date.getDate()} ${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
+}
+
 function MeetingInfo({ label, value }: { label: string; value: string }) {
   return (
     <View style={styles.meetingInfoRow}>
@@ -368,12 +589,39 @@ function MeetingInfo({ label, value }: { label: string; value: string }) {
   );
 }
 
-function BoardTab({ onPostPress }: { onPostPress: () => void }) {
-  const [activeCategory, setActiveCategory] = useState("전체");
-  const posts =
-    activeCategory === "전체"
+function BoardTab({
+  clubId,
+  enabled,
+  onPostPress,
+}: {
+  clubId: number;
+  enabled: boolean;
+  onPostPress: (postId: number) => void;
+}) {
+  const [activeCategory, setActiveCategory] =
+    useState<ClubPostCategory | "ALL">("ALL");
+  const postsQuery = useClubPostsInfiniteQuery(
+    clubId,
+    activeCategory,
+    20,
+    enabled,
+  );
+  const apiPosts = useMemo(
+    () =>
+      postsQuery.data?.pages
+        .flatMap((page) => page.items)
+        .map(mapClubPostItem) ?? [],
+    [postsQuery.data],
+  );
+  const fallbackPosts =
+    activeCategory === "ALL"
       ? BOARD_POSTS
-      : BOARD_POSTS.filter((post) => post.category === activeCategory);
+      : BOARD_POSTS.filter(
+          (post) => post.category === CATEGORY_LABELS[activeCategory],
+        );
+  const posts = postsQuery.isError && apiPosts.length === 0 ? fallbackPosts : apiPosts;
+  const pinnedPosts = posts.filter((post) => post.isPinned);
+  const normalPosts = posts.filter((post) => !post.isPinned);
 
   return (
     <View style={styles.boardContent}>
@@ -383,13 +631,13 @@ function BoardTab({ onPostPress }: { onPostPress: () => void }) {
         contentContainerStyle={styles.boardCategoryList}
       >
         {BOARD_CATEGORIES.map((category) => {
-          const isActive = activeCategory === category;
+          const isActive = activeCategory === category.value;
 
           return (
             <Pressable
-              key={category}
+              key={category.value}
               style={[styles.boardCategoryChip, isActive && styles.boardCategoryChipActive]}
-              onPress={() => setActiveCategory(category)}
+              onPress={() => setActiveCategory(category.value)}
             >
               <Text
                 style={[
@@ -397,7 +645,7 @@ function BoardTab({ onPostPress }: { onPostPress: () => void }) {
                   isActive && styles.boardCategoryTextActive,
                 ]}
               >
-                {category}
+                {category.label}
               </Text>
             </Pressable>
           );
@@ -405,17 +653,73 @@ function BoardTab({ onPostPress }: { onPostPress: () => void }) {
       </ScrollView>
 
       <View style={styles.pinnedList}>
-        <PinnedPost text="[필독] 필독 게시글 고정 가능" />
-        <PinnedPost text="[필독] 필독 게시글 고정 가능" />
+        {(pinnedPosts.length > 0 ? pinnedPosts : normalPosts.slice(0, 2)).map((post) => (
+          <PinnedPost key={`pinned-${post.id}`} text={`[필독] ${post.content}`} />
+        ))}
       </View>
 
       <View style={styles.postList}>
-        {posts.map((post) => (
-          <BoardPostItem key={post.id} post={post} onPress={onPostPress} />
+        {postsQuery.isLoading && posts.length === 0 ? (
+          <View style={styles.statusBox}>
+            <ActivityIndicator color={PINK} />
+          </View>
+        ) : null}
+        {normalPosts.map((post) => (
+          <BoardPostItem
+            key={post.id}
+            post={post}
+            onPress={() => {
+              if (post.apiId) {
+                onPostPress(post.apiId);
+              }
+            }}
+          />
         ))}
+        {postsQuery.hasNextPage ? (
+          <Pressable
+            style={styles.moreButton}
+            onPress={() => postsQuery.fetchNextPage()}
+          >
+            <Text style={styles.moreButtonText}>더보기</Text>
+          </Pressable>
+        ) : null}
       </View>
     </View>
   );
+}
+
+function mapClubPostItem(item: IClubPostListItem): BoardPost {
+  return {
+    id: `post-${item.postId}`,
+    apiId: item.postId,
+    author: item.author.nickname,
+    time: formatRelativeTime(item.createdAt),
+    category: CATEGORY_LABELS[item.category],
+    content: item.title ? `${item.title}\n${item.content}` : item.content,
+    likes: item.likeCount,
+    comments: item.commentCount,
+    hasImage: Boolean(item.thumbnailImageUrl || item.imageCount),
+    isPinned: item.isPinned,
+  };
+}
+
+function formatRelativeTime(value: string) {
+  const date = new Date(value);
+  const diffMs = Date.now() - date.getTime();
+
+  if (Number.isNaN(date.getTime())) return "";
+
+  const diffMinutes = Math.floor(diffMs / (1000 * 60));
+  if (diffMinutes < 1) return "방금 전";
+  if (diffMinutes < 60) return `${diffMinutes}분전`;
+
+  const diffHours = Math.floor(diffMinutes / 60);
+  if (diffHours < 24) return `${diffHours}시간전`;
+
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays < 7) return `${diffDays}일전`;
+
+  return `${date.getMonth() + 1}/${date.getDate()}`;
 }
 
 function PinnedPost({ text }: { text: string }) {
@@ -431,7 +735,7 @@ function BoardPostItem({
   post,
   onPress,
 }: {
-  post: (typeof BOARD_POSTS)[number];
+  post: BoardPost;
   onPress: () => void;
 }) {
   const hasReactions = post.likes > 0 || post.comments > 0;
@@ -470,21 +774,51 @@ function BoardPostItem({
   );
 }
 
-function AlbumTab({ itemSize }: { itemSize: number }) {
+function AlbumTab({
+  archives,
+  isLoading,
+  itemSize,
+}: {
+  archives: { archiveId: number; imageUrl: string }[];
+  isLoading: boolean;
+  itemSize: number;
+}) {
+  const hasArchives = archives.length > 0;
+
   return (
     <View style={styles.albumGrid}>
-      {Array.from({ length: 12 }).map((_, index) => (
-        <View
-          key={index}
-          style={[
-            styles.albumItem,
-            {
-              width: itemSize,
-              height: itemSize,
-            },
-          ]}
-        />
-      ))}
+      {isLoading && !hasArchives ? (
+        <View style={styles.statusBox}>
+          <ActivityIndicator color={PINK} />
+        </View>
+      ) : null}
+      {hasArchives
+        ? archives.map((archive) => (
+            <Image
+              key={archive.archiveId}
+              source={{ uri: archive.imageUrl }}
+              style={[
+                styles.albumItem,
+                {
+                  width: itemSize,
+                  height: itemSize,
+                },
+              ]}
+              contentFit="cover"
+            />
+          ))
+        : Array.from({ length: 12 }).map((_, index) => (
+            <View
+              key={index}
+              style={[
+                styles.albumItem,
+                {
+                  width: itemSize,
+                  height: itemSize,
+                },
+              ]}
+            />
+          ))}
     </View>
   );
 }
@@ -1253,6 +1587,25 @@ const styles = StyleSheet.create({
     color: "#636970",
     fontSize: 13,
     fontWeight: "600",
+  },
+  statusBox: {
+    minHeight: 88,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#FFFFFF",
+  },
+  moreButton: {
+    height: 42,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 16,
+    borderRadius: 8,
+    backgroundColor: "#E9ECED",
+  },
+  moreButtonText: {
+    color: "#636970",
+    fontSize: 14,
+    fontWeight: "800",
   },
   boardFab: {
     position: "absolute",

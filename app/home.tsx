@@ -1,7 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
+  ActivityIndicator,
   Animated,
   Image,
   ImageBackground,
@@ -21,7 +22,11 @@ import {
   useRecommendationsInfiniteQuery,
   useSendRecommendationHeartMutation,
 } from "@/hooks/api/useRecommendations";
-import { useMyProfileQuery } from "@/hooks/api/useUsers";
+import { useNotificationsInfiniteQuery } from "@/hooks/api/useNotifications";
+import {
+  useMyProfileQuery,
+  useMyProfileVisitorsInfiniteQuery,
+} from "@/hooks/api/useUsers";
 
 const PINK = "#FF1B4D";
 const BLACK = "#202020";
@@ -45,7 +50,7 @@ type Profile = {
 type Viewer = {
   id: string;
   name: string;
-  age: number;
+  age?: number;
   image: string;
 };
 
@@ -165,19 +170,44 @@ export default function HomePage() {
   const [, setLikedCount] = useState(0);
   const myProfileQuery = useMyProfileQuery();
   const recommendationsQuery = useRecommendationsInfiniteQuery();
+  const profileVisitorsQuery = useMyProfileVisitorsInfiniteQuery();
+  const heartNotificationsQuery = useNotificationsInfiniteQuery("heart");
+  const chatNotificationsQuery = useNotificationsInfiniteQuery("chat");
   const sendHeartMutation = useSendRecommendationHeartMutation();
 
-  const recommendedProfiles = mapRecommendationProfiles(recommendationsQuery.data);
+  const recommendedProfiles = useMemo(
+    () => mapRecommendationProfiles(recommendationsQuery.data),
+    [recommendationsQuery.data],
+  );
+  const profileVisitors = useMemo(
+    () => mapProfileVisitors(profileVisitorsQuery.data),
+    [profileVisitorsQuery.data],
+  );
+  const heartUnreadCount = useMemo(
+    () => countUnreadNotifications(heartNotificationsQuery.data),
+    [heartNotificationsQuery.data],
+  );
+  const chatUnreadCount = useMemo(
+    () => countUnreadNotifications(chatNotificationsQuery.data),
+    [chatNotificationsQuery.data],
+  );
   const isRecommendationFallback =
     __DEV__ &&
     recommendationsQuery.isError &&
     recommendedProfiles.length === 0;
+  const isVisitorFallback =
+    __DEV__ &&
+    profileVisitorsQuery.isError &&
+    profileVisitors.length === 0;
   const profiles = isRecommendationFallback
     ? RECOMMENDED_PROFILES
     : recommendedProfiles;
-  const profile = profiles[profileIndex % profiles.length];
+  const viewers = isVisitorFallback ? PROFILE_VIEWERS : profileVisitors;
+  const profile =
+    profiles.length > 0 ? profiles[profileIndex % profiles.length] : null;
   const nickname = myProfileQuery.data?.nickname ?? USER_NICKNAME;
   const cardWidth = width - 40;
+  const hasNotificationBadge = heartUnreadCount + chatUnreadCount > 0;
 
   // 실시간 추천 마감 카운트다운을 1초마다 갱신합니다.
   useEffect(() => {
@@ -210,6 +240,8 @@ export default function HomePage() {
 
   // 사진 슬라이더의 현재 페이지를 점 인디케이터와 동기화합니다.
   const handleImageScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    if (!profile) return;
+
     const nextIndex = Math.min(
       profile.images.length - 1,
       Math.max(0, Math.round(event.nativeEvent.contentOffset.x / cardWidth)),
@@ -219,6 +251,8 @@ export default function HomePage() {
 
   // 별로예요를 누르면 다음 추천 프로필로 넘깁니다.
   const handleDislike = () => {
+    if (profiles.length === 0) return;
+
     setProfileIndex((prev) => {
       const nextIndex = (prev + 1) % profiles.length;
 
@@ -236,6 +270,8 @@ export default function HomePage() {
 
   // 마음이들어요를 누르면 내부 카운트를 올리고 마음 탭으로 이동합니다.
   const handleLike = () => {
+    if (!profile) return;
+
     setLikedCount((prev) => prev + 1);
     if (profile.targetUserId && !profile.isLiked) {
       sendHeartMutation.mutate(profile.targetUserId);
@@ -262,6 +298,7 @@ export default function HomePage() {
               hitSlop={10}
             >
               <Ionicons name="notifications-outline" size={23} color={BLACK} />
+              {hasNotificationBadge ? <View style={styles.headerBadgeDot} /> : null}
             </Pressable>
           </View>
 
@@ -275,7 +312,10 @@ export default function HomePage() {
             <HomeTabButton
               label="동호회"
               isActive={activeHomeTab === "club"}
-              onPress={() => setActiveHomeTab("club")}
+              onPress={() => {
+                setActiveHomeTab("club");
+                router.push("/club/home" as never);
+              }}
             />
           </View>
 
@@ -291,16 +331,23 @@ export default function HomePage() {
             </View>
           </View>
 
-          <ProfileCard
-            profile={profile}
-            cardWidth={cardWidth}
-            imageIndex={imageIndex}
-            scrollRef={profileImageScrollRef}
-            onImageScroll={handleImageScroll}
-            onPress={() => router.push("/profile-detail" as never)}
-            onDislike={handleDislike}
-            onLike={handleLike}
-          />
+          {profile ? (
+            <ProfileCard
+              profile={profile}
+              cardWidth={cardWidth}
+              imageIndex={imageIndex}
+              scrollRef={profileImageScrollRef}
+              onImageScroll={handleImageScroll}
+              onPress={() => router.push("/profile-detail" as never)}
+              onDislike={handleDislike}
+              onLike={handleLike}
+            />
+          ) : (
+            <RecommendationState
+              isLoading={recommendationsQuery.isLoading}
+              isError={recommendationsQuery.isError}
+            />
+          )}
 
           {/* 내 프로필 조회자 목록입니다. */}
           <View style={styles.viewerSection}>
@@ -310,7 +357,19 @@ export default function HomePage() {
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.viewerList}
             >
-              {PROFILE_VIEWERS.map((viewer) => (
+              {profileVisitorsQuery.isLoading && viewers.length === 0 ? (
+                <View style={styles.viewerStatusCard}>
+                  <ActivityIndicator color={PINK} />
+                </View>
+              ) : null}
+              {!profileVisitorsQuery.isLoading && viewers.length === 0 ? (
+                <View style={styles.viewerStatusCard}>
+                  <Text style={styles.viewerStatusText}>
+                    아직 프로필을 본 인연이 없어요.
+                  </Text>
+                </View>
+              ) : null}
+              {viewers.map((viewer) => (
                 <Pressable
                   key={viewer.id}
                   style={styles.viewerCard}
@@ -318,8 +377,14 @@ export default function HomePage() {
                 >
                   <Image source={{ uri: viewer.image }} style={styles.viewerImage} />
                   <Text style={styles.viewerName} numberOfLines={1}>
-                    {viewer.name} <Text style={styles.viewerDot}>·</Text>{" "}
-                    <Text style={styles.viewerAge}>{viewer.age}</Text>
+                    {viewer.name}
+                    {viewer.age ? (
+                      <>
+                        {" "}
+                        <Text style={styles.viewerDot}>·</Text>{" "}
+                        <Text style={styles.viewerAge}>{viewer.age}</Text>
+                      </>
+                    ) : null}
                   </Text>
                 </Pressable>
               ))}
@@ -358,8 +423,18 @@ export default function HomePage() {
         <Navbar
           tabs={[
             { id: "index", iconName: "home", label: "홈" },
-            { id: "heart", iconName: "heart", label: "마음", hasDotBadge: true },
-            { id: "chat", iconName: "chat", label: "대화", badgeCount: 100 },
+            {
+              id: "heart",
+              iconName: "heart",
+              label: "마음",
+              hasDotBadge: heartUnreadCount > 0,
+            },
+            {
+              id: "chat",
+              iconName: "chat",
+              label: "대화",
+              badgeCount: chatUnreadCount,
+            },
             { id: "my", iconName: "person", label: "마이" },
           ]}
           activeTabId="index"
@@ -376,6 +451,21 @@ export default function HomePage() {
         />
       </View>
     </SafeAreaView>
+  );
+}
+
+function countUnreadNotifications(data?: {
+  pages: {
+    items: {
+      isRead: boolean;
+    }[];
+  }[];
+}) {
+  return (
+    data?.pages.reduce(
+      (total, page) => total + page.items.filter((item) => !item.isRead).length,
+      0,
+    ) ?? 0
   );
 }
 
@@ -410,6 +500,28 @@ function mapRecommendationProfiles(data?: {
   );
 }
 
+function mapProfileVisitors(data?: {
+  pages: {
+    items: {
+      userId: number;
+      nickname: string;
+      age?: number;
+      profileImageUrl?: string | null;
+    }[];
+  }[];
+}): Viewer[] {
+  return (
+    data?.pages.flatMap((page) =>
+      page.items.map((item) => ({
+        id: `visitor-${item.userId}`,
+        name: item.nickname,
+        age: item.age,
+        image: item.profileImageUrl || FALLBACK_PROFILE_IMAGE,
+      })),
+    ) ?? []
+  );
+}
+
 type HomeTabButtonProps = {
   label: string;
   isActive: boolean;
@@ -429,6 +541,28 @@ function HomeTabButton({ label, isActive, onPress }: HomeTabButtonProps) {
       </Text>
       {isActive ? <View style={styles.homeTabUnderline} /> : null}
     </Pressable>
+  );
+}
+
+function RecommendationState({
+  isLoading,
+  isError,
+}: {
+  isLoading: boolean;
+  isError: boolean;
+}) {
+  return (
+    <View style={styles.recommendationState}>
+      {isLoading ? (
+        <ActivityIndicator color={PINK} />
+      ) : (
+        <Text style={styles.recommendationStateText}>
+          {isError
+            ? "추천 프로필을 불러오지 못했어요."
+            : "오늘 보여드릴 추천 프로필이 없어요."}
+        </Text>
+      )}
+    </View>
   );
 }
 
@@ -552,6 +686,15 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  headerBadgeDot: {
+    position: "absolute",
+    top: 10,
+    right: 10,
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: PINK,
+  },
   homeTabs: {
     height: 48,
     flexDirection: "row",
@@ -610,6 +753,20 @@ const styles = StyleSheet.create({
     marginRight: 4,
     fontSize: 12,
     lineHeight: 18,
+    color: GRAY,
+  },
+  recommendationState: {
+    height: 492,
+    marginHorizontal: 20,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#F8FAFB",
+  },
+  recommendationStateText: {
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: "600",
     color: GRAY,
   },
   profileCard: {
@@ -737,6 +894,22 @@ const styles = StyleSheet.create({
   },
   viewerCard: {
     width: 84,
+  },
+  viewerStatusCard: {
+    width: 180,
+    height: 84,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#F8FAFB",
+  },
+  viewerStatusText: {
+    paddingHorizontal: 12,
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: "600",
+    textAlign: "center",
+    color: GRAY,
   },
   viewerImage: {
     width: "100%",

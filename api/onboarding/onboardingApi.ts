@@ -20,11 +20,18 @@ export const postPresign = async (body: IPresignRequest) => {
   return data.success.data;
 };
 
+type UploadableAudio = Blob & {
+  type?: string;
+};
+
 //S3 Direct Upload (PUT)
-export const uploadFileToS3 = async (uploadUrl: string, file: File) => {
+export const uploadFileToS3 = async (
+  uploadUrl: string,
+  file: UploadableAudio,
+) => {
   await axios.put(uploadUrl, file, {
     headers: {
-      "Content-Type": file.type,
+      "Content-Type": file.type || "audio/mp4",
     },
   });
 };

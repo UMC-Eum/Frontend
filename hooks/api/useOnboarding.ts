@@ -22,7 +22,7 @@ export function usePresignMutation() {
 
 export function useUploadFileToS3Mutation() {
   return useMutation({
-    mutationFn: ({ uploadUrl, file }: { uploadUrl: string; file: File }) =>
+    mutationFn: ({ uploadUrl, file }: { uploadUrl: string; file: Blob }) =>
       uploadFileToS3(uploadUrl, file),
   });
 }
