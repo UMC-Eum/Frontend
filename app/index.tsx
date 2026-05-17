@@ -74,6 +74,16 @@ export default function Index() {
         </Text>
       </Pressable>
 
+      {/* 권한 허용 화면 확인 버튼입니다. */}
+      <Pressable
+        style={[styles.button, styles.permissionButton]}
+        onPress={() => router.push("/onboarding/permissions" as any)}
+      >
+        <Text style={[styles.buttonText, styles.permissionButtonText]}>
+          🔐 권한 허용 테스트
+        </Text>
+      </Pressable>
+
       {/* 👇 새로 추가된 채팅방 이동 버튼 👇 */}
       <Pressable
         style={[styles.button, styles.chatButton]}
@@ -276,6 +286,14 @@ const styles = StyleSheet.create({
   },
   profileButtonText: {
     color: "#FF3E70",
+  },
+  permissionButton: {
+    backgroundColor: "#EFF6FF",
+    borderWidth: 1,
+    borderColor: "#BFDBFE",
+  },
+  permissionButtonText: {
+    color: "#2563EB",
   },
   // 👇 새로 추가된 채팅방 버튼 스타일 👇
   chatButton: {

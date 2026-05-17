@@ -1,10 +1,22 @@
 import { Ionicons } from "@expo/vector-icons";
-import React, { useMemo, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import {
+  getRecordingPermissionsAsync,
+  requestRecordingPermissionsAsync,
+} from "expo-audio";
+import * as ImagePicker from "expo-image-picker";
+import * as Notifications from "expo-notifications";
+import { useRouter } from "expo-router";
+import React, { useEffect, useMemo, useState } from "react";
+import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { useAuthStore } from "@/stores/authStore";
+
+type PermissionId = "camera" | "mic" | "notification";
+type PermissionState = "idle" | "requesting" | "granted" | "denied";
+
 interface PermissionItem {
-  id: string;
+  id: PermissionId;
   icon: keyof typeof Ionicons.glyphMap;
   title: string;
   description: string;
@@ -34,27 +46,92 @@ const PERMISSIONS: PermissionItem[] = [
 /**
  * 앱 접근 권한 안내 화면
  * - 카메라, 마이크, 알림 권한 카드
- * - 전체 선택 시 확인 버튼 활성화
+ * - 카드 또는 확인 버튼으로 실제 시스템 권한을 요청합니다.
  */
 export default function PermissionsScreen() {
+  const router = useRouter();
   const insets = useSafeAreaInsets();
+  const onboardingRequired = useAuthStore((state) => state.onboardingRequired);
 
-  const [selected, setSelected] = useState<Record<string, boolean>>({});
+  const [permissions, setPermissions] = useState<
+    Record<PermissionId, PermissionState>
+  >({
+    camera: "idle",
+    mic: "idle",
+    notification: "idle",
+  });
 
-  const isAllSelected = useMemo(
-    () => PERMISSIONS.every((p) => selected[p.id]),
-    [selected],
+  const isAllGranted = useMemo(
+    () => PERMISSIONS.every((p) => permissions[p.id] === "granted"),
+    [permissions],
   );
 
-  const toggleItem = (id: string) => {
-    setSelected((prev) => ({ ...prev, [id]: !prev[id] }));
+  useEffect(() => {
+    const loadPermissionStatuses = async () => {
+      const [camera, mic, notification] = await Promise.all([
+        ImagePicker.getCameraPermissionsAsync(),
+        getRecordingPermissionsAsync(),
+        Notifications.getPermissionsAsync(),
+      ]);
+
+      setPermissions({
+        camera: toInitialPermissionState(camera.granted),
+        mic: toInitialPermissionState(mic.granted),
+        notification: toInitialPermissionState(notification.granted),
+      });
+    };
+
+    void loadPermissionStatuses();
+  }, []);
+
+  const requestPermission = async (id: PermissionId) => {
+    setPermissions((prev) => ({ ...prev, [id]: "requesting" }));
+
+    let granted = false;
+
+    if (id === "camera") {
+      const result = await ImagePicker.requestCameraPermissionsAsync();
+      granted = result.granted;
+    }
+
+    if (id === "mic") {
+      const result = await requestRecordingPermissionsAsync();
+      granted = result.granted;
+    }
+
+    if (id === "notification") {
+      const result = await Notifications.requestPermissionsAsync();
+      granted = result.granted;
+    }
+
+    const nextState = toRequestedPermissionState(granted);
+    setPermissions((prev) => ({ ...prev, [id]: nextState }));
+
+    return nextState;
   };
 
-  const handleConfirm = () => {
-    // TODO: 실제 권한 요청 로직 (expo-camera, expo-av, expo-notifications)
-    // 권한 허용 후 프로필 생성 페이지로 이동
-    // router.replace('/profile/create');
-    console.log("권한 허용 완료 → 프로필 생성으로 이동");
+  const handleConfirm = async () => {
+    const nextPermissions = { ...permissions };
+
+    for (const item of PERMISSIONS) {
+      if (nextPermissions[item.id] !== "granted") {
+        nextPermissions[item.id] = await requestPermission(item.id);
+      }
+    }
+
+    const hasDeniedPermission = PERMISSIONS.some(
+      (item) => nextPermissions[item.id] !== "granted",
+    );
+
+    if (hasDeniedPermission) {
+      Alert.alert(
+        "권한 허용이 필요해요",
+        "원활한 서비스 이용을 위해 카메라, 마이크, 알림 권한을 허용해주세요.",
+      );
+      return;
+    }
+
+    router.replace((onboardingRequired ? "/profile/name" : "/home") as any);
   };
 
   return (
@@ -75,12 +152,21 @@ export default function PermissionsScreen() {
       {/* 권한 카드 목록 */}
       <View style={styles.cardList}>
         {PERMISSIONS.map((item) => {
-          const isActive = !!selected[item.id];
+          const permissionState = permissions[item.id];
+          const isActive = permissionState === "granted";
+          const isDenied = permissionState === "denied";
+          const isRequesting = permissionState === "requesting";
+
           return (
             <Pressable
               key={item.id}
-              style={[styles.card, isActive && styles.cardActive]}
-              onPress={() => toggleItem(item.id)}
+              style={[
+                styles.card,
+                isActive && styles.cardActive,
+                isDenied && styles.cardDenied,
+              ]}
+              onPress={() => requestPermission(item.id)}
+              disabled={isRequesting}
             >
               <View style={styles.cardLeft}>
                 <View
@@ -105,6 +191,15 @@ export default function PermissionsScreen() {
                     {item.title}
                   </Text>
                   <Text style={styles.cardDescription}>{item.description}</Text>
+                  <Text
+                    style={[
+                      styles.permissionStateText,
+                      isActive && styles.permissionGrantedText,
+                      isDenied && styles.permissionDeniedText,
+                    ]}
+                  >
+                    {getPermissionStateLabel(permissionState)}
+                  </Text>
                 </View>
               </View>
               {isActive && (
@@ -122,21 +217,18 @@ export default function PermissionsScreen() {
         <Pressable
           style={({ pressed }) => [
             styles.confirmButton,
-            isAllSelected ? styles.confirmActive : styles.confirmDisabled,
-            pressed && isAllSelected && styles.confirmPressed,
+            isAllGranted ? styles.confirmActive : styles.confirmReady,
+            pressed && styles.confirmPressed,
           ]}
-          onPress={isAllSelected ? handleConfirm : undefined}
-          disabled={!isAllSelected}
+          onPress={handleConfirm}
         >
           <Text
             style={[
               styles.confirmText,
-              isAllSelected
-                ? styles.confirmTextActive
-                : styles.confirmTextDisabled,
+              isAllGranted ? styles.confirmTextActive : styles.confirmTextReady,
             ]}
           >
-            확인
+            {isAllGranted ? "확인" : "권한 허용하기"}
           </Text>
         </Pressable>
       </View>
@@ -187,6 +279,10 @@ const styles = StyleSheet.create({
     borderColor: "#FF3E70",
     backgroundColor: "#FFF1F4",
   },
+  cardDenied: {
+    borderColor: "#FCA5A5",
+    backgroundColor: "#FEF2F2",
+  },
   cardLeft: {
     flexDirection: "row",
     alignItems: "center",
@@ -220,6 +316,18 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: "#9CA3AF",
   },
+  permissionStateText: {
+    marginTop: 6,
+    color: "#6B7280",
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  permissionGrantedText: {
+    color: "#FF3E70",
+  },
+  permissionDeniedText: {
+    color: "#DC2626",
+  },
   checkCircle: {
     marginLeft: 8,
   },
@@ -236,8 +344,8 @@ const styles = StyleSheet.create({
   confirmActive: {
     backgroundColor: "#FF3E70",
   },
-  confirmDisabled: {
-    backgroundColor: "#E5E7EB",
+  confirmReady: {
+    backgroundColor: "#FF3E70",
   },
   confirmPressed: {
     opacity: 0.85,
@@ -249,7 +357,22 @@ const styles = StyleSheet.create({
   confirmTextActive: {
     color: "#FFFFFF",
   },
-  confirmTextDisabled: {
-    color: "#9CA3AF",
+  confirmTextReady: {
+    color: "#FFFFFF",
   },
 });
+
+function toInitialPermissionState(granted: boolean): PermissionState {
+  return granted ? "granted" : "idle";
+}
+
+function toRequestedPermissionState(granted: boolean): PermissionState {
+  return granted ? "granted" : "denied";
+}
+
+function getPermissionStateLabel(state: PermissionState) {
+  if (state === "granted") return "허용됨";
+  if (state === "denied") return "거부됨";
+  if (state === "requesting") return "요청 중";
+  return "허용하기";
+}
