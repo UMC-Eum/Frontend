@@ -14,13 +14,6 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import {
-  HeartProfile,
-  HeartTab,
-  RECEIVED_HEART_COUNT,
-  RECEIVED_HEARTS,
-  SENT_HEARTS,
-} from "@/constants/heart";
-import {
   usePatchHeartMutation,
   useReceivedHeartsInfiniteQuery,
   useSendHeartMutation,
@@ -32,6 +25,17 @@ const BLACK = "#202020";
 const GRAY_100 = "#F8FAFB";
 const GRAY_150 = "#E9ECED";
 const GRAY_700 = "#636970";
+
+type HeartTab = "received" | "sent";
+
+type HeartProfile = {
+  id: string;
+  name: string;
+  age: number;
+  location: string;
+  image: string;
+  isLiked: boolean;
+};
 
 type ScreenHeartProfile = HeartProfile & {
   heartId?: number;
@@ -60,23 +64,13 @@ export default function HeartScreen() {
     () => mapSentHeartProfiles(sentQuery.data),
     [sentQuery.data],
   );
-  const isReceivedFallback = receivedQuery.isError && receivedProfiles.length === 0;
-  const isSentFallback = sentQuery.isError && sentProfiles.length === 0;
   const profiles =
     activeTab === "received"
-      ? applyOptimisticHeartState(
-          isReceivedFallback ? RECEIVED_HEARTS : receivedProfiles,
-          optimisticHeartState,
-        )
-      : applyOptimisticHeartState(
-          isSentFallback ? SENT_HEARTS : sentProfiles,
-          optimisticHeartState,
-        );
+      ? applyOptimisticHeartState(receivedProfiles, optimisticHeartState)
+      : applyOptimisticHeartState(sentProfiles, optimisticHeartState);
   const activeQuery = activeTab === "received" ? receivedQuery : sentQuery;
   const isLoading = activeQuery.isLoading && profiles.length === 0;
-  const receivedCount = isReceivedFallback
-    ? RECEIVED_HEART_COUNT
-    : receivedProfiles.length;
+  const receivedCount = receivedProfiles.length;
 
   // 하트 액션은 서버 반영 후 관련 목록을 invalidate하는 mutation 훅에서 동기화합니다.
   const handleToggleHeart = useCallback(
@@ -122,7 +116,6 @@ export default function HeartScreen() {
         return;
       }
 
-      // 개발용 fallback 목데이터는 서버 식별자가 없으므로 화면 상태만 즉시 반영합니다.
       resetPending();
     },
     [patchHeartMutation, pendingIds, sendHeartMutation],
@@ -180,6 +173,25 @@ export default function HeartScreen() {
                 <ActivityIndicator color={PINK} />
               </View>
             ) : null
+          }
+          ListEmptyComponent={
+            <View style={styles.emptyWrap}>
+              <Ionicons
+                name={activeTab === "received" ? "heart-outline" : "send-outline"}
+                size={34}
+                color="#CBD5E1"
+              />
+              <Text style={styles.emptyTitle}>
+                {activeTab === "received"
+                  ? "아직 받은 마음이 없어요"
+                  : "아직 보낸 마음이 없어요"}
+              </Text>
+              <Text style={styles.emptyDescription}>
+                {activeQuery.isError
+                  ? "마음 목록을 불러오지 못했습니다. 잠시 후 다시 시도해주세요."
+                  : "새로운 인연이 생기면 이곳에서 확인할 수 있어요."}
+              </Text>
+            </View>
           }
           ListHeaderComponent={
             activeTab === "received" ? (
@@ -397,6 +409,28 @@ const styles = StyleSheet.create({
     height: 56,
     alignItems: "center",
     justifyContent: "center",
+  },
+  emptyWrap: {
+    minHeight: 260,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 24,
+  },
+  emptyTitle: {
+    marginTop: 12,
+    fontSize: 17,
+    lineHeight: 24,
+    fontWeight: "700",
+    color: BLACK,
+    textAlign: "center",
+  },
+  emptyDescription: {
+    marginTop: 6,
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: "500",
+    color: GRAY_700,
+    textAlign: "center",
   },
   listContent: {
     paddingHorizontal: 20,

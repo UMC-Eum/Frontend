@@ -3,7 +3,6 @@ import { useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
   Animated,
-  Image,
   ImageBackground,
   NativeScrollEvent,
   NativeSyntheticEvent,
@@ -16,7 +15,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { Navbar } from "@/components/Navbar";
+import { AppNavbar } from "@/components/AppNavbar";
 import {
   useRecommendationsInfiniteQuery,
   useSendRecommendationHeartMutation,
@@ -42,92 +41,9 @@ type Profile = {
   likedHeartId: number | null;
 };
 
-type Viewer = {
-  id: string;
-  name: string;
-  age: number;
-  image: string;
-};
-
 const USER_NICKNAME = "루씨";
 const FALLBACK_PROFILE_IMAGE =
   "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=85&w=1200&auto=format&fit=crop";
-
-const RECOMMENDED_PROFILES: Profile[] = [
-  {
-    id: "profile-1",
-    name: "김철수",
-    age: 67,
-    location: "서울 광진구",
-    intro: "저는 산책하는걸 즐기는 사람입니다!~~",
-    isLiked: false,
-    likedHeartId: null,
-    images: [
-      "https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?q=85&w=1200&auto=format&fit=crop",
-      "https://images.unsplash.com/photo-1470770903676-69b98201ea1c?q=85&w=1200&auto=format&fit=crop",
-      "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=85&w=1200&auto=format&fit=crop",
-    ],
-  },
-  {
-    id: "profile-2",
-    name: "박영희",
-    age: 63,
-    location: "서울 성동구",
-    intro: "따뜻한 차 한잔과 동네 산책을 좋아해요.",
-    isLiked: false,
-    likedHeartId: null,
-    images: [
-      "https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=85&w=1200&auto=format&fit=crop",
-      "https://images.unsplash.com/photo-1517841905240-472988babdf9?q=85&w=1200&auto=format&fit=crop",
-      "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=85&w=1200&auto=format&fit=crop",
-    ],
-  },
-  {
-    id: "profile-3",
-    name: "이상민",
-    age: 69,
-    location: "서울 송파구",
-    intro: "주말마다 한강을 걷고 사진을 찍습니다.",
-    isLiked: false,
-    likedHeartId: null,
-    images: [
-      "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=85&w=1200&auto=format&fit=crop",
-      "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=85&w=1200&auto=format&fit=crop",
-      "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?q=85&w=1200&auto=format&fit=crop",
-    ],
-  },
-];
-
-const PROFILE_VIEWERS: Viewer[] = [
-  {
-    id: "viewer-1",
-    name: "김성욱",
-    age: 64,
-    image:
-      "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?q=85&w=300&auto=format&fit=crop",
-  },
-  {
-    id: "viewer-2",
-    name: "김성욱",
-    age: 64,
-    image:
-      "https://images.unsplash.com/photo-1519681393784-d120267933ba?q=85&w=300&auto=format&fit=crop",
-  },
-  {
-    id: "viewer-3",
-    name: "김성욱",
-    age: 64,
-    image:
-      "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?q=85&w=300&auto=format&fit=crop",
-  },
-  {
-    id: "viewer-4",
-    name: "김성욱",
-    age: 64,
-    image:
-      "https://images.unsplash.com/photo-1529156069898-49953e39b3ac?q=85&w=300&auto=format&fit=crop",
-  },
-];
 
 const getCountdownText = () => {
   const now = new Date();
@@ -168,14 +84,11 @@ export default function HomePage() {
   const sendHeartMutation = useSendRecommendationHeartMutation();
 
   const recommendedProfiles = mapRecommendationProfiles(recommendationsQuery.data);
-  const isRecommendationFallback =
-    __DEV__ &&
-    recommendationsQuery.isError &&
-    recommendedProfiles.length === 0;
-  const profiles = isRecommendationFallback
-    ? RECOMMENDED_PROFILES
-    : recommendedProfiles;
-  const profile = profiles[profileIndex % profiles.length];
+  const profiles = recommendedProfiles;
+  const profile =
+    profiles.length > 0
+      ? profiles[Math.min(profileIndex, profiles.length - 1)]
+      : null;
   const nickname = myProfileQuery.data?.nickname ?? USER_NICKNAME;
   const cardWidth = width - 40;
 
@@ -190,6 +103,14 @@ export default function HomePage() {
     setImageIndex(0);
     profileImageScrollRef.current?.scrollTo({ x: 0, animated: false });
   }, [profileIndex]);
+
+  // 추천 목록 길이가 변해도 현재 인덱스가 유효한 카드만 가리키도록 보정합니다.
+  useEffect(() => {
+    setProfileIndex((currentIndex) => {
+      if (profiles.length === 0) return 0;
+      return Math.min(currentIndex, profiles.length - 1);
+    });
+  }, [profiles.length]);
 
   // 아래로 스크롤하면 음성 입력 버튼을 살짝 숨기고, 위로 올리면 다시 보여줍니다.
   const handleMainScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
@@ -210,6 +131,8 @@ export default function HomePage() {
 
   // 사진 슬라이더의 현재 페이지를 점 인디케이터와 동기화합니다.
   const handleImageScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    if (!profile) return;
+
     const nextIndex = Math.min(
       profile.images.length - 1,
       Math.max(0, Math.round(event.nativeEvent.contentOffset.x / cardWidth)),
@@ -219,6 +142,8 @@ export default function HomePage() {
 
   // 별로예요를 누르면 다음 추천 프로필로 넘깁니다.
   const handleDislike = () => {
+    if (profiles.length === 0) return;
+
     setProfileIndex((prev) => {
       const nextIndex = (prev + 1) % profiles.length;
 
@@ -236,6 +161,8 @@ export default function HomePage() {
 
   // 마음이들어요를 누르면 내부 카운트를 올리고 마음 탭으로 이동합니다.
   const handleLike = () => {
+    if (!profile) return;
+
     setLikedCount((prev) => prev + 1);
     if (profile.targetUserId && !profile.isLiked) {
       sendHeartMutation.mutate(profile.targetUserId);
@@ -291,39 +218,56 @@ export default function HomePage() {
             </View>
           </View>
 
-          <ProfileCard
-            profile={profile}
-            cardWidth={cardWidth}
-            imageIndex={imageIndex}
-            scrollRef={profileImageScrollRef}
-            onImageScroll={handleImageScroll}
-            onPress={() => router.push("/profile-detail" as never)}
-            onDislike={handleDislike}
-            onLike={handleLike}
-          />
+          {recommendationsQuery.isLoading && profiles.length === 0 ? (
+            <View style={styles.recommendEmptyCard}>
+              <Ionicons name="sparkles-outline" size={34} color="#CBD5E1" />
+              <Text style={styles.recommendEmptyTitle}>
+                추천 인연을 불러오는 중이에요
+              </Text>
+            </View>
+          ) : profile ? (
+            <>
+              {recommendationsQuery.isError ? (
+                <View style={styles.recommendWarning}>
+                  <Text style={styles.recommendWarningText}>
+                    최신 추천을 불러오지 못해 이전 추천을 표시하고 있어요.
+                  </Text>
+                </View>
+              ) : null}
+              <ProfileCard
+                profile={profile}
+                cardWidth={cardWidth}
+                imageIndex={imageIndex}
+                scrollRef={profileImageScrollRef}
+                onImageScroll={handleImageScroll}
+                onPress={() => router.push("/profile-detail" as never)}
+                onDislike={handleDislike}
+                onLike={handleLike}
+              />
+            </>
+          ) : (
+            <View style={styles.recommendEmptyCard}>
+              <Ionicons name="heart-outline" size={34} color="#CBD5E1" />
+              <Text style={styles.recommendEmptyTitle}>
+                오늘 추천할 인연이 없어요
+              </Text>
+              <Text style={styles.recommendEmptyDescription}>
+                {recommendationsQuery.isError
+                  ? "추천 목록을 불러오지 못했습니다. 잠시 후 다시 시도해주세요."
+                  : "새로운 추천이 준비되면 이곳에서 확인할 수 있어요."}
+              </Text>
+            </View>
+          )}
 
           {/* 내 프로필 조회자 목록입니다. */}
           <View style={styles.viewerSection}>
             <Text style={styles.viewerTitle}>내 프로필을 본 인연들</Text>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.viewerList}
-            >
-              {PROFILE_VIEWERS.map((viewer) => (
-                <Pressable
-                  key={viewer.id}
-                  style={styles.viewerCard}
-                  onPress={() => router.push("/profile-detail" as never)}
-                >
-                  <Image source={{ uri: viewer.image }} style={styles.viewerImage} />
-                  <Text style={styles.viewerName} numberOfLines={1}>
-                    {viewer.name} <Text style={styles.viewerDot}>·</Text>{" "}
-                    <Text style={styles.viewerAge}>{viewer.age}</Text>
-                  </Text>
-                </Pressable>
-              ))}
-            </ScrollView>
+            <View style={styles.viewerEmptyBox}>
+              <Ionicons name="eye-outline" size={28} color="#CBD5E1" />
+              <Text style={styles.viewerEmptyText}>
+                아직 내 프로필을 본 인연이 없어요
+              </Text>
+            </View>
           </View>
         </ScrollView>
 
@@ -355,13 +299,7 @@ export default function HomePage() {
 
       {/* 개발 확인 화면에서도 메인 탭과 동일한 하단 네비게이션을 보여줍니다. */}
       <View style={styles.navbarWrap}>
-        <Navbar
-          tabs={[
-            { id: "index", iconName: "home", label: "홈" },
-            { id: "heart", iconName: "heart", label: "마음", hasDotBadge: true },
-            { id: "chat", iconName: "chat", label: "대화", badgeCount: 100 },
-            { id: "my", iconName: "person", label: "마이" },
-          ]}
+        <AppNavbar
           activeTabId="index"
           onTabPress={(id) => {
             if (id === "index") {
@@ -371,8 +309,6 @@ export default function HomePage() {
 
             router.push(`/(tabs)/${id}` as never);
           }}
-          activeColor="#1F2937"
-          inactiveColor="#9CA3AF"
         />
       </View>
     </SafeAreaView>
@@ -624,6 +560,46 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     backgroundColor: LIGHT_GRAY,
   },
+  recommendEmptyCard: {
+    height: 492,
+    marginHorizontal: 20,
+    borderRadius: 12,
+    backgroundColor: "#F8FAFB",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 24,
+  },
+  recommendEmptyTitle: {
+    marginTop: 12,
+    fontSize: 17,
+    lineHeight: 24,
+    fontWeight: "800",
+    color: BLACK,
+    textAlign: "center",
+  },
+  recommendEmptyDescription: {
+    marginTop: 6,
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: "600",
+    color: GRAY,
+    textAlign: "center",
+  },
+  recommendWarning: {
+    marginHorizontal: 20,
+    marginBottom: 10,
+    borderRadius: 8,
+    backgroundColor: "#FFF4F6",
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  recommendWarningText: {
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: "600",
+    color: PINK,
+    textAlign: "center",
+  },
   profileImage: {
     height: 492,
     justifyContent: "flex-end",
@@ -730,34 +706,22 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     color: BLACK,
   },
-  viewerList: {
+  viewerEmptyBox: {
+    minHeight: 104,
+    marginHorizontal: 20,
+    borderRadius: 12,
+    backgroundColor: "#F8FAFB",
+    alignItems: "center",
+    justifyContent: "center",
     paddingHorizontal: 20,
-    paddingBottom: 8,
-    gap: 12,
   },
-  viewerCard: {
-    width: 84,
-  },
-  viewerImage: {
-    width: "100%",
-    height: 84,
-    borderRadius: 10,
-    backgroundColor: LIGHT_GRAY,
-  },
-  viewerName: {
+  viewerEmptyText: {
     marginTop: 8,
     fontSize: 14,
     lineHeight: 20,
     fontWeight: "600",
-    color: BLACK,
-  },
-  viewerDot: {
-    fontWeight: "500",
-    color: "#616872",
-  },
-  viewerAge: {
-    fontWeight: "500",
-    color: "#616872",
+    color: GRAY,
+    textAlign: "center",
   },
   fabWrap: {
     position: "absolute",

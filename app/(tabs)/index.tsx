@@ -32,65 +32,6 @@ type NotificationData = {
   timestamp: Date;
 };
 
-const PROFILE_IMAGE =
-  "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=200&auto=format&fit=crop";
-
-const HEART_NOTIFICATIONS: NotificationData[] = [
-  {
-    id: "heart-1",
-    userId: "user-1",
-    userName: "OOO",
-    userProfileImage: PROFILE_IMAGE,
-    notificationContent: "OOO님이 회원님에게 마음을 보냈어요",
-    timeLabel: "10분전",
-    timestamp: new Date(),
-    isRead: false,
-  },
-  {
-    id: "heart-2",
-    userId: "user-2",
-    userName: "OOO",
-    userProfileImage: PROFILE_IMAGE,
-    notificationContent: "OOO님이 회원님에게 마음을 보냈어요",
-    timeLabel: "11분전",
-    timestamp: new Date(),
-    isRead: false,
-  },
-  {
-    id: "heart-3",
-    userId: "user-3",
-    userName: "wlfjddl",
-    userProfileImage: PROFILE_IMAGE,
-    notificationContent: "wlfjddl님이 회원님에게 마음을 보냈어요",
-    timeLabel: "14분전",
-    timestamp: new Date(),
-    isRead: true,
-  },
-  {
-    id: "heart-4",
-    userId: "user-4",
-    userName: "OOO",
-    userProfileImage: PROFILE_IMAGE,
-    notificationContent:
-      "OOO님도 회원님에게 마음을 보냈어요💕 서로의 마음이 이어졌어요! 지금 대화를 시작해보세요 🎉",
-    timeLabel: "32분전",
-    timestamp: new Date(),
-    isRead: true,
-  },
-  {
-    id: "heart-5",
-    userId: "user-5",
-    userName: "OOO",
-    userProfileImage: PROFILE_IMAGE,
-    notificationContent: "OOO님이 회원님에게 마음을 보냈어요",
-    timeLabel: "3시간전",
-    timestamp: new Date(),
-    isRead: false,
-  },
-];
-
-const CLUB_NOTIFICATIONS: NotificationData[] = [];
-
 export default function HomeScreen() {
   const router = useRouter();
   const { width } = useWindowDimensions();
@@ -116,16 +57,10 @@ export default function HomeScreen() {
       })),
     [clubQuery.data, readIds],
   );
-  const isHeartFallback = heartQuery.isError && heartNotifications.length === 0;
-  const isClubFallback = clubQuery.isError && clubNotifications.length === 0;
   const notifications =
     activeTab === "heart"
-      ? isHeartFallback
-        ? HEART_NOTIFICATIONS
-        : heartNotifications
-      : isClubFallback
-        ? CLUB_NOTIFICATIONS
-        : clubNotifications;
+      ? heartNotifications
+      : clubNotifications;
   const activeQuery = activeTab === "heart" ? heartQuery : clubQuery;
   const hasUnreadHeart = heartNotifications.some((item) => !item.isRead);
   const hasUnreadClub = clubNotifications.some((item) => !item.isRead);
@@ -208,6 +143,29 @@ export default function HomeScreen() {
                 <ActivityIndicator color="#FF4F7E" />
               </View>
             ) : null
+          }
+          ListEmptyComponent={
+            <View style={styles.emptyWrap}>
+              <Ionicons
+                name={
+                  activeTab === "heart"
+                    ? "heart-outline"
+                    : "chatbubble-ellipses-outline"
+                }
+                size={34}
+                color="#CBD5E1"
+              />
+              <Text style={styles.emptyTitle}>
+                {activeTab === "heart"
+                  ? "아직 마음 알림이 없어요"
+                  : "아직 동호회 알림이 없어요"}
+              </Text>
+              <Text style={styles.emptyText}>
+                {activeQuery.isError
+                  ? "알림을 불러오지 못했습니다. 잠시 후 다시 시도해주세요."
+                  : "새로운 알림이 오면 이곳에 표시돼요."}
+              </Text>
+            </View>
           }
           contentContainerStyle={[
             styles.listContent,
@@ -373,5 +331,28 @@ const styles = StyleSheet.create({
     height: 56,
     alignItems: "center",
     justifyContent: "center",
+  },
+  emptyWrap: {
+    flex: 1,
+    minHeight: 260,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 28,
+  },
+  emptyTitle: {
+    marginTop: 12,
+    fontSize: 17,
+    lineHeight: 24,
+    fontWeight: "800",
+    color: "#222222",
+    textAlign: "center",
+  },
+  emptyText: {
+    marginTop: 6,
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: "600",
+    color: "#A6AFB6",
+    textAlign: "center",
   },
 });

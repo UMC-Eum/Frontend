@@ -7,7 +7,7 @@ import {
 } from "../../types/api/agreements/agreementsDTO";
 
 export const getAgreements = async (): Promise<IAgreementItem[]> => {
-  const { data } = await api.get<IAgreementsResponse>("v1/agreements");
+  const { data } = await api.get<IAgreementsResponse>("/v1/agreements");
 
   return data.success.data.items;
 };
@@ -18,12 +18,14 @@ export const updateMarketingAgreements = async (
     marketingAgreements: items,
   };
 
-  const { data } = await api.post("v1/users/me/agreements", body);
+  const { data } = await api.post("/v1/users/me/agreements", body);
   return data;
 };
 
 // 사용자의 약관 동의 여부를 가져오는 함수
 export const getAgreementStatus = async () => {
-  const { data } = await api.get<IAgreementStatusResponse>("v1/me/agreements");
+  const { data } = await api.get<IAgreementStatusResponse>(
+    "/v1/me/agreements",
+  );
   return data.success.data.hasPassed;
 };

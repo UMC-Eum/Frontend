@@ -32,88 +32,6 @@ type ActiveMember = {
   image: string;
 };
 
-const CHAT_PREVIEWS: ChatPreview[] = [
-  {
-    id: "1",
-    name: "wldnsj",
-    location: "서울시 서대문구",
-    lastMessage: "안녕하세요. 저는 어디사는 누구임...",
-    timeLabel: "1분전",
-    unreadCount: 0,
-  },
-  {
-    id: "2",
-    name: "등산하는거북이",
-    location: "서울시 관악구",
-    lastMessage: "이번주 일상은 어땠나요",
-    timeLabel: "5분 전",
-    unreadCount: 3,
-  },
-  {
-    id: "3",
-    name: "영화고래",
-    location: "서울시 도봉구",
-    lastMessage: "안녕하세요",
-    timeLabel: "30분 전",
-    unreadCount: 1,
-  },
-  {
-    id: "4",
-    name: "독서여우",
-    location: "서울시 관악구",
-    lastMessage: "오늘 운동 같이 갈래?",
-    timeLabel: "2시간 전",
-    unreadCount: 0,
-  },
-  {
-    id: "5",
-    name: "요가토끼",
-    location: "서울시 관악구",
-    lastMessage: "새 프로젝트 관련해서 이야기해줘.",
-    timeLabel: "10분 전",
-    unreadCount: 7,
-  },
-  {
-    id: "6",
-    name: "요가토끼",
-    location: "서울시 관악구",
-    lastMessage: "새 프로젝트 관련해서 이야기해줘.",
-    timeLabel: "10분 전",
-    unreadCount: 7,
-  },
-];
-
-const ACTIVE_MEMBERS: ActiveMember[] = [
-  {
-    id: "active-1",
-    name: "김성욱",
-    age: 64,
-    image:
-      "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?q=80&w=240&auto=format&fit=crop",
-  },
-  {
-    id: "active-2",
-    name: "김성욱",
-    age: 64,
-    image:
-      "https://images.unsplash.com/photo-1518005020951-eccb494ad742?q=80&w=240&auto=format&fit=crop",
-  },
-  {
-    id: "active-3",
-    name: "김성욱",
-    age: 64,
-    image:
-      "https://images.unsplash.com/photo-1483058712412-4245e9b90334?q=80&w=240&auto=format&fit=crop",
-  },
-  {
-    id: "active-4",
-    name: "김성욱",
-    age: 64,
-    image:
-      "https://images.unsplash.com/photo-1517486808906-6ca8b3f04846?q=80&w=240&auto=format&fit=crop",
-  },
-];
-
 interface ChatListScreenProps {
   showActiveMembers?: boolean;
 }
@@ -127,8 +45,7 @@ export default function ChatListScreen({
     () => mapChatRooms(chatRoomsQuery.data),
     [chatRoomsQuery.data],
   );
-  const isFallback = chatRoomsQuery.isError && apiChatPreviews.length === 0;
-  const chatPreviews = isFallback ? CHAT_PREVIEWS : apiChatPreviews;
+  const chatPreviews = apiChatPreviews;
   const activeMembers = showActiveMembers
     ? mapActiveMembers(chatPreviews).slice(0, 8)
     : [];
@@ -234,7 +151,13 @@ export default function ChatListScreen({
             </View>
           ) : (
             <View style={styles.emptyWrap}>
-              <Text style={styles.emptyText}>아직 대화가 없습니다.</Text>
+              <Ionicons name="chatbubble-ellipses-outline" size={34} color="#CBD5E1" />
+              <Text style={styles.emptyTitle}>아직 대화가 없어요</Text>
+              <Text style={styles.emptyText}>
+                {chatRoomsQuery.isError
+                  ? "대화 목록을 불러오지 못했습니다. 잠시 후 다시 시도해주세요."
+                  : "매칭된 인연과 대화를 시작하면 이곳에 표시돼요."}
+              </Text>
             </View>
           )
         }
@@ -300,7 +223,7 @@ function mapActiveMembers(items: ChatPreview[]): ActiveMember[] {
       image: item.image ?? "",
     }));
 
-  return fromChats.length > 0 ? fromChats : ACTIVE_MEMBERS;
+  return fromChats;
 }
 
 function formatRelativeTime(value: string) {
@@ -337,11 +260,23 @@ const styles = StyleSheet.create({
     minHeight: 180,
     alignItems: "center",
     justifyContent: "center",
+    paddingHorizontal: 28,
+  },
+  emptyTitle: {
+    marginTop: 12,
+    fontSize: 17,
+    lineHeight: 24,
+    fontWeight: "800",
+    color: "#202020",
+    textAlign: "center",
   },
   emptyText: {
+    marginTop: 6,
     fontSize: 14,
     fontWeight: "600",
     color: "#A6AFB6",
+    lineHeight: 20,
+    textAlign: "center",
   },
   footerLoading: {
     height: 56,

@@ -16,21 +16,34 @@ import { queryKeys } from "./queryKeys";
 
 const DEFAULT_PAGE_SIZE = 20;
 
-export function useReceivedHeartsInfiniteQuery(size = DEFAULT_PAGE_SIZE) {
+type InfiniteQueryBehaviorOptions = {
+  staleTime?: number;
+  refetchOnMount?: boolean | "always";
+};
+
+export function useReceivedHeartsInfiniteQuery(
+  size = DEFAULT_PAGE_SIZE,
+  options: InfiniteQueryBehaviorOptions = {},
+) {
   return useInfiniteQuery({
     queryKey: queryKeys.socials.hearts.received(size),
     queryFn: ({ pageParam }) => getReceivedHearts({ cursor: pageParam, size }),
     initialPageParam: null as string | null,
     getNextPageParam: (lastPage) => lastPage.nextCursor,
+    ...options,
   });
 }
 
-export function useSentHeartsInfiniteQuery(size = DEFAULT_PAGE_SIZE) {
+export function useSentHeartsInfiniteQuery(
+  size = DEFAULT_PAGE_SIZE,
+  options: InfiniteQueryBehaviorOptions = {},
+) {
   return useInfiniteQuery({
     queryKey: queryKeys.socials.hearts.sent(size),
     queryFn: ({ pageParam }) => getSentHearts({ cursor: pageParam, size }),
     initialPageParam: null as string | null,
     getNextPageParam: (lastPage) => lastPage.nextCursor,
+    ...options,
   });
 }
 
