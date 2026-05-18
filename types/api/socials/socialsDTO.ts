@@ -22,6 +22,7 @@ export interface IHeartsentItem {
 }
 export interface IHeartsentResponse {
   nextCursor: string | null;
+  totalCount?: number;
   items: IHeartsentItem[];
 }
 
@@ -34,6 +35,7 @@ export interface IHeartreceivedItem {
 }
 export interface IHeartreceivedResponse {
   nextCursor: string | null;
+  totalCount?: number;
   items: IHeartreceivedItem[];
 }
 

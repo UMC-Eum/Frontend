@@ -85,9 +85,14 @@ export default function ChatRoom() {
 
   const handleBlockToggle = () => {
     setShowActionSheet(false);
+    if (!profile) {
+      showToast("대화방 정보를 불러온 뒤 다시 시도해주세요.");
+      return;
+    }
+
     if (isBlocked) {
       setIsBlocked(false);
-      showToast(`${profile?.name ?? "상대방"}님을 차단 해제했습니다`);
+      showToast(`${profile.name}님을 차단 해제했습니다`);
       return;
     }
 
@@ -214,11 +219,20 @@ export default function ChatRoom() {
         </Pressable>
         <Text style={styles.headerTitle}>{profile?.name ?? "대화"}</Text>
         <Pressable
-          style={[styles.headerButton, styles.menuButton]}
+          style={[
+            styles.headerButton,
+            styles.menuButton,
+            !profile && styles.headerButtonDisabled,
+          ]}
           onPress={() => setShowActionSheet(true)}
           hitSlop={10}
+          disabled={!profile}
         >
-          <Ionicons name="ellipsis-vertical" size={22} color="#202020" />
+          <Ionicons
+            name="ellipsis-vertical"
+            size={22}
+            color={profile ? "#202020" : "#CBD5E1"}
+          />
         </Pressable>
       </View>
 
@@ -459,6 +473,9 @@ const styles = StyleSheet.create({
     height: 40,
     alignItems: "flex-start",
     justifyContent: "center",
+  },
+  headerButtonDisabled: {
+    opacity: 0.6,
   },
   menuButton: {
     alignItems: "flex-end",

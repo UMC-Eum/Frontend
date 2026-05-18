@@ -15,13 +15,12 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { Navbar } from "@/components/Navbar";
+import { AppNavbar } from "@/components/AppNavbar";
 import {
   useRecommendationsInfiniteQuery,
   useSendRecommendationHeartMutation,
 } from "@/hooks/api/useRecommendations";
 import { useMyProfileQuery } from "@/hooks/api/useUsers";
-import { useNavbarBadges } from "@/hooks/useNavbarBadges";
 
 const PINK = "#FF1B4D";
 const BLACK = "#202020";
@@ -83,11 +82,13 @@ export default function HomePage() {
   const myProfileQuery = useMyProfileQuery();
   const recommendationsQuery = useRecommendationsInfiniteQuery();
   const sendHeartMutation = useSendRecommendationHeartMutation();
-  const { hasHeartBadge, unreadChatCount } = useNavbarBadges();
 
   const recommendedProfiles = mapRecommendationProfiles(recommendationsQuery.data);
   const profiles = recommendedProfiles;
-  const profile = profiles.length > 0 ? profiles[profileIndex % profiles.length] : null;
+  const profile =
+    profiles.length > 0
+      ? profiles[Math.min(profileIndex, profiles.length - 1)]
+      : null;
   const nickname = myProfileQuery.data?.nickname ?? USER_NICKNAME;
   const cardWidth = width - 40;
 
@@ -102,6 +103,14 @@ export default function HomePage() {
     setImageIndex(0);
     profileImageScrollRef.current?.scrollTo({ x: 0, animated: false });
   }, [profileIndex]);
+
+  // 추천 목록 길이가 변해도 현재 인덱스가 유효한 카드만 가리키도록 보정합니다.
+  useEffect(() => {
+    setProfileIndex((currentIndex) => {
+      if (profiles.length === 0) return 0;
+      return Math.min(currentIndex, profiles.length - 1);
+    });
+  }, [profiles.length]);
 
   // 아래로 스크롤하면 음성 입력 버튼을 살짝 숨기고, 위로 올리면 다시 보여줍니다.
   const handleMainScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
@@ -217,16 +226,25 @@ export default function HomePage() {
               </Text>
             </View>
           ) : profile ? (
-            <ProfileCard
-              profile={profile}
-              cardWidth={cardWidth}
-              imageIndex={imageIndex}
-              scrollRef={profileImageScrollRef}
-              onImageScroll={handleImageScroll}
-              onPress={() => router.push("/profile-detail" as never)}
-              onDislike={handleDislike}
-              onLike={handleLike}
-            />
+            <>
+              {recommendationsQuery.isError ? (
+                <View style={styles.recommendWarning}>
+                  <Text style={styles.recommendWarningText}>
+                    최신 추천을 불러오지 못해 이전 추천을 표시하고 있어요.
+                  </Text>
+                </View>
+              ) : null}
+              <ProfileCard
+                profile={profile}
+                cardWidth={cardWidth}
+                imageIndex={imageIndex}
+                scrollRef={profileImageScrollRef}
+                onImageScroll={handleImageScroll}
+                onPress={() => router.push("/profile-detail" as never)}
+                onDislike={handleDislike}
+                onLike={handleLike}
+              />
+            </>
           ) : (
             <View style={styles.recommendEmptyCard}>
               <Ionicons name="heart-outline" size={34} color="#CBD5E1" />
@@ -281,23 +299,7 @@ export default function HomePage() {
 
       {/* 개발 확인 화면에서도 메인 탭과 동일한 하단 네비게이션을 보여줍니다. */}
       <View style={styles.navbarWrap}>
-        <Navbar
-          tabs={[
-            { id: "index", iconName: "home", label: "홈" },
-            {
-              id: "heart",
-              iconName: "heart",
-              label: "마음",
-              hasDotBadge: hasHeartBadge,
-            },
-            {
-              id: "chat",
-              iconName: "chat",
-              label: "대화",
-              badgeCount: unreadChatCount,
-            },
-            { id: "my", iconName: "person", label: "마이" },
-          ]}
+        <AppNavbar
           activeTabId="index"
           onTabPress={(id) => {
             if (id === "index") {
@@ -307,8 +309,6 @@ export default function HomePage() {
 
             router.push(`/(tabs)/${id}` as never);
           }}
-          activeColor="#1F2937"
-          inactiveColor="#9CA3AF"
         />
       </View>
     </SafeAreaView>
@@ -583,6 +583,21 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     fontWeight: "600",
     color: GRAY,
+    textAlign: "center",
+  },
+  recommendWarning: {
+    marginHorizontal: 20,
+    marginBottom: 10,
+    borderRadius: 8,
+    backgroundColor: "#FFF4F6",
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  recommendWarningText: {
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: "600",
+    color: PINK,
     textAlign: "center",
   },
   profileImage: {

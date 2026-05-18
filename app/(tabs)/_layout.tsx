@@ -1,38 +1,18 @@
 import { Tabs, useRouter } from "expo-router";
 import React from "react";
 
-import { Navbar } from "@/components/Navbar";
-import { useNavbarBadges } from "@/hooks/useNavbarBadges";
+import { AppNavbar } from "@/components/AppNavbar";
 
 export default function TabLayout() {
   const router = useRouter();
-  const { hasHeartBadge, unreadChatCount } = useNavbarBadges();
 
   return (
     <Tabs
       tabBar={(props) => {
         const currentRouteName = props.state.routes[props.state.index].name;
 
-        const tabsData = [
-          { id: "index", iconName: "home", label: "홈" },
-          {
-            id: "heart",
-            iconName: "heart",
-            label: "마음",
-            hasDotBadge: hasHeartBadge,
-          },
-          {
-            id: "chat",
-            iconName: "chat",
-            label: "대화",
-            badgeCount: unreadChatCount,
-          },
-          { id: "my", iconName: "person", label: "마이" },
-        ];
-
         return (
-          <Navbar
-            tabs={tabsData as any}
+          <AppNavbar
             activeTabId={currentRouteName}
             onTabPress={(id) => {
               if (id === "index") {
@@ -42,8 +22,6 @@ export default function TabLayout() {
 
               props.navigation.navigate(id);
             }}
-            activeColor="#1F2937"
-            inactiveColor="#9CA3AF"
           />
         );
       }}

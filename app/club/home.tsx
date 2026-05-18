@@ -13,10 +13,9 @@ import {
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { Navbar } from "@/components/Navbar";
+import { AppNavbar } from "@/components/AppNavbar";
 import ClubRow from "@/components/search/ClubRow";
 import { CLUBS, RECOMMENDED_CLUBS } from "@/constants/search";
-import { useNavbarBadges } from "@/hooks/useNavbarBadges";
 
 const MY_CLUBS = [
   {
@@ -36,7 +35,6 @@ const MY_CLUBS = [
 export default function ClubHomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { hasHeartBadge, unreadChatCount } = useNavbarBadges();
   const localClubs = CLUBS.slice(0, 3);
   const todayClubs = RECOMMENDED_CLUBS.slice(0, 3);
 
@@ -131,23 +129,7 @@ export default function ClubHomeScreen() {
       </ScrollView>
 
       <View style={styles.navbarWrap}>
-        <Navbar
-          tabs={[
-            { id: "index", iconName: "home", label: "홈" },
-            {
-              id: "heart",
-              iconName: "heart",
-              label: "마음",
-              hasDotBadge: hasHeartBadge,
-            },
-            {
-              id: "chat",
-              iconName: "chat",
-              label: "대화",
-              badgeCount: unreadChatCount,
-            },
-            { id: "my", iconName: "person", label: "마이" },
-          ]}
+        <AppNavbar
           activeTabId="index"
           onTabPress={(id) => {
             if (id === "index") {
@@ -157,8 +139,6 @@ export default function ClubHomeScreen() {
 
             router.push(`/(tabs)/${id}` as never);
           }}
-          activeColor="#1F2937"
-          inactiveColor="#9CA3AF"
         />
       </View>
     </SafeAreaView>
