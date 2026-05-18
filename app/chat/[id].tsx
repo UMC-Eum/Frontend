@@ -2,6 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
 import {
+  ActivityIndicator,
   FlatList,
   KeyboardAvoidingView,
   Platform,
@@ -24,116 +25,6 @@ import {
   useSendChatMessageMutation,
 } from "@/hooks/api/useChats";
 
-const PROFILE_BY_CHAT_ID: Record<string, { name: string; age: number; area: string }> = {
-  "1": { name: "루시", age: 53, area: "서울시 관악구" },
-  "2": { name: "등산하는거북이", age: 64, area: "서울시 관악구" },
-  "3": { name: "영화고래", age: 64, area: "서울시 도봉구" },
-  "4": { name: "독서여우", age: 64, area: "서울시 관악구" },
-  "5": { name: "요가토끼", age: 64, area: "서울시 관악구" },
-  "6": { name: "요가토끼", age: 64, area: "서울시 관악구" },
-};
-
-const AVATAR_IMAGE =
-  "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=80&auto=format&fit=crop";
-
-const initialMessages: ChatMessageData[] = [
-  { id: "date-1", type: "date", dateText: "2026년 5월 2일" },
-  {
-    id: "message-1",
-    type: "text",
-    text: "안녕하세요~ :)",
-    isMine: true,
-    time: "오후 01:39",
-  },
-  {
-    id: "message-2",
-    type: "text",
-    text: "네 안녕하세요~~",
-    isMine: false,
-    time: "오후 03:39",
-    avatar: AVATAR_IMAGE,
-  },
-  {
-    id: "message-3",
-    type: "text",
-    text: "혹시 함께 즐겨 들으시나요? 프로필에 음악 듣기가 취미라고 되어있으시기에 물어 봤어요 ^^",
-    isMine: true,
-    time: "오후 03:40",
-  },
-  {
-    id: "message-4",
-    type: "text",
-    text: "전 요즘 해외 팝송 즐겨듣습니다 노래가 중독성 있다라고요~",
-    isMine: false,
-    time: "오후 7:00",
-    avatar: AVATAR_IMAGE,
-  },
-  {
-    id: "message-5",
-    type: "text",
-    text: "그쪽은요?",
-    isMine: false,
-    time: "오후 07:01",
-    avatar: AVATAR_IMAGE,
-  },
-  {
-    id: "message-6",
-    type: "voice",
-    duration: "00:42",
-    isMine: true,
-    time: "오후 07:40",
-    isPlaying: false,
-  },
-  {
-    id: "message-7",
-    type: "text",
-    text: "저는 요즘 이런 노래 자주 들어요",
-    isMine: true,
-    time: "오후 07:41",
-  },
-  {
-    id: "message-8",
-    type: "text",
-    text: "노래가 좋네요!",
-    isMine: false,
-    time: "오후 07:50",
-    avatar: AVATAR_IMAGE,
-  },
-  {
-    id: "message-9",
-    type: "text",
-    text: "제 취향이에요..😊",
-    isMine: false,
-    time: "오후 07:51",
-    avatar: AVATAR_IMAGE,
-  },
-  { id: "date-2", type: "date", dateText: "2026년 5월 3일" },
-  {
-    id: "message-10",
-    type: "voice",
-    duration: "00:33",
-    isMine: false,
-    time: "오전 09:12",
-    avatar: AVATAR_IMAGE,
-  },
-  {
-    id: "message-11",
-    type: "text",
-    text: "오늘은 뭐하시나요?",
-    isMine: false,
-    time: "오전 09:20",
-    avatar: AVATAR_IMAGE,
-  },
-  {
-    id: "message-12",
-    type: "voice",
-    duration: "00:42",
-    isMine: true,
-    time: "오후 7:39",
-    isPlaying: true,
-  },
-];
-
 export default function ChatRoom() {
   const { id } = useLocalSearchParams<{ id?: string }>();
   const router = useRouter();
@@ -152,8 +43,8 @@ export default function ChatRoom() {
             area: roomDetailQuery.data.peer.areaName,
             image: roomDetailQuery.data.peer.profileImageUrl,
           }
-        : PROFILE_BY_CHAT_ID[id ?? "1"] ?? PROFILE_BY_CHAT_ID["1"],
-    [id, roomDetailQuery.data],
+        : null,
+    [roomDetailQuery.data],
   );
   const apiMessages = useMemo(
     () => mapChatMessages(messagesQuery.data, roomDetailQuery.data?.peer.profileImageUrl),
@@ -169,10 +60,7 @@ export default function ChatRoom() {
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const [toastMessage, setToastMessage] = useState("");
-  const messages =
-    messagesQuery.isError && apiMessages.length === 0
-      ? [...initialMessages, ...optimisticMessages]
-      : [...apiMessages, ...optimisticMessages];
+  const messages = [...apiMessages, ...optimisticMessages];
 
   // 음성 녹음 중에는 1초 단위로 녹음 시간을 갱신합니다.
   useEffect(() => {
@@ -199,7 +87,7 @@ export default function ChatRoom() {
     setShowActionSheet(false);
     if (isBlocked) {
       setIsBlocked(false);
-      showToast(`${profile.name}님을 차단 해제했습니다`);
+      showToast(`${profile?.name ?? "상대방"}님을 차단 해제했습니다`);
       return;
     }
 
@@ -294,13 +182,23 @@ export default function ChatRoom() {
   const renderProfileInfo = () => (
     <View style={styles.profileHeader}>
       <View style={styles.profileAvatar} />
-      <Text style={styles.profileName}>{profile.name}</Text>
-      <Text style={styles.profileInfo}>
-        {profile.age}세 · {profile.area}
-      </Text>
-      <Text style={styles.profileWelcomeText}>
-        서로를 알아가는 첫 이야기,{"\n"}편하게 시작해볼까요?
-      </Text>
+      {profile ? (
+        <>
+          <Text style={styles.profileName}>{profile.name}</Text>
+          <Text style={styles.profileInfo}>
+            {profile.age}세 · {profile.area}
+          </Text>
+          <Text style={styles.profileWelcomeText}>
+            서로를 알아가는 첫 이야기,{"\n"}편하게 시작해볼까요?
+          </Text>
+        </>
+      ) : roomDetailQuery.isLoading ? (
+        <ActivityIndicator color="#FF3E70" />
+      ) : (
+        <Text style={styles.profileWelcomeText}>
+          대화방 정보를 불러오지 못했습니다.
+        </Text>
+      )}
     </View>
   );
 
@@ -314,7 +212,7 @@ export default function ChatRoom() {
         >
           <Ionicons name="chevron-back" size={24} color="#A6AFB6" />
         </Pressable>
-        <Text style={styles.headerTitle}>{profile.name}</Text>
+        <Text style={styles.headerTitle}>{profile?.name ?? "대화"}</Text>
         <Pressable
           style={[styles.headerButton, styles.menuButton]}
           onPress={() => setShowActionSheet(true)}
@@ -342,6 +240,24 @@ export default function ChatRoom() {
                 </Text>
               </View>
             ) : null
+          }
+          ListEmptyComponent={
+            messagesQuery.isLoading ? (
+              <View style={styles.emptyMessages}>
+                <ActivityIndicator color="#FF3E70" />
+              </View>
+            ) : (
+              <View style={styles.emptyMessages}>
+                <Text style={styles.emptyMessagesTitle}>
+                  아직 주고받은 메시지가 없어요
+                </Text>
+                <Text style={styles.emptyMessagesText}>
+                  {messagesQuery.isError
+                    ? "대화 내역을 불러오지 못했습니다. 잠시 후 다시 시도해주세요."
+                    : "첫 메시지를 보내 대화를 시작해보세요."}
+                </Text>
+              </View>
+            )
           }
           contentContainerStyle={styles.messageList}
           showsVerticalScrollIndicator={false}
@@ -440,14 +356,14 @@ export default function ChatRoom() {
       <ConfirmModal
         visible={showBlockModal}
         title="상대방을 차단할까요?"
-        subtitle={`차단하면 ${profile.name}님과 채팅창에서 대화를 주고받을 수 없어요. 차단하시겠어요?`}
+        subtitle={`차단하면 ${profile?.name ?? "상대방"}님과 채팅창에서 대화를 주고받을 수 없어요. 차단하시겠어요?`}
         cancelLabel="취소"
         confirmLabel="차단"
         onClose={() => setShowBlockModal(false)}
         onConfirm={() => {
           setShowBlockModal(false);
           setIsBlocked(true);
-          showToast(`${profile.name}님을 차단했습니다`);
+          showToast(`${profile?.name ?? "상대방"}님을 차단했습니다`);
         }}
       />
     </SafeAreaView>
@@ -565,6 +481,27 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 18,
     color: "#A6AFB6",
+  },
+  emptyMessages: {
+    minHeight: 180,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 24,
+  },
+  emptyMessagesTitle: {
+    fontSize: 16,
+    lineHeight: 22,
+    fontWeight: "800",
+    color: "#202020",
+    textAlign: "center",
+  },
+  emptyMessagesText: {
+    marginTop: 6,
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: "600",
+    color: "#A6AFB6",
+    textAlign: "center",
   },
   profileHeader: {
     alignItems: "center",

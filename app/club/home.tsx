@@ -16,6 +16,7 @@ import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 import { Navbar } from "@/components/Navbar";
 import ClubRow from "@/components/search/ClubRow";
 import { CLUBS, RECOMMENDED_CLUBS } from "@/constants/search";
+import { useNavbarBadges } from "@/hooks/useNavbarBadges";
 
 const MY_CLUBS = [
   {
@@ -35,6 +36,7 @@ const MY_CLUBS = [
 export default function ClubHomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { hasHeartBadge, unreadChatCount } = useNavbarBadges();
   const localClubs = CLUBS.slice(0, 3);
   const todayClubs = RECOMMENDED_CLUBS.slice(0, 3);
 
@@ -132,8 +134,18 @@ export default function ClubHomeScreen() {
         <Navbar
           tabs={[
             { id: "index", iconName: "home", label: "홈" },
-            { id: "heart", iconName: "heart", label: "마음", hasDotBadge: true },
-            { id: "chat", iconName: "chat", label: "대화", badgeCount: 100 },
+            {
+              id: "heart",
+              iconName: "heart",
+              label: "마음",
+              hasDotBadge: hasHeartBadge,
+            },
+            {
+              id: "chat",
+              iconName: "chat",
+              label: "대화",
+              badgeCount: unreadChatCount,
+            },
             { id: "my", iconName: "person", label: "마이" },
           ]}
           activeTabId="index"

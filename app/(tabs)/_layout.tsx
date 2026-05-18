@@ -2,9 +2,11 @@ import { Tabs, useRouter } from "expo-router";
 import React from "react";
 
 import { Navbar } from "@/components/Navbar";
+import { useNavbarBadges } from "@/hooks/useNavbarBadges";
 
 export default function TabLayout() {
   const router = useRouter();
+  const { hasHeartBadge, unreadChatCount } = useNavbarBadges();
 
   return (
     <Tabs
@@ -13,8 +15,18 @@ export default function TabLayout() {
 
         const tabsData = [
           { id: "index", iconName: "home", label: "홈" },
-          { id: "heart", iconName: "heart", label: "마음", hasDotBadge: true },
-          { id: "chat", iconName: "chat", label: "대화", badgeCount: 100 },
+          {
+            id: "heart",
+            iconName: "heart",
+            label: "마음",
+            hasDotBadge: hasHeartBadge,
+          },
+          {
+            id: "chat",
+            iconName: "chat",
+            label: "대화",
+            badgeCount: unreadChatCount,
+          },
           { id: "my", iconName: "person", label: "마이" },
         ];
 
