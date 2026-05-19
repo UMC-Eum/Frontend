@@ -202,7 +202,7 @@ export default function HomePage() {
             <HomeTabButton
               label="동호회"
               isActive={activeHomeTab === "club"}
-              onPress={() => setActiveHomeTab("club")}
+              onPress={() => router.push("/club/home" as never)}
             />
           </View>
 

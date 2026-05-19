@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { Pressable, StyleSheet } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
+import ConfirmModal from "@/components/chat/ConfirmModal";
 import MicRecorder from "@/components/MicRecorder";
 
 export default function IdealRecordingPage() {
@@ -11,6 +12,7 @@ export default function IdealRecordingPage() {
   const insets = useSafeAreaInsets();
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
 
   // 녹음 시간 관리
   React.useEffect(() => {
@@ -38,9 +40,14 @@ export default function IdealRecordingPage() {
 
   const handleSendPress = () => {
     if (recordingTime > 0) {
-      console.log("녹음 전송:", recordingTime + "초");
-      handleCancelPress();
+      setShowPaymentModal(true);
     }
+  };
+
+  const handlePaymentConfirm = () => {
+    setShowPaymentModal(false);
+    handleCancelPress();
+    router.push("/payment" as never);
   };
 
   const handleResetPress = () => {
@@ -78,6 +85,16 @@ export default function IdealRecordingPage() {
         onSendPress={handleSendPress}
         onResetPress={handleResetPress}
         containerStyle={styles.micRecorderContainer}
+      />
+
+      <ConfirmModal
+        visible={showPaymentModal}
+        title="결제가 필요합니다"
+        subtitle="이상형 음성 분석을 이용하려면 결제 화면으로 이동해주세요."
+        cancelLabel="취소"
+        confirmLabel="결제하기"
+        onClose={() => setShowPaymentModal(false)}
+        onConfirm={handlePaymentConfirm}
       />
     </SafeAreaView>
   );
