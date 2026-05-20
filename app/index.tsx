@@ -4,6 +4,16 @@ import { useAuthStore } from "@/stores/authStore";
 
 export default function Index() {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const isNewUser = useAuthStore((state) => state.isNewUser);
+  const onboardingRequired = useAuthStore((state) => state.onboardingRequired);
 
-  return <Redirect href={isAuthenticated ? "/home" : "/auth"} />;
+  if (!isAuthenticated) {
+    return <Redirect href="/auth" />;
+  }
+
+  return (
+    <Redirect
+      href={onboardingRequired || isNewUser ? "/onboarding/permissions" : "/home"}
+    />
+  );
 }
