@@ -40,6 +40,7 @@ export default function IdealRecordingPage() {
 
   const handleSendPress = () => {
     if (recordingTime > 0) {
+      setIsRecording(false);
       setShowPaymentModal(true);
     }
   };
