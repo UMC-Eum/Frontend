@@ -28,6 +28,9 @@ export default function RootLayout() {
           <Stack.Screen name="auth" options={{ headerShown: false }} />
           <Stack.Screen name="profile" options={{ headerShown: false }} />
           <Stack.Screen name="home" options={{ headerShown: false }} />
+          {__DEV__ ? (
+            <Stack.Screen name="tabs" options={{ headerShown: false }} />
+          ) : null}
           <Stack.Screen name="ideal-recording" options={{ headerShown: false }} />
           <Stack.Screen name="profile-detail" options={{ headerShown: false }} />
           <Stack.Screen name="payment" options={{ headerShown: false }} />

@@ -65,7 +65,13 @@ export default function ClubHomeScreen() {
       </View>
 
       <View style={styles.topTabs}>
-        <Text style={styles.inactiveTab}>홈</Text>
+        <Pressable
+          onPress={() => router.push("/home" as never)}
+          accessibilityRole="button"
+          hitSlop={10}
+        >
+          <Text style={styles.inactiveTab}>홈</Text>
+        </Pressable>
         <View style={styles.activeTabWrap}>
           <Text style={styles.activeTab}>동호회</Text>
           <View style={styles.activeUnderline} />
