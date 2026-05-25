@@ -63,17 +63,23 @@ const TermsBottomSheet = ({
 
   const terms = useMemo<TermItem[]>(
     () =>
-      agreementsQuery.data?.map((item) => ({
-        id: String(item.agreementId),
-        title: getAgreementTitle(item.type, item.body),
-        required: item.type !== "MARKETING",
-        type: item.type,
-        agreementId: item.agreementId,
-      })) ?? [],
+      agreementsQuery.data?.map((item) => {
+        const agreementId = Number(item.agreementId);
+        const type = item.type ?? getAgreementTypeById(agreementId);
+
+        return {
+          id: String(item.agreementId),
+          title: getAgreementTitle(type, item.body),
+          required: type !== "MARKETING",
+          type,
+          agreementId,
+        };
+      }) ?? [],
     [agreementsQuery.data],
   );
 
   const isAgreementsReady = agreementsQuery.isSuccess && terms.length > 0;
+  const isAgreementsEmpty = agreementsQuery.isSuccess && terms.length === 0;
 
   // visible 상태에 맞춰 오버레이와 시트를 자연스럽게 열고 닫는다.
   useEffect(() => {
@@ -230,7 +236,11 @@ const TermsBottomSheet = ({
                     약관을 불러오는 중입니다.
                   </Text>
                 </View>
-              ) : agreementsQuery.isError || terms.length === 0 ? (
+              ) : isAgreementsEmpty ? (
+                <Text style={styles.errorText}>
+                  등록된 약관이 없습니다. 관리자에게 문의해주세요.
+                </Text>
+              ) : agreementsQuery.isError ? (
                 <Text style={styles.errorText}>
                   약관을 불러오지 못했습니다. 다시 시도해주세요.
                 </Text>
@@ -343,6 +353,13 @@ function getAgreementTitle(type: AgreementType | undefined, body: string) {
   if (type === "MARKETING") return "마케팅정보수신";
 
   return body.slice(0, 18) || "이용약관";
+}
+
+function getAgreementTypeById(agreementId: number): AgreementType | undefined {
+  if (agreementId === 1) return "POLICY";
+  if (agreementId === 2) return "PERSONAL_INFORMATION";
+  if (agreementId === 3) return "MARKETING";
+  return undefined;
 }
 
 const styles = StyleSheet.create({

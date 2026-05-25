@@ -15,12 +15,21 @@ import { queryKeys } from "./queryKeys";
 
 const DEFAULT_PAGE_SIZE = 30;
 
-export function useChatRoomsInfiniteQuery(size = DEFAULT_PAGE_SIZE) {
+type InfiniteQueryBehaviorOptions = {
+  staleTime?: number;
+  refetchOnMount?: boolean | "always";
+};
+
+export function useChatRoomsInfiniteQuery(
+  size = DEFAULT_PAGE_SIZE,
+  options: InfiniteQueryBehaviorOptions = {},
+) {
   return useInfiniteQuery({
     queryKey: queryKeys.chats.rooms(size),
     queryFn: ({ pageParam }) => getChatRooms({ cursor: pageParam, size }),
     initialPageParam: null as string | null,
     getNextPageParam: (lastPage) => lastPage.nextCursor,
+    ...options,
   });
 }
 

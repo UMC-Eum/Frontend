@@ -13,7 +13,7 @@ import {
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { Navbar } from "@/components/Navbar";
+import { AppNavbar } from "@/components/AppNavbar";
 import ClubRow from "@/components/search/ClubRow";
 import { CLUBS, RECOMMENDED_CLUBS } from "@/constants/search";
 
@@ -65,7 +65,13 @@ export default function ClubHomeScreen() {
       </View>
 
       <View style={styles.topTabs}>
-        <Text style={styles.inactiveTab}>홈</Text>
+        <Pressable
+          onPress={() => router.push("/home" as never)}
+          accessibilityRole="button"
+          hitSlop={10}
+        >
+          <Text style={styles.inactiveTab}>홈</Text>
+        </Pressable>
         <View style={styles.activeTabWrap}>
           <Text style={styles.activeTab}>동호회</Text>
           <View style={styles.activeUnderline} />
@@ -129,13 +135,7 @@ export default function ClubHomeScreen() {
       </ScrollView>
 
       <View style={styles.navbarWrap}>
-        <Navbar
-          tabs={[
-            { id: "index", iconName: "home", label: "홈" },
-            { id: "heart", iconName: "heart", label: "마음", hasDotBadge: true },
-            { id: "chat", iconName: "chat", label: "대화", badgeCount: 100 },
-            { id: "my", iconName: "person", label: "마이" },
-          ]}
+        <AppNavbar
           activeTabId="index"
           onTabPress={(id) => {
             if (id === "index") {
@@ -145,8 +145,6 @@ export default function ClubHomeScreen() {
 
             router.push(`/(tabs)/${id}` as never);
           }}
-          activeColor="#1F2937"
-          inactiveColor="#9CA3AF"
         />
       </View>
     </SafeAreaView>
