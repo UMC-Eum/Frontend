@@ -22,8 +22,15 @@ export function usePresignMutation() {
 
 export function useUploadFileToS3Mutation() {
   return useMutation({
-    mutationFn: ({ uploadUrl, file }: { uploadUrl: string; file: File }) =>
-      uploadFileToS3(uploadUrl, file),
+    mutationFn: ({
+      uploadUrl,
+      file,
+      requiredHeaders,
+    }: {
+      uploadUrl: string;
+      file: Blob | File;
+      requiredHeaders?: Record<string, string>;
+    }) => uploadFileToS3(uploadUrl, file, requiredHeaders),
   });
 }
 

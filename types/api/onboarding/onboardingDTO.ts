@@ -8,6 +8,7 @@ export interface IPresignResponse {
   uploadUrl: string;
   fileUrl: string;
   expiresAt: string;
+  requiredHeaders?: Record<string, string>;
 }
 //v1/onboarding/voice-profile/analyze(post)
 export interface IPersonality {
@@ -42,6 +43,7 @@ export interface IProfileRequest {
   areaCode: string;
   introText: string;
   introAudioUrl: string;
+  profileImageUrl?: string;
   selectedKeywords: string[];
   vibeVector: number[];
 }

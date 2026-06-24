@@ -13,6 +13,9 @@ export default function ProfileLayout() {
       <Stack.Screen name="gender" />
       <Stack.Screen name="photo" />
       <Stack.Screen name="welcome" />
+      <Stack.Screen name="analyzing" />
+      <Stack.Screen name="keywords" />
+      <Stack.Screen name="complete" />
     </Stack>
   );
 }

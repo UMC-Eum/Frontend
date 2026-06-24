@@ -39,6 +39,11 @@ interface TermItem {
 
 const SHEET_HEIGHT = 394;
 const SHEET_HIDDEN_OFFSET = SHEET_HEIGHT;
+// TODO(PRODUCTION_REMOVE): 약관 API 실패/빈 응답이어도 개발 중 온보딩 진입을 허용합니다.
+const TEMP_ALLOW_AGREEMENTS_LOAD_FALLBACK = true;
+// TODO(PRODUCTION_REMOVE): 약관 동의 저장 API 실패 시 개발 중 온보딩 진입을 허용합니다.
+const TEMP_ALLOW_AGREEMENTS_SAVE_FALLBACK = true;
+const TEMP_AGREEMENT_FALLBACK_ID = "temporary-agreement-load-fallback";
 
 /**
  * 이용약관 동의 바텀시트
@@ -80,6 +85,24 @@ const TermsBottomSheet = ({
 
   const isAgreementsReady = agreementsQuery.isSuccess && terms.length > 0;
   const isAgreementsEmpty = agreementsQuery.isSuccess && terms.length === 0;
+  const shouldAllowAgreementLoadFallback =
+    __DEV__ &&
+    TEMP_ALLOW_AGREEMENTS_LOAD_FALLBACK &&
+    !agreementsQuery.isLoading &&
+    (agreementsQuery.isError || isAgreementsEmpty);
+  const checkableTerms = useMemo<TermItem[]>(
+    () =>
+      shouldAllowAgreementLoadFallback
+        ? [
+            {
+              id: TEMP_AGREEMENT_FALLBACK_ID,
+              title: "이용약관",
+              required: true,
+            },
+          ]
+        : terms,
+    [shouldAllowAgreementLoadFallback, terms],
+  );
 
   // visible 상태에 맞춰 오버레이와 시트를 자연스럽게 열고 닫는다.
   useEffect(() => {
@@ -125,8 +148,10 @@ const TermsBottomSheet = ({
 
   // 전체 동의 여부
   const isAllChecked = useMemo(
-    () => terms.length > 0 && terms.every((item) => checkedItems[item.id]),
-    [checkedItems, terms],
+    () =>
+      checkableTerms.length > 0 &&
+      checkableTerms.every((item) => checkedItems[item.id]),
+    [checkableTerms, checkedItems],
   );
 
   // 필수 항목 모두 체크 여부
@@ -139,8 +164,9 @@ const TermsBottomSheet = ({
   );
 
   const canConfirm =
-    isAgreementsReady &&
-    isRequiredAllChecked &&
+    (shouldAllowAgreementLoadFallback ||
+      (isAgreementsReady && isRequiredAllChecked)) &&
+    (!shouldAllowAgreementLoadFallback || isAllChecked) &&
     !updateMarketingMutation.isPending;
 
   // 개별 항목 토글
@@ -159,11 +185,11 @@ const TermsBottomSheet = ({
     }
 
     const allChecked: Record<string, boolean> = {};
-    terms.forEach((item) => {
+    checkableTerms.forEach((item) => {
       allChecked[item.id] = true;
     });
     setCheckedItems(allChecked);
-  }, [isAllChecked, terms]);
+  }, [checkableTerms, isAllChecked]);
 
   // 상세 보기
   const onDetailPress = (id: string) => {
@@ -175,6 +201,12 @@ const TermsBottomSheet = ({
 
   // 선택 약관인 마케팅 동의 여부만 서버 API에 반영합니다.
   const handleConfirm = () => {
+    if (shouldAllowAgreementLoadFallback) {
+      // TODO(PRODUCTION_REMOVE): 약관 API가 준비되면 실패/빈 응답 통과를 제거합니다.
+      onConfirm();
+      return;
+    }
+
     if (!isAgreementsReady) {
       Alert.alert("약관을 불러오지 못했습니다", "잠시 후 다시 시도해주세요.");
       return;
@@ -198,6 +230,12 @@ const TermsBottomSheet = ({
     updateMarketingMutation.mutate(marketingAgreements, {
       onSuccess: onConfirm,
       onError: () => {
+        if (__DEV__ && TEMP_ALLOW_AGREEMENTS_SAVE_FALLBACK) {
+          // TODO(PRODUCTION_REMOVE): 약관 저장 API가 안정화되면 저장 실패 통과를 제거합니다.
+          onConfirm();
+          return;
+        }
+
         Alert.alert(
           "동의 저장 실패",
           "마케팅 수신 동의를 저장하지 못했습니다. 다시 시도해주세요.",
@@ -214,135 +252,138 @@ const TermsBottomSheet = ({
         pointerEvents="none"
         style={[styles.overlayBackground, { opacity: overlayOpacity }]}
       />
-      <Pressable style={styles.overlayTouchArea} onPress={onClose}>
+      <View style={styles.overlayTouchArea}>
+        <Pressable
+          style={styles.closeTouchArea}
+          onPress={onClose}
+          accessibilityLabel="약관 닫기"
+        />
         <Animated.View
           style={[
             styles.sheet,
             { transform: [{ translateY: sheetTranslateY }] },
           ]}
         >
-          <Pressable onPress={() => {}}>
-            {/* 제목 */}
-            <Text style={styles.title}>
-              서비스 이용을 위해{"\n"}이용약관 동의가 필요합니다.
-            </Text>
+          {/* 제목 */}
+          <Text style={styles.title}>
+            서비스 이용을 위해{"\n"}이용약관 동의가 필요합니다.
+          </Text>
 
-            {/* 체크리스트 */}
-            <View style={styles.listContainer}>
-              {agreementsQuery.isLoading ? (
-                <View style={styles.statusRow}>
-                  <ActivityIndicator color="#FF1B4D" />
-                  <Text style={styles.statusText}>
-                    약관을 불러오는 중입니다.
-                  </Text>
-                </View>
-              ) : isAgreementsEmpty ? (
-                <Text style={styles.errorText}>
-                  등록된 약관이 없습니다. 관리자에게 문의해주세요.
-                </Text>
-              ) : agreementsQuery.isError ? (
-                <Text style={styles.errorText}>
-                  약관을 불러오지 못했습니다. 다시 시도해주세요.
-                </Text>
-              ) : (
-                <View style={styles.termGroup}>
-                  {terms.map((item) => (
-                    <View key={item.id} style={styles.listItem}>
-                      <Pressable
-                        style={styles.checkboxRow}
-                        onPress={() => toggleItem(item.id)}
-                        hitSlop={8}
-                      >
-                        <View style={styles.checkboxWrapper}>
-                          <View
-                            style={[
-                              styles.checkbox,
-                              checkedItems[item.id] && styles.checkboxActive,
-                            ]}
-                          >
-                            {checkedItems[item.id] ? (
-                              <Ionicons
-                                name="checkmark"
-                                size={19}
-                                color="#FFFFFF"
-                              />
-                            ) : null}
-                          </View>
+          {/* 체크리스트 */}
+          <View style={styles.listContainer}>
+            {agreementsQuery.isLoading ? (
+              <View style={styles.statusRow}>
+                <ActivityIndicator color="#FF1B4D" />
+                <Text style={styles.statusText}>약관을 불러오는 중입니다.</Text>
+              </View>
+            ) : isAgreementsEmpty ? (
+              <Text style={styles.errorText}>
+                등록된 약관이 없습니다. 개발 중에는 확인 후 다음 단계로
+                이동할 수 있습니다.
+              </Text>
+            ) : agreementsQuery.isError ? (
+              <Text style={styles.errorText}>
+                약관을 불러오지 못했습니다. 개발 중에는 확인 후 다음 단계로
+                이동할 수 있습니다.
+              </Text>
+            ) : (
+              <View style={styles.termGroup}>
+                {terms.map((item) => (
+                  <View key={item.id} style={styles.listItem}>
+                    <Pressable
+                      style={styles.checkboxRow}
+                      onPress={() => toggleItem(item.id)}
+                      hitSlop={8}
+                    >
+                      <View style={styles.checkboxWrapper}>
+                        <View
+                          style={[
+                            styles.checkbox,
+                            checkedItems[item.id] && styles.checkboxActive,
+                          ]}
+                        >
+                          {checkedItems[item.id] ? (
+                            <Ionicons
+                              name="checkmark"
+                              size={19}
+                              color="#FFFFFF"
+                            />
+                          ) : null}
                         </View>
-                        <Text style={styles.itemTitle}>
-                          <Text style={styles.itemTitleHighlight}>
-                            {item.title}
-                          </Text>{" "}
-                          동의
-                        </Text>
-                        <Text style={styles.itemBadge}>
-                          {item.required ? "(필수)" : "(선택)"}
-                        </Text>
-                      </Pressable>
-                      <Pressable
-                        style={styles.chevronButton}
-                        onPress={() => onDetailPress(item.id)}
-                        hitSlop={8}
-                      >
-                        <Ionicons
-                          name="chevron-forward"
-                          size={18}
-                          color="#A6AFB6"
-                        />
-                      </Pressable>
-                    </View>
-                  ))}
-                </View>
-              )}
-
-              {/* 구분선 */}
-              <View style={styles.separator} />
-
-              {/* 전체 동의 */}
-              <Pressable
-                style={styles.allAgreeRow}
-                onPress={toggleAll}
-                hitSlop={8}
-              >
-                <View style={styles.checkboxWrapper}>
-                  <View
-                    style={[
-                      styles.checkbox,
-                      isAllChecked && styles.checkboxActive,
-                    ]}
-                  >
-                    {isAllChecked ? (
-                      <Ionicons name="checkmark" size={19} color="#FFFFFF" />
-                    ) : null}
+                      </View>
+                      <Text style={styles.itemTitle}>
+                        <Text style={styles.itemTitleHighlight}>
+                          {item.title}
+                        </Text>{" "}
+                        동의
+                      </Text>
+                      <Text style={styles.itemBadge}>
+                        {item.required ? "(필수)" : "(선택)"}
+                      </Text>
+                    </Pressable>
+                    <Pressable
+                      style={styles.chevronButton}
+                      onPress={() => onDetailPress(item.id)}
+                      hitSlop={8}
+                    >
+                      <Ionicons
+                        name="chevron-forward"
+                        size={18}
+                        color="#A6AFB6"
+                      />
+                    </Pressable>
                   </View>
-                </View>
-                <Text style={styles.allAgreeText}>
-                  모든 이용약관에 동의합니다.
-                </Text>
-              </Pressable>
-            </View>
+                ))}
+              </View>
+            )}
 
-            {/* 확인 버튼 */}
+            {/* 구분선 */}
+            <View style={styles.separator} />
+
+            {/* 전체 동의 */}
             <Pressable
-              style={[
-                styles.confirmButton,
-                !canConfirm && styles.confirmButtonDisabled,
-              ]}
-              onPress={handleConfirm}
-              disabled={!canConfirm}
+              style={styles.allAgreeRow}
+              onPress={toggleAll}
+              hitSlop={8}
             >
-              <Text
-                style={[
-                  styles.confirmButtonText,
-                  !canConfirm && styles.confirmButtonTextDisabled,
-                ]}
-              >
-                확인
+              <View style={styles.checkboxWrapper}>
+                <View
+                  style={[
+                    styles.checkbox,
+                    isAllChecked && styles.checkboxActive,
+                  ]}
+                >
+                  {isAllChecked ? (
+                    <Ionicons name="checkmark" size={19} color="#FFFFFF" />
+                  ) : null}
+                </View>
+              </View>
+              <Text style={styles.allAgreeText}>
+                모든 이용약관에 동의합니다.
               </Text>
             </Pressable>
+          </View>
+
+          {/* 확인 버튼 */}
+          <Pressable
+            style={[
+              styles.confirmButton,
+              !canConfirm && styles.confirmButtonDisabled,
+            ]}
+            onPress={handleConfirm}
+            disabled={!canConfirm}
+          >
+            <Text
+              style={[
+                styles.confirmButtonText,
+                !canConfirm && styles.confirmButtonTextDisabled,
+              ]}
+            >
+              확인
+            </Text>
           </Pressable>
         </Animated.View>
-      </Pressable>
+      </View>
     </View>
   );
 };
@@ -370,6 +411,9 @@ const styles = StyleSheet.create({
   overlayTouchArea: {
     flex: 1,
     justifyContent: "flex-end",
+  },
+  closeTouchArea: {
+    flex: 1,
   },
   sheet: {
     height: SHEET_HEIGHT,

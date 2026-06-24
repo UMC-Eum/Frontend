@@ -83,7 +83,7 @@ export default function ProfileDetailScreen() {
     image?: string;
   }>();
   const insets = useSafeAreaInsets();
-  const { height: windowHeight } = useWindowDimensions();
+  const { width: windowWidth } = useWindowDimensions();
   const [menuVisible, setMenuVisible] = useState(false);
   const [reportVisible, setReportVisible] = useState(false);
   const recommendationsQuery = useRecommendationsInfiniteQuery();
@@ -113,6 +113,8 @@ export default function ProfileDetailScreen() {
   const locationText = profile.distance
     ? `${profile.location} · ${profile.distance}`
     : profile.location;
+  const summaryCardWidth = Math.min(Math.max(windowWidth - 40, 280), 372);
+  const summaryCardHeight = Math.round(summaryCardWidth * (472 / 372));
 
   useEffect(() => {
     setLiked(apiProfile?.isLiked ?? routeLiked ?? profile.isLiked);
@@ -126,8 +128,6 @@ export default function ProfileDetailScreen() {
     routeLiked,
     targetUserId,
   ]);
-
-  const handleComingSoon = (message: string) => Alert.alert(message);
 
   const handleToggleHeart = () => {
     if (!profile.targetUserId || isHeartPending) return;
@@ -266,8 +266,8 @@ export default function ProfileDetailScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={["left", "right", "bottom"]}>
-      <StatusBar style="light" />
+    <SafeAreaView style={styles.safeArea}>
+      <StatusBar style="dark" />
 
       <ScrollView
         style={styles.scrollView}
@@ -277,80 +277,44 @@ export default function ProfileDetailScreen() {
           { paddingBottom: insets.bottom + 104 },
         ]}
       >
-        {/* 프로필 대표 사진과 상단 액션 영역입니다. */}
-        <ImageBackground
-          source={{ uri: profile.image }}
-          style={[styles.hero, { height: Math.round(windowHeight * 0.665) }]}
-          imageStyle={styles.heroImage}
-        >
-          <View style={[styles.topActions, { paddingTop: insets.top + 12 }]}>
+        <View style={styles.header}>
+          <TouchableOpacity
+            style={styles.iconButton}
+            activeOpacity={0.7}
+            onPress={() => router.back()}
+          >
+            <Ionicons name="chevron-back" size={26} color="#A6AFB6" />
+          </TouchableOpacity>
+
+          <View style={styles.rightActions}>
             <TouchableOpacity
               style={styles.iconButton}
               activeOpacity={0.7}
-              onPress={() => router.back()}
+              onPress={() => Alert.alert("공유 기능은 준비 중입니다.")}
             >
-              <Ionicons name="chevron-back" size={26} color="#FFFFFF" />
+              <Ionicons name="share-outline" size={22} color="#202020" />
             </TouchableOpacity>
-
-            <View style={styles.rightActions}>
-              <TouchableOpacity
-                style={styles.iconButton}
-                activeOpacity={0.7}
-                onPress={() => handleComingSoon("공유 기능은 준비 중입니다.")}
-              >
-                <Ionicons name="share-outline" size={22} color="#FFFFFF" />
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.iconButton}
-                activeOpacity={0.7}
-                onPress={() => setMenuVisible(true)}
-              >
-                <Ionicons name="ellipsis-vertical" size={20} color="#FFFFFF" />
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          <View style={styles.heroGradient} />
-
-          <View style={styles.profileSummary}>
-            <View>
-              <View style={styles.nameRow}>
-                <Text style={styles.profileName}>
-                  {profile.name} {profile.age}
-                </Text>
-                <Ionicons name="checkmark-circle" size={18} color="#FF3E70" />
-              </View>
-              <View style={styles.locationRow}>
-                <Ionicons name="location-sharp" size={18} color="#FFFFFF" />
-                <Text style={styles.locationText}>{locationText}</Text>
-              </View>
-            </View>
-
             <TouchableOpacity
-              style={[styles.likeButton, isHeartPending ? styles.pendingButton : null]}
-              activeOpacity={0.82}
-              onPress={handleToggleHeart}
-              disabled={isHeartPending}
+              style={styles.iconButton}
+              activeOpacity={0.7}
+              onPress={() => setMenuVisible(true)}
             >
-              {isHeartPending ? (
-                <ActivityIndicator color="#FF3E70" />
-              ) : (
-                <Ionicons
-                  name={liked ? "heart" : "heart-outline"}
-                  size={28}
-                  color="#FF3E70"
-                />
-              )}
+              <Ionicons name="ellipsis-vertical" size={20} color="#202020" />
             </TouchableOpacity>
           </View>
+        </View>
 
-          <View style={styles.pagination}>
-            <View style={styles.activeDot} />
-            <View style={styles.dot} />
-            <View style={styles.dot} />
-            <View style={styles.dot} />
-          </View>
-        </ImageBackground>
+        <View style={styles.summarySection}>
+          <ProfileSummaryCard
+            profile={profile}
+            locationText={locationText}
+            liked={liked}
+            isHeartPending={isHeartPending}
+            width={summaryCardWidth}
+            height={summaryCardHeight}
+            onToggleHeart={handleToggleHeart}
+          />
+        </View>
 
         {/* 소개와 사용자 성향을 카드/칩 형태로 보여주는 본문입니다. */}
         <View style={styles.content}>
@@ -437,6 +401,85 @@ export default function ProfileDetailScreen() {
 
 function SectionTitle({ title }: { title: string }) {
   return <Text style={styles.sectionTitle}>{title}</Text>;
+}
+
+function ProfileSummaryCard({
+  profile,
+  locationText,
+  liked,
+  isHeartPending,
+  width,
+  height,
+  onToggleHeart,
+}: {
+  profile: DetailProfile;
+  locationText: string;
+  liked: boolean;
+  isHeartPending: boolean;
+  width: number;
+  height: number;
+  onToggleHeart: () => void;
+}) {
+  const previewInterests = profile.interests.slice(0, 4);
+
+  return (
+    <ImageBackground
+      source={{ uri: profile.image }}
+      style={[styles.summaryCard, { width, height }]}
+      imageStyle={styles.summaryCardImage}
+    >
+      <View style={styles.summaryScrim} />
+
+      <View style={styles.summaryContent}>
+        <View style={styles.summaryTextBlock}>
+          <View style={styles.nameRow}>
+            <Text style={styles.profileName} numberOfLines={1}>
+              {profile.name} {profile.age}세
+            </Text>
+            <Ionicons name="checkmark-circle" size={21} color="#FFFFFF" />
+          </View>
+
+          {locationText ? (
+            <View style={styles.locationRow}>
+              <Ionicons name="location-sharp" size={20} color="#FFFFFF" />
+              <Text style={styles.locationText} numberOfLines={1}>
+                {locationText}
+              </Text>
+            </View>
+          ) : null}
+
+          {previewInterests.length > 0 ? (
+            <View style={styles.summaryChipList}>
+              {previewInterests.map((interest) => (
+                <View key={interest} style={styles.summaryChip}>
+                  <Text style={styles.summaryChipText} numberOfLines={1}>
+                    {interest}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          ) : null}
+        </View>
+
+        <TouchableOpacity
+          style={[styles.likeButton, isHeartPending ? styles.pendingButton : null]}
+          activeOpacity={0.82}
+          onPress={onToggleHeart}
+          disabled={isHeartPending}
+        >
+          {isHeartPending ? (
+            <ActivityIndicator color="#FF3E70" />
+          ) : (
+            <Ionicons
+              name={liked ? "heart" : "heart-outline"}
+              size={28}
+              color="#FF3E70"
+            />
+          )}
+        </TouchableOpacity>
+      </View>
+    </ImageBackground>
+  );
 }
 
 function ReportCategoryModal({
@@ -636,23 +679,12 @@ const styles = StyleSheet.create({
   scrollContent: {
     backgroundColor: "#FFFFFF",
   },
-  hero: {
-    justifyContent: "flex-end",
-    backgroundColor: "#D9D9D9",
-  },
-  heroImage: {
-    resizeMode: "cover",
-  },
-  topActions: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 2,
+  header: {
+    height: 48,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 16,
+    paddingHorizontal: 8,
   },
   rightActions: {
     flexDirection: "row",
@@ -666,79 +698,99 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     borderRadius: 19,
   },
-  heroGradient: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0, 0, 0, 0.14)",
-    borderBottomLeftRadius: 0,
-    borderBottomRightRadius: 0,
+  summarySection: {
+    alignItems: "center",
+    paddingTop: 18,
+    paddingBottom: 24,
+    paddingHorizontal: 20,
   },
-  profileSummary: {
-    zIndex: 1,
+  summaryCard: {
+    overflow: "hidden",
+    justifyContent: "flex-end",
+    borderRadius: 14,
+    backgroundColor: "#D9D9D9",
+  },
+  summaryCardImage: {
+    borderRadius: 14,
+    resizeMode: "cover",
+  },
+  summaryScrim: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: "54%",
+    backgroundColor: "rgba(0, 0, 0, 0.62)",
+  },
+  summaryContent: {
     flexDirection: "row",
     alignItems: "flex-end",
     justifyContent: "space-between",
+    gap: 14,
     paddingHorizontal: 20,
-    paddingBottom: 46,
+    paddingBottom: 24,
+  },
+  summaryTextBlock: {
+    flex: 1,
+    gap: 12,
   },
   nameRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
-    marginBottom: 10,
+    gap: 8,
   },
   profileName: {
     fontSize: 24,
+    lineHeight: 30,
     fontWeight: "600",
     color: "#FFFFFF",
+    flexShrink: 1,
   },
   locationRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 3,
+    gap: 2,
   },
   locationText: {
     fontSize: 16,
     lineHeight: 24,
     fontWeight: "500",
     color: "#FFFFFF",
+    flexShrink: 1,
+  },
+  summaryChipList: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6,
+  },
+  summaryChip: {
+    height: 32,
+    justifyContent: "center",
+    paddingHorizontal: 12,
+    borderRadius: 16,
+    backgroundColor: "rgba(255, 255, 255, 0.24)",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.28)",
+  },
+  summaryChipText: {
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: "500",
+    color: "#FFFFFF",
   },
   likeButton: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(255, 255, 255, 0.24)",
+    backgroundColor: "#FFFFFF",
   },
   pendingButton: {
     opacity: 0.68,
   },
-  pagination: {
-    position: "absolute",
-    bottom: 22,
-    left: 0,
-    right: 0,
-    zIndex: 1,
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    gap: 6,
-  },
-  activeDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: "#FFFFFF",
-  },
-  dot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: "rgba(255, 255, 255, 0.48)",
-  },
   content: {
     paddingHorizontal: 20,
-    paddingTop: 24,
   },
   sectionTitle: {
     marginBottom: 14,

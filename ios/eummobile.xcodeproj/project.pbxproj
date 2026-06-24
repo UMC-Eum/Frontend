@@ -259,7 +259,7 @@
 					"-ObjC",
 					"-lc++",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = "com.anonymous.eum-mobile";
+				PRODUCT_BUNDLE_IDENTIFIER = "com.eum-mobile";
 				PRODUCT_NAME = "eummobile";
 				SWIFT_OBJC_BRIDGING_HEADER = "eummobile/eummobile-Bridging-Header.h";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";

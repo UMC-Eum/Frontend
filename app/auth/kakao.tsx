@@ -72,7 +72,17 @@ export default function KakaoAuthCallbackScreen() {
         const needsOnboarding = auth.onboardingRequired || auth.isNewUser;
 
         if (needsOnboarding) {
-          const hasPassedAgreements = await getAgreementStatus();
+          let hasPassedAgreements = false;
+          try {
+            hasPassedAgreements = await getAgreementStatus();
+          } catch (agreementStatusError) {
+            if (__DEV__) {
+              console.log(
+                "[Kakao Login] agreement status failed, showing terms:",
+                agreementStatusError,
+              );
+            }
+          }
 
           if (hasPassedAgreements) {
             router.replace("/onboarding/permissions" as any);
