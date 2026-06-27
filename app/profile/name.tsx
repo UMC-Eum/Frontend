@@ -1,7 +1,14 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import React, { useState } from "react";
-import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import React, { useRef, useState } from "react";
+import {
+  Keyboard,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
 
 import ProfileStepLayout from "@/components/profile/ProfileStepLayout";
 import { useOnboardingDraftStore } from "@/stores/onboardingDraftStore";
@@ -20,13 +27,15 @@ export default function NameScreen() {
   const setDraftNickname = useOnboardingDraftStore((state) => state.setNickname);
   const [name, setName] = useState(draftNickname);
   const [isFocused, setIsFocused] = useState(false);
+  const inputRef = useRef<TextInput>(null);
+  const trimmedName = name.trim();
 
-  const isKorean = KOREAN_REGEX.test(name);
-  const isLongEnough = name.length >= 2;
+  const isKorean = KOREAN_REGEX.test(trimmedName);
+  const isLongEnough = trimmedName.length >= 2;
   const isValid = isKorean && isLongEnough;
 
   // 입력이 있을 때만 에러 표시 (타이핑 중 실시간)
-  const hasInput = name.length > 0;
+  const hasInput = trimmedName.length > 0;
   const showError = hasInput && !isValid;
 
   // 에러 메시지 분기
@@ -38,50 +47,68 @@ export default function NameScreen() {
   };
 
   const handleNext = () => {
-    setDraftNickname(name);
-    router.push("/profile/age" as any);
+    inputRef.current?.blur();
+    setDraftNickname(trimmedName);
+    router.push("/profile/photo" as any);
   };
 
   const handleClear = () => {
     setName("");
   };
 
+  const handleOutsidePress = () => {
+    Keyboard.dismiss();
+    inputRef.current?.blur();
+  };
+
   return (
-    <ProfileStepLayout
-      title="성함이 어떻게 되세요?"
-      subtitle="실명도, 닉네임도 모두 괜찮아요."
-      step={1}
-      buttonEnabled={isValid}
-      onNext={handleNext}
-    >
-      <View style={styles.inputWrapper}>
-        <TextInput
-          style={[
-            styles.input,
-            isFocused && !showError && styles.inputFocused,
-            showError && styles.inputError,
-          ]}
-          placeholder="이름을 입력해주세요"
-          placeholderTextColor="#D1D5DB"
-          value={name}
-          onChangeText={setName}
-          onFocus={() => setIsFocused(true)}
-          onBlur={() => setIsFocused(false)}
-          maxLength={10}
-          autoFocus
-        />
-        {name.length > 0 && (
-          <Pressable style={styles.clearButton} onPress={handleClear}>
-            <Ionicons name="close-circle" size={22} color="#FF3E70" />
-          </Pressable>
-        )}
-      </View>
-      {showError && <Text style={styles.errorText}>{getErrorMessage()}</Text>}
-    </ProfileStepLayout>
+    <>
+      <ProfileStepLayout
+        title="성함이 어떻게 되세요?"
+        subtitle="실명도, 닉네임도 모두 괜찮아요."
+        step={1}
+        buttonEnabled={isValid}
+        onNext={handleNext}
+      >
+        <View style={styles.formArea}>
+          <View style={styles.inputWrapper}>
+            <TextInput
+              ref={inputRef}
+              style={[
+                styles.input,
+                isFocused && !showError && styles.inputFocused,
+                showError && styles.inputError,
+              ]}
+              placeholder="이름을 입력해주세요"
+              placeholderTextColor="#D1D5DB"
+              value={name}
+              onChangeText={setName}
+              onFocus={() => setIsFocused(true)}
+              onBlur={() => setIsFocused(false)}
+              maxLength={10}
+              autoFocus
+              returnKeyType="done"
+            />
+            {name.length > 0 && (
+              <Pressable style={styles.clearButton} onPress={handleClear}>
+                <Ionicons name="close-circle" size={22} color="#FF3E70" />
+              </Pressable>
+            )}
+          </View>
+          {showError && (
+            <Text style={styles.errorText}>{getErrorMessage()}</Text>
+          )}
+          <Pressable style={styles.dismissArea} onPress={handleOutsidePress} />
+        </View>
+      </ProfileStepLayout>
+    </>
   );
 }
 
 const styles = StyleSheet.create({
+  formArea: {
+    flex: 1,
+  },
   inputWrapper: {
     position: "relative",
     justifyContent: "center",
@@ -114,5 +141,8 @@ const styles = StyleSheet.create({
     color: "#FF3E70",
     marginTop: 8,
     paddingLeft: 4,
+  },
+  dismissArea: {
+    flex: 1,
   },
 });

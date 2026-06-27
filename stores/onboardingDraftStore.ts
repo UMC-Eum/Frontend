@@ -6,6 +6,7 @@ interface OnboardingDraftState {
   nickname: string;
   age: number | null;
   gender: DraftGender | null;
+  birthDate: string | null;
   profileImageUri: string | null;
   introText: string;
   introAudioUrl: string;
@@ -16,6 +17,7 @@ interface OnboardingDraftState {
   setNickname: (nickname: string) => void;
   setAge: (age: number) => void;
   setGender: (gender: DraftGender) => void;
+  setBirthDate: (birthDate: string | null) => void;
   setProfileImageUri: (profileImageUri: string | null) => void;
   setIntroText: (introText: string) => void;
   setIntroAudioUrl: (introAudioUrl: string) => void;
@@ -30,6 +32,7 @@ const initialState = {
   nickname: "",
   age: null,
   gender: null,
+  birthDate: null,
   profileImageUri: null,
   introText: "",
   introAudioUrl: "",
@@ -44,6 +47,7 @@ export const useOnboardingDraftStore = create<OnboardingDraftState>((set) => ({
   setNickname: (nickname) => set({ nickname }),
   setAge: (age) => set({ age }),
   setGender: (gender) => set({ gender }),
+  setBirthDate: (birthDate) => set({ birthDate }),
   setProfileImageUri: (profileImageUri) => set({ profileImageUri }),
   setIntroText: (introText) => set({ introText }),
   setIntroAudioUrl: (introAudioUrl) => set({ introAudioUrl }),
