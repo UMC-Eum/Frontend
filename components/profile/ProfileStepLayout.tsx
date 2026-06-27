@@ -1,7 +1,14 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import {
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import ProgressBar from "../progress-bar";
 
@@ -16,6 +23,8 @@ interface ProfileStepLayoutProps {
   buttonEnabled?: boolean;
   /** 하단 버튼 클릭 */
   onNext?: () => void;
+  /** 하단 버튼 숨김 여부 */
+  hideBottomButton?: boolean;
   /** 뒤로가기 표시 여부 */
   showBack?: boolean;
   /** 현재 프로필 설정 단계 */
@@ -40,16 +49,20 @@ const ProfileStepLayout = ({
   buttonText = "다음",
   buttonEnabled = false,
   onNext,
+  hideBottomButton = false,
   showBack = true,
   step = 1,
-  totalSteps = 5,
+  totalSteps = 3,
   children,
 }: ProfileStepLayoutProps) => {
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <KeyboardAvoidingView
+      style={[styles.container, { paddingTop: insets.top }]}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+    >
       {/* 헤더: 뒤로가기 + 진행 상태 */}
       <View style={styles.header}>
         {showBack ? (
@@ -76,30 +89,33 @@ const ProfileStepLayout = ({
       {/* 메인 컨텐츠 */}
       <View style={styles.content}>{children}</View>
 
-      {/* 하단 버튼 */}
-      <View style={[styles.bottomArea, { paddingBottom: insets.bottom + 24 }]}>
-        <Pressable
-          style={({ pressed }) => [
-            styles.nextButton,
-            buttonEnabled ? styles.nextButtonActive : styles.nextButtonDisabled,
-            pressed && buttonEnabled && styles.nextButtonPressed,
-          ]}
-          onPress={buttonEnabled ? onNext : undefined}
-          disabled={!buttonEnabled}
-        >
-          <Text
-            style={[
-              styles.nextButtonText,
+      {!hideBottomButton && (
+        <View style={[styles.bottomArea, { paddingBottom: insets.bottom + 24 }]}>
+          <Pressable
+            style={({ pressed }) => [
+              styles.nextButton,
               buttonEnabled
-                ? styles.nextButtonTextActive
-                : styles.nextButtonTextDisabled,
+                ? styles.nextButtonActive
+                : styles.nextButtonDisabled,
+              pressed && buttonEnabled && styles.nextButtonPressed,
             ]}
+            onPress={buttonEnabled ? onNext : undefined}
+            disabled={!buttonEnabled}
           >
-            {buttonText}
-          </Text>
-        </Pressable>
-      </View>
-    </View>
+            <Text
+              style={[
+                styles.nextButtonText,
+                buttonEnabled
+                  ? styles.nextButtonTextActive
+                  : styles.nextButtonTextDisabled,
+              ]}
+            >
+              {buttonText}
+            </Text>
+          </Pressable>
+        </View>
+      )}
+    </KeyboardAvoidingView>
   );
 };
 
@@ -145,6 +161,7 @@ const styles = StyleSheet.create({
   },
   bottomArea: {
     paddingHorizontal: 20,
+    backgroundColor: "#FFFFFF",
   },
   nextButton: {
     height: 54,

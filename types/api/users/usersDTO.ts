@@ -2,6 +2,7 @@ export interface IPatchUserProfileRequest {
   nickname?: string;
   gender?: "M" | "F";
   birthDate?: string;
+  age?: number;
   areaCode?: string;
   introText?: string;
   keywords?: string[];
