@@ -1,14 +1,16 @@
 import {
+  createAudioPlayer,
   RecordingPresets,
   requestRecordingPermissionsAsync,
   setAudioModeAsync,
-  useAudioPlayer,
-  useAudioPlayerStatus,
+  setIsAudioActiveAsync,
   useAudioRecorder,
   useAudioRecorderState,
 } from "expo-audio";
+import { isAxiosError } from "axios";
+import type { AudioPlayer } from "expo-audio";
 import { useRouter } from "expo-router";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Alert, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -25,9 +27,17 @@ import {
   VoiceTitle,
   VoiceKeyword,
 } from "@/components/profile/ProfileVoiceParts";
-import { usePostProfileMutation } from "@/hooks/api/useOnboarding";
+import {
+  usePostProfileMutation,
+  usePostVoiceAnalyzeMutation,
+} from "@/hooks/api/useOnboarding";
+import { useUpdateMyProfileMutation } from "@/hooks/api/useUsers";
 import { useAuthStore } from "@/stores/authStore";
 import { useOnboardingDraftStore } from "@/stores/onboardingDraftStore";
+import type {
+  IAnalyzeResponse,
+  IProfileRequest,
+} from "@/types/api/onboarding/onboardingDTO";
 
 type VoiceStep =
   | "idle"
@@ -39,10 +49,11 @@ type VoiceStep =
 
 const MIN_RECORDING_SECONDS = 10;
 const DEFAULT_LOCATION_NAME = "서울 광진구";
-const DEFAULT_AREA_CODE = "11215";
+const DEFAULT_AREA_CODE = "1121500000";
 const DEFAULT_BIRTH_DATE = "1973-01-01";
 const DEFAULT_GENDER = "M";
 const INTRO_AUDIO_PURPOSE = "VOICE_PROFILE";
+const VOICE_ANALYZE_TIMEOUT_MS = 5000;
 
 const MOCK_KEYWORDS: VoiceKeyword[] = [
   { id: "culture", label: "문화생활" },
@@ -61,6 +72,8 @@ const MOCK_KEYWORDS: VoiceKeyword[] = [
 export default function WelcomeScreen() {
   const router = useRouter();
   const authNickname = useAuthStore((state) => state.user?.nickname);
+  const authUserId = useAuthStore((state) => state.user?.userId);
+  const completeOnboarding = useAuthStore((state) => state.completeOnboarding);
   const draftNickname = useOnboardingDraftStore((state) => state.nickname);
   const draftAge = useOnboardingDraftStore((state) => state.age);
   const draftGender = useOnboardingDraftStore((state) => state.gender);
@@ -80,29 +93,34 @@ export default function WelcomeScreen() {
   const setSelectedKeywords = useOnboardingDraftStore(
     (state) => state.setSelectedKeywords,
   );
+  const setVibeVector = useOnboardingDraftStore((state) => state.setVibeVector);
   const postProfileMutation = usePostProfileMutation();
+  const voiceAnalyzeMutation = usePostVoiceAnalyzeMutation();
+  const updateMyProfileMutation = useUpdateMyProfileMutation();
   const [step, setStep] = useState<VoiceStep>("idle");
   const [recordingSeconds, setRecordingSeconds] = useState(0);
   const [showShortWarning, setShowShortWarning] = useState(false);
   const [recordedAudioUri, setRecordedAudioUri] = useState("");
   const [isUploadingAudio, setIsUploadingAudio] = useState(false);
+  const [keywordOptions, setKeywordOptions] =
+    useState<VoiceKeyword[]>(MOCK_KEYWORDS);
+  const [isPlayingRecorded, setIsPlayingRecorded] = useState(false);
+  const playbackPlayerRef = useRef<AudioPlayer | null>(null);
+  const playbackStopTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
   const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
   const recorderState = useAudioRecorderState(recorder, 250);
-  const player = useAudioPlayer(
-    recordedAudioUri ? { uri: recordedAudioUri } : null,
-    { updateInterval: 250 },
-  );
-  const playerStatus = useAudioPlayerStatus(player);
   const [selectedKeywordIds, setSelectedKeywordIds] = useState<string[]>(() =>
     idsFromLabels(draftSelectedKeywords),
   );
 
   const selectedKeywords = useMemo(
     () =>
-      MOCK_KEYWORDS.filter((keyword) =>
+      keywordOptions.filter((keyword) =>
         selectedKeywordIds.includes(keyword.id),
       ).map((keyword) => keyword.label),
-    [selectedKeywordIds],
+    [keywordOptions, selectedKeywordIds],
   );
   const userName = useMemo(
     () => draftNickname.trim() || authNickname?.trim() || "사용자",
@@ -131,21 +149,47 @@ export default function WelcomeScreen() {
   }, [showShortWarning]);
 
   useEffect(() => {
-    if (step !== "analyzing") return;
-
-    const timeout = setTimeout(() => {
-      setStep("keywords");
-    }, 1400);
-
-    return () => clearTimeout(timeout);
-  }, [step]);
-
-  useEffect(() => {
     if (step !== "recording") return;
 
     const nextSeconds = Math.floor(recorderState.durationMillis / 1000);
     setRecordingSeconds(nextSeconds);
   }, [recorderState.durationMillis, step]);
+
+  useEffect(() => {
+    return () => {
+      if (playbackStopTimerRef.current) {
+        clearTimeout(playbackStopTimerRef.current);
+      }
+
+      playbackPlayerRef.current?.pause();
+      playbackPlayerRef.current?.remove();
+      playbackPlayerRef.current = null;
+    };
+  }, []);
+
+  const stopPlayback = () => {
+    if (playbackStopTimerRef.current) {
+      clearTimeout(playbackStopTimerRef.current);
+      playbackStopTimerRef.current = null;
+    }
+
+    playbackPlayerRef.current?.pause();
+    playbackPlayerRef.current?.remove();
+    playbackPlayerRef.current = null;
+    setIsPlayingRecorded(false);
+  };
+
+  const resetKeywordRecommendations = () => {
+    setKeywordOptions(MOCK_KEYWORDS);
+    const fallbackSelectedIds = MOCK_KEYWORDS.filter(
+      (keyword) => keyword.id !== "more",
+    )
+      .slice(0, 3)
+      .map((keyword) => keyword.id);
+
+    setSelectedKeywordIds(fallbackSelectedIds);
+    setSelectedKeywords(labelsFromIds(fallbackSelectedIds, MOCK_KEYWORDS));
+  };
 
   const handleBack = async () => {
     if (step === "idle") {
@@ -154,7 +198,7 @@ export default function WelcomeScreen() {
     }
 
     await stopRecorderIfNeeded();
-    player.pause();
+    stopPlayback();
     setStep("idle");
     setRecordingSeconds(0);
     setShowShortWarning(false);
@@ -169,7 +213,7 @@ export default function WelcomeScreen() {
         return;
       }
 
-      player.pause();
+      stopPlayback();
       await setAudioModeAsync({
         allowsRecording: true,
         playsInSilentMode: true,
@@ -204,7 +248,7 @@ export default function WelcomeScreen() {
 
   const handleCancelRecording = async () => {
     await stopRecorderIfNeeded();
-    player.pause();
+    stopPlayback();
     setRecordingSeconds(0);
     setShowShortWarning(false);
     setRecordedAudioUri("");
@@ -248,26 +292,53 @@ export default function WelcomeScreen() {
   const handleSubmitRecording = async () => {
     if (!recordedAudioUri || isUploadingAudio) return;
 
-    player.pause();
+    stopPlayback();
     setIsUploadingAudio(true);
+    setStep("analyzing");
 
     try {
       const uploadedAudioUrl = await uploadRecordedAudio(recordedAudioUri);
       setIntroAudioUrl(uploadedAudioUrl);
+
+      if (authUserId) {
+        const analyzeResult = await withTimeout(
+          voiceAnalyzeMutation.mutateAsync({
+            userId: authUserId,
+            audioUrl: uploadedAudioUrl,
+            language: "ko-KR",
+            analysisType: "profile",
+          }),
+          VOICE_ANALYZE_TIMEOUT_MS,
+        );
+        const nextKeywords = keywordsFromAnalyze(analyzeResult);
+        const nextSelectedIds = nextKeywords
+          .filter((keyword) => keyword.id !== "more")
+          .slice(0, 3)
+          .map((keyword) => keyword.id);
+
+        setKeywordOptions(nextKeywords);
+        setSelectedKeywordIds(nextSelectedIds);
+        setSelectedKeywords(labelsFromIds(nextSelectedIds, nextKeywords));
+        setVibeVector(analyzeResult.vibeVector);
+      } else {
+        resetKeywordRecommendations();
+      }
     } catch {
       setIntroAudioUrl("");
+      resetKeywordRecommendations();
     } finally {
       setIsUploadingAudio(false);
-      setStep("analyzing");
+      setStep("keywords");
     }
   };
 
   const handleResetRecording = async () => {
     await stopRecorderIfNeeded();
-    player.pause();
+    stopPlayback();
     setRecordingSeconds(0);
     setShowShortWarning(false);
     setRecordedAudioUri("");
+    setKeywordOptions(MOCK_KEYWORDS);
     await handleStartRecording();
   };
 
@@ -275,22 +346,43 @@ export default function WelcomeScreen() {
     if (!recordedAudioUri) return;
 
     try {
-      if (playerStatus.playing) {
-        player.pause();
+      if (isPlayingRecorded) {
+        stopPlayback();
         return;
       }
 
-      const hasDuration = playerStatus.duration > 0;
-      const isAtEnd =
-        hasDuration && playerStatus.currentTime >= playerStatus.duration - 0.05;
+      await setAudioModeAsync({
+        allowsRecording: false,
+        playsInSilentMode: true,
+      });
+      await setIsAudioActiveAsync(true);
 
-      if (playerStatus.didJustFinish || isAtEnd) {
-        await player.seekTo(0);
+      stopPlayback();
+      const nextPlayer = createAudioPlayer(
+        { uri: recordedAudioUri },
+        { updateInterval: 250, keepAudioSessionActive: true },
+      );
+      playbackPlayerRef.current = nextPlayer;
+      await wait(180);
+      try {
+        await nextPlayer.seekTo(0);
+      } catch {
+        // Some platforms cannot seek until metadata is ready; play still works.
       }
 
-      player.play();
+      nextPlayer.play();
+      setIsPlayingRecorded(true);
+      playbackStopTimerRef.current = setTimeout(
+        () => {
+          if (playbackPlayerRef.current === nextPlayer) {
+            stopPlayback();
+          }
+        },
+        Math.max(recordingSeconds, 1) * 1000 + 500,
+      );
     } catch (error) {
       console.error("Voice Playback Error:", error);
+      stopPlayback();
       Alert.alert("재생 실패", "녹음 파일을 다시 재생하지 못했어요.");
     }
   };
@@ -309,7 +401,7 @@ export default function WelcomeScreen() {
         nextIds = [...current, id];
       }
 
-      setSelectedKeywords(labelsFromIds(nextIds));
+      setSelectedKeywords(labelsFromIds(nextIds, keywordOptions));
 
       return nextIds;
     });
@@ -333,24 +425,99 @@ export default function WelcomeScreen() {
         : `${userName}님의 이야기를 들려주세요.`;
     const safeIntroAudioUrl = isRemoteUrl(introAudioUrl) ? introAudioUrl : "";
 
-    try {
-      await postProfileMutation.mutateAsync({
+    const runTestFallbackProfileUpdate = async () => {
+      const fallbackPayload = {
         nickname: userName,
         gender: draftGender ?? DEFAULT_GENDER,
-        birthDate,
+        ...(profileAge >= 50 && profileAge <= 150 ? { age: profileAge } : {}),
         areaCode: DEFAULT_AREA_CODE,
         introText: introText || generatedIntro,
-        introAudioUrl: safeIntroAudioUrl,
-        selectedKeywords: keywords,
-        vibeVector,
-      });
+        keywords,
+      };
+
+      if (__DEV__) {
+        console.log("[Profile Create] test fallback", fallbackPayload);
+      }
+
+      await updateMyProfileMutation.mutateAsync(fallbackPayload);
+      completeOnboarding();
+    };
+
+    if (!safeIntroAudioUrl || vibeVector.length === 0) {
+      if (__DEV__) {
+        console.log("[Profile Create] skip onboarding profile", {
+          hasIntroAudioUrl: !!safeIntroAudioUrl,
+          vibeVectorLength: vibeVector.length,
+        });
+      }
+
+      try {
+        await runTestFallbackProfileUpdate();
+      } catch (fallbackError) {
+        console.log(
+          "Profile Fallback Update Error:",
+          isAxiosError(fallbackError)
+            ? fallbackError.response?.data
+            : fallbackError,
+        );
+      }
 
       setSelectedKeywords(keywords);
-      router.replace("/(tabs)" as any);
-    } catch (error) {
-      console.error("Profile Create Error:", error);
+      router.replace("/home" as any);
+      return;
+    }
+
+    const profilePayload: IProfileRequest = {
+      nickname: userName,
+      gender: draftGender ?? DEFAULT_GENDER,
+      birthDate,
+      areaCode: DEFAULT_AREA_CODE,
+      introText: introText || generatedIntro,
+      introAudioUrl: safeIntroAudioUrl,
+      selectedKeywords: keywords,
+      vibeVector,
+    };
+
+    try {
+      if (__DEV__) {
+        console.log("[Profile Create] submit", profilePayload);
+      }
+
+      const profileResponse =
+        await postProfileMutation.mutateAsync(profilePayload);
+
+      if (__DEV__) {
+        console.log("[Profile Create] success", profileResponse);
+      }
+
+      completeOnboarding();
       setSelectedKeywords(keywords);
-      router.replace("/(tabs)" as any);
+      router.replace("/home" as any);
+    } catch (error) {
+      if (isProfileNotRegisteredError(error)) {
+        try {
+          console.log(
+            "Profile Create Fallback:",
+            isAxiosError(error) ? error.response?.data : error,
+          );
+          await runTestFallbackProfileUpdate();
+        } catch (fallbackError) {
+          console.log(
+            "Profile Fallback Update Error:",
+            isAxiosError(fallbackError)
+              ? fallbackError.response?.data
+              : fallbackError,
+          );
+        }
+      } else {
+        console.error(
+          "Profile Create Error:",
+          isAxiosError(error) ? error.response?.data : error,
+        );
+      }
+
+      setSelectedKeywords(keywords);
+      router.replace("/home" as any);
     }
   };
 
@@ -369,7 +536,7 @@ export default function WelcomeScreen() {
         <VoiceHeader onBack={handleBack} />
         <KeywordSelectView
           userName={userName}
-          keywords={MOCK_KEYWORDS}
+          keywords={keywordOptions}
           selectedIds={selectedKeywordIds}
           onToggleKeyword={handleToggleKeyword}
           onRerecord={handleStartRecording}
@@ -419,7 +586,7 @@ export default function WelcomeScreen() {
       ) : step === "reviewing" ? (
         <PlaybackControls
           seconds={recordingSeconds}
-          isPlaying={playerStatus.playing}
+          isPlaying={isPlayingRecorded}
           isSubmitting={isUploadingAudio}
           onCancel={handleCancelRecording}
           onTogglePlay={handleTogglePlayback}
@@ -468,14 +635,14 @@ function buildBirthDateFromAge(age?: number | null) {
   return `${new Date().getFullYear() - age}-01-01`;
 }
 
-function labelsFromIds(ids: string[]) {
-  return MOCK_KEYWORDS.filter(
+function labelsFromIds(ids: string[], keywords = MOCK_KEYWORDS) {
+  return keywords.filter(
     (keyword) => keyword.id !== "more" && ids.includes(keyword.id),
   ).map((keyword) => keyword.label);
 }
 
-function idsFromLabels(labels: string[]) {
-  const ids = MOCK_KEYWORDS.filter(
+function idsFromLabels(labels: string[], keywords = MOCK_KEYWORDS) {
+  const ids = keywords.filter(
     (keyword) => keyword.id !== "more" && labels.includes(keyword.label),
   ).map((keyword) => keyword.id);
 
@@ -525,4 +692,54 @@ function contentTypeToExtension(contentType: string) {
 
 function isRemoteUrl(url: string) {
   return /^https?:\/\//i.test(url);
+}
+
+function wait(ms: number) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
+function keywordsFromAnalyze(result: IAnalyzeResponse) {
+  const candidates = [
+    ...result.keywordCandidates.interests,
+    ...result.keywordCandidates.personalities,
+  ]
+    .sort((a, b) => b.score - a.score)
+    .map((candidate) => candidate.text.trim())
+    .filter(Boolean);
+  const uniqueLabels = Array.from(new Set(candidates)).slice(0, 10);
+
+  if (uniqueLabels.length === 0) {
+    return MOCK_KEYWORDS;
+  }
+
+  return [
+    ...uniqueLabels.map((label, index) => ({
+      id: `analyzed-${index}-${label}`,
+      label,
+    })),
+    { id: "more", label: "...더보기" },
+  ];
+}
+
+function withTimeout<T>(promise: Promise<T>, ms: number) {
+  return Promise.race<T>([
+    promise,
+    new Promise<T>((_, reject) => {
+      setTimeout(() => reject(new Error("Voice analyze timeout")), ms);
+    }),
+  ]);
+}
+
+function isProfileNotRegisteredError(error: unknown) {
+  if (!isAxiosError(error)) return false;
+
+  const data = error.response?.data;
+  if (!data || typeof data !== "object") return false;
+
+  const errorBody = "error" in data ? data.error : null;
+  if (!errorBody || typeof errorBody !== "object") return false;
+
+  return "code" in errorBody && errorBody.code === "PROF-001";
 }

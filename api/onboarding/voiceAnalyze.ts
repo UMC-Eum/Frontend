@@ -1,18 +1,13 @@
 import { ApiSuccessResponse } from "../../types/api/api";
-import axios from "axios";
+import api from "../axiosInstance";
 import {
   IAnalyzeRequest,
   IAnalyzeResponse,
 } from "../../types/api/onboarding/onboardingDTO";
 
 export const postVoiceAnalyze = async (body: IAnalyzeRequest) => {
-  const lambdaUrl = process.env.EXPO_PUBLIC_VOICE_LAMBDA_URL;
-  if (!lambdaUrl) {
-    throw new Error("EXPO_PUBLIC_VOICE_LAMBDA_URL is not configured.");
-  }
-
-  const { data } = await axios.post<ApiSuccessResponse<IAnalyzeResponse>>(
-    lambdaUrl,
+  const { data } = await api.post<ApiSuccessResponse<IAnalyzeResponse>>(
+    "/v1/onboarding/voice-profile/analyze",
     body,
   );
 
