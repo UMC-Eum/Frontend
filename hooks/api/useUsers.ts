@@ -1,7 +1,15 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 
 import {
+  createProfileVisit,
   deactivateUser,
+  getLikedClubs,
+  getMyProfileVisitors,
   getMyProfile,
   putIdealPersonalities,
   putInterestKeywords,
@@ -9,14 +17,52 @@ import {
   updateMyProfile,
 } from "@/api/users/usersApi";
 import { useAuthStore } from "@/stores/authStore";
-import { IPatchUserProfileRequest, IKeywordsRequest, IPutIdealRequest } from "@/types/api/users/usersDTO";
+import {
+  IKeywordsRequest,
+  ILikedClubsParams,
+  IMyProfileVisitorsRequest,
+  IPatchUserProfileRequest,
+  IPutIdealRequest,
+} from "@/types/api/users/usersDTO";
 
 import { queryKeys } from "./queryKeys";
+
+const DEFAULT_PAGE_LIMIT = 20;
+
+type InfiniteParams<T extends { cursor?: string | null; limit?: number }> = Omit<
+  T,
+  "cursor" | "limit"
+> & {
+  limit?: number;
+};
 
 export function useMyProfileQuery() {
   return useQuery({
     queryKey: queryKeys.users.me(),
     queryFn: getMyProfile,
+  });
+}
+
+export function useMyProfileVisitorsQuery(
+  params: IMyProfileVisitorsRequest = {},
+) {
+  return useQuery({
+    queryKey: queryKeys.users.visitors(params),
+    queryFn: () => getMyProfileVisitors(params),
+  });
+}
+
+export function useLikedClubsInfiniteQuery(
+  params: InfiniteParams<ILikedClubsParams> = {},
+) {
+  const { limit = DEFAULT_PAGE_LIMIT, ...restParams } = params;
+
+  return useInfiniteQuery({
+    queryKey: queryKeys.users.likedClubs({ ...restParams, limit }),
+    queryFn: ({ pageParam }) =>
+      getLikedClubs({ ...restParams, cursor: pageParam, limit }),
+    initialPageParam: null as string | null,
+    getNextPageParam: (lastPage) => lastPage.nextCursor,
   });
 }
 
@@ -74,5 +120,11 @@ export function usePutIdealPersonalitiesMutation() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.users.me() });
     },
+  });
+}
+
+export function useCreateProfileVisitMutation() {
+  return useMutation({
+    mutationFn: (userId: number) => createProfileVisit(userId),
   });
 }

@@ -1,8 +1,13 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { kakaoLogin, logout } from "@/api/auth/authApi";
+import { getTestAccounts, kakaoLogin, logout, testLogin } from "@/api/auth/authApi";
 import { useAuthStore } from "@/stores/authStore";
-import { IKakaoLoginRequest } from "@/types/api/auth/authDTO";
+import {
+  IKakaoLoginRequest,
+  ITestLoginRequest,
+} from "@/types/api/auth/authDTO";
+
+import { queryKeys } from "./queryKeys";
 
 export function useKakaoLoginMutation() {
   const queryClient = useQueryClient();
@@ -26,6 +31,29 @@ export function useLogoutMutation() {
     onSettled: () => {
       clearAuth();
       queryClient.clear();
+    },
+  });
+}
+
+export function useTestAccountsQuery(enabled = false) {
+  return useQuery({
+    queryKey: queryKeys.auth.testAccounts(),
+    queryFn: getTestAccounts,
+    enabled,
+  });
+}
+
+export function useTestLoginMutation() {
+  const queryClient = useQueryClient();
+  const setAuth = useAuthStore((state) => state.setAuth);
+
+  return useMutation({
+    mutationFn: (body: ITestLoginRequest = {}) => testLogin(body),
+    onSuccess: (data) => {
+      if (data && typeof data === "object" && "accessToken" in data) {
+        setAuth(data as Parameters<typeof setAuth>[0]);
+        queryClient.invalidateQueries();
+      }
     },
   });
 }
