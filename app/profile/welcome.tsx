@@ -37,6 +37,7 @@ import { useOnboardingDraftStore } from "@/stores/onboardingDraftStore";
 import type {
   IAnalyzeResponse,
   IProfileRequest,
+  PresignPurpose,
 } from "@/types/api/onboarding/onboardingDTO";
 
 type VoiceStep =
@@ -52,8 +53,9 @@ const DEFAULT_LOCATION_NAME = "서울 광진구";
 const DEFAULT_AREA_CODE = "1121500000";
 const DEFAULT_BIRTH_DATE = "1973-01-01";
 const DEFAULT_GENDER = "M";
-const INTRO_AUDIO_PURPOSE = "PROFILE_INTRO_AUDIO";
-const VOICE_ANALYZE_TIMEOUT_MS = 5000;
+const INTRO_AUDIO_PURPOSE: PresignPurpose = "PROFILE_INTRO_AUDIO";
+const PROFILE_IMAGE_PURPOSE: PresignPurpose = "PROFILE_IMAGE";
+const VOICE_ANALYZE_TIMEOUT_MS = 60000;
 
 const MOCK_KEYWORDS: VoiceKeyword[] = [
   { id: "culture", label: "문화생활" },
@@ -72,7 +74,6 @@ const MOCK_KEYWORDS: VoiceKeyword[] = [
 export default function WelcomeScreen() {
   const router = useRouter();
   const authNickname = useAuthStore((state) => state.user?.nickname);
-  const authUserId = useAuthStore((state) => state.user?.userId);
   const completeOnboarding = useAuthStore((state) => state.completeOnboarding);
   const draftNickname = useOnboardingDraftStore((state) => state.nickname);
   const draftAge = useOnboardingDraftStore((state) => state.age);
@@ -89,7 +90,6 @@ export default function WelcomeScreen() {
   const draftSelectedKeywords = useOnboardingDraftStore(
     (state) => state.selectedKeywords,
   );
-  const vibeVector = useOnboardingDraftStore((state) => state.vibeVector);
   const setSelectedKeywords = useOnboardingDraftStore(
     (state) => state.setSelectedKeywords,
   );
@@ -297,13 +297,20 @@ export default function WelcomeScreen() {
     setStep("analyzing");
 
     try {
+      if (__DEV__) {
+        console.log("[Voice Upload] start", { recordedAudioUri });
+      }
+
       const uploadedAudioUrl = await uploadRecordedAudio(recordedAudioUri);
       setIntroAudioUrl(uploadedAudioUrl);
 
-      if (authUserId) {
+      try {
+        if (__DEV__) {
+          console.log("[Voice Analyze] start", { uploadedAudioUrl });
+        }
+
         const analyzeResult = await withTimeout(
           voiceAnalyzeMutation.mutateAsync({
-            userId: authUserId,
             audioUrl: uploadedAudioUrl,
             language: "ko-KR",
             analysisType: "profile",
@@ -320,10 +327,23 @@ export default function WelcomeScreen() {
         setSelectedKeywordIds(nextSelectedIds);
         setSelectedKeywords(labelsFromIds(nextSelectedIds, nextKeywords));
         setVibeVector(analyzeResult.vibeVector);
-      } else {
+        if (__DEV__) {
+          console.log("[Voice Analyze] success", {
+            vibeVectorLength: analyzeResult.vibeVector.length,
+          });
+        }
+      } catch (error) {
+        console.log(
+          "Voice Analyze Error:",
+          isAxiosError(error) ? error.response?.data : error,
+        );
         resetKeywordRecommendations();
       }
-    } catch {
+    } catch (error) {
+      console.log(
+        "Voice Upload Flow Error:",
+        isAxiosError(error) ? error.response?.data : error,
+      );
       setIntroAudioUrl("");
       resetKeywordRecommendations();
     } finally {
@@ -425,6 +445,28 @@ export default function WelcomeScreen() {
         : `${userName}님의 이야기를 들려주세요.`;
     const safeIntroAudioUrl = isRemoteUrl(introAudioUrl) ? introAudioUrl : "";
 
+    const syncProfileImage = async () => {
+      if (!profileImageUri || profileImageUri === "default") {
+        return;
+      }
+
+      try {
+        if (isRemoteUrl(profileImageUri)) {
+          return;
+        }
+
+        const profileImageUrl = await uploadProfileImage(profileImageUri);
+        if (__DEV__) {
+          console.log("[Profile Image Upload] success", { profileImageUrl });
+        }
+      } catch (error) {
+        console.log(
+          "Profile Image Upload Error:",
+          isAxiosError(error) ? error.response?.data : error,
+        );
+      }
+    };
+
     const runTestFallbackProfileUpdate = async () => {
       const fallbackPayload = {
         nickname: userName,
@@ -432,7 +474,6 @@ export default function WelcomeScreen() {
         ...(profileAge >= 50 && profileAge <= 150 ? { age: profileAge } : {}),
         areaCode: DEFAULT_AREA_CODE,
         introText: introText || generatedIntro,
-        keywords,
       };
 
       if (__DEV__) {
@@ -440,14 +481,14 @@ export default function WelcomeScreen() {
       }
 
       await updateMyProfileMutation.mutateAsync(fallbackPayload);
+      await syncProfileImage();
       completeOnboarding();
     };
 
-    if (!safeIntroAudioUrl || vibeVector.length === 0) {
+    if (!safeIntroAudioUrl) {
       if (__DEV__) {
         console.log("[Profile Create] skip onboarding profile", {
           hasIntroAudioUrl: !!safeIntroAudioUrl,
-          vibeVectorLength: vibeVector.length,
         });
       }
 
@@ -474,8 +515,6 @@ export default function WelcomeScreen() {
       areaCode: DEFAULT_AREA_CODE,
       introText: introText || generatedIntro,
       introAudioUrl: safeIntroAudioUrl,
-      selectedKeywords: keywords,
-      vibeVector,
     };
 
     try {
@@ -490,6 +529,7 @@ export default function WelcomeScreen() {
         console.log("[Profile Create] success", profileResponse);
       }
 
+      await syncProfileImage();
       completeOnboarding();
       setSelectedKeywords(keywords);
       router.replace("/home" as any);
@@ -657,19 +697,53 @@ async function uploadRecordedAudio(uri: string) {
     contentType,
     purpose: INTRO_AUDIO_PURPOSE,
   });
+
+  if (__DEV__) {
+    console.log("[Voice Upload] presign success", {
+      fileName,
+      contentType,
+      uploadHost: getUrlHost(uploadUrl),
+      uploadUrlPreview: getUrlPreview(uploadUrl),
+    });
+  }
+
   const fileResponse = await fetch(uri);
   const blob = await fileResponse.blob();
-  const uploadResponse = await fetch(uploadUrl, {
-    method: "PUT",
-    headers: {
-      "Content-Type": contentType,
-    },
-    body: blob,
-  });
 
-  if (!uploadResponse.ok) {
-    throw new Error(`S3 upload failed: ${uploadResponse.status}`);
+  if (__DEV__) {
+    console.log("[Voice Upload] local file loaded", {
+      blobSize: blob.size,
+      blobType: blob.type,
+    });
   }
+
+  await uploadBlobToPresignedUrl(uploadUrl, blob, contentType, "Voice Upload");
+
+  if (__DEV__) {
+    console.log("[Voice Upload] s3 success", {
+      fileUrl,
+    });
+  }
+
+  return fileUrl;
+}
+
+async function uploadProfileImage(uri: string) {
+  const contentType = "image/jpeg";
+  const fileName = `profile-image-${Date.now()}.jpg`;
+  const { uploadUrl, fileUrl } = await postPresign({
+    fileName,
+    contentType,
+    purpose: PROFILE_IMAGE_PURPOSE,
+  });
+  const fileResponse = await fetch(uri);
+  const blob = await fileResponse.blob();
+  await uploadBlobToPresignedUrl(
+    uploadUrl,
+    blob,
+    contentType,
+    "Profile Image Upload",
+  );
 
   return fileUrl;
 }
@@ -692,6 +766,59 @@ function contentTypeToExtension(contentType: string) {
 
 function isRemoteUrl(url: string) {
   return /^https?:\/\//i.test(url);
+}
+
+function uploadBlobToPresignedUrl(
+  uploadUrl: string,
+  blob: Blob,
+  contentType: string,
+  logLabel: string,
+) {
+  return new Promise<void>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+
+    xhr.open("PUT", uploadUrl);
+    xhr.setRequestHeader("Content-Type", contentType);
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve();
+        return;
+      }
+
+      reject(
+        new Error(
+          `${logLabel} failed: ${xhr.status} ${xhr.responseText?.slice(0, 160) ?? ""}`,
+        ),
+      );
+    };
+    xhr.onerror = () => {
+      reject(
+        new Error(`${logLabel} network failed: ${getUrlPreview(uploadUrl)}`),
+      );
+    };
+    xhr.send(blob);
+  });
+}
+
+function getUrlHost(url: string) {
+  if (!url) {
+    return "empty";
+  }
+
+  const match = /^https?:\/\/([^/?#]+)/i.exec(url);
+
+  return match?.[1] ?? "unknown";
+}
+
+function getUrlPreview(url: string) {
+  if (!url) {
+    return "empty";
+  }
+
+  const match = /^(https?:\/\/[^/?#]+\/[^?]*)/i.exec(url);
+  const baseUrl = match?.[1] ?? url.slice(0, 80);
+
+  return baseUrl.length > 120 ? `${baseUrl.slice(0, 120)}...` : baseUrl;
 }
 
 function wait(ms: number) {

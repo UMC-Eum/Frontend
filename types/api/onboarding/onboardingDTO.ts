@@ -1,8 +1,10 @@
 //v1/files/presign(post)
+export type PresignPurpose = "PROFILE_INTRO_AUDIO" | "PROFILE_IMAGE";
+
 export interface IPresignRequest {
   fileName: string;
   contentType: string;
-  purpose: string;
+  purpose: PresignPurpose;
 }
 export interface IPresignResponse {
   uploadUrl: string;
@@ -23,7 +25,6 @@ export interface IKeywordscandidate {
   interests: IInterest[];
 }
 export interface IAnalyzeRequest {
-  userId: number;
   audioUrl: string;
   language: "ko-KR";
   analysisType: "profile" | "ideal-type";
@@ -42,8 +43,6 @@ export interface IProfileRequest {
   areaCode: string;
   introText: string;
   introAudioUrl: string;
-  selectedKeywords: string[];
-  vibeVector: number[];
 }
 export interface IProfileResponse {
   userId: number;
