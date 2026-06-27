@@ -1,6 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { getTestAccounts, kakaoLogin, logout, testLogin } from "@/api/auth/authApi";
+import {
+  getTestAccounts,
+  kakaoLogin,
+  logout,
+  testLogin,
+} from "@/api/auth/authApi";
 import { useAuthStore } from "@/stores/authStore";
 import {
   IKakaoLoginRequest,
@@ -50,10 +55,8 @@ export function useTestLoginMutation() {
   return useMutation({
     mutationFn: (body: ITestLoginRequest = {}) => testLogin(body),
     onSuccess: (data) => {
-      if (data && typeof data === "object" && "accessToken" in data) {
-        setAuth(data as Parameters<typeof setAuth>[0]);
-        queryClient.invalidateQueries();
-      }
+      setAuth(data);
+      queryClient.invalidateQueries();
     },
   });
 }

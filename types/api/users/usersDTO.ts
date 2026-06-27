@@ -35,7 +35,7 @@ export interface IMyProfileVisitorItem {
   nickname: string;
   profileImageUrl: string | null;
   age: number;
-  sex: "M" | "F" | string;
+  sex: "M" | "F" | (string & {});
   introText: string;
   visitedAt: string;
 }

@@ -15,7 +15,7 @@ export interface ITokenRefreshResponse {
 }
 
 export type ITestLoginRequest = Record<string, never>;
-export type ITestLoginResponse = unknown;
+export type ITestLoginResponse = IKakaoLoginResponse;
 
 export interface ITestAccountItem {
   [key: string]: unknown;
