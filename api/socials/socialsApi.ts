@@ -81,8 +81,15 @@ export const patchBlock = async (blockId: number) => {
 // 신고하기 (POST)
 export const createReport = async (body: DTO.IReportsRequest) => {
   const { data } = await api.post<ApiSuccessResponse<DTO.IReportsResponse>>(
-    "/v1/report",
+    "/v1/reports",
     body,
   );
+  return data.success.data;
+};
+
+export const createClubReport = async (body: DTO.IClubReportRequest) => {
+  const { data } = await api.post<
+    ApiSuccessResponse<DTO.IClubReportResponse>
+  >("/v1/socials/report/club", body);
   return data.success.data;
 };
