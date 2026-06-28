@@ -6,10 +6,12 @@ import {
   ICreateProfileVisitResponse,
   IIdealVoiceResponse,
   IKeywordsRequest,
-  INotificationSettingsPatchRequest,
-  INotificationSettingsResponse,
+  ILikedClubsParams,
+  ILikedClubsResponse,
+  IMyProfileVisitorsRequest,
+  IMyProfileVisitorsResponse,
   IPatchUserProfileRequest,
-  IProfileVisitorsGetResponse,
+  IProfileVisitResponse,
   IPutIdealRequest,
 } from "../../types/api/users/usersDTO";
 //v1/users/me
@@ -67,52 +69,32 @@ export const putIdealPersonalities = async (body: IPutIdealRequest) => {
   return data.success.data;
 };
 
-// v1/users/me/visitors(get)
-export const getMyProfileVisitors = async (params: {
-  cursor?: string | null;
-  size: number;
-}) => {
-  const { data } = await api.get<
-    ApiSuccessResponse<IProfileVisitorsGetResponse>
-  >("/v1/users/me/visitors", { params });
-
-  return data.success.data;
-};
-
-// v1/users/{userId}/visits(post)
+//v1/users/{userId}/visits(post)
 export const createProfileVisit = async (userId: number) => {
-  const { data } = await api.post<
-    ApiSuccessResponse<ICreateProfileVisitResponse>
-  >(`/v1/users/${userId}/visits`);
-
-  return data.success.data;
-};
-
-// v1/users/me/ideal-voice(get)
-export const getMyIdealVoice = async () => {
-  const { data } = await api.get<ApiSuccessResponse<IIdealVoiceResponse>>(
-    "/v1/users/me/ideal-voice",
+  const { data } = await api.post<ApiSuccessResponse<IProfileVisitResponse>>(
+    `/v1/users/${userId}/visits`,
   );
 
   return data.success.data;
 };
 
-// v1/users/me/notification-settings(get)
-export const getMyNotificationSettings = async () => {
+//v1/users/me/visitors(get)
+export const getMyProfileVisitors = async (
+  params: IMyProfileVisitorsRequest = {},
+) => {
   const { data } = await api.get<
-    ApiSuccessResponse<INotificationSettingsResponse>
-  >("/v1/users/me/notification-settings");
+    ApiSuccessResponse<IMyProfileVisitorsResponse>
+  >("/v1/users/me/visitors", { params });
 
   return data.success.data;
 };
 
-// v1/users/me/notification-settings(patch)
-export const updateMyNotificationSettings = async (
-  body: INotificationSettingsPatchRequest,
-) => {
-  const { data } = await api.patch<
-    ApiSuccessResponse<INotificationSettingsResponse>
-  >("/v1/users/me/notification-settings", body);
+//v1/users/me/clubs/liked(get)
+export const getLikedClubs = async (params: ILikedClubsParams = {}) => {
+  const { data } = await api.get<ApiSuccessResponse<ILikedClubsResponse>>(
+    "/v1/users/me/clubs/liked",
+    { params },
+  );
 
   return data.success.data;
 };

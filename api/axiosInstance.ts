@@ -1,7 +1,7 @@
-import axios, { AxiosRequestConfig, AxiosError } from "axios";
-import { ApiSuccessResponse, ApiFailResponse } from "../types/api/api";
-import { ITokenRefreshResponse } from "../types/api/auth/authDTO";
+import axios, { AxiosError, AxiosRequestConfig } from "axios";
 import { getAuthAccessToken, useAuthStore } from "../stores/authStore";
+import { ApiFailResponse, ApiSuccessResponse } from "../types/api/api";
+import { ITokenRefreshResponse } from "../types/api/auth/authDTO";
 
 export const setAccessToken = (token: string | null) => {
   useAuthStore.getState().setAccessToken(token);
@@ -13,8 +13,13 @@ export const clearAccessToken = () => {
   useAuthStore.getState().clearAuth();
 };
 
+const normalizedBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL?.replace(
+  /\/+$/,
+  "",
+);
+
 const api = axios.create({
-  baseURL: process.env.EXPO_PUBLIC_API_BASE_URL,
+  baseURL: normalizedBaseUrl,
   headers: { "Content-Type": "application/json" },
   withCredentials: true,
 });

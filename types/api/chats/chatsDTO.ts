@@ -35,6 +35,7 @@ export interface IChatsRoomItem {
 }
 export interface IChatsRoomsGetResponse {
   nextCursor: string | null;
+  totalUnreadCount?: number;
   items: IChatsRoomItem[];
 }
 

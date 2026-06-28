@@ -1,10 +1,15 @@
-import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 
 import {
   createProfileVisit,
   deactivateUser,
-  getMyIdealVoice,
-  getMyNotificationSettings,
+  getLikedClubs,
+  getMyProfileVisitors,
   getMyProfile,
   getMyProfileVisitors,
   putIdealPersonalities,
@@ -16,14 +21,22 @@ import {
 import { useAuthStore } from "@/stores/authStore";
 import {
   IKeywordsRequest,
-  INotificationSettingsPatchRequest,
+  ILikedClubsParams,
+  IMyProfileVisitorsRequest,
   IPatchUserProfileRequest,
   IPutIdealRequest,
 } from "@/types/api/users/usersDTO";
 
 import { queryKeys } from "./queryKeys";
 
-const DEFAULT_PAGE_SIZE = 20;
+const DEFAULT_PAGE_LIMIT = 20;
+
+type InfiniteParams<T extends { cursor?: string | null; limit?: number }> = Omit<
+  T,
+  "cursor" | "limit"
+> & {
+  limit?: number;
+};
 
 export function useMyProfileQuery() {
   return useQuery({
@@ -32,38 +45,26 @@ export function useMyProfileQuery() {
   });
 }
 
-export function useMyProfileVisitorsInfiniteQuery(size = DEFAULT_PAGE_SIZE) {
+export function useMyProfileVisitorsQuery(
+  params: IMyProfileVisitorsRequest = {},
+) {
+  return useQuery({
+    queryKey: queryKeys.users.visitors(params),
+    queryFn: () => getMyProfileVisitors(params),
+  });
+}
+
+export function useLikedClubsInfiniteQuery(
+  params: InfiniteParams<ILikedClubsParams> = {},
+) {
+  const { limit = DEFAULT_PAGE_LIMIT, ...restParams } = params;
+
   return useInfiniteQuery({
-    queryKey: queryKeys.users.visitors(size),
+    queryKey: queryKeys.users.likedClubs({ ...restParams, limit }),
     queryFn: ({ pageParam }) =>
-      getMyProfileVisitors({ cursor: pageParam, size }),
+      getLikedClubs({ ...restParams, cursor: pageParam, limit }),
     initialPageParam: null as string | null,
     getNextPageParam: (lastPage) => lastPage.nextCursor,
-  });
-}
-
-export function useCreateProfileVisitMutation() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: (userId: number) => createProfileVisit(userId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.users.visitors(DEFAULT_PAGE_SIZE) });
-    },
-  });
-}
-
-export function useMyIdealVoiceQuery() {
-  return useQuery({
-    queryKey: queryKeys.users.idealVoice(),
-    queryFn: getMyIdealVoice,
-  });
-}
-
-export function useMyNotificationSettingsQuery() {
-  return useQuery({
-    queryKey: queryKeys.users.notificationSettings(),
-    queryFn: getMyNotificationSettings,
   });
 }
 
@@ -124,16 +125,8 @@ export function usePutIdealPersonalitiesMutation() {
   });
 }
 
-export function useUpdateMyNotificationSettingsMutation() {
-  const queryClient = useQueryClient();
-
+export function useCreateProfileVisitMutation() {
   return useMutation({
-    mutationFn: (body: INotificationSettingsPatchRequest) =>
-      updateMyNotificationSettings(body),
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.users.notificationSettings(),
-      });
-    },
+    mutationFn: (userId: number) => createProfileVisit(userId),
   });
 }

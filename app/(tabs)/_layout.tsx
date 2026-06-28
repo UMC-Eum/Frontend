@@ -1,7 +1,7 @@
 import { Tabs, useRouter } from "expo-router";
 import React from "react";
 
-import { Navbar } from "@/components/Navbar";
+import { AppNavbar } from "@/components/AppNavbar";
 
 export default function TabLayout() {
   const router = useRouter();
@@ -11,16 +11,8 @@ export default function TabLayout() {
       tabBar={(props) => {
         const currentRouteName = props.state.routes[props.state.index].name;
 
-        const tabsData = [
-          { id: "index", iconName: "home", label: "홈" },
-          { id: "heart", iconName: "heart", label: "마음", hasDotBadge: true },
-          { id: "chat", iconName: "chat", label: "대화", badgeCount: 100 },
-          { id: "my", iconName: "person", label: "마이" },
-        ];
-
         return (
-          <Navbar
-            tabs={tabsData as any}
+          <AppNavbar
             activeTabId={currentRouteName}
             onTabPress={(id) => {
               if (id === "index") {
@@ -30,8 +22,6 @@ export default function TabLayout() {
 
               props.navigation.navigate(id);
             }}
-            activeColor="#1F2937"
-            inactiveColor="#9CA3AF"
           />
         );
       }}

@@ -33,8 +33,9 @@ interface TermItem {
   id: string;
   title: string;
   required: boolean;
-  type?: AgreementType;
-  agreementId?: number;
+  detailType: "service" | "privacy" | "marketing";
+  type: AgreementType;
+  agreementId: number;
 }
 
 const SHEET_HEIGHT = 394;
@@ -63,17 +64,31 @@ const TermsBottomSheet = ({
 
   const terms = useMemo<TermItem[]>(
     () =>
-      agreementsQuery.data?.map((item) => ({
-        id: String(item.agreementId),
-        title: getAgreementTitle(item.type, item.body),
-        required: item.type !== "MARKETING",
-        type: item.type,
-        agreementId: item.agreementId,
-      })) ?? [],
+      agreementsQuery.data?.flatMap((item) => {
+        const agreementId = Number(item.agreementId);
+        const type = item.type ?? getAgreementTypeById(agreementId);
+        const detailType = getAgreementDetailType(type);
+
+        if (!type || !detailType || !Number.isFinite(agreementId)) {
+          return [];
+        }
+
+        return [
+          {
+            id: String(item.agreementId),
+            title: getAgreementTitle(type),
+            required: type !== "MARKETING",
+            detailType,
+            type,
+            agreementId,
+          },
+        ];
+      }) ?? [],
     [agreementsQuery.data],
   );
 
   const isAgreementsReady = agreementsQuery.isSuccess && terms.length > 0;
+  const isAgreementsEmpty = agreementsQuery.isSuccess && terms.length === 0;
 
   // visible 상태에 맞춰 오버레이와 시트를 자연스럽게 열고 닫는다.
   useEffect(() => {
@@ -161,9 +176,15 @@ const TermsBottomSheet = ({
 
   // 상세 보기
   const onDetailPress = (id: string) => {
+    const term = terms.find((item) => item.id === id);
+    if (!term) return;
+
     router.push({
       pathname: "/onboarding/terms-detail",
-      params: { type: id },
+      params: {
+        type: term.detailType,
+        agreementId: String(term.agreementId),
+      },
     } as any);
   };
 
@@ -230,7 +251,11 @@ const TermsBottomSheet = ({
                     약관을 불러오는 중입니다.
                   </Text>
                 </View>
-              ) : agreementsQuery.isError || terms.length === 0 ? (
+              ) : isAgreementsEmpty ? (
+                <Text style={styles.errorText}>
+                  등록된 약관이 없습니다. 관리자에게 문의해주세요.
+                </Text>
+              ) : agreementsQuery.isError ? (
                 <Text style={styles.errorText}>
                   약관을 불러오지 못했습니다. 다시 시도해주세요.
                 </Text>
@@ -337,12 +362,26 @@ const TermsBottomSheet = ({
   );
 };
 
-function getAgreementTitle(type: AgreementType | undefined, body: string) {
+function getAgreementTitle(type: AgreementType): string {
   if (type === "POLICY") return "서비스이용약관";
   if (type === "PERSONAL_INFORMATION") return "개인정보처리방침";
   if (type === "MARKETING") return "마케팅정보수신";
 
-  return body.slice(0, 18) || "이용약관";
+  return "이용약관";
+}
+
+function getAgreementTypeById(agreementId: number): AgreementType | undefined {
+  if (agreementId === 1) return "POLICY";
+  if (agreementId === 2) return "PERSONAL_INFORMATION";
+  if (agreementId === 3) return "MARKETING";
+  return undefined;
+}
+
+function getAgreementDetailType(type: AgreementType | undefined) {
+  if (type === "POLICY") return "service";
+  if (type === "PERSONAL_INFORMATION") return "privacy";
+  if (type === "MARKETING") return "marketing";
+  return undefined;
 }
 
 const styles = StyleSheet.create({

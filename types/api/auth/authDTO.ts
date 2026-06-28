@@ -13,3 +13,14 @@ export interface IKakaoLoginResponse {
 export interface ITokenRefreshResponse {
   accessToken: string;
 }
+
+export type ITestLoginRequest = Record<string, never>;
+export type ITestLoginResponse = IKakaoLoginResponse;
+
+export interface ITestAccountItem {
+  [key: string]: unknown;
+}
+
+export interface ITestAccountsResponse {
+  accounts: ITestAccountItem[];
+}

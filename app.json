@@ -49,15 +49,17 @@
           "cameraPermission": "프로필 사진 촬영을 위해 카메라 접근 권한이 필요합니다."
         }
       ],
-      [
-        "expo-audio",
-        {
-          "microphonePermission": "이상형 음성 녹음을 위해 마이크 접근 권한이 필요합니다."
-        }
-      ]
+      "expo-audio"
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "e082110d-18ac-4cf9-999e-43c77b5fbe7a"
+      }
+    },
+    "owner": "sonseongwon"
   }
 }

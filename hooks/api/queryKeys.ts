@@ -1,16 +1,14 @@
 export const queryKeys = {
+  auth: {
+    all: ["auth"] as const,
+    testAccounts: () => [...queryKeys.auth.all, "testAccounts"] as const,
+  },
   users: {
     all: ["users"] as const,
     me: () => [...queryKeys.users.all, "me"] as const,
-    visitors: (size: number) =>
-      [...queryKeys.users.all, "visitors", { size }] as const,
-    idealVoice: () => [...queryKeys.users.all, "idealVoice"] as const,
-    notificationSettings: () =>
-      [...queryKeys.users.all, "notificationSettings"] as const,
-  },
-  matches: {
-    all: ["matches"] as const,
-    count: () => [...queryKeys.matches.all, "count"] as const,
+    visitors: (params: object) => [...queryKeys.users.me(), "visitors", params] as const,
+    likedClubs: (params: object) =>
+      [...queryKeys.users.me(), "clubs", "liked", params] as const,
   },
   recommendations: {
     all: ["recommendations"] as const,
@@ -78,5 +76,47 @@ export const queryKeys = {
         : [...queryKeys.clubs.all, "posts"] as const,
     post: (postId: number) => [...queryKeys.clubs.posts(), postId] as const,
     comments: (postId: number) => [...queryKeys.clubs.post(postId), "comments"] as const,
+  },
+  club: {
+    all: ["club"] as const,
+    list: (params: object) => [...queryKeys.club.all, "list", params] as const,
+    detail: (clubId: number) => [...queryKeys.club.all, "detail", clubId] as const,
+    recommended: () => [...queryKeys.club.all, "recommended"] as const,
+    topHosts: (limit: number) => [...queryKeys.club.all, "topHosts", { limit }] as const,
+    my: (params: object) => [...queryKeys.club.all, "my", params] as const,
+    archives: (clubId: number, params: object) =>
+      [...queryKeys.club.detail(clubId), "archives", params] as const,
+  },
+  articles: {
+    all: (clubId: number) => [...queryKeys.club.detail(clubId), "articles"] as const,
+    list: (clubId: number, params: object) =>
+      [...queryKeys.articles.all(clubId), "list", params] as const,
+    detail: (clubId: number, articleId: number) =>
+      [...queryKeys.articles.all(clubId), articleId] as const,
+    archive: (clubId: number, params: object) =>
+      [...queryKeys.articles.all(clubId), "archive", params] as const,
+  },
+  comments: {
+    all: (clubId: number, articleId: number) =>
+      [...queryKeys.articles.detail(clubId, articleId), "comments"] as const,
+    list: (clubId: number, articleId: number, params: object) =>
+      [...queryKeys.comments.all(clubId, articleId), "list", params] as const,
+  },
+  meetings: {
+    all: (clubId: number) => [...queryKeys.club.detail(clubId), "meetings"] as const,
+    list: (clubId: number, params: object) =>
+      [...queryKeys.meetings.all(clubId), "list", params] as const,
+    detail: (clubId: number, meetingId: number) =>
+      [...queryKeys.meetings.all(clubId), meetingId] as const,
+    attendees: (clubId: number, meetingId: number, params: object) =>
+      [...queryKeys.meetings.detail(clubId, meetingId), "attendees", params] as const,
+  },
+  host: {
+    all: ["host"] as const,
+    club: (clubId: number) => [...queryKeys.host.all, "club", clubId] as const,
+    membersBase: (clubId: number) =>
+      [...queryKeys.host.club(clubId), "members"] as const,
+    members: (clubId: number, params: object) =>
+      [...queryKeys.host.membersBase(clubId), params] as const,
   },
 } as const;

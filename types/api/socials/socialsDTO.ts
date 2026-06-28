@@ -22,6 +22,7 @@ export interface IHeartsentItem {
 }
 export interface IHeartsentResponse {
   nextCursor: string | null;
+  totalCount?: number;
   items: IHeartsentItem[];
 }
 
@@ -34,6 +35,7 @@ export interface IHeartreceivedItem {
 }
 export interface IHeartreceivedResponse {
   nextCursor: string | null;
+  totalCount?: number;
   items: IHeartreceivedItem[];
 }
 
@@ -69,12 +71,16 @@ export interface IReportsResponse {
   reportId: { reportId: number };
 }
 
-// v1/socials/report/club(post)
 export interface IClubReportRequest {
   clubId: number;
+  category: string;
   reason: string;
-  category?: string;
 }
+
 export interface IClubReportResponse {
+  clubReportId: number;
   reportId: number;
+  reportedClubId: number;
+  category: string;
+  reportedAt: string;
 }
