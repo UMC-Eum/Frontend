@@ -18,8 +18,8 @@ import {
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { IClubMeeting } from "@/types/api/clubs/clubsDTO";
 import { ClubPostCategory } from "@/types/api/clubs/clubPostsDTO";
+import { IMeetingListItem } from "@/types/api/meetings/meetingsDTO";
 
 const PINK = "#FF3E70";
 const BLACK = "#202020";
@@ -179,7 +179,7 @@ export default function ClubDetailScreen() {
     : insets.bottom + 96;
   const albumItemSize = width / 3;
   const trimmedJoinMessage = joinMessage.trim();
-  const meetings: IClubMeeting[] = [];
+  const meetings: IMeetingListItem[] = [];
   const archives: { archiveId: number; imageUrl: string }[] = [];
   const heroImage = HERO_IMAGE;
   const clubTitle = "새벽 등산 동호회";
@@ -419,7 +419,7 @@ function ClubHomeTab({
 }: {
   description: string;
   isJoined: boolean;
-  meetings: IClubMeeting[];
+  meetings: IMeetingListItem[];
 }) {
   const firstMeeting = meetings[0];
 
@@ -433,13 +433,13 @@ function ClubHomeTab({
           <View style={styles.meetingTitleRow}>
             <View style={styles.dDayBadge}>
               <Text style={styles.dDayText}>
-                {firstMeeting?.startsAt
-                  ? formatDday(firstMeeting.startsAt)
+                {firstMeeting?.date
+                  ? formatDday(firstMeeting.date)
                   : "D-4"}
               </Text>
             </View>
             <Text style={styles.meetingTitle}>
-              {firstMeeting?.title ?? "매주하는 새벽등산🔥"}
+              {firstMeeting?.name ?? "매주하는 새벽등산🔥"}
             </Text>
           </View>
 
@@ -447,22 +447,18 @@ function ClubHomeTab({
             <MeetingInfo
               label="일시"
               value={
-                firstMeeting?.dateText ??
-                formatDateTime(firstMeeting?.startsAt) ??
+                formatDateTime(firstMeeting?.date) ??
                 "매주 목요일 저녁 19시"
               }
             />
             <MeetingInfo
               label="위치"
-              value={firstMeeting?.location ?? "종로역 1번 출구 앞"}
+              value={firstMeeting?.spot ?? "종로역 1번 출구 앞"}
             />
             <MeetingInfo
               label="비용"
               value={
-                firstMeeting?.costText ??
-                (typeof firstMeeting?.cost === "number"
-                  ? `${firstMeeting.cost.toLocaleString()}원`
-                  : "n만원")
+                "n만원"
               }
             />
           </View>
