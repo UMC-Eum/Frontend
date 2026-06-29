@@ -19,21 +19,24 @@ import {
   useSendHeartMutation,
   useSentHeartsInfiniteQuery,
 } from "@/hooks/api/useSocials";
+import { useCreateProfileVisitMutation } from "@/hooks/api/useUsers";
 
 const PINK = "#FF3E70";
 const BLACK = "#202020";
 const GRAY_100 = "#F8FAFB";
 const GRAY_150 = "#E9ECED";
 const GRAY_700 = "#636970";
+const FALLBACK_PROFILE_IMAGE =
+  "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=85&w=1200&auto=format&fit=crop";
 
 type HeartTab = "received" | "sent";
 
 type HeartProfile = {
   id: string;
   name: string;
-  age: number;
+  age: number | null;
   location: string;
-  image: string;
+  image: string | null;
   isLiked: boolean;
 };
 
@@ -54,6 +57,7 @@ export default function HeartScreen() {
   const sentQuery = useSentHeartsInfiniteQuery();
   const sendHeartMutation = useSendHeartMutation();
   const patchHeartMutation = usePatchHeartMutation();
+  const createProfileVisitMutation = useCreateProfileVisitMutation();
 
   const cardWidth = useMemo(() => (width - 40 - 12) / 2, [width]);
   const receivedProfiles = useMemo(
@@ -71,6 +75,20 @@ export default function HeartScreen() {
   const activeQuery = activeTab === "received" ? receivedQuery : sentQuery;
   const isLoading = activeQuery.isLoading && profiles.length === 0;
   const receivedCount = receivedProfiles.length;
+
+  const handleOpenProfileDetail = useCallback(
+    (profile: ScreenHeartProfile) => {
+      if (profile.targetUserId) {
+        createProfileVisitMutation.mutate(profile.targetUserId);
+      }
+
+      router.push({
+        pathname: "/profile-detail",
+        params: buildProfileDetailParams(profile),
+      } as never);
+    },
+    [createProfileVisitMutation, router],
+  );
 
   // 하트 액션은 서버 반영 후 관련 목록을 invalidate하는 mutation 훅에서 동기화합니다.
   const handleToggleHeart = useCallback(
@@ -154,7 +172,7 @@ export default function HeartScreen() {
               profile={item}
               width={cardWidth}
               isPending={pendingIds.has(item.id)}
-              onPress={() => router.push("/profile-detail" as never)}
+              onPress={() => handleOpenProfileDetail(item)}
               onPressHeart={() => handleToggleHeart(item)}
             />
           )}
@@ -227,8 +245,10 @@ function mapReceivedHeartProfiles(data?: {
       fromUserId: number;
       fromUser: {
         nickname: string;
-        age: number;
-        profileImageUrl: string;
+        age?: number | string | null;
+        birthDate?: string | null;
+        profileImageUrl?: string | null;
+        areaName?: string | null;
       };
     }[];
   }[];
@@ -240,9 +260,9 @@ function mapReceivedHeartProfiles(data?: {
         heartId: item.heartId,
         targetUserId: item.fromUserId,
         name: item.fromUser.nickname,
-        age: item.fromUser.age,
-        location: "",
-        image: item.fromUser.profileImageUrl,
+        age: normalizeAge(item.fromUser.age, item.fromUser.birthDate),
+        location: item.fromUser.areaName ?? "",
+        image: item.fromUser.profileImageUrl ?? null,
         isLiked: false,
       })),
     ) ?? []
@@ -256,8 +276,10 @@ function mapSentHeartProfiles(data?: {
       targetUserId: number;
       targetUser: {
         nickname: string;
-        age: number;
-        profileImageUrl: string;
+        age?: number | string | null;
+        birthDate?: string | null;
+        profileImageUrl?: string | null;
+        areaName?: string | null;
       };
     }[];
   }[];
@@ -269,13 +291,57 @@ function mapSentHeartProfiles(data?: {
         heartId: item.heartId,
         targetUserId: item.targetUserId,
         name: item.targetUser.nickname,
-        age: item.targetUser.age,
-        location: "",
-        image: item.targetUser.profileImageUrl,
+        age: normalizeAge(item.targetUser.age, item.targetUser.birthDate),
+        location: item.targetUser.areaName ?? "",
+        image: item.targetUser.profileImageUrl ?? null,
         isLiked: true,
       })),
     ) ?? []
   );
+}
+
+function buildProfileDetailParams(profile: ScreenHeartProfile) {
+  const params: Record<string, string> = {
+    name: profile.name,
+    isLiked: String(profile.isLiked),
+  };
+
+  if (profile.targetUserId) params.userId = String(profile.targetUserId);
+  if (profile.age) params.age = String(profile.age);
+  if (profile.image) params.image = profile.image;
+  if (profile.location) params.location = profile.location;
+
+  return params;
+}
+
+function normalizeAge(age?: number | string | null, birthDate?: string | null) {
+  const parsedAge =
+    typeof age === "string" && age.trim() ? Number(age) : age;
+
+  if (
+    typeof parsedAge === "number" &&
+    Number.isFinite(parsedAge) &&
+    parsedAge > 0
+  ) {
+    return Math.floor(parsedAge);
+  }
+
+  if (!birthDate) return null;
+
+  const birthday = new Date(birthDate);
+  if (Number.isNaN(birthday.getTime())) return null;
+
+  const today = new Date();
+  let calculatedAge = today.getFullYear() - birthday.getFullYear();
+  const birthdayThisYear = new Date(
+    today.getFullYear(),
+    birthday.getMonth(),
+    birthday.getDate(),
+  );
+
+  if (today < birthdayThisYear) calculatedAge -= 1;
+
+  return calculatedAge > 0 ? calculatedAge : null;
 }
 
 type HeartTabButtonProps = {
@@ -313,9 +379,15 @@ function HeartProfileCard({
   onPress,
   onPressHeart,
 }: HeartProfileCardProps) {
+  const ageLabel = profile.age ? `${profile.age}세` : null;
+
   return (
     <Pressable style={[styles.card, { width, height: width * 1.38 }]} onPress={onPress}>
-      <ImageBackground source={{ uri: profile.image }} style={styles.cardImage} imageStyle={styles.cardRadius}>
+      <ImageBackground
+        source={{ uri: profile.image || FALLBACK_PROFILE_IMAGE }}
+        style={styles.cardImage}
+        imageStyle={styles.cardRadius}
+      >
         <View style={styles.cardBottomOverlay} />
         <Pressable
           style={[styles.heartButton, isPending ? styles.heartButtonPending : null]}
@@ -337,8 +409,12 @@ function HeartProfileCard({
             <Text style={styles.cardName} numberOfLines={1}>
               {profile.name}
             </Text>
-            <View style={styles.nameDot} />
-            <Text style={styles.cardName}>{profile.age}세</Text>
+            {ageLabel ? (
+              <>
+                <View style={styles.nameDot} />
+                <Text style={styles.cardName}>{ageLabel}</Text>
+              </>
+            ) : null}
           </View>
           <Text style={styles.cardLocation} numberOfLines={1}>
             {profile.location}

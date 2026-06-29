@@ -1,8 +1,9 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
   ImageBackground,
   Modal,
@@ -17,38 +18,93 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Chip } from "@/components/Chip";
+import { useSendHeartMutation } from "@/hooks/api/useSocials";
+import { useUserProfileQuery } from "@/hooks/api/useUsers";
+import type { IUserProfile } from "@/types/user";
 
-const PROFILE_IMAGE =
-  "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=1200&q=85&auto=format&fit=crop";
+const FALLBACK_PROFILE_IMAGE =
+  "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=85&w=1200&auto=format&fit=crop";
 
-const profile = {
-  name: "루시",
-  age: 55,
-  location: "서울시 서대문구",
-  distance: "7km",
-  intro:
-    "안녕하세요.\n하루를 마무리하며 나누는 소소한 대화를 좋아합니다. 서두르지 않고, 편안하게 이야기할 수 있는 인연을 만나고 싶어요. 먼저 대화를 주도하는 편입니다! 친해져 지내봐요 ㅎㅎ",
-  interests: ["헬스", "요리", "여행", "음악듣기"],
-  preferences: ["귀여운", "다정한", "친절한", "가까이 사는", "솔직한", "친절한"],
+type ProfileDetailParams = {
+  userId?: string | string[];
+  name?: string | string[];
+  age?: string | string[];
+  image?: string | string[];
+  location?: string | string[];
+  intro?: string | string[];
+  isLiked?: string | string[];
 };
 
-const clubs = [
-  { id: 1, title: "새벽 등산 동호회", meta: "서울시 서대문구 · 루시" },
-  { id: 2, title: "새벽 등산 동호회", meta: "서울시 서대문구 · 루시" },
-  { id: 3, title: "새벽 등산 동호회", meta: "서울시 서대문구 · 루시" },
-  { id: 4, title: "새벽 등산 동호회", meta: "서울시 서대문구 · 루시" },
-];
+type ProfileViewData = {
+  name: string;
+  age: number | null;
+  location: string;
+  intro: string;
+  image: string;
+  interests: string[];
+  preferences: string[];
+};
 
 export default function ProfileDetailScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<ProfileDetailParams>();
   const insets = useSafeAreaInsets();
   const { height: windowHeight } = useWindowDimensions();
-  const [liked, setLiked] = useState(false);
+  const userId = parsePositiveInt(firstParam(params.userId));
+  const fallbackProfile = useMemo(() => mapParamsToProfile(params), [params]);
+  const profileQuery = useUserProfileQuery(userId);
+  const profile = useMemo(
+    () => mapProfileToViewData(profileQuery.data, fallbackProfile),
+    [fallbackProfile, profileQuery.data],
+  );
+  const [liked, setLiked] = useState(firstParam(params.isLiked) === "true");
   const [menuVisible, setMenuVisible] = useState(false);
+  const sendHeartMutation = useSendHeartMutation();
 
   const handleComingSoon = (message: string) => {
     Alert.alert(message);
   };
+
+  const handleToggleLike = () => {
+    if (!liked && userId) {
+      sendHeartMutation.mutate(userId);
+    }
+
+    setLiked((prev) => !prev);
+  };
+
+  if (!profile && profileQuery.isLoading) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.stateWrap}>
+          <ActivityIndicator color="#FF3E70" />
+          <Text style={styles.stateText}>프로필을 불러오는 중이에요</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (!profile) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.topActionsStatic}>
+          <TouchableOpacity
+            style={styles.iconButtonDark}
+            activeOpacity={0.7}
+            onPress={() => router.back()}
+          >
+            <Ionicons name="chevron-back" size={26} color="#202020" />
+          </TouchableOpacity>
+        </View>
+        <View style={styles.stateWrap}>
+          <Text style={styles.stateTitle}>프로필 정보를 불러올 수 없어요</Text>
+          <Text style={styles.stateText}>다시 시도해주세요.</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  const ageLabel = profile.age ? `${profile.age}세` : null;
 
   return (
     <SafeAreaView style={styles.safeArea} edges={["left", "right", "bottom"]}>
@@ -64,7 +120,7 @@ export default function ProfileDetailScreen() {
       >
         {/* 프로필 대표 사진과 상단 액션 영역입니다. */}
         <ImageBackground
-          source={{ uri: PROFILE_IMAGE }}
+          source={{ uri: profile.image }}
           style={[styles.hero, { height: Math.round(windowHeight * 0.665) }]}
           imageStyle={styles.heroImage}
         >
@@ -101,22 +157,22 @@ export default function ProfileDetailScreen() {
             <View>
               <View style={styles.nameRow}>
                 <Text style={styles.profileName}>
-                  {profile.name} {profile.age}
+                  {ageLabel ? `${profile.name} ${ageLabel}` : profile.name}
                 </Text>
                 <Ionicons name="checkmark-circle" size={18} color="#FF3E70" />
               </View>
-              <View style={styles.locationRow}>
-                <Ionicons name="location-sharp" size={18} color="#FFFFFF" />
-                <Text style={styles.locationText}>
-                  {profile.location} · {profile.distance}
-                </Text>
-              </View>
+              {profile.location ? (
+                <View style={styles.locationRow}>
+                  <Ionicons name="location-sharp" size={18} color="#FFFFFF" />
+                  <Text style={styles.locationText}>{profile.location}</Text>
+                </View>
+              ) : null}
             </View>
 
             <TouchableOpacity
               style={styles.likeButton}
               activeOpacity={0.82}
-              onPress={() => setLiked((prev) => !prev)}
+              onPress={handleToggleLike}
             >
               <Ionicons
                 name={liked ? "heart" : "heart-outline"}
@@ -138,53 +194,13 @@ export default function ProfileDetailScreen() {
         <View style={styles.content}>
           <SectionTitle title="소개" />
           <View style={styles.introCard}>
-            <Text style={styles.introText}>{profile.intro}</Text>
+            <Text style={styles.introText}>
+              {profile.intro || "아직 작성된 소개가 없어요."}
+            </Text>
           </View>
 
-          <SectionTitle title="저의 관심사에요." />
-          <View style={styles.chipList}>
-            {profile.interests.map((interest, index) => (
-              <Chip
-                key={interest}
-                label={interest}
-                variant={index === 0 ? "outlineActive" : "outline"}
-                shape="rect"
-                size="small"
-                style={styles.profileChip}
-                textStyle={styles.profileChipText}
-              />
-            ))}
-          </View>
-
-          <SectionTitle title="이런 사람이 좋아요." />
-          <View style={styles.chipList}>
-            {profile.preferences.map((preference, index) => (
-              <Chip
-                key={`${preference}-${index}`}
-                label={preference}
-                variant={index === 1 || index === 2 ? "outlineActive" : "outline"}
-                shape="rect"
-                size="small"
-                style={styles.profileChip}
-                textStyle={styles.profileChipText}
-              />
-            ))}
-          </View>
-        </View>
-
-        <View style={styles.divider} />
-
-        {/* 동호회 정보는 동일한 카드 패턴으로 재사용되도록 분리했습니다. */}
-        <View style={styles.content}>
-          <SectionTitle title="이런 동호회를 참여하고있어요" />
-          {clubs.slice(0, 2).map((club) => (
-            <ClubCard key={`joined-${club.id}`} club={club} />
-          ))}
-
-          <SectionTitle title="이런 동호회를 운영해요" />
-          {clubs.slice(2).map((club) => (
-            <ClubCard key={`owned-${club.id}`} club={club} />
-          ))}
+          <ProfileChipSection title="저의 관심사에요." items={profile.interests} />
+          <ProfileChipSection title="이런 사람이 좋아요." items={profile.preferences} />
         </View>
       </ScrollView>
 
@@ -219,27 +235,104 @@ function SectionTitle({ title }: { title: string }) {
   return <Text style={styles.sectionTitle}>{title}</Text>;
 }
 
-function ClubCard({
-  club,
-}: {
-  club: {
-    title: string;
-    meta: string;
-  };
-}) {
+function ProfileChipSection({ title, items }: { title: string; items: string[] }) {
+  if (items.length === 0) return null;
+
   return (
-    <View style={styles.clubCard}>
-      <View style={styles.clubThumbnail} />
-      <View style={styles.clubInfo}>
-        <Text style={styles.clubTitle}>{club.title}</Text>
-        <Text style={styles.clubMeta}>{club.meta}</Text>
-        <View style={styles.memberRow}>
-          <Ionicons name="person" size={14} color="#A6AFB6" />
-          <Text style={styles.memberText}>6명 참석중 (6/15)</Text>
-        </View>
+    <>
+      <SectionTitle title={title} />
+      <View style={styles.chipList}>
+        {items.map((item, index) => (
+          <Chip
+            key={`${item}-${index}`}
+            label={item}
+            variant={index === 0 ? "outlineActive" : "outline"}
+            shape="rect"
+            size="small"
+            style={styles.profileChip}
+            textStyle={styles.profileChipText}
+          />
+        ))}
       </View>
-    </View>
+    </>
   );
+}
+
+function firstParam(value?: string | string[]) {
+  if (Array.isArray(value)) return value[0];
+  return value;
+}
+
+function parsePositiveInt(value?: string) {
+  if (!value) return null;
+
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+}
+
+function mapParamsToProfile(params: ProfileDetailParams): ProfileViewData | null {
+  const name = firstParam(params.name);
+  const image = firstParam(params.image);
+  const age = normalizeAge(firstParam(params.age));
+
+  if (!name && !image && !age) return null;
+
+  return {
+    name: name || "프로필",
+    age,
+    location: firstParam(params.location) ?? "",
+    intro: firstParam(params.intro) ?? "",
+    image: image || FALLBACK_PROFILE_IMAGE,
+    interests: [],
+    preferences: [],
+  };
+}
+
+function mapProfileToViewData(
+  profile: IUserProfile | undefined,
+  fallback: ProfileViewData | null,
+): ProfileViewData | null {
+  if (!profile) return fallback;
+
+  return {
+    name: profile.nickname || fallback?.name || "프로필",
+    age: normalizeAge(profile.age, profile.birthDate) ?? fallback?.age ?? null,
+    location: profile.area?.name || fallback?.location || "",
+    intro: profile.introText || fallback?.intro || "",
+    image: profile.profileImageUrl || fallback?.image || FALLBACK_PROFILE_IMAGE,
+    interests: profile.keywords ?? [],
+    preferences: profile.idealPersonalities ?? [],
+  };
+}
+
+function normalizeAge(age?: number | string | null, birthDate?: string | null) {
+  const parsedAge =
+    typeof age === "string" && age.trim() ? Number(age) : age;
+
+  if (
+    typeof parsedAge === "number" &&
+    Number.isFinite(parsedAge) &&
+    parsedAge > 0
+  ) {
+    return Math.floor(parsedAge);
+  }
+
+  if (!birthDate) return null;
+
+  const birthday = new Date(birthDate);
+  if (Number.isNaN(birthday.getTime())) return null;
+
+  const today = new Date();
+  let calculatedAge = today.getFullYear() - birthday.getFullYear();
+  const birthdayThisYear = new Date(
+    today.getFullYear(),
+    birthday.getMonth(),
+    birthday.getDate(),
+  );
+
+  if (today < birthdayThisYear) calculatedAge -= 1;
+
+  return calculatedAge > 0 ? calculatedAge : null;
 }
 
 function ActionSheetModal({
@@ -304,6 +397,35 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     backgroundColor: "#FFFFFF",
+  },
+  stateWrap: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 24,
+    gap: 10,
+  },
+  stateTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#202020",
+  },
+  stateText: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: "#636970",
+    textAlign: "center",
+  },
+  topActionsStatic: {
+    paddingHorizontal: 16,
+    paddingTop: 12,
+  },
+  iconButtonDark: {
+    width: 38,
+    height: 38,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 19,
   },
   hero: {
     justifyContent: "flex-end",
