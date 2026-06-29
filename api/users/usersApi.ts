@@ -20,6 +20,15 @@ export const getMyProfile = async () => {
   return data.success.data;
 };
 
+//v1/users/{userId}
+export const getUserProfile = async (userId: number) => {
+  const { data } = await api.get<ApiSuccessResponse<IUserProfile>>(
+    `/v1/users/${userId}`,
+  );
+
+  return data.success.data;
+};
+
 //v1/users/me(patch)
 
 export const updateMyProfile = async (body: IPatchUserProfileRequest) => {

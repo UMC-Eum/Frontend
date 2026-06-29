@@ -39,7 +39,7 @@ type Profile = {
   id: string;
   targetUserId?: number;
   name: string;
-  age: number;
+  age: number | null;
   location: string;
   intro: string;
   images: string[];
@@ -194,12 +194,39 @@ export default function HomePage() {
   };
 
   // 상대 프로필 상세로 진입할 때 방문 기록을 서버에 남깁니다.
-  const handleOpenProfileDetail = (targetUserId?: number) => {
-    if (targetUserId) {
-      createProfileVisitMutation.mutate(targetUserId);
+  const handleOpenProfileDetail = (profile: Profile) => {
+    if (profile.targetUserId) {
+      createProfileVisitMutation.mutate(profile.targetUserId);
     }
 
-    router.push("/profile-detail" as never);
+    router.push({
+      pathname: "/profile-detail",
+      params: buildProfileDetailParams(profile),
+    } as never);
+  };
+
+  const handleOpenVisitorProfileDetail = (visitor: {
+    userId: number;
+    nickname: string;
+    age?: number | string | null;
+    profileImageUrl?: string | null;
+  }) => {
+    createProfileVisitMutation.mutate(visitor.userId);
+
+    router.push({
+      pathname: "/profile-detail",
+      params: buildProfileDetailParams({
+        id: `visitor-${visitor.userId}`,
+        targetUserId: visitor.userId,
+        name: visitor.nickname,
+        age: normalizeAge(visitor.age),
+        location: "",
+        intro: "",
+        images: visitor.profileImageUrl ? [visitor.profileImageUrl] : [],
+        isLiked: false,
+        likedHeartId: null,
+      }),
+    } as never);
   };
 
   return (
@@ -276,7 +303,7 @@ export default function HomePage() {
                 imageIndex={imageIndex}
                 scrollRef={profileImageScrollRef}
                 onImageScroll={handleImageScroll}
-                onPress={() => handleOpenProfileDetail(profile.targetUserId)}
+                onPress={() => handleOpenProfileDetail(profile)}
                 onDislike={handleDislike}
                 onLike={handleLike}
               />
@@ -315,7 +342,7 @@ export default function HomePage() {
                   <Pressable
                     key={`${visitor.userId}-${visitor.visitedAt}`}
                     style={styles.viewerItem}
-                    onPress={() => handleOpenProfileDetail(visitor.userId)}
+                    onPress={() => handleOpenVisitorProfileDetail(visitor)}
                   >
                     <ImageBackground
                       source={{
@@ -415,7 +442,8 @@ function mapRecommendationProfiles(data?: {
     items: {
       userId: number;
       nickname: string;
-      age: number;
+      age?: number | string | null;
+      birthDate?: string | null;
       areaName: string;
       introText: string;
       profileImageUrl: string;
@@ -430,7 +458,7 @@ function mapRecommendationProfiles(data?: {
         id: `recommendation-${item.userId}`,
         targetUserId: item.userId,
         name: item.nickname,
-        age: item.age,
+        age: normalizeAge(item.age, item.birthDate),
         location: item.areaName,
         intro: item.introText,
         isLiked: item.isLiked,
@@ -439,6 +467,51 @@ function mapRecommendationProfiles(data?: {
       })),
     ) ?? []
   );
+}
+
+function buildProfileDetailParams(profile: Profile) {
+  const params: Record<string, string> = {
+    name: profile.name,
+    isLiked: String(profile.isLiked),
+  };
+
+  if (profile.targetUserId) params.userId = String(profile.targetUserId);
+  if (profile.age) params.age = String(profile.age);
+  if (profile.location) params.location = profile.location;
+  if (profile.intro) params.intro = profile.intro;
+  if (profile.images[0]) params.image = profile.images[0];
+
+  return params;
+}
+
+function normalizeAge(age?: number | string | null, birthDate?: string | null) {
+  const parsedAge =
+    typeof age === "string" && age.trim() ? Number(age) : age;
+
+  if (
+    typeof parsedAge === "number" &&
+    Number.isFinite(parsedAge) &&
+    parsedAge > 0
+  ) {
+    return Math.floor(parsedAge);
+  }
+
+  if (!birthDate) return null;
+
+  const birthday = new Date(birthDate);
+  if (Number.isNaN(birthday.getTime())) return null;
+
+  const today = new Date();
+  let calculatedAge = today.getFullYear() - birthday.getFullYear();
+  const birthdayThisYear = new Date(
+    today.getFullYear(),
+    birthday.getMonth(),
+    birthday.getDate(),
+  );
+
+  if (today < birthdayThisYear) calculatedAge -= 1;
+
+  return calculatedAge > 0 ? calculatedAge : null;
 }
 
 type HomeTabButtonProps = {
@@ -484,6 +557,8 @@ function ProfileCard({
   onDislike,
   onLike,
 }: ProfileCardProps) {
+  const ageLabel = profile.age ? `${profile.age}세` : null;
+
   return (
     <View style={styles.profileCard}>
       {/* 프로필 카드는 사진 스와이프와 상세 진입을 함께 제공합니다. */}
@@ -524,7 +599,7 @@ function ProfileCard({
         <Pressable style={styles.profileInfo} onPress={onPress}>
           <View style={styles.nameRow}>
             <Text style={styles.profileName}>
-              {profile.name} {profile.age}
+              {ageLabel ? `${profile.name} ${ageLabel}` : profile.name}
             </Text>
             <Ionicons name="checkmark-circle" size={17} color="#FFFFFF" />
           </View>
