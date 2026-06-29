@@ -13,16 +13,44 @@ export const clearAccessToken = () => {
   useAuthStore.getState().clearAuth();
 };
 
+export const markAuthInitialized = () => {
+  useAuthStore.getState().setAuthInitialized(true);
+};
+
 const normalizedBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL?.replace(
   /\/+$/,
   "",
 );
+const REFRESH_TOKEN_PATH = "/v1/auth/token/refresh";
 
 const api = axios.create({
   baseURL: normalizedBaseUrl,
   headers: { "Content-Type": "application/json" },
   withCredentials: true,
 });
+
+export const refreshAccessToken = async () => {
+  if (!normalizedBaseUrl) {
+    throw new Error(
+      "EXPO_PUBLIC_API_BASE_URL is required to refresh access token.",
+    );
+  }
+
+  const res = await axios.post<ApiSuccessResponse<ITokenRefreshResponse>>(
+    `${normalizedBaseUrl}${REFRESH_TOKEN_PATH}`,
+    {},
+    { withCredentials: true },
+  );
+  const { accessToken: refreshedAccessToken } = res.data.success.data;
+
+  setAccessToken(refreshedAccessToken);
+
+  if (__DEV__) {
+    console.log("[ACCESS_TOKEN][REFRESH]", refreshedAccessToken);
+  }
+
+  return refreshedAccessToken;
+};
 
 api.interceptors.request.use((config) => {
   const token = getAccessToken();
@@ -57,7 +85,7 @@ api.interceptors.response.use(
     const originalRequest = error.config as AxiosRequestConfig & {
       _retry?: boolean;
     };
-    if (originalRequest?.url?.includes("/auth/token/refresh")) {
+    if (originalRequest?.url?.includes(REFRESH_TOKEN_PATH)) {
       return Promise.reject(error);
     }
 
@@ -71,14 +99,7 @@ api.interceptors.response.use(
     ) {
       originalRequest._retry = true;
       try {
-        const res = await axios.post<ApiSuccessResponse<ITokenRefreshResponse>>(
-          `${api.defaults.baseURL}/auth/token/refresh`,
-          {},
-          { withCredentials: true },
-        );
-        const { accessToken: refreshedAccessToken } = res.data.success.data;
-
-        setAccessToken(refreshedAccessToken);
+        const refreshedAccessToken = await refreshAccessToken();
         if (originalRequest.headers) {
           originalRequest.headers.Authorization = `Bearer ${refreshedAccessToken}`;
         }
