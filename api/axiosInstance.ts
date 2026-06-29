@@ -21,6 +21,7 @@ const normalizedBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL?.replace(
   /\/+$/,
   "",
 );
+const REFRESH_TOKEN_PATH = "/v1/auth/token/refresh";
 
 const api = axios.create({
   baseURL: normalizedBaseUrl,
@@ -29,8 +30,14 @@ const api = axios.create({
 });
 
 export const refreshAccessToken = async () => {
+  if (!normalizedBaseUrl) {
+    throw new Error(
+      "EXPO_PUBLIC_API_BASE_URL is required to refresh access token.",
+    );
+  }
+
   const res = await axios.post<ApiSuccessResponse<ITokenRefreshResponse>>(
-    `${api.defaults.baseURL}/v1/auth/token/refresh`,
+    `${normalizedBaseUrl}${REFRESH_TOKEN_PATH}`,
     {},
     { withCredentials: true },
   );
@@ -78,7 +85,7 @@ api.interceptors.response.use(
     const originalRequest = error.config as AxiosRequestConfig & {
       _retry?: boolean;
     };
-    if (originalRequest?.url?.includes("/auth/token/refresh")) {
+    if (originalRequest?.url?.includes(REFRESH_TOKEN_PATH)) {
       return Promise.reject(error);
     }
 
