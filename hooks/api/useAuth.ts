@@ -24,8 +24,9 @@ export function useKakaoLoginMutation() {
       if (__DEV__) {
         console.log("[ACCESS_TOKEN][LOGIN]", data.accessToken);
       }
+
+      queryClient.removeQueries();
       setAuth(data);
-      queryClient.invalidateQueries();
     },
   });
 }
@@ -61,8 +62,9 @@ export function useTestLoginMutation() {
       if (__DEV__) {
         console.log("[ACCESS_TOKEN][TEST_LOGIN]", data.accessToken);
       }
+
+      queryClient.removeQueries();
       setAuth(data);
-      queryClient.invalidateQueries();
     },
   });
 }

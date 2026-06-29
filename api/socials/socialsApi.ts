@@ -1,3 +1,5 @@
+import { isAxiosError } from "axios";
+
 import api from "../axiosInstance";
 import { ApiSuccessResponse } from "../../types/api/api";
 import * as DTO from "../../types/api/socials/socialsDTO";
@@ -17,13 +19,21 @@ export const getSentHearts = async (params: {
   cursor?: string | null;
   size: number;
 }) => {
-  const { data } = await api.get<ApiSuccessResponse<DTO.IHeartsentResponse>>(
-    "/v1/hearts/sent",
-    {
-      params,
-    },
-  );
-  return data.success.data;
+  try {
+    const { data } = await api.get<ApiSuccessResponse<DTO.IHeartsentResponse>>(
+      "/v1/hearts/sent",
+      {
+        params,
+      },
+    );
+    return data.success.data;
+  } catch (error) {
+    if (isEmptyHeartListError(error)) {
+      return emptyHeartList<DTO.IHeartsentResponse>();
+    }
+
+    throw error;
+  }
 };
 
 // 받은 마음 목록 조회 (GET)
@@ -31,13 +41,39 @@ export const getReceivedHearts = async (params: {
   cursor?: string | null;
   size: number;
 }) => {
-  const { data } = await api.get<
-    ApiSuccessResponse<DTO.IHeartreceivedResponse>
-  >("/v1/hearts/received", {
-    params,
-  });
-  return data.success.data;
+  try {
+    const { data } = await api.get<
+      ApiSuccessResponse<DTO.IHeartreceivedResponse>
+    >("/v1/hearts/received", {
+      params,
+    });
+    return data.success.data;
+  } catch (error) {
+    if (isEmptyHeartListError(error)) {
+      return emptyHeartList<DTO.IHeartreceivedResponse>();
+    }
+
+    throw error;
+  }
 };
+
+function isEmptyHeartListError(error: unknown) {
+  return (
+    isAxiosError(error) &&
+    error.response?.status === 404 &&
+    error.response.data?.error?.code === "SOCIAL-004"
+  );
+}
+
+function emptyHeartList<
+  T extends { nextCursor: string | null; totalCount?: number; items: unknown[] },
+>() {
+  return {
+    nextCursor: null,
+    totalCount: 0,
+    items: [],
+  } as T;
+}
 
 export const patchHeart = async (heartId: number) => {
   const { data } = await api.patch<ApiSuccessResponse<null>>(
