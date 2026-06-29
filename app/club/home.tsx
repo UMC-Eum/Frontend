@@ -37,6 +37,12 @@ export default function ClubHomeScreen() {
   const insets = useSafeAreaInsets();
   const localClubs = CLUBS.slice(0, 3);
   const todayClubs = RECOMMENDED_CLUBS.slice(0, 3);
+  const openClubDetail = (clubId: string) => {
+    router.push({
+      pathname: "/club/detail",
+      params: { clubId: parseClubId(clubId) },
+    } as never);
+  };
 
   return (
     <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
@@ -123,14 +129,14 @@ export default function ClubHomeScreen() {
           accent="루씨"
           clubs={localClubs}
           showMore
-          onClubPress={() => router.push("/club/detail" as never)}
+          onClubPress={openClubDetail}
         />
 
         <ClubSection
           title="오늘의 추천 동호회"
           icon="sparkles"
           clubs={todayClubs}
-          onClubPress={() => router.push("/club/detail" as never)}
+          onClubPress={openClubDetail}
         />
       </ScrollView>
 
@@ -149,6 +155,11 @@ export default function ClubHomeScreen() {
       </View>
     </SafeAreaView>
   );
+}
+
+function parseClubId(value: string) {
+  const match = value.match(/\d+/);
+  return match?.[0] ?? value;
 }
 
 function MyClubCard({ title, image }: { title: string; image: string }) {
@@ -186,7 +197,7 @@ function ClubSection({
   icon?: "sparkles";
   clubs: typeof CLUBS;
   showMore?: boolean;
-  onClubPress?: () => void;
+  onClubPress?: (clubId: string) => void;
 }) {
   return (
     <View style={styles.clubSection}>
@@ -200,7 +211,11 @@ function ClubSection({
 
       <View style={styles.clubList}>
         {clubs.map((club) => (
-          <ClubRow key={club.id} club={club} onPress={onClubPress} />
+          <ClubRow
+            key={club.id}
+            club={club}
+            onPress={() => onClubPress?.(club.id)}
+          />
         ))}
       </View>
 

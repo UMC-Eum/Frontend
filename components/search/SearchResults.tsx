@@ -21,6 +21,12 @@ export default function SearchResults({
 }: SearchResultsProps) {
   const router = useRouter();
   const hasResults = results.length > 0;
+  const openClubDetail = (clubId: string) => {
+    router.push({
+      pathname: "/club/detail",
+      params: { clubId: parseClubId(clubId) },
+    } as never);
+  };
 
   return (
     <FlatList
@@ -43,7 +49,7 @@ export default function SearchResults({
         <ClubRow
           club={item}
           featured
-          onPress={() => router.push("/club/detail" as never)}
+          onPress={() => openClubDetail(item.id)}
         />
       )}
       ListFooterComponent={
@@ -56,6 +62,11 @@ export default function SearchResults({
       }
     />
   );
+}
+
+function parseClubId(value: string) {
+  const match = value.match(/\d+/);
+  return match?.[0] ?? value;
 }
 
 function EmptyState() {
@@ -71,6 +82,12 @@ function EmptyState() {
 
 function RecommendedSection() {
   const router = useRouter();
+  const openClubDetail = (clubId: string) => {
+    router.push({
+      pathname: "/club/detail",
+      params: { clubId: parseClubId(clubId) },
+    } as never);
+  };
 
   return (
     <View style={styles.recommendedSection}>
@@ -79,7 +96,7 @@ function RecommendedSection() {
         <ClubRow
           key={club.id}
           club={club}
-          onPress={() => router.push("/club/detail" as never)}
+          onPress={() => openClubDetail(club.id)}
         />
       ))}
     </View>
