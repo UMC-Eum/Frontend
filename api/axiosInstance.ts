@@ -13,6 +13,10 @@ export const clearAccessToken = () => {
   useAuthStore.getState().clearAuth();
 };
 
+export const markAuthInitialized = () => {
+  useAuthStore.getState().setAuthInitialized(true);
+};
+
 const normalizedBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL?.replace(
   /\/+$/,
   "",
@@ -23,6 +27,23 @@ const api = axios.create({
   headers: { "Content-Type": "application/json" },
   withCredentials: true,
 });
+
+export const refreshAccessToken = async () => {
+  const res = await axios.post<ApiSuccessResponse<ITokenRefreshResponse>>(
+    `${api.defaults.baseURL}/v1/auth/token/refresh`,
+    {},
+    { withCredentials: true },
+  );
+  const { accessToken: refreshedAccessToken } = res.data.success.data;
+
+  setAccessToken(refreshedAccessToken);
+
+  if (__DEV__) {
+    console.log("[ACCESS_TOKEN][REFRESH]", refreshedAccessToken);
+  }
+
+  return refreshedAccessToken;
+};
 
 api.interceptors.request.use((config) => {
   const token = getAccessToken();
@@ -71,14 +92,7 @@ api.interceptors.response.use(
     ) {
       originalRequest._retry = true;
       try {
-        const res = await axios.post<ApiSuccessResponse<ITokenRefreshResponse>>(
-          `${api.defaults.baseURL}/auth/token/refresh`,
-          {},
-          { withCredentials: true },
-        );
-        const { accessToken: refreshedAccessToken } = res.data.success.data;
-
-        setAccessToken(refreshedAccessToken);
+        const refreshedAccessToken = await refreshAccessToken();
         if (originalRequest.headers) {
           originalRequest.headers.Authorization = `Bearer ${refreshedAccessToken}`;
         }

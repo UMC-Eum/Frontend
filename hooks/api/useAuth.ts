@@ -21,6 +21,9 @@ export function useKakaoLoginMutation() {
   return useMutation({
     mutationFn: (body: IKakaoLoginRequest) => kakaoLogin(body),
     onSuccess: (data) => {
+      if (__DEV__) {
+        console.log("[ACCESS_TOKEN][LOGIN]", data.accessToken);
+      }
       setAuth(data);
       queryClient.invalidateQueries();
     },
@@ -55,6 +58,9 @@ export function useTestLoginMutation() {
   return useMutation({
     mutationFn: (body: ITestLoginRequest = {}) => testLogin(body),
     onSuccess: (data) => {
+      if (__DEV__) {
+        console.log("[ACCESS_TOKEN][TEST_LOGIN]", data.accessToken);
+      }
       setAuth(data);
       queryClient.invalidateQueries();
     },

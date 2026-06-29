@@ -8,8 +8,10 @@ interface AuthState {
   isNewUser: boolean;
   onboardingRequired: boolean;
   isAuthenticated: boolean;
+  isAuthInitialized: boolean;
   setAccessToken: (accessToken: string | null) => void;
   setAuth: (payload: IKakaoLoginResponse) => void;
+  setAuthInitialized: (isAuthInitialized: boolean) => void;
   completeOnboarding: () => void;
   clearAuth: () => void;
 }
@@ -20,6 +22,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   isNewUser: false,
   onboardingRequired: false,
   isAuthenticated: false,
+  isAuthInitialized: false,
   setAccessToken: (accessToken) =>
     set({
       accessToken,
@@ -32,6 +35,10 @@ export const useAuthStore = create<AuthState>((set) => ({
       isNewUser: payload.isNewUser,
       onboardingRequired: payload.onboardingRequired,
       isAuthenticated: true,
+    }),
+  setAuthInitialized: (isAuthInitialized) =>
+    set({
+      isAuthInitialized,
     }),
   completeOnboarding: () =>
     set({

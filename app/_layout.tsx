@@ -6,8 +6,10 @@ import {
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
+import { useEffect } from "react";
 import "react-native-reanimated";
 
+import { clearAccessToken, markAuthInitialized, refreshAccessToken } from "@/api/axiosInstance";
 import GlobalUiOverlay from "@/components/GlobalUiOverlay";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { useStableQueryClient } from "@/hooks/use-query-client";
@@ -19,6 +21,23 @@ export const unstable_settings = {
 export default function RootLayout() {
   const colorScheme = useColorScheme();
   const queryClient = useStableQueryClient();
+
+  useEffect(() => {
+    const initializeAuth = async () => {
+      try {
+        await refreshAccessToken();
+      } catch (error) {
+        clearAccessToken();
+        if (__DEV__) {
+          console.log("[Auth Init] refresh skipped or failed:", error);
+        }
+      } finally {
+        markAuthInitialized();
+      }
+    };
+
+    void initializeAuth();
+  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>
