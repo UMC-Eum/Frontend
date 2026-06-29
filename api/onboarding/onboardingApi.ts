@@ -17,8 +17,18 @@ export const postPresign = async (body: IPresignRequest) => {
   );
   const presignData = normalizePresignResponse(data);
 
+  if (__DEV__) {
+    console.log("[Presign] response data", {
+      hasUploadUrl: !!presignData.uploadUrl,
+      hasFileUrl: !!presignData.fileUrl,
+      expiresAt: presignData.expiresAt,
+    });
+  }
+
   if (!presignData.uploadUrl || !presignData.fileUrl) {
-    throw new Error(`Invalid presign response: ${JSON.stringify(data)}`);
+    throw new Error(
+      `Presign response missing uploadUrl or fileUrl: ${JSON.stringify(presignData)}`,
+    );
   }
 
   return presignData;
