@@ -9,13 +9,11 @@ import {
   createProfileVisit,
   deactivateUser,
   getLikedClubs,
-  getMyProfileVisitors,
   getMyProfile,
   getMyProfileVisitors,
   putIdealPersonalities,
   putInterestKeywords,
   putPersonalities,
-  updateMyNotificationSettings,
   updateMyProfile,
 } from "@/api/users/usersApi";
 import { useAuthStore } from "@/stores/authStore";

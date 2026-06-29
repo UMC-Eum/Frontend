@@ -22,7 +22,11 @@ import {
   useSendRecommendationHeartMutation,
 } from "@/hooks/api/useRecommendations";
 import { useNotificationsInfiniteQuery } from "@/hooks/api/useNotifications";
-import { useMyProfileQuery } from "@/hooks/api/useUsers";
+import {
+  useCreateProfileVisitMutation,
+  useMyProfileQuery,
+  useMyProfileVisitorsQuery,
+} from "@/hooks/api/useUsers";
 
 const PINK = "#FF1B4D";
 const BLACK = "#202020";
@@ -82,12 +86,26 @@ export default function HomePage() {
   const [countdown, setCountdown] = useState(getCountdownText);
   const [, setLikedCount] = useState(0);
   const myProfileQuery = useMyProfileQuery();
+  const visitorsQuery = useMyProfileVisitorsQuery({ limit: 12 });
   const recommendationsQuery = useRecommendationsInfiniteQuery();
   const heartNotificationsQuery = useNotificationsInfiniteQuery("heart");
   const chatNotificationsQuery = useNotificationsInfiniteQuery("chat");
   const sendHeartMutation = useSendRecommendationHeartMutation();
+  const createProfileVisitMutation = useCreateProfileVisitMutation();
 
-  const recommendedProfiles = mapRecommendationProfiles(recommendationsQuery.data);
+  const recommendedProfiles = useMemo(
+    () => mapRecommendationProfiles(recommendationsQuery.data),
+    [recommendationsQuery.data],
+  );
+  const visitors = visitorsQuery.data?.visitors ?? [];
+  const heartUnreadCount = useMemo(
+    () => countUnreadNotifications(heartNotificationsQuery.data),
+    [heartNotificationsQuery.data],
+  );
+  const chatUnreadCount = useMemo(
+    () => countUnreadNotifications(chatNotificationsQuery.data),
+    [chatNotificationsQuery.data],
+  );
   const profiles = recommendedProfiles;
   const profile =
     profiles.length > 0
@@ -175,6 +193,15 @@ export default function HomePage() {
     router.push("/(tabs)/heart" as never);
   };
 
+  // 상대 프로필 상세로 진입할 때 방문 기록을 서버에 남깁니다.
+  const handleOpenProfileDetail = (targetUserId?: number) => {
+    if (targetUserId) {
+      createProfileVisitMutation.mutate(targetUserId);
+    }
+
+    router.push("/profile-detail" as never);
+  };
+
   return (
     <SafeAreaView style={styles.safeArea} edges={["top"]}>
       <View style={styles.screen}>
@@ -249,7 +276,7 @@ export default function HomePage() {
                 imageIndex={imageIndex}
                 scrollRef={profileImageScrollRef}
                 onImageScroll={handleImageScroll}
-                onPress={() => router.push("/profile-detail" as never)}
+                onPress={() => handleOpenProfileDetail(profile.targetUserId)}
                 onDislike={handleDislike}
                 onLike={handleLike}
               />
@@ -271,12 +298,48 @@ export default function HomePage() {
           {/* 내 프로필 조회자 목록입니다. */}
           <View style={styles.viewerSection}>
             <Text style={styles.viewerTitle}>내 프로필을 본 인연들</Text>
-            <View style={styles.viewerEmptyBox}>
-              <Ionicons name="eye-outline" size={28} color="#CBD5E1" />
-              <Text style={styles.viewerEmptyText}>
-                아직 내 프로필을 본 인연이 없어요
-              </Text>
-            </View>
+            {visitorsQuery.isLoading ? (
+              <View style={styles.viewerEmptyBox}>
+                <ActivityIndicator color={PINK} />
+                <Text style={styles.viewerEmptyText}>
+                  방문한 인연을 불러오는 중이에요
+                </Text>
+              </View>
+            ) : visitors.length > 0 ? (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.viewerList}
+              >
+                {visitors.map((visitor) => (
+                  <Pressable
+                    key={`${visitor.userId}-${visitor.visitedAt}`}
+                    style={styles.viewerItem}
+                    onPress={() => handleOpenProfileDetail(visitor.userId)}
+                  >
+                    <ImageBackground
+                      source={{
+                        uri: visitor.profileImageUrl || FALLBACK_PROFILE_IMAGE,
+                      }}
+                      style={styles.viewerImage}
+                      imageStyle={styles.viewerImageRadius}
+                    />
+                    <Text style={styles.viewerName} numberOfLines={1}>
+                      {visitor.nickname}
+                    </Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
+            ) : (
+              <View style={styles.viewerEmptyBox}>
+                <Ionicons name="eye-outline" size={28} color="#CBD5E1" />
+                <Text style={styles.viewerEmptyText}>
+                  {visitorsQuery.isError
+                    ? "방문자 목록을 불러오지 못했어요"
+                    : "아직 내 프로필을 본 인연이 없어요"}
+                </Text>
+              </View>
+            )}
           </View>
         </ScrollView>
 
@@ -327,13 +390,21 @@ export default function HomePage() {
 function countUnreadNotifications(data?: {
   pages: {
     items: {
-      isRead: boolean;
+      isRead?: boolean;
+      read?: boolean;
+      readAt?: string | null;
     }[];
   }[];
 }) {
   return (
     data?.pages.reduce(
-      (total, page) => total + page.items.filter((item) => !item.isRead).length,
+      (total, page) =>
+        total +
+        page.items.filter((item) => {
+          if (typeof item.isRead === "boolean") return !item.isRead;
+          if (typeof item.read === "boolean") return !item.read;
+          return !item.readAt;
+        }).length,
       0,
     ) ?? 0
   );
@@ -389,28 +460,6 @@ function HomeTabButton({ label, isActive, onPress }: HomeTabButtonProps) {
       </Text>
       {isActive ? <View style={styles.homeTabUnderline} /> : null}
     </Pressable>
-  );
-}
-
-function RecommendationState({
-  isLoading,
-  isError,
-}: {
-  isLoading: boolean;
-  isError: boolean;
-}) {
-  return (
-    <View style={styles.recommendationState}>
-      {isLoading ? (
-        <ActivityIndicator color={PINK} />
-      ) : (
-        <Text style={styles.recommendationStateText}>
-          {isError
-            ? "추천 프로필을 불러오지 못했어요."
-            : "오늘 보여드릴 추천 프로필이 없어요."}
-        </Text>
-      )}
-    </View>
   );
 }
 
@@ -790,6 +839,31 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     fontWeight: "600",
     color: GRAY,
+    textAlign: "center",
+  },
+  viewerList: {
+    paddingHorizontal: 20,
+    paddingBottom: 4,
+  },
+  viewerItem: {
+    width: 76,
+    marginRight: 12,
+  },
+  viewerImage: {
+    width: 76,
+    height: 76,
+    overflow: "hidden",
+    backgroundColor: LIGHT_GRAY,
+  },
+  viewerImageRadius: {
+    borderRadius: 38,
+  },
+  viewerName: {
+    marginTop: 8,
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: "700",
+    color: BLACK,
     textAlign: "center",
   },
   fabWrap: {

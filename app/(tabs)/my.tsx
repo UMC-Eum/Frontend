@@ -1,8 +1,9 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Alert,
+  ActivityIndicator,
   Image,
   ScrollView,
   StyleSheet,
@@ -13,6 +14,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { useMyClubsInfiniteQuery } from "@/hooks/api/useClub";
 import { useLogoutMutation } from "@/hooks/api/useAuth";
 import { useReceivedHeartsInfiniteQuery } from "@/hooks/api/useSocials";
 import {
@@ -32,6 +34,7 @@ export default function MyTabScreen() {
   const [notificationEnabled, setNotificationEnabled] = useState(true);
   const myProfileQuery = useMyProfileQuery();
   const receivedHeartsQuery = useReceivedHeartsInfiniteQuery();
+  const myClubsQuery = useMyClubsInfiniteQuery({ limit: 5 });
   const logoutMutation = useLogoutMutation();
   const deactivateUserMutation = useDeactivateUserMutation();
   const profile = myProfileQuery.data;
@@ -40,13 +43,11 @@ export default function MyTabScreen() {
       (total, page) => total + page.items.length,
       0,
     ) ?? (receivedHeartsQuery.isSuccess ? 0 : undefined);
-  const myClubs: {
-    clubId: number;
-    title?: string;
-    name?: string;
-    memberCount?: number;
-    currentMemberCount?: number;
-  }[] = [];
+  const myClubs = useMemo(
+    () =>
+      myClubsQuery.data?.pages.flatMap((page) => page.clubs) ?? [],
+    [myClubsQuery.data],
+  );
 
   const handleNotificationToggle = (enabled: boolean) => {
     setNotificationEnabled(enabled);
@@ -54,8 +55,13 @@ export default function MyTabScreen() {
 
   // 계정 액션은 mutation으로 서버에 반영하고 로컬 Query 캐시를 정리합니다.
   const handleLogout = () => {
+    if (logoutMutation.isPending) return;
+
     logoutMutation.mutate(undefined, {
-      onSettled: () => Alert.alert("로그아웃", "로그아웃되었습니다."),
+      onSettled: () => {
+        router.replace("/onboarding/login" as never);
+        Alert.alert("로그아웃", "로그아웃되었습니다.");
+      },
     });
   };
 
@@ -88,7 +94,11 @@ export default function MyTabScreen() {
 
         <View style={[styles.card, styles.profileCard]}>
           <View style={styles.profileTop}>
-            <View style={styles.avatar}>
+            <TouchableOpacity
+              style={styles.avatar}
+              activeOpacity={0.82}
+              onPress={() => router.push("/profile/edit" as any)}
+            >
               <View style={styles.avatarImageClip}>
                 <Image
                   source={{ uri: profile?.profileImageUrl || PROFILE_IMAGE }}
@@ -103,7 +113,7 @@ export default function MyTabScreen() {
                   color="#6D747B"
                 />
               </View>
-            </View>
+            </TouchableOpacity>
 
             <View style={styles.profileInfo}>
               <View style={styles.nameRow}>
@@ -119,25 +129,32 @@ export default function MyTabScreen() {
                 <Text style={styles.location}>
                   {profile?.area?.name ?? "서울시 광진구"}
                 </Text>
-                <TouchableOpacity activeOpacity={0.7}>
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  onPress={() => router.push("/profile/location" as any)}
+                >
                   <Text style={styles.editText}>수정</Text>
                 </TouchableOpacity>
               </View>
             </View>
           </View>
 
-          <View style={styles.bioBox}>
+          <TouchableOpacity
+            style={styles.bioBox}
+            activeOpacity={0.82}
+            onPress={() => router.push("/profile/edit" as any)}
+          >
             <Text style={styles.bioLabel}>나의 소개</Text>
             <Text style={styles.bioText} numberOfLines={2}>
               {profile?.introText ||
                 "안녕하세요 등산이 취미인 사람입니다. 같이 즐겁게 등산하실분 구해요~ 등산 경험 여러 있습니다. 편하게 연..."}
             </Text>
-          </View>
+          </TouchableOpacity>
 
           <TouchableOpacity
             style={styles.profileEditButton}
             activeOpacity={0.7}
-            onPress={() => router.push("/profile/name" as any)}
+            onPress={() => router.push("/profile/edit" as any)}
           >
             <Text style={styles.profileEditText}>프로필 수정</Text>
             <Ionicons name="chevron-forward" size={18} color={ACCENT} />
@@ -199,20 +216,25 @@ export default function MyTabScreen() {
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>내 동호회</Text>
 
-          {myClubs.length > 0 ? (
+          {myClubsQuery.isLoading ? (
+            <View style={styles.clubLoadingBox}>
+              <ActivityIndicator color={ACCENT} />
+              <Text style={styles.clubEmptyText}>내 동호회를 불러오는 중이에요.</Text>
+            </View>
+          ) : myClubs.length > 0 ? (
             myClubs.map((club, index) => (
               <ClubRow
                 key={club.clubId}
-                title={club.title || club.name || "이름 없는 동호회"}
-                subtitle={`멤버 ${
-                  club.memberCount ?? club.currentMemberCount ?? 0
-                }명`}
+                title={club.name || "이름 없는 동호회"}
+                subtitle={`멤버 ${club.memberCount ?? 0}명`}
                 variant={index % 2 === 0 ? "running" : "mountain"}
               />
             ))
           ) : (
             <Text style={styles.clubEmptyText}>
-              가입한 동호회가 없어요.
+              {myClubsQuery.isError
+                ? "내 동호회를 불러오지 못했어요."
+                : "가입한 동호회가 없어요."}
             </Text>
           )}
 
@@ -237,8 +259,14 @@ export default function MyTabScreen() {
             />
           </View>
           <View style={styles.thinDivider} />
-          <TouchableOpacity activeOpacity={0.7} onPress={handleLogout}>
-            <Text style={styles.logoutText}>로그아웃</Text>
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={handleLogout}
+            disabled={logoutMutation.isPending}
+          >
+            <Text style={styles.logoutText}>
+              {logoutMutation.isPending ? "로그아웃 중..." : "로그아웃"}
+            </Text>
           </TouchableOpacity>
         </View>
 
@@ -601,6 +629,11 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "500",
     lineHeight: 18,
+  },
+  clubLoadingBox: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 12,
   },
   viewAllButton: {
     height: 34,

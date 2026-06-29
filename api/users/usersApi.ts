@@ -3,8 +3,6 @@ import { ApiSuccessResponse } from "../../types/api/api";
 
 import { IUserProfile } from "../../types/user";
 import {
-  ICreateProfileVisitResponse,
-  IIdealVoiceResponse,
   IKeywordsRequest,
   ILikedClubsParams,
   ILikedClubsResponse,
