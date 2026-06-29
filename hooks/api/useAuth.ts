@@ -21,8 +21,8 @@ export function useKakaoLoginMutation() {
   return useMutation({
     mutationFn: (body: IKakaoLoginRequest) => kakaoLogin(body),
     onSuccess: (data) => {
+      queryClient.removeQueries();
       setAuth(data);
-      queryClient.invalidateQueries();
     },
   });
 }
@@ -55,8 +55,8 @@ export function useTestLoginMutation() {
   return useMutation({
     mutationFn: (body: ITestLoginRequest = {}) => testLogin(body),
     onSuccess: (data) => {
+      queryClient.removeQueries();
       setAuth(data);
-      queryClient.invalidateQueries();
     },
   });
 }

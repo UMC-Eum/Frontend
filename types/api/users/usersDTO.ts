@@ -9,7 +9,6 @@ export interface IPatchUserProfileRequest {
   personalities?: string[];
   idealPersonalities?: string[];
   introAudioUrl?: string;
-  profileImageUrl?: string;
 }
 
 export interface IKeywordsRequest {

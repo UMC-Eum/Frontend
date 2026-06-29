@@ -68,6 +68,7 @@ export default function LoginScreen() {
         client_id: KAKAO_REST_API_KEY,
         redirect_uri: KAKAO_REDIRECT_URI,
         state: appReturnUrl,
+        prompt: "select_account",
       });
       const authUrl = `${KAKAO_AUTH_URL}?${params.toString()}`;
 
