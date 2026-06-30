@@ -47,7 +47,6 @@ export default function ChatListScreen({
   const router = useRouter();
   const chatRoomsQuery = useChatRoomsInfiniteQuery(undefined, {
     staleTime: 0,
-    refetchInterval: 2500,
     refetchOnMount: "always",
   });
   const apiChatPreviews = useMemo(
