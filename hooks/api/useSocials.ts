@@ -18,10 +18,12 @@ import {
 } from "@/types/api/socials/socialsDTO";
 
 import { queryKeys } from "./queryKeys";
+import { useProtectedQueryEnabled } from "./useProtectedQueryEnabled";
 
 const DEFAULT_PAGE_SIZE = 20;
 
 type InfiniteQueryBehaviorOptions = {
+  enabled?: boolean;
   staleTime?: number;
   refetchOnMount?: boolean | "always";
 };
@@ -30,12 +32,16 @@ export function useReceivedHeartsInfiniteQuery(
   size = DEFAULT_PAGE_SIZE,
   options: InfiniteQueryBehaviorOptions = {},
 ) {
+  const { enabled = true, ...queryOptions } = options;
+  const queryEnabled = useProtectedQueryEnabled(enabled);
+
   return useInfiniteQuery({
     queryKey: queryKeys.socials.hearts.received(size),
     queryFn: ({ pageParam }) => getReceivedHearts({ cursor: pageParam, size }),
     initialPageParam: null as string | null,
     getNextPageParam: (lastPage) => lastPage.nextCursor,
-    ...options,
+    ...queryOptions,
+    enabled: queryEnabled,
   });
 }
 
@@ -43,12 +49,16 @@ export function useSentHeartsInfiniteQuery(
   size = DEFAULT_PAGE_SIZE,
   options: InfiniteQueryBehaviorOptions = {},
 ) {
+  const { enabled = true, ...queryOptions } = options;
+  const queryEnabled = useProtectedQueryEnabled(enabled);
+
   return useInfiniteQuery({
     queryKey: queryKeys.socials.hearts.sent(size),
     queryFn: ({ pageParam }) => getSentHearts({ cursor: pageParam, size }),
     initialPageParam: null as string | null,
     getNextPageParam: (lastPage) => lastPage.nextCursor,
-    ...options,
+    ...queryOptions,
+    enabled: queryEnabled,
   });
 }
 
@@ -74,12 +84,15 @@ export function usePatchHeartMutation() {
   });
 }
 
-export function useBlocksInfiniteQuery(size = DEFAULT_PAGE_SIZE) {
+export function useBlocksInfiniteQuery(size = DEFAULT_PAGE_SIZE, enabled = true) {
+  const queryEnabled = useProtectedQueryEnabled(enabled);
+
   return useInfiniteQuery({
     queryKey: queryKeys.socials.blocks(size),
     queryFn: ({ pageParam }) => getBlocks({ cursor: pageParam, size }),
     initialPageParam: null as string | null,
     getNextPageParam: (lastPage) => lastPage.nextCursor,
+    enabled: queryEnabled,
   });
 }
 

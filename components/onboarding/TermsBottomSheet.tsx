@@ -59,7 +59,7 @@ const TermsBottomSheet = ({
   const sheetTranslateY = useRef(
     new Animated.Value(SHEET_HIDDEN_OFFSET),
   ).current;
-  const agreementsQuery = useAgreementsQuery();
+  const agreementsQuery = useAgreementsQuery(visible);
   const updateMarketingMutation = useUpdateMarketingAgreementsMutation();
 
   const terms = useMemo<TermItem[]>(

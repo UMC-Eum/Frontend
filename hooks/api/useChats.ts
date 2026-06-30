@@ -12,10 +12,12 @@ import {
 import { IChatsRoomsPostRequest, IChatsRoomIdMessagesPostRequset } from "@/types/api/chats/chatsDTO";
 
 import { queryKeys } from "./queryKeys";
+import { useProtectedQueryEnabled } from "./useProtectedQueryEnabled";
 
 const DEFAULT_PAGE_SIZE = 30;
 
 type InfiniteQueryBehaviorOptions = {
+  enabled?: boolean;
   staleTime?: number;
   refetchOnMount?: boolean | "always";
 };
@@ -24,20 +26,28 @@ export function useChatRoomsInfiniteQuery(
   size = DEFAULT_PAGE_SIZE,
   options: InfiniteQueryBehaviorOptions = {},
 ) {
+  const { enabled = true, ...queryOptions } = options;
+  const queryEnabled = useProtectedQueryEnabled(enabled);
+
   return useInfiniteQuery({
     queryKey: queryKeys.chats.rooms(size),
     queryFn: ({ pageParam }) => getChatRooms({ cursor: pageParam, size }),
     initialPageParam: null as string | null,
     getNextPageParam: (lastPage) => lastPage.nextCursor,
-    ...options,
+    ...queryOptions,
+    enabled: queryEnabled,
   });
 }
 
 export function useChatRoomDetailQuery(chatRoomId: number, enabled = true) {
+  const queryEnabled = useProtectedQueryEnabled(
+    enabled && Number.isFinite(chatRoomId),
+  );
+
   return useQuery({
     queryKey: queryKeys.chats.room(chatRoomId),
     queryFn: () => getChatRoomDetail(chatRoomId),
-    enabled: enabled && Number.isFinite(chatRoomId),
+    enabled: queryEnabled,
   });
 }
 
@@ -46,13 +56,17 @@ export function useChatMessagesInfiniteQuery(
   size = DEFAULT_PAGE_SIZE,
   enabled = true,
 ) {
+  const queryEnabled = useProtectedQueryEnabled(
+    enabled && Number.isFinite(chatRoomId),
+  );
+
   return useInfiniteQuery({
     queryKey: queryKeys.chats.messages(chatRoomId, size),
     queryFn: ({ pageParam }) =>
       getChatMessages(chatRoomId, { cursor: pageParam, size }),
     initialPageParam: null as string | null,
     getNextPageParam: (lastPage) => lastPage.nextCursor,
-    enabled: enabled && Number.isFinite(chatRoomId),
+    enabled: queryEnabled,
   });
 }
 

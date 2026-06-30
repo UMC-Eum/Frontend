@@ -30,11 +30,8 @@ export default function RootLayout() {
     const initializeAuth = async () => {
       try {
         await refreshAccessToken();
-      } catch (error) {
+      } catch {
         clearAccessToken();
-        if (__DEV__) {
-          console.log("[Auth Init] refresh skipped or failed:", error);
-        }
       } finally {
         markAuthInitialized();
       }

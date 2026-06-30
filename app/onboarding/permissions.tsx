@@ -4,7 +4,6 @@ import {
   requestRecordingPermissionsAsync,
 } from "expo-audio";
 import * as ImagePicker from "expo-image-picker";
-import * as Notifications from "expo-notifications";
 import { useRouter } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
 import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
@@ -71,7 +70,7 @@ export default function PermissionsScreen() {
       const [camera, mic, notification] = await Promise.all([
         ImagePicker.getCameraPermissionsAsync(),
         getRecordingPermissionsAsync(),
-        Notifications.getPermissionsAsync(),
+        getNotificationPermissionsAsync(),
       ]);
 
       setPermissions({
@@ -100,7 +99,7 @@ export default function PermissionsScreen() {
     }
 
     if (id === "notification") {
-      const result = await Notifications.requestPermissionsAsync();
+      const result = await requestNotificationPermissionsAsync();
       granted = result.granted;
     }
 
@@ -337,4 +336,16 @@ function toInitialPermissionState(granted: boolean): PermissionState {
 
 function toRequestedPermissionState(granted: boolean): PermissionState {
   return granted ? "granted" : "denied";
+}
+
+async function getNotificationPermissionsAsync() {
+  const Notifications = await import("expo-notifications");
+
+  return Notifications.getPermissionsAsync();
+}
+
+async function requestNotificationPermissionsAsync() {
+  const Notifications = await import("expo-notifications");
+
+  return Notifications.requestPermissionsAsync();
 }
