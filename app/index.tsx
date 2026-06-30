@@ -18,7 +18,7 @@ export default function Index() {
 
   return (
     <Redirect
-      href={onboardingRequired || isNewUser ? "/onboarding/permissions" : "/home"}
+      href={onboardingRequired || isNewUser ? "/onboarding/permissions" : "/(tabs)"}
     />
   );
 }

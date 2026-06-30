@@ -6,6 +6,7 @@ import {
   FlatList,
   ImageBackground,
   Pressable,
+  RefreshControl,
   StyleSheet,
   Text,
   useWindowDimensions,
@@ -19,6 +20,7 @@ import {
   useSendHeartMutation,
   useSentHeartsInfiniteQuery,
 } from "@/hooks/api/useSocials";
+import { TAB_SCREEN_BOTTOM_PADDING } from "@/constants/layout";
 
 const PINK = "#FF3E70";
 const BLACK = "#202020";
@@ -69,8 +71,14 @@ export default function HeartScreen() {
       ? applyOptimisticHeartState(receivedProfiles, optimisticHeartState)
       : applyOptimisticHeartState(sentProfiles, optimisticHeartState);
   const activeQuery = activeTab === "received" ? receivedQuery : sentQuery;
-  const isLoading = activeQuery.isLoading && profiles.length === 0;
+  const isInitialLoading = activeQuery.isLoading && profiles.length === 0;
+  const isRefreshing =
+    activeQuery.isRefetching && !activeQuery.isFetchingNextPage;
   const receivedCount = receivedProfiles.length;
+
+  const handleRefresh = useCallback(() => {
+    void activeQuery.refetch();
+  }, [activeQuery]);
 
   // 하트 액션은 서버 반영 후 관련 목록을 invalidate하는 mutation 훅에서 동기화합니다.
   const handleToggleHeart = useCallback(
@@ -140,71 +148,85 @@ export default function HeartScreen() {
         />
       </View>
 
-      {isLoading ? (
-        <View style={styles.loadingWrap}>
-          <ActivityIndicator color={PINK} />
-        </View>
-      ) : (
-        <FlatList
-          data={profiles}
-          keyExtractor={(item) => item.id}
-          numColumns={2}
-          renderItem={({ item }) => (
-            <HeartProfileCard
-              profile={item}
-              width={cardWidth}
-              isPending={pendingIds.has(item.id)}
-              onPress={() => router.push("/profile-detail" as never)}
-              onPressHeart={() => handleToggleHeart(item)}
-            />
-          )}
-          columnWrapperStyle={styles.cardRow}
-          contentContainerStyle={styles.listContent}
-          showsVerticalScrollIndicator={false}
-          onEndReached={() => {
-            if (activeQuery.hasNextPage && !activeQuery.isFetchingNextPage) {
-              activeQuery.fetchNextPage();
-            }
-          }}
-          onEndReachedThreshold={0.35}
-          ListFooterComponent={
-            activeQuery.isFetchingNextPage ? (
-              <View style={styles.footerLoading}>
-                <ActivityIndicator color={PINK} />
-              </View>
-            ) : null
+      <FlatList
+        data={isInitialLoading ? [] : profiles}
+        keyExtractor={(item) => item.id}
+        numColumns={2}
+        renderItem={({ item }) => (
+          <HeartProfileCard
+            profile={item}
+            width={cardWidth}
+            isPending={pendingIds.has(item.id)}
+            onPress={() => router.push("/profile-detail" as never)}
+            onPressHeart={() => handleToggleHeart(item)}
+          />
+        )}
+        columnWrapperStyle={styles.cardRow}
+        contentContainerStyle={styles.listContent}
+        showsVerticalScrollIndicator={false}
+        onEndReached={() => {
+          if (activeQuery.hasNextPage && !activeQuery.isFetchingNextPage) {
+            activeQuery.fetchNextPage();
           }
-          ListEmptyComponent={
-            <View style={styles.emptyWrap}>
-              <Ionicons
-                name={activeTab === "received" ? "heart-outline" : "send-outline"}
-                size={34}
-                color="#CBD5E1"
-              />
-              <Text style={styles.emptyTitle}>
-                {activeTab === "received"
-                  ? "아직 받은 마음이 없어요"
-                  : "아직 보낸 마음이 없어요"}
-              </Text>
-              <Text style={styles.emptyDescription}>
-                {activeQuery.isError
-                  ? "마음 목록을 불러오지 못했습니다. 잠시 후 다시 시도해주세요."
-                  : "새로운 인연이 생기면 이곳에서 확인할 수 있어요."}
+        }}
+        onEndReachedThreshold={0.35}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={handleRefresh}
+            tintColor={PINK}
+            colors={[PINK]}
+          />
+        }
+        ListFooterComponent={
+          activeQuery.isFetchingNextPage ? (
+            <View style={styles.footerLoading}>
+              <ActivityIndicator color={PINK} />
+            </View>
+          ) : null
+        }
+        ListEmptyComponent={
+          <View style={styles.emptyWrap}>
+            {isInitialLoading ? (
+              <ActivityIndicator color={PINK} />
+            ) : (
+              <>
+                <Ionicons
+                  name={activeTab === "received" ? "heart-outline" : "send-outline"}
+                  size={34}
+                  color="#CBD5E1"
+                />
+                <Text style={styles.emptyTitle}>
+                  {activeTab === "received"
+                    ? "아직 받은 마음이 없어요"
+                    : "아직 보낸 마음이 없어요"}
+                </Text>
+                <Text style={styles.emptyDescription}>
+                  {activeQuery.isError
+                    ? "마음 목록을 불러오지 못했습니다. 잠시 후 다시 시도해주세요."
+                    : "새로운 인연이 생기면 이곳에서 확인할 수 있어요."}
+                </Text>
+              </>
+            )}
+          </View>
+        }
+        ListHeaderComponent={
+          activeTab === "received" ? (
+            <View style={styles.receivedSummary}>
+              <Text style={styles.receivedSummaryText}>
+                {isInitialLoading ? (
+                  "받은 마음을 불러오는 중이에요"
+                ) : (
+                  <>
+                    총 <Text style={styles.receivedSummaryCount}>{receivedCount}명</Text>이
+                    마음을 보냈어요💕
+                  </>
+                )}
               </Text>
             </View>
-          }
-          ListHeaderComponent={
-            activeTab === "received" ? (
-              <View style={styles.receivedSummary}>
-                <Text style={styles.receivedSummaryText}>
-                  총 <Text style={styles.receivedSummaryCount}>{receivedCount}명</Text>이
-                  마음을 보냈어요💕
-                </Text>
-              </View>
-            ) : null
-          }
-        />
-      )}
+          ) : null
+        }
+      />
     </SafeAreaView>
   );
 }
@@ -400,11 +422,6 @@ const styles = StyleSheet.create({
     height: 2,
     backgroundColor: BLACK,
   },
-  loadingWrap: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-  },
   footerLoading: {
     height: 56,
     alignItems: "center",
@@ -433,9 +450,10 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   listContent: {
+    flexGrow: 1,
     paddingHorizontal: 20,
     paddingTop: 16,
-    paddingBottom: 120,
+    paddingBottom: TAB_SCREEN_BOTTOM_PADDING,
   },
   receivedSummary: {
     height: 34,
