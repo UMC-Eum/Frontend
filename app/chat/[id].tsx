@@ -81,6 +81,7 @@ export default function ChatRoom() {
   const leaveChatRoomMutation = useLeaveChatRoomMutation(chatRoomId);
   const messageListRef = useRef<FlatList<ChatMessageData>>(null);
   const shouldScrollToLatestRef = useRef(false);
+  const toastTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const playbackPlayerRef = useRef<AudioPlayer | null>(null);
   const playbackStopTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
     null,
@@ -148,8 +149,15 @@ export default function ChatRoom() {
   ]);
 
   const showToast = useCallback((message: string) => {
+    if (toastTimeoutRef.current) {
+      clearTimeout(toastTimeoutRef.current);
+    }
+
     setToastMessage(message);
-    setTimeout(() => setToastMessage(""), 1800);
+    toastTimeoutRef.current = setTimeout(() => {
+      setToastMessage("");
+      toastTimeoutRef.current = null;
+    }, 1800);
   }, []);
 
   const scrollToLatestMessage = useCallback(() => {
@@ -186,6 +194,9 @@ export default function ChatRoom() {
 
   useEffect(() => {
     return () => {
+      if (toastTimeoutRef.current) {
+        clearTimeout(toastTimeoutRef.current);
+      }
       audioRecorder.stop().catch(() => undefined);
       stopVoicePlayback();
     };
