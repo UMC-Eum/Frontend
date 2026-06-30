@@ -65,7 +65,7 @@ export interface IReportsRequest {
   targetUserId: number;
   reason: string;
   category: string;
-  chatRoomId: number;
+  chatRoomId?: number;
 }
 export interface IReportsResponse {
   reportId: { reportId: number };

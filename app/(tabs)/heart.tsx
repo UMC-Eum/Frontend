@@ -19,7 +19,6 @@ import {
   useSendHeartMutation,
   useSentHeartsInfiniteQuery,
 } from "@/hooks/api/useSocials";
-import { useCreateProfileVisitMutation } from "@/hooks/api/useUsers";
 
 const PINK = "#FF3E70";
 const BLACK = "#202020";
@@ -57,7 +56,6 @@ export default function HeartScreen() {
   const sentQuery = useSentHeartsInfiniteQuery();
   const sendHeartMutation = useSendHeartMutation();
   const patchHeartMutation = usePatchHeartMutation();
-  const createProfileVisitMutation = useCreateProfileVisitMutation();
 
   const cardWidth = useMemo(() => (width - 40 - 12) / 2, [width]);
   const receivedProfiles = useMemo(
@@ -78,16 +76,12 @@ export default function HeartScreen() {
 
   const handleOpenProfileDetail = useCallback(
     (profile: ScreenHeartProfile) => {
-      if (profile.targetUserId) {
-        createProfileVisitMutation.mutate(profile.targetUserId);
-      }
-
       router.push({
         pathname: "/profile-detail",
         params: buildProfileDetailParams(profile),
       } as never);
     },
-    [createProfileVisitMutation, router],
+    [router],
   );
 
   // 하트 액션은 서버 반영 후 관련 목록을 invalidate하는 mutation 훅에서 동기화합니다.

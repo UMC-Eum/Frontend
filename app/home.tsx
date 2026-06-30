@@ -23,7 +23,6 @@ import {
 } from "@/hooks/api/useRecommendations";
 import { useNotificationsInfiniteQuery } from "@/hooks/api/useNotifications";
 import {
-  useCreateProfileVisitMutation,
   useMyProfileQuery,
   useMyProfileVisitorsQuery,
 } from "@/hooks/api/useUsers";
@@ -91,7 +90,6 @@ export default function HomePage() {
   const heartNotificationsQuery = useNotificationsInfiniteQuery("heart");
   const chatNotificationsQuery = useNotificationsInfiniteQuery("chat");
   const sendHeartMutation = useSendRecommendationHeartMutation();
-  const createProfileVisitMutation = useCreateProfileVisitMutation();
 
   const recommendedProfiles = useMemo(
     () => mapRecommendationProfiles(recommendationsQuery.data),
@@ -193,12 +191,7 @@ export default function HomePage() {
     router.push("/(tabs)/heart" as never);
   };
 
-  // 상대 프로필 상세로 진입할 때 방문 기록을 서버에 남깁니다.
   const handleOpenProfileDetail = (profile: Profile) => {
-    if (profile.targetUserId) {
-      createProfileVisitMutation.mutate(profile.targetUserId);
-    }
-
     router.push({
       pathname: "/profile-detail",
       params: buildProfileDetailParams(profile),
@@ -211,8 +204,6 @@ export default function HomePage() {
     age?: number | string | null;
     profileImageUrl?: string | null;
   }) => {
-    createProfileVisitMutation.mutate(visitor.userId);
-
     router.push({
       pathname: "/profile-detail",
       params: buildProfileDetailParams({
