@@ -8,6 +8,10 @@ import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
 import "react-native-reanimated";
+import {
+  SafeAreaProvider,
+  initialWindowMetrics,
+} from "react-native-safe-area-context";
 
 import { clearAccessToken, markAuthInitialized, refreshAccessToken } from "@/api/axiosInstance";
 import GlobalUiOverlay from "@/components/GlobalUiOverlay";
@@ -40,37 +44,46 @@ export default function RootLayout() {
   }, []);
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
-        <Stack>
-          <Stack.Screen name="onboarding" options={{ headerShown: false }} />
-          <Stack.Screen name="auth" options={{ headerShown: false }} />
-          <Stack.Screen name="profile" options={{ headerShown: false }} />
-          <Stack.Screen name="home" options={{ headerShown: false }} />
-          {__DEV__ ? (
-            <Stack.Screen name="tabs" options={{ headerShown: false }} />
-          ) : null}
-          <Stack.Screen name="ideal-recording" options={{ headerShown: false }} />
-          <Stack.Screen name="profile-detail" options={{ headerShown: false }} />
-          <Stack.Screen name="payment" options={{ headerShown: false }} />
-          <Stack.Screen name="club" options={{ headerShown: false }} />
-          <Stack.Screen name="meeting-create" options={{ headerShown: false }} />
-          <Stack.Screen
-            name="meeting-create-complete"
-            options={{ headerShown: false }}
-          />
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen name="search" options={{ headerShown: false }} />
-          <Stack.Screen
-            name="modal"
-            options={{ presentation: "modal", title: "Modal" }}
-          />
-          <Stack.Screen name="test" options={{ headerShown: false }} />
-          <Stack.Screen name="chat" options={{ headerShown: false }} />
-        </Stack>
-        <GlobalUiOverlay />
-        <StatusBar style="auto" />
-      </ThemeProvider>
-    </QueryClientProvider>
+    <SafeAreaProvider initialMetrics={initialWindowMetrics}>
+      <QueryClientProvider client={queryClient}>
+        <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
+          <Stack screenOptions={{ animation: "none" }}>
+            <Stack.Screen name="onboarding" options={{ headerShown: false }} />
+            <Stack.Screen name="auth" options={{ headerShown: false }} />
+            <Stack.Screen name="profile" options={{ headerShown: false }} />
+            <Stack.Screen name="home" options={{ headerShown: false }} />
+            {__DEV__ ? (
+              <Stack.Screen name="tabs" options={{ headerShown: false }} />
+            ) : null}
+            <Stack.Screen name="ideal-recording" options={{ headerShown: false }} />
+            <Stack.Screen name="profile-detail" options={{ headerShown: false }} />
+            <Stack.Screen name="payment" options={{ headerShown: false }} />
+            <Stack.Screen name="club" options={{ headerShown: false }} />
+            <Stack.Screen name="meeting-create" options={{ headerShown: false }} />
+            <Stack.Screen
+              name="meeting-create-complete"
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="(tabs)"
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="notifications"
+              options={{ headerShown: false, animation: "slide_from_right" }}
+            />
+            <Stack.Screen name="search" options={{ headerShown: false }} />
+            <Stack.Screen
+              name="modal"
+              options={{ presentation: "modal", title: "Modal" }}
+            />
+            <Stack.Screen name="test" options={{ headerShown: false }} />
+            <Stack.Screen name="chat" options={{ headerShown: false }} />
+          </Stack>
+          <GlobalUiOverlay />
+          <StatusBar style="auto" />
+        </ThemeProvider>
+      </QueryClientProvider>
+    </SafeAreaProvider>
   );
 }

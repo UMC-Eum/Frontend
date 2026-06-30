@@ -1,5 +1,6 @@
 import React from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { TAB_BAR_HEIGHT } from "@/constants/layout";
 import { IconChat, IconHeart, IconHome, IconPerson } from "./SvgIcons";
 
 export type IconName = "home" | "heart" | "chat" | "person";
@@ -85,11 +86,12 @@ const styles = StyleSheet.create({
     flexDirection: "row", // 가로 방향으로 나열
     justifyContent: "space-around", // 아이템 사이의 간격을 동일하게 띄움 (균등 분할)
     alignItems: "center", // 세로 높이 기준 중앙 정렬
+    height: TAB_BAR_HEIGHT,
     backgroundColor: "#FFFFFF",
-    paddingVertical: 12,
-    paddingBottom: 24, // 아이폰 하단 홈 인디케이터 바(노치 바)를 고려한 하단 여백 추가
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    paddingTop: 8,
+    paddingBottom: 10,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: "#E5E7EB",
     // 그림자 속성 (iOS 전용)
     shadowColor: "#000",
     shadowOffset: { width: 0, height: -2 },
@@ -102,6 +104,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     flex: 1, // 각 탭이 동일한 너비(1:1:1:1)를 가지도록 설정
+    height: "100%",
   },
   iconContainer: {
     position: "relative", // 내부의 badge 들이 absolute 좌표를 잡을 수 있도록 기준이 됨
@@ -135,6 +138,7 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 12,
+    lineHeight: 16,
     fontWeight: "500",
   },
 });
