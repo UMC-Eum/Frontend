@@ -1,0 +1,89 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+
+language: ko-KR
+early_access: true
+
+chat:
+  auto_reply: true
+
+reviews:
+  auto_review:
+    enabled: true
+    ignore_title_keywords:
+      - "WIP"
+      - "Draft"
+    drafts: false
+    base_branches:
+      - main
+      - dev
+
+  high_level_summary: true
+  changed_files_summary: true
+  sequence_diagrams: true
+  poem: false
+  review_status: true
+  collapse_walkthrough: false
+  request_changes_workflow: false
+
+  pre_merge_checks:
+    description:
+      mode: warning
+    docstrings:
+      mode: off
+
+  path_filters:
+    - "!**/node_modules/**"
+    - "!**/.expo/**"
+    - "!**/.expo-shared/**"
+    - "!**/dist/**"
+    - "!**/build/**"
+    - "!**/coverage/**"
+    - "!**/my-expo-app/**"
+    - "!**/*.lock"
+    - "!**/*.png"
+    - "!**/*.jpg"
+    - "!**/*.jpeg"
+    - "!**/*.webp"
+    - "!**/*.gif"
+
+  path_instructions:
+    - path: "**/*.{ts,tsx,js,jsx}"
+      instructions: |
+        Expo Router 기반 React Native 모바일 앱 기준으로 리뷰합니다.
+        - 화면 전환, 탭 이동, safe-area, keyboard, status bar 처리에서 첫 렌더와 재진입 시 레이아웃 점프가 생기지 않는지 확인합니다.
+        - FlatList/SectionList pagination, pull-to-refresh, loading/empty/error 상태가 안정적으로 유지되는지 확인합니다.
+        - React Query 캐시, invalidate/refetch, optimistic update가 화면 배치 흔들림이나 중복 API 호출을 만들지 않는지 확인합니다.
+        - useEffect cleanup, socket/listener 구독 해제, navigation focus 처리 누락을 확인합니다.
+        - 사용자 입력, 인증 토큰, API key, deep link 등 보안에 민감한 값이 노출되지 않는지 확인합니다.
+        - TypeScript strict 기준으로 any 남용, null/undefined 접근, DTO와 화면 모델 불일치를 우선적으로 지적합니다.
+        - 접근성 측면에서 터치 영역, 스크린리더 라벨, 대비가 모바일 사용에 적절한지 확인합니다.
+
+    - path: "app.json"
+      instructions: |
+        Expo 앱 설정을 리뷰합니다.
+        - 권한 요청이 실제 기능과 맞고 최소 권한인지 확인합니다.
+        - iOS/Android identifier, version, build number, scheme, splash/icon 설정이 릴리즈에 적절한지 확인합니다.
+        - 공개되면 안 되는 secret이 포함되어 있지 않은지 확인합니다.
+
+    - path: "eas.json"
+      instructions: |
+        EAS 빌드 설정을 리뷰합니다.
+        - development, preview, production 프로필의 distribution/channel/env 설정이 의도와 맞는지 확인합니다.
+        - 인증서/프로비저닝/credential 흐름에 민감 정보가 커밋되어 있지 않은지 확인합니다.
+
+    - path: "metro.config.js"
+      instructions: |
+        Metro 설정을 리뷰합니다.
+        - Expo/React Native 번들링과 asset resolver 설정이 안전하고 불필요하게 복잡하지 않은지 확인합니다.
+
+    - path: "api/**/*.{ts,tsx}"
+      instructions: |
+        API 계층을 리뷰합니다.
+        - DTO 타입과 실제 응답 nullability가 일치하는지 확인합니다.
+        - axios interceptor, token refresh, error fallback이 무한 재시도나 인증 상태 꼬임을 만들지 않는지 확인합니다.
+
+    - path: "hooks/api/**/*.{ts,tsx}"
+      instructions: |
+        React Query 훅을 리뷰합니다.
+        - queryKey가 안정적이고 mutation 후 invalidate 범위가 과하거나 부족하지 않은지 확인합니다.
+        - stale/cache 설정이 화면 전환 중 레이아웃 변동이나 불필요한 refetch를 만들지 않는지 확인합니다.
