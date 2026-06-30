@@ -451,11 +451,16 @@ export default function WelcomeScreen() {
       }
 
       try {
+        let profileImageUrl = profileImageUri;
+
         if (isRemoteUrl(profileImageUri)) {
-          return;
+          profileImageUrl = profileImageUri;
+        } else {
+          profileImageUrl = await uploadProfileImage(profileImageUri);
         }
 
-        const profileImageUrl = await uploadProfileImage(profileImageUri);
+        await updateMyProfileMutation.mutateAsync({ profileImageUrl });
+
         if (__DEV__) {
           console.log("[Profile Image Upload] success", { profileImageUrl });
         }

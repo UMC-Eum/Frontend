@@ -2,17 +2,19 @@ import { Ionicons } from "@expo/vector-icons";
 import * as Linking from "expo-linking";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
   ImageBackground,
+  Keyboard,
   Modal,
   Pressable,
   ScrollView,
   Share,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
   useWindowDimensions,
@@ -22,10 +24,14 @@ import Svg, { ClipPath, Defs, G, Path, Rect } from "react-native-svg";
 
 import { Chip } from "@/components/Chip";
 import Cta from "@/components/Cta";
+import { HeaderBackOnly } from "@/components/header";
 import { useCreateChatRoomMutation } from "@/hooks/api/useChats";
 import {
   useBlockUserMutation,
+  useBlocksInfiniteQuery,
   useCreateReportMutation,
+  usePatchBlockMutation,
+  usePatchHeartMutation,
   useSendHeartMutation,
 } from "@/hooks/api/useSocials";
 import { useUserProfileQuery } from "@/hooks/api/useUsers";
@@ -42,6 +48,8 @@ type ProfileDetailParams = {
   location?: string | string[];
   intro?: string | string[];
   isLiked?: string | string[];
+  heartId?: string | string[];
+  chatRoomId?: string | string[];
 };
 
 type ProfileViewData = {
@@ -65,53 +73,47 @@ type ProfileClub = {
   memberLabel: string;
 };
 
-// TODO: 프로필 상세 조회 API가 준비되면 목데이터와 USE_PROFILE_DETAIL_MOCK 분기를 제거합니다.
-const USE_PROFILE_DETAIL_MOCK = true;
+const ENABLE_PROFILE_DETAIL_QUERY = false;
+const REPORT_MAX_LENGTH = 300;
 
-const MOCK_PROFILE_DETAIL: ProfileViewData = {
-  name: "루시",
-  age: 55,
-  location: "서울시 서대문구",
-  distance: "7km",
-  intro:
-    "안녕하세요.\n하루를 마무리하며 나누는 소소한 대화를 좋아합니다. 서두르지 않고, 편안하게 이야기할 수 있는 인연을 만나고 싶어요. 먼저 대화를 주도하는 편입니다! 친하게 지내봐요 ㅎㅎ",
-  image:
-    "https://images.unsplash.com/photo-1485738422979-f5c462d49f74?q=85&w=1200&auto=format&fit=crop",
-  interests: ["헬스", "요리", "여행", "음악듣기"],
-  preferences: ["귀여운", "다정한", "친절한", "가까이 사는", "솔직한", "친절한"],
-  joinedClubs: [
-    {
-      id: "joined-1",
-      title: "새벽 등산 동호회",
-      location: "서울시 서대문구",
-      category: "루씨",
-      memberLabel: "6명 참석중 (6/15)",
-    },
-    {
-      id: "joined-2",
-      title: "새벽 등산 동호회",
-      location: "서울시 서대문구",
-      category: "루씨",
-      memberLabel: "6명 참석중 (6/15)",
-    },
-  ],
-  hostedClubs: [
-    {
-      id: "hosted-1",
-      title: "새벽 등산 동호회",
-      location: "서울시 서대문구",
-      category: "루씨",
-      memberLabel: "6명 참석중 (6/15)",
-    },
-    {
-      id: "hosted-2",
-      title: "새벽 등산 동호회",
-      location: "서울시 서대문구",
-      category: "루씨",
-      memberLabel: "6명 참석중 (6/15)",
-    },
-  ],
+type ReportReason = {
+  label: string;
+  category: string;
+  defaultReason: string;
 };
+
+const REPORT_REASONS: ReportReason[] = [
+  {
+    label: "불쾌한 메세지",
+    category: "Inappropriate",
+    defaultReason: "불쾌한 메시지를 반복 전송",
+  },
+  {
+    label: "성희롱 / 성적 표현",
+    category: "Sexual",
+    defaultReason: "성희롱 또는 성적 표현",
+  },
+  {
+    label: "사기/금전 요구",
+    category: "Fraud",
+    defaultReason: "사기 또는 금전 요구 의심",
+  },
+  {
+    label: "욕설/비하/혐오",
+    category: "Abusive",
+    defaultReason: "욕설 / 비하 / 혐오 표현",
+  },
+  {
+    label: "스팸/광고",
+    category: "Spam",
+    defaultReason: "스팸 / 광고 목적 이용",
+  },
+  {
+    label: "기타",
+    category: "Other",
+    defaultReason: "기타 신고 사유",
+  },
+];
 
 export default function ProfileDetailScreen() {
   const router = useRouter();
@@ -119,23 +121,49 @@ export default function ProfileDetailScreen() {
   const insets = useSafeAreaInsets();
   const { height: windowHeight } = useWindowDimensions();
   const userId = parsePositiveInt(firstParam(params.userId));
+  const initialHeartId = parsePositiveInt(firstParam(params.heartId));
+  const chatRoomId = firstParam(params.chatRoomId);
   const fallbackProfile = useMemo(() => mapParamsToProfile(params), [params]);
-  const profileQuery = useUserProfileQuery(USE_PROFILE_DETAIL_MOCK ? null : userId);
+  const profileQuery = useUserProfileQuery(
+    ENABLE_PROFILE_DETAIL_QUERY ? userId : null,
+  );
   const profile = useMemo(
-    () =>
-      USE_PROFILE_DETAIL_MOCK
-        ? MOCK_PROFILE_DETAIL
-        : mapProfileToViewData(profileQuery.data, fallbackProfile),
+    () => mapProfileToViewData(profileQuery.data, fallbackProfile),
     [fallbackProfile, profileQuery.data],
   );
   const [liked, setLiked] = useState(
-    USE_PROFILE_DETAIL_MOCK || firstParam(params.isLiked) === "true",
+    firstParam(params.isLiked) === "true",
+  );
+  const [currentHeartId, setCurrentHeartId] = useState<number | null>(
+    initialHeartId,
   );
   const [menuVisible, setMenuVisible] = useState(false);
+  const [reportVisible, setReportVisible] = useState(false);
+  const [reportCompleted, setReportCompleted] = useState(false);
+  const [selectedReportReason, setSelectedReportReason] =
+    useState<ReportReason | null>(null);
+  const [reportDetail, setReportDetail] = useState("");
   const sendHeartMutation = useSendHeartMutation();
+  const patchHeartMutation = usePatchHeartMutation();
   const createChatRoomMutation = useCreateChatRoomMutation();
+  const blocksQuery = useBlocksInfiniteQuery(20, { enabled: !!userId });
   const blockUserMutation = useBlockUserMutation();
+  const patchBlockMutation = usePatchBlockMutation();
   const createReportMutation = useCreateReportMutation();
+  const blockedRelation = useMemo(
+    () => findBlockedRelation(blocksQuery.data, userId),
+    [blocksQuery.data, userId],
+  );
+
+  useEffect(() => {
+    if (typeof profileQuery.data?.isLiked === "boolean") {
+      setLiked(profileQuery.data.isLiked);
+    }
+
+    if (typeof profileQuery.data?.likedHeartId === "number") {
+      setCurrentHeartId(profileQuery.data.likedHeartId);
+    }
+  }, [profileQuery.data?.isLiked, profileQuery.data?.likedHeartId]);
 
   const getTargetUserId = () => {
     if (userId) return userId;
@@ -145,11 +173,34 @@ export default function ProfileDetailScreen() {
   };
 
   const handleToggleLike = () => {
-    if (!USE_PROFILE_DETAIL_MOCK && !liked && userId) {
-      sendHeartMutation.mutate(userId);
+    const targetUserId = getTargetUserId();
+    if (!targetUserId || sendHeartMutation.isPending || patchHeartMutation.isPending) {
+      return;
     }
 
-    setLiked((prev) => !prev);
+    if (liked) {
+      if (!currentHeartId) {
+        Alert.alert("마음 상태를 확인할 수 없어요", "잠시 후 다시 시도해주세요.");
+        return;
+      }
+
+      patchHeartMutation.mutate(currentHeartId, {
+        onSuccess: () => {
+          setLiked(false);
+          setCurrentHeartId(null);
+        },
+        onError: () => Alert.alert("처리 실패", "마음 상태를 변경하지 못했어요."),
+      });
+      return;
+    }
+
+    sendHeartMutation.mutate(targetUserId, {
+      onSuccess: (response) => {
+        setLiked(true);
+        setCurrentHeartId(response.heartId);
+      },
+      onError: () => Alert.alert("처리 실패", "마음을 보내지 못했어요."),
+    });
   };
 
   const handleShareProfile = async () => {
@@ -191,31 +242,76 @@ export default function ProfileDetailScreen() {
     const targetUserId = getTargetUserId();
     if (!targetUserId || createReportMutation.isPending) return;
 
-    Alert.alert("신고하기", "이 사용자를 신고할까요?", [
-      { text: "취소", style: "cancel" },
+    setSelectedReportReason(null);
+    setReportDetail("");
+    setReportCompleted(false);
+    setReportVisible(true);
+  };
+
+  const handleSubmitReport = () => {
+    const targetUserId = getTargetUserId();
+    if (!targetUserId || !selectedReportReason || createReportMutation.isPending) {
+      return;
+    }
+
+    const trimmedDetail = reportDetail.trim();
+    const reason = trimmedDetail || selectedReportReason.defaultReason;
+    const parsedChatRoomId = parsePositiveInt(chatRoomId);
+    const reportPayload = {
+      targetUserId,
+      category: selectedReportReason.category,
+      reason,
+      ...(parsedChatRoomId ? { chatRoomId: parsedChatRoomId } : {}),
+    };
+
+    if (__DEV__) {
+      console.log("[Report Submit] payload", reportPayload);
+    }
+
+    createReportMutation.mutate(
+      reportPayload,
       {
-        text: "신고하기",
-        style: "destructive",
-        onPress: () => {
-          createReportMutation.mutate(
-            {
-              targetUserId,
-              category: "PROFILE",
-              reason: "프로필 상세에서 신고",
-            },
-            {
-              onSuccess: () => Alert.alert("신고가 접수되었습니다"),
-              onError: () => Alert.alert("신고 실패", "잠시 후 다시 시도해주세요."),
-            },
-          );
+        onSuccess: () => {
+          setReportCompleted(true);
         },
+        onError: () => Alert.alert("신고 실패", "잠시 후 다시 시도해주세요."),
       },
-    ]);
+    );
+  };
+
+  const handleCloseReport = () => {
+    setReportVisible(false);
+    setReportCompleted(false);
+    setSelectedReportReason(null);
+    setReportDetail("");
   };
 
   const handleBlockProfile = () => {
     const targetUserId = getTargetUserId();
-    if (!targetUserId || blockUserMutation.isPending) return;
+    if (
+      !targetUserId ||
+      blockUserMutation.isPending ||
+      patchBlockMutation.isPending
+    ) {
+      return;
+    }
+
+    if (blockedRelation) {
+      Alert.alert("차단 해제", "이 사용자를 차단 해제할까요?", [
+        { text: "취소", style: "cancel" },
+        {
+          text: "차단 해제",
+          onPress: () => {
+            patchBlockMutation.mutate(blockedRelation.blockId, {
+              onSuccess: () => Alert.alert("차단이 해제되었습니다"),
+              onError: () =>
+                Alert.alert("처리 실패", "잠시 후 다시 시도해주세요."),
+            });
+          },
+        },
+      ]);
+      return;
+    }
 
     Alert.alert("차단하기", "이 사용자를 차단할까요?", [
       { text: "취소", style: "cancel" },
@@ -225,8 +321,8 @@ export default function ProfileDetailScreen() {
         onPress: () => {
           blockUserMutation.mutate(
             {
-              targetUserId,
-              reason: "프로필 상세에서 차단",
+              targetUserId: String(targetUserId),
+              reason: "불쾌한 메시지",
             },
             {
               onSuccess: () => Alert.alert("차단되었습니다"),
@@ -382,6 +478,18 @@ export default function ProfileDetailScreen() {
           setMenuVisible(false);
           handleBlockProfile();
         }}
+        blockLabel={blockedRelation ? "차단 해제" : "차단하기"}
+      />
+      <ReportModal
+        visible={reportVisible}
+        completed={reportCompleted}
+        selectedReason={selectedReportReason}
+        detail={reportDetail}
+        isSubmitting={createReportMutation.isPending}
+        onClose={handleCloseReport}
+        onSelectReason={setSelectedReportReason}
+        onChangeDetail={setReportDetail}
+        onSubmit={handleSubmitReport}
       />
     </SafeAreaView>
   );
@@ -641,16 +749,40 @@ function normalizeAge(age?: number | string | null, birthDate?: string | null) {
   return calculatedAge > 0 ? calculatedAge : null;
 }
 
+function findBlockedRelation(
+  data:
+    | {
+        pages: {
+          items: {
+            blockId: number;
+            targetUserId: number | string;
+          }[];
+        }[];
+      }
+    | undefined,
+  userId: number | null,
+) {
+  if (!data || !userId) return null;
+
+  return (
+    data.pages
+      .flatMap((page) => page.items)
+      .find((item) => String(item.targetUserId) === String(userId)) ?? null
+  );
+}
+
 function ActionSheetModal({
   visible,
   onClose,
   onReport,
   onBlock,
+  blockLabel,
 }: {
   visible: boolean;
   onClose: () => void;
   onReport: () => void;
   onBlock: () => void;
+  blockLabel: string;
 }) {
   return (
     <Modal
@@ -675,7 +807,7 @@ function ActionSheetModal({
               activeOpacity={0.75}
               onPress={onBlock}
             >
-              <Text style={styles.actionText}>차단하기</Text>
+              <Text style={styles.actionText}>{blockLabel}</Text>
             </TouchableOpacity>
           </View>
 
@@ -688,6 +820,164 @@ function ActionSheetModal({
           </TouchableOpacity>
         </Pressable>
       </Pressable>
+    </Modal>
+  );
+}
+
+function ReportModal({
+  visible,
+  completed,
+  selectedReason,
+  detail,
+  isSubmitting,
+  onClose,
+  onSelectReason,
+  onChangeDetail,
+  onSubmit,
+}: {
+  visible: boolean;
+  completed: boolean;
+  selectedReason: ReportReason | null;
+  detail: string;
+  isSubmitting: boolean;
+  onClose: () => void;
+  onSelectReason: (reason: ReportReason) => void;
+  onChangeDetail: (detail: string) => void;
+  onSubmit: () => void;
+}) {
+  const canSubmit = !!selectedReason && !isSubmitting;
+  const [isDetailFocused, setIsDetailFocused] = useState(false);
+  const handleReasonPress = (reason: ReportReason) => {
+    if (isDetailFocused) {
+      Keyboard.dismiss();
+      return;
+    }
+
+    onSelectReason(reason);
+  };
+
+  return (
+    <Modal
+      visible={visible}
+      animationType="slide"
+      presentationStyle="fullScreen"
+      onRequestClose={onClose}
+    >
+      <SafeAreaView style={styles.reportSafeArea}>
+        {completed ? (
+          <View style={styles.reportCompleteScreen}>
+            <HeaderBackOnly
+              onPressBack={onClose}
+              containerStyle={styles.reportHeader}
+            />
+
+            <View style={styles.reportCompleteContent}>
+              <View style={styles.reportCompleteIcon}>
+                <Ionicons name="checkmark" size={42} color="#FFFFFF" />
+              </View>
+              <Text style={styles.reportCompleteTitle}>신고 되었어요.</Text>
+              <Text style={styles.reportCompleteDescription}>
+                더 나은 이음을 위해 신고해주셔서 감사해요{"\n"}
+                신고된 내용은 검토하여 조치할 예정이에요.
+              </Text>
+            </View>
+
+            <Cta
+              label="닫기"
+              onPress={onClose}
+              containerStyle={styles.reportCtaContainer}
+              buttonStyle={styles.reportCtaButton}
+              labelStyle={styles.reportCtaLabel}
+            />
+          </View>
+        ) : (
+          <View style={styles.reportScreen}>
+            <HeaderBackOnly
+              onPressBack={onClose}
+              containerStyle={styles.reportHeader}
+            />
+
+            <ScrollView
+              style={styles.reportScroll}
+              contentContainerStyle={styles.reportContent}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+            >
+              <Text style={styles.reportTitle}>
+                사용자를 신고하려는{"\n"}이유를 선택해주세요.
+              </Text>
+
+              <View style={styles.reportReasonList}>
+                {REPORT_REASONS.map((reason) => {
+                  const isSelected = selectedReason?.label === reason.label;
+
+                  return (
+                    <TouchableOpacity
+                      key={reason.label}
+                      style={[
+                        styles.reportReasonRow,
+                        isSelected ? styles.reportReasonRowSelected : null,
+                      ]}
+                      activeOpacity={0.8}
+                      onPress={() => handleReasonPress(reason)}
+                    >
+                      <Text
+                        style={[
+                          styles.reportReasonText,
+                          isSelected ? styles.reportReasonTextSelected : null,
+                        ]}
+                      >
+                        {reason.label}
+                      </Text>
+                      {isSelected ? (
+                        <Ionicons
+                          name="checkmark-circle"
+                          size={20}
+                          color="#FC3367"
+                        />
+                      ) : null}
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              <View style={styles.reportInputBox}>
+                <TextInput
+                  style={styles.reportInput}
+                  value={detail}
+                  onChangeText={(value) =>
+                    onChangeDetail(value.slice(0, REPORT_MAX_LENGTH))
+                  }
+                  multiline
+                  maxLength={REPORT_MAX_LENGTH}
+                  placeholder="신고 내용을 입력해주세요."
+                  placeholderTextColor="#A6AFB6"
+                  textAlignVertical="top"
+                  onFocus={() => setIsDetailFocused(true)}
+                  onBlur={() => setIsDetailFocused(false)}
+                />
+                <Text
+                  style={[
+                    styles.reportCount,
+                    detail.length > 0 ? styles.reportCountActive : null,
+                  ]}
+                >
+                  {detail.length}/{REPORT_MAX_LENGTH}
+                </Text>
+              </View>
+            </ScrollView>
+
+            <Cta
+              label={isSubmitting ? "신고 중..." : "신고하기"}
+              disabled={!canSubmit}
+              onPress={onSubmit}
+              containerStyle={styles.reportCtaContainer}
+              buttonStyle={styles.reportCtaButton}
+              labelStyle={styles.reportCtaLabel}
+            />
+          </View>
+        )}
+      </SafeAreaView>
     </Modal>
   );
 }
@@ -1061,5 +1351,138 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     borderRadius: 14,
     backgroundColor: "#FFFFFF",
+  },
+  reportSafeArea: {
+    flex: 1,
+    backgroundColor: "#F8FAFB",
+  },
+  reportScreen: {
+    flex: 1,
+    backgroundColor: "#F8FAFB",
+  },
+  reportHeader: {
+    marginTop: 18,
+  },
+  reportScroll: {
+    flex: 1,
+  },
+  reportContent: {
+    paddingHorizontal: 36,
+    paddingTop: 46,
+    paddingBottom: 36,
+  },
+  reportTitle: {
+    marginBottom: 56,
+    fontSize: 30,
+    lineHeight: 42,
+    fontWeight: "600",
+    color: "#202020",
+  },
+  reportReasonList: {
+    marginBottom: 0,
+  },
+  reportReasonRow: {
+    height: 64,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingLeft: 26,
+    paddingRight: 18,
+    borderTopWidth: 1,
+    borderTopColor: "#DEE3E5",
+    borderLeftWidth: 3,
+    borderLeftColor: "transparent",
+  },
+  reportReasonRowSelected: {
+    borderLeftColor: "#FC3367",
+  },
+  reportReasonText: {
+    fontSize: 22,
+    lineHeight: 31,
+    fontWeight: "500",
+    color: "#202020",
+  },
+  reportReasonTextSelected: {
+    fontWeight: "600",
+    color: "#FC3367",
+  },
+  reportInputBox: {
+    height: 252,
+    marginTop: 34,
+    paddingHorizontal: 28,
+    paddingTop: 30,
+    paddingBottom: 22,
+    borderWidth: 1,
+    borderColor: "#DEE3E5",
+    borderRadius: 14,
+    backgroundColor: "#FFFFFF",
+  },
+  reportInput: {
+    flex: 1,
+    padding: 0,
+    fontSize: 18,
+    lineHeight: 26,
+    fontWeight: "500",
+    color: "#202020",
+  },
+  reportCount: {
+    alignSelf: "flex-end",
+    fontSize: 18,
+    lineHeight: 22,
+    fontWeight: "500",
+    color: "#A6AFB6",
+  },
+  reportCountActive: {
+    color: "#FC3367",
+  },
+  reportCtaContainer: {
+    backgroundColor: "#F8FAFB",
+    paddingHorizontal: 36,
+    paddingTop: 16,
+  },
+  reportCtaButton: {
+    height: 58,
+    borderRadius: 14,
+    backgroundColor: "#FC3367",
+  },
+  reportCtaLabel: {
+    fontSize: 20,
+    lineHeight: 24,
+    fontWeight: "600",
+    color: "#FFFFFF",
+  },
+  reportCompleteScreen: {
+    flex: 1,
+    backgroundColor: "#F8FAFB",
+  },
+  reportCompleteContent: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingBottom: 80,
+  },
+  reportCompleteIcon: {
+    width: 80,
+    height: 80,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 24,
+    borderRadius: 40,
+    backgroundColor: "#FC3367",
+  },
+  reportCompleteTitle: {
+    marginBottom: 12,
+    fontSize: 24,
+    lineHeight: 34,
+    fontWeight: "600",
+    color: "#202020",
+    textAlign: "center",
+  },
+  reportCompleteDescription: {
+    fontSize: 18,
+    lineHeight: 22,
+    fontWeight: "500",
+    color: "#636970",
+    textAlign: "center",
   },
 });

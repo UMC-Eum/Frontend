@@ -22,6 +22,7 @@ import { queryKeys } from "./queryKeys";
 const DEFAULT_PAGE_SIZE = 20;
 
 type InfiniteQueryBehaviorOptions = {
+  enabled?: boolean;
   staleTime?: number;
   refetchOnMount?: boolean | "always";
 };
@@ -74,12 +75,16 @@ export function usePatchHeartMutation() {
   });
 }
 
-export function useBlocksInfiniteQuery(size = DEFAULT_PAGE_SIZE) {
+export function useBlocksInfiniteQuery(
+  size = DEFAULT_PAGE_SIZE,
+  options: InfiniteQueryBehaviorOptions = {},
+) {
   return useInfiniteQuery({
     queryKey: queryKeys.socials.blocks(size),
     queryFn: ({ pageParam }) => getBlocks({ cursor: pageParam, size }),
     initialPageParam: null as string | null,
     getNextPageParam: (lastPage) => lastPage.nextCursor,
+    ...options,
   });
 }
 

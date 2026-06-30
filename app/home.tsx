@@ -49,19 +49,12 @@ type Profile = {
 const USER_NICKNAME = "루씨";
 const FALLBACK_PROFILE_IMAGE =
   "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=85&w=1200&auto=format&fit=crop";
+const RECOMMENDATION_REFRESH_INTERVAL_MS = 60 * 60 * 1000;
 
-const getCountdownText = () => {
-  const now = new Date();
-  const nextNoon = new Date(now);
-  nextNoon.setHours(12, 0, 0, 0);
-
-  if (now.getTime() >= nextNoon.getTime()) {
-    nextNoon.setDate(nextNoon.getDate() + 1);
-  }
-
+const getCountdownText = (targetTime: number) => {
   const remainingSeconds = Math.max(
     0,
-    Math.floor((nextNoon.getTime() - now.getTime()) / 1000),
+    Math.floor((targetTime - Date.now()) / 1000),
   );
   const hours = String(Math.floor(remainingSeconds / 3600)).padStart(2, "0");
   const minutes = String(Math.floor((remainingSeconds % 3600) / 60)).padStart(
@@ -82,14 +75,22 @@ export default function HomePage() {
   const [activeHomeTab, setActiveHomeTab] = useState<HomeTab>("home");
   const [profileIndex, setProfileIndex] = useState(0);
   const [imageIndex, setImageIndex] = useState(0);
-  const [countdown, setCountdown] = useState(getCountdownText);
+  const [nextRecommendationRefreshAt, setNextRecommendationRefreshAt] =
+    useState(() => Date.now() + RECOMMENDATION_REFRESH_INTERVAL_MS);
+  const [countdown, setCountdown] = useState(() =>
+    getCountdownText(nextRecommendationRefreshAt),
+  );
   const [, setLikedCount] = useState(0);
+  const [dismissedProfileIds, setDismissedProfileIds] = useState<Set<string>>(
+    () => new Set(),
+  );
   const myProfileQuery = useMyProfileQuery();
   const visitorsQuery = useMyProfileVisitorsQuery({ limit: 12 });
   const recommendationsQuery = useRecommendationsInfiniteQuery();
   const heartNotificationsQuery = useNotificationsInfiniteQuery("heart");
   const chatNotificationsQuery = useNotificationsInfiniteQuery("chat");
   const sendHeartMutation = useSendRecommendationHeartMutation();
+  const refetchRecommendations = recommendationsQuery.refetch;
 
   const recommendedProfiles = useMemo(
     () => mapRecommendationProfiles(recommendationsQuery.data),
@@ -104,7 +105,13 @@ export default function HomePage() {
     () => countUnreadNotifications(chatNotificationsQuery.data),
     [chatNotificationsQuery.data],
   );
-  const profiles = recommendedProfiles;
+  const profiles = useMemo(
+    () =>
+      recommendedProfiles.filter(
+        (profile) => !dismissedProfileIds.has(profile.id),
+      ),
+    [dismissedProfileIds, recommendedProfiles],
+  );
   const profile =
     profiles.length > 0
       ? profiles[Math.min(profileIndex, profiles.length - 1)]
@@ -113,11 +120,28 @@ export default function HomePage() {
   const cardWidth = width - 40;
   const hasNotificationBadge = heartUnreadCount + chatUnreadCount > 0;
 
-  // 실시간 추천 마감 카운트다운을 1초마다 갱신합니다.
+  // 추천 갱신까지 남은 시간을 1초마다 갱신합니다.
   useEffect(() => {
-    const timer = setInterval(() => setCountdown(getCountdownText()), 1000);
+    const timer = setInterval(
+      () => setCountdown(getCountdownText(nextRecommendationRefreshAt)),
+      1000,
+    );
     return () => clearInterval(timer);
-  }, []);
+  }, [nextRecommendationRefreshAt]);
+
+  // 추천 목록은 1시간마다 다시 받아와 첫 카드부터 새로 보여줍니다.
+  useEffect(() => {
+    const timer = setInterval(() => {
+      refetchRecommendations();
+      setDismissedProfileIds(new Set());
+      setProfileIndex(0);
+      setNextRecommendationRefreshAt(
+        Date.now() + RECOMMENDATION_REFRESH_INTERVAL_MS,
+      );
+    }, RECOMMENDATION_REFRESH_INTERVAL_MS);
+
+    return () => clearInterval(timer);
+  }, [refetchRecommendations]);
 
   // 프로필이 바뀌면 사진 슬라이더를 첫 장으로 초기화합니다.
   useEffect(() => {
@@ -163,10 +187,17 @@ export default function HomePage() {
 
   // 별로예요를 누르면 다음 추천 프로필로 넘깁니다.
   const handleDislike = () => {
-    if (profiles.length === 0) return;
+    if (!profile) return;
+
+    setDismissedProfileIds((prev) => {
+      const next = new Set(prev);
+      next.add(profile.id);
+      return next;
+    });
 
     setProfileIndex((prev) => {
-      const nextIndex = (prev + 1) % profiles.length;
+      const nextLength = Math.max(profiles.length - 1, 0);
+      const nextIndex = nextLength > 0 ? Math.min(prev, nextLength - 1) : 0;
 
       if (
         nextIndex >= profiles.length - 2 &&
@@ -467,6 +498,7 @@ function buildProfileDetailParams(profile: Profile) {
   };
 
   if (profile.targetUserId) params.userId = String(profile.targetUserId);
+  if (profile.likedHeartId) params.heartId = String(profile.likedHeartId);
   if (profile.age) params.age = String(profile.age);
   if (profile.location) params.location = profile.location;
   if (profile.intro) params.intro = profile.intro;

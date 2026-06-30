@@ -106,6 +106,31 @@ export function Header1(props: {
   );
 }
 
+export function HeaderBackOnly(props: {
+  onPressBack: () => void;
+  containerStyle?: ViewStyle;
+}) {
+  return (
+    <View style={[styles.backOnlyContainer, props.containerStyle]}>
+      <Pressable
+        onPress={props.onPressBack}
+        hitSlop={14}
+        style={({ pressed }) => [
+          styles.backOnlyButton,
+          pressed && styles.pressed,
+        ]}
+      >
+        <MaterialIcons
+          name="chevron-left"
+          size={32}
+          color="#9AA3A8"
+          style={styles.backOnlyIcon}
+        />
+      </Pressable>
+    </View>
+  );
+}
+
 // 2) back + 왼쪽 타이틀 + kebab
 export function Header2(props: {
   title: string;
@@ -231,5 +256,20 @@ const styles = StyleSheet.create({
   },
   pressed: {
     opacity: 0.6,
+  },
+  backOnlyContainer: {
+    width: '100%',
+    height: 64,
+    justifyContent: 'center',
+    paddingHorizontal: 28,
+  },
+  backOnlyButton: {
+    width: 48,
+    height: 48,
+    alignItems: 'flex-start',
+    justifyContent: 'center',
+  },
+  backOnlyIcon: {
+    transform: [{ translateY: 3 }],
   },
 });

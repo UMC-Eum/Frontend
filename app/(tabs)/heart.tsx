@@ -44,13 +44,18 @@ type ScreenHeartProfile = HeartProfile & {
   targetUserId?: number;
 };
 
+type OptimisticHeartState = {
+  isLiked: boolean;
+  heartId?: number;
+};
+
 export default function HeartScreen() {
   const router = useRouter();
   const { width } = useWindowDimensions();
   const [activeTab, setActiveTab] = useState<HeartTab>("received");
   const [pendingIds, setPendingIds] = useState<Set<string>>(() => new Set());
   const [optimisticHeartState, setOptimisticHeartState] = useState<
-    Record<string, boolean>
+    Record<string, OptimisticHeartState>
   >({});
   const receivedQuery = useReceivedHeartsInfiniteQuery();
   const sentQuery = useSentHeartsInfiniteQuery();
@@ -95,7 +100,7 @@ export default function HeartScreen() {
       setPendingIds((prev) => new Set(prev).add(profileId));
       setOptimisticHeartState((prev) => ({
         ...prev,
-        [profileId]: nextLiked,
+        [profileId]: { isLiked: nextLiked, heartId: profile.heartId },
       }));
 
       const resetPending = () => {
@@ -108,7 +113,7 @@ export default function HeartScreen() {
       const rollbackHeartState = () => {
         setOptimisticHeartState((prev) => ({
           ...prev,
-          [profileId]: profile.isLiked,
+          [profileId]: { isLiked: profile.isLiked, heartId: profile.heartId },
         }));
       };
 
@@ -122,6 +127,12 @@ export default function HeartScreen() {
 
       if (profile.targetUserId) {
         sendHeartMutation.mutate(profile.targetUserId, {
+          onSuccess: (response) => {
+            setOptimisticHeartState((prev) => ({
+              ...prev,
+              [profileId]: { isLiked: true, heartId: response.heartId },
+            }));
+          },
           onError: rollbackHeartState,
           onSettled: resetPending,
         });
@@ -223,13 +234,19 @@ export default function HeartScreen() {
 
 function applyOptimisticHeartState<T extends HeartProfile>(
   profiles: T[],
-  optimisticState: Record<string, boolean>,
+  optimisticState: Record<string, OptimisticHeartState>,
 ) {
-  return profiles.map((profile) =>
-    Object.prototype.hasOwnProperty.call(optimisticState, profile.id)
-      ? { ...profile, isLiked: optimisticState[profile.id] }
-      : profile,
-  );
+  return profiles.map((profile) => {
+    const optimisticProfile = optimisticState[profile.id];
+
+    if (!optimisticProfile) return profile;
+
+    return {
+      ...profile,
+      isLiked: optimisticProfile.isLiked,
+      heartId: optimisticProfile.heartId,
+    };
+  });
 }
 
 function mapReceivedHeartProfiles(data?: {
@@ -301,6 +318,7 @@ function buildProfileDetailParams(profile: ScreenHeartProfile) {
   };
 
   if (profile.targetUserId) params.userId = String(profile.targetUserId);
+  if (profile.heartId) params.heartId = String(profile.heartId);
   if (profile.age) params.age = String(profile.age);
   if (profile.image) params.image = profile.image;
   if (profile.location) params.location = profile.location;
