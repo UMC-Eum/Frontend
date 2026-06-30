@@ -188,7 +188,9 @@ export default function ChatRoom() {
       playbackStopTimerRef.current = null;
     }
 
-    playbackPlayerRef.current?.pause();
+    const currentPlayer = playbackPlayerRef.current;
+    currentPlayer?.pause();
+    currentPlayer?.remove();
     playbackPlayerRef.current = null;
     setPlayingVoiceMessageId(null);
   }, []);
