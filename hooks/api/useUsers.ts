@@ -26,6 +26,7 @@ import {
 } from "@/types/api/users/usersDTO";
 
 import { queryKeys } from "./queryKeys";
+import { useProtectedQueryEnabled } from "./useProtectedQueryEnabled";
 
 const DEFAULT_PAGE_LIMIT = 20;
 
@@ -36,26 +37,35 @@ type InfiniteParams<T extends { cursor?: string | null; limit?: number }> = Omit
   limit?: number;
 };
 
-export function useMyProfileQuery() {
+export function useMyProfileQuery(enabled = true) {
+  const queryEnabled = useProtectedQueryEnabled(enabled);
+
   return useQuery({
     queryKey: queryKeys.users.me(),
     queryFn: getMyProfile,
+    enabled: queryEnabled,
   });
 }
 
 export function useMyProfileVisitorsQuery(
   params: IMyProfileVisitorsRequest = {},
+  enabled = true,
 ) {
+  const queryEnabled = useProtectedQueryEnabled(enabled);
+
   return useQuery({
     queryKey: queryKeys.users.visitors(params),
     queryFn: () => getMyProfileVisitors(params),
+    enabled: queryEnabled,
   });
 }
 
 export function useLikedClubsInfiniteQuery(
   params: InfiniteParams<ILikedClubsParams> = {},
+  enabled = true,
 ) {
   const { limit = DEFAULT_PAGE_LIMIT, ...restParams } = params;
+  const queryEnabled = useProtectedQueryEnabled(enabled);
 
   return useInfiniteQuery({
     queryKey: queryKeys.users.likedClubs({ ...restParams, limit }),
@@ -63,6 +73,7 @@ export function useLikedClubsInfiniteQuery(
       getLikedClubs({ ...restParams, cursor: pageParam, limit }),
     initialPageParam: null as string | null,
     getNextPageParam: (lastPage) => lastPage.nextCursor,
+    enabled: queryEnabled,
   });
 }
 

@@ -10,6 +10,7 @@ import {
 } from "@/api/notifications/notificationsApi";
 
 import { queryKeys } from "./queryKeys";
+import { useProtectedQueryEnabled } from "./useProtectedQueryEnabled";
 
 const DEFAULT_PAGE_SIZE = 20;
 type NotificationScope = "all" | "heart" | "chat";
@@ -23,13 +24,17 @@ const notificationFetchers = {
 export function useNotificationsInfiniteQuery(
   scope: NotificationScope,
   size = DEFAULT_PAGE_SIZE,
+  enabled = true,
 ) {
+  const queryEnabled = useProtectedQueryEnabled(enabled);
+
   return useInfiniteQuery({
     queryKey: queryKeys.notifications.list(scope, size),
     queryFn: ({ pageParam }) =>
       notificationFetchers[scope]({ cursor: pageParam, size }),
     initialPageParam: null as string | null,
     getNextPageParam: (lastPage) => lastPage.nextCursor,
+    enabled: queryEnabled,
   });
 }
 
