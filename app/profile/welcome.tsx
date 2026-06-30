@@ -504,7 +504,7 @@ export default function WelcomeScreen() {
       }
 
       setSelectedKeywords(keywords);
-      router.replace("/home" as any);
+      router.replace("/(tabs)" as any);
       return;
     }
 
@@ -532,7 +532,7 @@ export default function WelcomeScreen() {
       await syncProfileImage();
       completeOnboarding();
       setSelectedKeywords(keywords);
-      router.replace("/home" as any);
+      router.replace("/(tabs)" as any);
     } catch (error) {
       if (isProfileNotRegisteredError(error)) {
         try {
@@ -557,7 +557,7 @@ export default function WelcomeScreen() {
       }
 
       setSelectedKeywords(keywords);
-      router.replace("/home" as any);
+      router.replace("/(tabs)" as any);
     }
   };
 

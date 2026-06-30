@@ -204,7 +204,7 @@ export default function IdealRecordingPage() {
         Alert.alert("분석 완료", "이상형 키워드를 저장했어요.", [
           {
             text: "확인",
-            onPress: () => router.replace("/home" as never),
+            onPress: () => router.replace("/(tabs)" as never),
           },
         ]);
         return;
@@ -253,7 +253,7 @@ export default function IdealRecordingPage() {
       Alert.alert("분석 완료", "이상형 키워드를 저장했어요.", [
         {
           text: "확인",
-          onPress: () => router.replace("/home" as never),
+          onPress: () => router.replace("/(tabs)" as never),
         },
       ]);
     } catch (error) {
@@ -264,7 +264,7 @@ export default function IdealRecordingPage() {
         Alert.alert("분석 완료", "이상형 키워드를 저장했어요.", [
           {
             text: "확인",
-            onPress: () => router.replace("/home" as never),
+            onPress: () => router.replace("/(tabs)" as never),
           },
         ]);
         return;
@@ -296,7 +296,7 @@ export default function IdealRecordingPage() {
       return;
     }
 
-    router.replace("/home" as never);
+    router.replace("/(tabs)" as never);
   };
 
   if (step === "keywords") {

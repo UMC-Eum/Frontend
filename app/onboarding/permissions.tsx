@@ -131,7 +131,7 @@ export default function PermissionsScreen() {
       return;
     }
 
-    router.replace((onboardingRequired ? "/profile/name" : "/home") as any);
+    router.replace((onboardingRequired ? "/profile/name" : "/(tabs)") as any);
   };
 
   return (

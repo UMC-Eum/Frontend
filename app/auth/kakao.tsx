@@ -86,7 +86,7 @@ export default function KakaoAuthCallbackScreen() {
           return;
         }
 
-        router.replace("/home" as any);
+        router.replace("/(tabs)" as any);
       } catch (error) {
         if (__DEV__) {
           console.log("[Kakao Login] callback failed:", error);

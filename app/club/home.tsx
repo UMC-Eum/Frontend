@@ -63,7 +63,11 @@ export default function ClubHomeScreen() {
           >
             <Ionicons name="search" size={23} color="#202020" />
           </Pressable>
-          <Pressable style={styles.iconButton} hitSlop={10}>
+          <Pressable
+            style={styles.iconButton}
+            onPress={() => router.push("/notifications" as never)}
+            hitSlop={10}
+          >
             <Ionicons name="notifications-outline" size={22} color="#202020" />
             <View style={styles.notificationDot} />
           </Pressable>
@@ -72,7 +76,7 @@ export default function ClubHomeScreen() {
 
       <View style={styles.topTabs}>
         <Pressable
-          onPress={() => router.push("/home" as never)}
+          onPress={() => router.replace("/(tabs)" as never)}
           accessibilityRole="button"
           hitSlop={10}
         >
@@ -145,11 +149,11 @@ export default function ClubHomeScreen() {
           activeTabId="index"
           onTabPress={(id) => {
             if (id === "index") {
-              router.push("/home" as never);
+              router.replace("/(tabs)" as never);
               return;
             }
 
-            router.push(`/(tabs)/${id}` as never);
+            router.replace(`/(tabs)/${id}` as never);
           }}
         />
       </View>

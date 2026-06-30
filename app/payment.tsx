@@ -44,7 +44,7 @@ export default function PaymentScreen() {
       return;
     }
 
-    router.replace("/home" as never);
+    router.replace("/(tabs)" as never);
   };
 
   const ctaLabel =
