@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import * as Linking from "expo-linking";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import React, { useMemo, useState } from "react";
@@ -152,9 +153,19 @@ export default function ProfileDetailScreen() {
   };
 
   const handleShareProfile = async () => {
+    const targetUserId = getTargetUserId();
+    if (!targetUserId) return;
+
+    const profileUrl = Linking.createURL("/profile-detail", {
+      queryParams: { userId: String(targetUserId) },
+    });
+    const profileName = profile?.name ?? "상대";
+
     try {
       await Share.share({
-        message: `${profile?.name ?? "상대"}님의 프로필을 확인해보세요.`,
+        title: `${profileName}님의 프로필`,
+        message: `${profileName}님의 프로필을 확인해보세요.\n${profileUrl}`,
+        url: profileUrl,
       });
     } catch {
       Alert.alert("공유 실패", "프로필을 공유하지 못했어요.");
