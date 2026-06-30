@@ -40,7 +40,11 @@ export default function ChatListScreen({
   showActiveMembers = true,
 }: ChatListScreenProps) {
   const router = useRouter();
-  const chatRoomsQuery = useChatRoomsInfiniteQuery();
+  const chatRoomsQuery = useChatRoomsInfiniteQuery(undefined, {
+    staleTime: 0,
+    refetchInterval: 2500,
+    refetchOnMount: "always",
+  });
   const apiChatPreviews = useMemo(
     () => mapChatRooms(chatRoomsQuery.data),
     [chatRoomsQuery.data],
@@ -193,7 +197,7 @@ function mapChatRooms(data?: {
       lastMessage: {
         textPreview: string;
         sentAt: string;
-      };
+      } | null;
       unreadCount: number;
     }[];
   }[];
@@ -204,8 +208,11 @@ function mapChatRooms(data?: {
         id: String(room.chatRoomId),
         name: room.peer.nickname,
         location: room.peer.areaName,
-        lastMessage: room.lastMessage.textPreview || "새로운 대화를 시작해보세요.",
-        timeLabel: formatRelativeTime(room.lastMessage.sentAt),
+        lastMessage:
+          room.lastMessage?.textPreview || "새로운 대화를 시작해보세요.",
+        timeLabel: room.lastMessage?.sentAt
+          ? formatRelativeTime(room.lastMessage.sentAt)
+          : "",
         unreadCount: room.unreadCount,
         image: room.peer.profileImageUrl,
       })),

@@ -5,11 +5,11 @@ export interface INotification {
   body: string;
   isRead: boolean;
   createdAt: string;
-  sender: {
+  sender?: {
     id: number;
     nickname: string;
-    profileImageUrl: string;
-  };
+    profileImageUrl: string | null;
+  } | null;
 }
 //v1/notifications(get)
 export interface INotificationsGetResponse {

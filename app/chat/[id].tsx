@@ -1,6 +1,19 @@
 import { Ionicons } from "@expo/vector-icons";
+import { useQueryClient } from "@tanstack/react-query";
+import { isAxiosError } from "axios";
+import {
+  AudioModule,
+  createAudioPlayer,
+  RecordingPresets,
+  setAudioModeAsync,
+  setIsAudioActiveAsync,
+  useAudioRecorder,
+  useAudioRecorderState,
+} from "expo-audio";
+import type { AudioPlayer } from "expo-audio";
+import * as FileSystem from "expo-file-system/legacy";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -13,27 +26,65 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import {
+  isChatS3UploadError,
+  postChatMediaPresign,
+  readChatMessage,
+  uploadChatFileToS3,
+  uploadChatFileUriToS3,
+} from "@/api/chats/chatsApi";
 import ChatActionSheet from "@/components/chat/ChatActionSheet";
 import ChatInput from "@/components/chat/ChatInput";
 import ChatMessage, { ChatMessageData } from "@/components/chat/ChatMessage";
 import ConfirmModal from "@/components/chat/ConfirmModal";
 import MicRecorder from "@/components/MicRecorder";
 import {
+  connectChatSocket,
+  disconnectChatSocket,
+  getChatSocketDebugConfig,
+  joinChatRoomSocket,
+  onMessageDeleted,
+  onMessageNew,
+  onMessageRead,
+  pingChatSocket,
+  sendChatMessageSocket,
+} from "@/api/chats/chatSocketApi";
+import {
   useChatMessagesInfiniteQuery,
   useChatRoomDetailQuery,
   useLeaveChatRoomMutation,
-  useSendChatMessageMutation,
 } from "@/hooks/api/useChats";
+import { queryKeys } from "@/hooks/api/queryKeys";
+import { useAuthStore } from "@/stores/authStore";
+import type {
+  MessageDeletedData,
+  MessageNewData,
+  SocketAckResponse,
+} from "@/types/api/socket";
 
 export default function ChatRoom() {
   const { id } = useLocalSearchParams<{ id?: string }>();
   const router = useRouter();
+  const queryClient = useQueryClient();
+  const myUserId = useAuthStore((state) => state.user?.userId);
+  const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
+  const recorderState = useAudioRecorderState(audioRecorder, 250);
   const chatRoomId = Number(id);
   const hasChatRoomId = Number.isFinite(chatRoomId);
   const roomDetailQuery = useChatRoomDetailQuery(chatRoomId, hasChatRoomId);
-  const messagesQuery = useChatMessagesInfiniteQuery(chatRoomId, 30, hasChatRoomId);
-  const sendMessageMutation = useSendChatMessageMutation(chatRoomId);
+  const messagesQuery = useChatMessagesInfiniteQuery(
+    chatRoomId,
+    30,
+    hasChatRoomId,
+  );
+  const refetchMessages = messagesQuery.refetch;
   const leaveChatRoomMutation = useLeaveChatRoomMutation(chatRoomId);
+  const messageListRef = useRef<FlatList<ChatMessageData>>(null);
+  const shouldScrollToLatestRef = useRef(false);
+  const playbackPlayerRef = useRef<AudioPlayer | null>(null);
+  const playbackStopTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
   const profile = useMemo(
     () =>
       roomDetailQuery.data
@@ -47,36 +98,309 @@ export default function ChatRoom() {
     [roomDetailQuery.data],
   );
   const apiMessages = useMemo(
-    () => mapChatMessages(messagesQuery.data, roomDetailQuery.data?.peer.profileImageUrl),
+    () =>
+      mapChatMessages(
+        messagesQuery.data,
+        roomDetailQuery.data?.peer.profileImageUrl,
+      ),
     [messagesQuery.data, roomDetailQuery.data?.peer.profileImageUrl],
   );
-  const [optimisticMessages, setOptimisticMessages] = useState<ChatMessageData[]>([]);
+  const [optimisticMessages, setOptimisticMessages] = useState<
+    ChatMessageData[]
+  >([]);
   const [showActionSheet, setShowActionSheet] = useState(false);
   const [showLeaveModal, setShowLeaveModal] = useState(false);
   const [showBlockModal, setShowBlockModal] = useState(false);
   const [isBlocked, setIsBlocked] = useState(false);
   const [isAttachmentOpen, setIsAttachmentOpen] = useState(false);
   const [isVoiceRecorderOpen, setIsVoiceRecorderOpen] = useState(false);
-  const [isRecording, setIsRecording] = useState(false);
+  const [recordingUri, setRecordingUri] = useState<string | null>(null);
   const [recordingTime, setRecordingTime] = useState(0);
+  const [isUploadingVoice, setIsUploadingVoice] = useState(false);
+  const [playingVoiceMessageId, setPlayingVoiceMessageId] = useState<
+    string | null
+  >(null);
   const [toastMessage, setToastMessage] = useState("");
-  const messages = [...apiMessages, ...optimisticMessages];
+  const isRecording = recorderState.isRecording;
+  const displayRecordingTime = isRecording
+    ? Math.floor(recorderState.durationMillis / 1000)
+    : recordingTime;
+  const messages = useMemo(() => {
+    const apiMessageIds = new Set(apiMessages.map((message) => message.id));
+    return [
+      ...apiMessages,
+      ...optimisticMessages.filter((message) => !apiMessageIds.has(message.id)),
+    ];
+  }, [apiMessages, optimisticMessages]);
+  const visibleMessages = useMemo(() => withGroupedMessageTimes(messages), [
+    messages,
+  ]);
+  const peerUserIdRef = useRef<number | undefined>(undefined);
+  const peerProfileImageUrlRef = useRef<string | undefined>(undefined);
+  const readMessageIdsRef = useRef<Set<number>>(new Set());
 
-  // 음성 녹음 중에는 1초 단위로 녹음 시간을 갱신합니다.
+  useEffect(() => {
+    peerUserIdRef.current = roomDetailQuery.data?.peer.userId;
+    peerProfileImageUrlRef.current = roomDetailQuery.data?.peer.profileImageUrl;
+  }, [
+    roomDetailQuery.data?.peer.profileImageUrl,
+    roomDetailQuery.data?.peer.userId,
+  ]);
+
+  const showToast = useCallback((message: string) => {
+    setToastMessage(message);
+    setTimeout(() => setToastMessage(""), 1800);
+  }, []);
+
+  const scrollToLatestMessage = useCallback(() => {
+    shouldScrollToLatestRef.current = true;
+
+    requestAnimationFrame(() => {
+      messageListRef.current?.scrollToEnd({ animated: true });
+    });
+
+    setTimeout(() => {
+      messageListRef.current?.scrollToEnd({ animated: true });
+    }, 80);
+  }, []);
+
+  const handleMessageListContentSizeChange = useCallback(() => {
+    if (!shouldScrollToLatestRef.current) return;
+
+    shouldScrollToLatestRef.current = false;
+    requestAnimationFrame(() => {
+      messageListRef.current?.scrollToEnd({ animated: true });
+    });
+  }, []);
+
+  const stopVoicePlayback = useCallback(() => {
+    if (playbackStopTimerRef.current) {
+      clearTimeout(playbackStopTimerRef.current);
+      playbackStopTimerRef.current = null;
+    }
+
+    playbackPlayerRef.current?.pause();
+    playbackPlayerRef.current = null;
+    setPlayingVoiceMessageId(null);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      audioRecorder.stop().catch(() => undefined);
+      stopVoicePlayback();
+    };
+  }, [audioRecorder, stopVoicePlayback]);
+
   useEffect(() => {
     if (!isRecording) return;
 
-    const interval = setInterval(() => {
-      setRecordingTime((prevTime) => prevTime + 1);
-    }, 1000);
+    setRecordingTime(Math.floor(recorderState.durationMillis / 1000));
+  }, [isRecording, recorderState.durationMillis]);
 
-    return () => clearInterval(interval);
-  }, [isRecording]);
+  useEffect(() => {
+    if (!hasChatRoomId) return;
 
-  const showToast = (message: string) => {
-    setToastMessage(message);
-    setTimeout(() => setToastMessage(""), 1800);
-  };
+    const intervalId = setInterval(() => {
+      void refetchMessages();
+    }, 2500);
+
+    return () => clearInterval(intervalId);
+  }, [hasChatRoomId, refetchMessages]);
+
+  useEffect(() => {
+    if (!hasChatRoomId) return;
+
+    const unreadMessageIds =
+      messagesQuery.data?.pages.flatMap((page) =>
+        page.items
+          .filter(
+            (message) =>
+              !message.isMine &&
+              !message.readAt &&
+              !readMessageIdsRef.current.has(message.messageId),
+          )
+          .map((message) => message.messageId),
+      ) ?? [];
+
+    if (unreadMessageIds.length === 0) return;
+
+    unreadMessageIds.forEach((messageId) => {
+      readMessageIdsRef.current.add(messageId);
+    });
+
+    void Promise.all(
+      unreadMessageIds.map((messageId) => readChatMessage(messageId)),
+    )
+      .then(() => {
+        queryClient.invalidateQueries({ queryKey: queryKeys.chats.all });
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.chats.messages(chatRoomId, 30),
+        });
+      })
+      .catch((error) => {
+        console.log("[ChatSocket] read messages error", error);
+      });
+  }, [chatRoomId, hasChatRoomId, messagesQuery.data, queryClient]);
+
+  useEffect(() => {
+    if (!hasChatRoomId) return;
+
+    const socket = connectChatSocket();
+    let isActive = true;
+    let hasJoinedRoom = false;
+
+    const joinRoom = (attempt = 1) => {
+      console.log("[ChatSocket] room.join request", {
+        attempt,
+        chatRoomId,
+        connected: socket.connected,
+        socketId: socket.id,
+      });
+
+      joinChatRoomSocket({ chatRoomId }, socket)
+        .then((response) => {
+          console.log("[ChatSocket] room.join", response);
+          if (!isActive) return;
+
+          if (!isSocketSuccess(response)) {
+            showToast(`채팅방 입장 실패: ${response.error.message}`);
+            return;
+          }
+
+          hasJoinedRoom = true;
+        })
+        .catch((error) => {
+          console.log("[ChatSocket] room.join error", error);
+          if (!isActive || hasJoinedRoom) {
+            return;
+          }
+
+          if (attempt < 2 && socket.connected) {
+            setTimeout(() => {
+              if (isActive && socket.connected && !hasJoinedRoom) {
+                joinRoom(attempt + 1);
+              }
+            }, 500);
+          }
+        });
+    };
+
+    const handleConnect = async () => {
+      console.log("[ChatSocket] connected", { chatRoomId, socketId: socket.id });
+      try {
+        const pingResponse = await pingChatSocket(socket, 5000);
+        console.log("[ChatSocket] ping", pingResponse);
+      } catch (error) {
+        console.log("[ChatSocket] ping error", error);
+      }
+
+      joinRoom();
+    };
+
+    const handleConnectError = (error: Error & {
+      description?: unknown;
+      context?: unknown;
+      type?: string;
+    }) => {
+      console.log("[ChatSocket] connect_error", {
+        ...getChatSocketDebugConfig(),
+        message: error.message,
+        description: error.description,
+        context: error.context,
+        type: error.type,
+      });
+      showToast(`채팅 서버 연결 실패: ${error.message}`);
+    };
+
+    socket.on("connect", handleConnect);
+    socket.on("connect_error", handleConnectError);
+
+    const appendIncomingMessage = (nextMessage: MessageNewData) => {
+      if (nextMessage.chatRoomId !== chatRoomId) return;
+
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.chats.messages(chatRoomId, 30),
+      });
+      queryClient.invalidateQueries({ queryKey: queryKeys.chats.all });
+
+      setOptimisticMessages((prevMessages) =>
+        appendSocketMessage(
+          prevMessages,
+          mapSocketMessage(
+            nextMessage,
+            myUserId,
+            peerUserIdRef.current,
+            peerProfileImageUrlRef.current,
+          ),
+        ),
+      );
+      scrollToLatestMessage();
+    };
+
+    const handleAnyEvent = (event: string, ...args: unknown[]) => {
+      if (__DEV__) {
+        console.log("[ChatSocket] event", event, args);
+      }
+
+      const nextMessage = getSocketMessageData(args[0]);
+      if (nextMessage) {
+        appendIncomingMessage(nextMessage);
+      }
+    };
+    socket.onAny(handleAnyEvent);
+
+    if (socket.connected) {
+      joinRoom();
+    }
+
+    const unsubscribeMessageNew = onMessageNew((payload) => {
+      if (payload.resultType !== "SUCCESS") return;
+
+      const nextMessage = payload.success.data;
+      appendIncomingMessage(nextMessage);
+    }, socket);
+
+    const unsubscribeMessageRead = onMessageRead((payload) => {
+      if (payload.resultType !== "SUCCESS") return;
+      const readEvent = payload.success.data;
+      if (readEvent.chatRoomId !== chatRoomId) return;
+
+      console.log("[ChatSocket] message.read", readEvent);
+    }, socket);
+
+    const unsubscribeMessageDeleted = onMessageDeleted((payload) => {
+      if (payload.resultType !== "SUCCESS") return;
+      const deletedEvent = payload.success.data;
+      if (deletedEvent.chatRoomId !== chatRoomId) return;
+
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.chats.messages(chatRoomId, 30),
+      });
+      queryClient.invalidateQueries({ queryKey: queryKeys.chats.all });
+
+      setOptimisticMessages((prevMessages) =>
+        removeSocketMessage(prevMessages, deletedEvent),
+      );
+    }, socket);
+
+    return () => {
+      isActive = false;
+      socket.off("connect", handleConnect);
+      socket.off("connect_error", handleConnectError);
+      socket.offAny(handleAnyEvent);
+      unsubscribeMessageNew();
+      unsubscribeMessageRead();
+      unsubscribeMessageDeleted();
+      disconnectChatSocket();
+    };
+  }, [
+    chatRoomId,
+    hasChatRoomId,
+    myUserId,
+    queryClient,
+    scrollToLatestMessage,
+    showToast,
+  ]);
 
   const handleReport = () => {
     setShowActionSheet(false);
@@ -104,41 +428,70 @@ export default function ChatRoom() {
     setShowLeaveModal(true);
   };
 
+  const syncSentMessage = useCallback(
+    (pendingMessageId: string) => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.chats.messages(chatRoomId, 30),
+      });
+      queryClient.invalidateQueries({ queryKey: queryKeys.chats.all });
+
+      setTimeout(() => {
+        void refetchMessages().finally(() => {
+          setOptimisticMessages((prevMessages) =>
+            prevMessages.filter((message) => message.id !== pendingMessageId),
+          );
+        });
+      }, 300);
+    },
+    [chatRoomId, queryClient, refetchMessages],
+  );
+
   const handleSend = (text: string) => {
     const nextMessage: ChatMessageData = {
-      id: `message-${Date.now()}`,
+      id: `pending-message-${Date.now()}`,
       type: "text",
       text,
       isMine: true,
-      time: "오후 07:39",
+      time: formatChatTime(new Date().toISOString()),
     };
 
     setOptimisticMessages((prevMessages) => [...prevMessages, nextMessage]);
     setIsAttachmentOpen(false);
+    scrollToLatestMessage();
 
     if (!hasChatRoomId) return;
 
-    sendMessageMutation.mutate(
-      {
-        type: "TEXT",
-        text,
-        mediaUrl: "",
-        durationSec: 0,
-      },
-      {
-        onSuccess: () => {
-          setOptimisticMessages((prevMessages) =>
-            prevMessages.filter((message) => message.id !== nextMessage.id),
-          );
-        },
-        onError: () => {
-          setOptimisticMessages((prevMessages) =>
-            prevMessages.filter((message) => message.id !== nextMessage.id),
-          );
-          showToast("메시지를 보내지 못했습니다.");
-        },
-      },
-    );
+    sendChatMessageSocket({
+      type: "TEXT",
+      chatRoomId,
+      text,
+    })
+      .then((response) => {
+        console.log("[ChatSocket] message.send", response);
+        if (!isSocketSuccess(response)) {
+          throw new Error(response.error.message);
+        }
+
+        const sentMessage = response.success.data;
+        const confirmedMessage: ChatMessageData = {
+          ...nextMessage,
+          id: `message-${sentMessage.messageId}`,
+          time: formatChatTime(sentMessage.sentAt),
+        };
+
+        setOptimisticMessages((prevMessages) =>
+          replaceOptimisticMessage(
+            prevMessages,
+            nextMessage.id,
+            confirmedMessage,
+          ),
+        );
+        syncSentMessage(nextMessage.id);
+      })
+      .catch((error) => {
+        console.log("[ChatSocket] message.send error", error);
+        syncSentMessage(nextMessage.id);
+      });
   };
 
   const formatVoiceDuration = (seconds: number) => {
@@ -148,40 +501,225 @@ export default function ChatRoom() {
     return `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
   };
 
-  const resetVoiceRecorder = () => {
-    setIsRecording(false);
+  const resetVoiceRecorder = async () => {
+    if (isRecording) {
+      await audioRecorder.stop().catch(() => undefined);
+      await setAudioModeAsync({
+        allowsRecording: false,
+        playsInSilentMode: true,
+      }).catch(() => undefined);
+    }
+
+    setRecordingUri(null);
     setRecordingTime(0);
+  };
+
+  const startVoiceRecording = async () => {
+    if (isUploadingVoice) return;
+
+    try {
+      const permission = await AudioModule.requestRecordingPermissionsAsync();
+      if (!permission.granted) {
+        showToast("마이크 권한이 필요해요.");
+        return;
+      }
+
+      await setAudioModeAsync({
+        allowsRecording: true,
+        playsInSilentMode: true,
+      });
+      setRecordingUri(null);
+      setRecordingTime(0);
+      await audioRecorder.prepareToRecordAsync();
+      audioRecorder.record();
+    } catch (error) {
+      console.log("[ChatVoice] start recording error", error);
+      showToast("녹음을 시작하지 못했습니다.");
+    }
+  };
+
+  const stopVoiceRecording = async () => {
+    const nextSeconds = Math.max(
+      recordingTime,
+      Math.floor(recorderState.durationMillis / 1000),
+    );
+
+    if (nextSeconds <= 0) {
+      showToast("녹음 시간이 너무 짧아요.");
+      return null;
+    }
+
+    try {
+      await audioRecorder.stop();
+      await setAudioModeAsync({
+        allowsRecording: false,
+        playsInSilentMode: true,
+      });
+      const nextUri = audioRecorder.uri ?? recorderState.url;
+      if (!nextUri) {
+        throw new Error("Recorded audio uri is empty.");
+      }
+
+      setRecordingUri(nextUri);
+      setRecordingTime(nextSeconds);
+      return { uri: nextUri, durationSec: nextSeconds };
+    } catch (error) {
+      console.log("[ChatVoice] stop recording error", error);
+      showToast("녹음을 종료하지 못했습니다.");
+      return null;
+    }
   };
 
   const handleVoiceButtonPress = () => {
     setIsAttachmentOpen(false);
     setIsVoiceRecorderOpen(true);
-    setIsRecording(true);
+    void startVoiceRecording();
   };
 
-  const handleVoiceCancel = () => {
-    resetVoiceRecorder();
+  const handleVoiceCancel = async () => {
+    await resetVoiceRecorder();
     setIsVoiceRecorderOpen(false);
   };
 
   const handleVoiceRecord = () => {
-    setIsRecording((prevRecording) => !prevRecording);
+    if (isRecording) {
+      void stopVoiceRecording();
+      return;
+    }
+
+    void startVoiceRecording();
   };
 
-  const handleVoiceSend = () => {
-    if (recordingTime <= 0) return;
+  const handleVoiceSend = async () => {
+    if (isUploadingVoice || !hasChatRoomId) return;
+
+    const recording = isRecording
+      ? await stopVoiceRecording()
+      : recordingUri
+        ? { uri: recordingUri, durationSec: recordingTime }
+        : null;
+
+    if (!recording || recording.durationSec <= 0) {
+      showToast("먼저 음성을 녹음해주세요.");
+      return;
+    }
 
     const nextMessage: ChatMessageData = {
-      id: `message-${Date.now()}`,
+      id: `pending-voice-${Date.now()}`,
       type: "voice",
-      duration: formatVoiceDuration(recordingTime),
+      duration: formatVoiceDuration(recording.durationSec),
       isMine: true,
-      time: "오후 07:39",
+      time: formatChatTime(new Date().toISOString()),
+      mediaUrl: recording.uri,
       isPlaying: false,
     };
 
     setOptimisticMessages((prevMessages) => [...prevMessages, nextMessage]);
-    handleVoiceCancel();
+    setIsVoiceRecorderOpen(false);
+    setIsUploadingVoice(true);
+    scrollToLatestMessage();
+
+    try {
+      const mediaRef = await uploadChatVoiceMessage(chatRoomId, recording.uri);
+      try {
+        const response = await sendChatMessageSocket({
+          type: "AUDIO",
+          chatRoomId,
+          mediaUrl: mediaRef,
+          durationSec: recording.durationSec,
+        });
+
+        console.log("[ChatSocket] voice.message.send", response);
+        if (isSocketSuccess(response)) {
+          const sentMessage = response.success.data;
+          const confirmedMessage: ChatMessageData = {
+            ...nextMessage,
+            id: `message-${sentMessage.messageId}`,
+            time: formatChatTime(sentMessage.sentAt),
+          };
+
+          setOptimisticMessages((prevMessages) =>
+            replaceOptimisticMessage(
+              prevMessages,
+              nextMessage.id,
+              confirmedMessage,
+            ),
+          );
+        } else {
+          console.log("[ChatVoice] send fail ack", response.error);
+        }
+      } catch (sendError) {
+        console.log("[ChatVoice] socket send error", sendError);
+      }
+
+      syncSentMessage(nextMessage.id);
+      setRecordingUri(null);
+      setRecordingTime(0);
+    } catch (error) {
+      const uploadError = formatVoiceUploadError(error);
+      console.log("[ChatVoice] upload error", {
+        step: getVoiceUploadErrorStep(error),
+        message: uploadError,
+        raw: error,
+      });
+      setOptimisticMessages((prevMessages) =>
+        prevMessages.filter((message) => message.id !== nextMessage.id),
+      );
+      showToast(`음성 전송 실패: ${truncateDebugMessage(uploadError, 80)}`);
+    } finally {
+      setIsUploadingVoice(false);
+      await setAudioModeAsync({
+        allowsRecording: false,
+        playsInSilentMode: true,
+      }).catch(() => undefined);
+    }
+  };
+
+  const handleVoicePlay = async (
+    message: Extract<ChatMessageData, { type: "voice" }>,
+  ) => {
+    if (!message.mediaUrl) {
+      showToast("재생할 음성 파일을 찾지 못했습니다.");
+      return;
+    }
+
+    try {
+      if (playingVoiceMessageId === message.id) {
+        stopVoicePlayback();
+        return;
+      }
+
+      await setAudioModeAsync({
+        allowsRecording: false,
+        playsInSilentMode: true,
+      });
+      await setIsAudioActiveAsync(true);
+
+      stopVoicePlayback();
+      const nextPlayer = createAudioPlayer(
+        { uri: message.mediaUrl },
+        { updateInterval: 250, keepAudioSessionActive: true },
+      );
+      playbackPlayerRef.current = nextPlayer;
+      await wait(180);
+      try {
+        await nextPlayer.seekTo(0);
+      } catch {
+        // 일부 플랫폼은 메타데이터 로딩 전 seek를 지원하지 않습니다.
+      }
+
+      nextPlayer.play();
+      setPlayingVoiceMessageId(message.id);
+      playbackStopTimerRef.current = setTimeout(() => {
+        if (playbackPlayerRef.current === nextPlayer) {
+          stopVoicePlayback();
+        }
+      }, parseDurationSeconds(message.duration) * 1000 + 500);
+    } catch (error) {
+      console.log("[ChatVoice] playback error", error);
+      stopVoicePlayback();
+      showToast("음성 메시지를 재생하지 못했습니다.");
+    }
   };
 
   const renderProfileInfo = () => (
@@ -241,58 +779,74 @@ export default function ChatRoom() {
         behavior={Platform.OS === "ios" ? "padding" : undefined}
         keyboardVerticalOffset={0}
       >
-        <FlatList
-          data={isVoiceRecorderOpen ? [] : messages}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => <ChatMessage message={item} />}
-          ListHeaderComponent={renderProfileInfo}
-          ListFooterComponent={
-            messagesQuery.isFetchingNextPage ? (
-              <View style={styles.paginationLoading}>
-                <Text style={styles.paginationLoadingText}>
-                  이전 대화를 불러오는 중...
-                </Text>
-              </View>
-            ) : null
-          }
-          ListEmptyComponent={
-            messagesQuery.isLoading ? (
-              <View style={styles.emptyMessages}>
-                <ActivityIndicator color="#FF3E70" />
-              </View>
-            ) : (
-              <View style={styles.emptyMessages}>
-                <Text style={styles.emptyMessagesTitle}>
-                  아직 주고받은 메시지가 없어요
-                </Text>
-                <Text style={styles.emptyMessagesText}>
-                  {messagesQuery.isError
-                    ? "대화 내역을 불러오지 못했습니다. 잠시 후 다시 시도해주세요."
-                    : "첫 메시지를 보내 대화를 시작해보세요."}
-                </Text>
-              </View>
-            )
-          }
-          contentContainerStyle={styles.messageList}
-          showsVerticalScrollIndicator={false}
-          onEndReached={() => {
-            if (
-              messagesQuery.hasNextPage &&
-              !messagesQuery.isFetchingNextPage
-            ) {
-              messagesQuery.fetchNextPage();
+        <View style={styles.messageListFrame}>
+          <FlatList
+            ref={messageListRef}
+            data={visibleMessages}
+            keyExtractor={(item) => item.id}
+            renderItem={({ item }) => (
+              <ChatMessage
+                message={
+                  item.type === "voice"
+                    ? { ...item, isPlaying: item.id === playingVoiceMessageId }
+                    : item
+                }
+                onVoicePress={handleVoicePlay}
+              />
+            )}
+            ListHeaderComponent={
+              <>
+                {messagesQuery.isFetchingNextPage ? (
+                  <View style={styles.paginationLoading}>
+                    <Text style={styles.paginationLoadingText}>
+                      이전 대화를 불러오는 중...
+                    </Text>
+                  </View>
+                ) : null}
+                {renderProfileInfo()}
+              </>
             }
-          }}
-          onEndReachedThreshold={0.35}
-        />
+            ListEmptyComponent={
+              messagesQuery.isLoading ? (
+                <View style={styles.emptyMessages}>
+                  <ActivityIndicator color="#FF3E70" />
+                </View>
+              ) : (
+                <View style={styles.emptyMessages}>
+                  <Text style={styles.emptyMessagesTitle}>
+                    아직 주고받은 메시지가 없어요
+                  </Text>
+                  <Text style={styles.emptyMessagesText}>
+                    {messagesQuery.isError
+                      ? "대화 내역을 불러오지 못했습니다. 잠시 후 다시 시도해주세요."
+                      : "첫 메시지를 보내 대화를 시작해보세요."}
+                  </Text>
+                </View>
+              )
+            }
+            contentContainerStyle={styles.messageList}
+            showsVerticalScrollIndicator={false}
+            onContentSizeChange={handleMessageListContentSizeChange}
+            onStartReached={() => {
+              if (
+                messagesQuery.hasNextPage &&
+                !messagesQuery.isFetchingNextPage
+              ) {
+                messagesQuery.fetchNextPage();
+              }
+            }}
+            onStartReachedThreshold={0.35}
+          />
+        </View>
 
         {!isBlocked && !isAttachmentOpen ? (
           isVoiceRecorderOpen ? (
             <View style={styles.voiceRecorderPosition}>
               {/* 기존 채팅 마이크 버튼 위치에서 녹음 컨트롤을 보여줍니다. */}
               <MicRecorder
+                status={isUploadingVoice ? "recorded" : undefined}
                 isRecording={isRecording}
-                recordingTime={recordingTime}
+                recordingTime={displayRecordingTime}
                 onRecordPress={handleVoiceRecord}
                 onCancelPress={handleVoiceCancel}
                 onSendPress={handleVoiceSend}
@@ -392,9 +946,11 @@ function mapChatMessages(
             messageId: number;
             type: "TEXT" | "AUDIO" | "PHOTO" | "VIDEO";
             text: string | null;
+            mediaUrl: string | null;
             durationSec: number;
             isMine: boolean;
             sentAt: string;
+            readAt?: string | null;
           }[];
         }[];
       }
@@ -402,8 +958,13 @@ function mapChatMessages(
   peerAvatar?: string,
 ): ChatMessageData[] {
   return (
-    data?.pages.flatMap((page) =>
-      page.items.map((item) => {
+    data?.pages
+      .flatMap((page) => page.items)
+      .sort(
+        (left, right) =>
+          new Date(left.sentAt).getTime() - new Date(right.sentAt).getTime(),
+      )
+      .map((item) => {
         const base = {
           id: `message-${item.messageId}`,
           isMine: item.isMine,
@@ -416,6 +977,7 @@ function mapChatMessages(
             ...base,
             type: "voice" as const,
             duration: formatDuration(item.durationSec),
+            mediaUrl: item.mediaUrl ?? undefined,
             isPlaying: false,
           };
         }
@@ -430,9 +992,546 @@ function mapChatMessages(
                 ? item.text ?? "[동영상]"
                 : item.text ?? "",
         };
-      }),
-    ) ?? []
+      }) ?? []
   );
+}
+
+function isSocketSuccess<TData>(
+  response: SocketAckResponse<TData>,
+): response is Extract<SocketAckResponse<TData>, { resultType: "SUCCESS" }> {
+  return response.resultType === "SUCCESS";
+}
+
+function mapSocketMessage(
+  item: MessageNewData,
+  myUserId?: number,
+  peerUserId?: number,
+  peerAvatar?: string,
+): ChatMessageData {
+  const isMine = myUserId
+    ? item.senderUserId === myUserId
+    : peerUserId
+      ? item.senderUserId !== peerUserId
+      : false;
+  const base = {
+    id: `message-${item.messageId}`,
+    isMine,
+    time: formatChatTime(item.sentAt),
+    avatar: isMine ? undefined : item.senderProfileImage ?? peerAvatar,
+  };
+
+  if (item.type === "AUDIO") {
+    return {
+      ...base,
+      type: "voice",
+      duration: formatDuration(item.durationSec),
+      mediaUrl: item.mediaUrl ?? undefined,
+      isPlaying: false,
+    };
+  }
+
+  return {
+    ...base,
+    type: "text",
+    text:
+      item.type === "PHOTO"
+        ? item.text ?? "[사진]"
+        : item.type === "VIDEO"
+          ? item.text ?? "[동영상]"
+          : item.text ?? "",
+  };
+}
+
+function appendSocketMessage(
+  messages: ChatMessageData[],
+  nextMessage: ChatMessageData,
+) {
+  let removedPendingMessage = false;
+  const messagesWithoutPendingDuplicate = messages.filter((message) => {
+    if (
+      !removedPendingMessage &&
+      isPendingLocalMessage(message) &&
+      isSameChatMessage(message, nextMessage)
+    ) {
+      removedPendingMessage = true;
+      return false;
+    }
+
+    return true;
+  });
+
+  if (
+    messagesWithoutPendingDuplicate.some(
+      (message) => message.id === nextMessage.id,
+    )
+  ) {
+    return messagesWithoutPendingDuplicate;
+  }
+
+  return [...messagesWithoutPendingDuplicate, nextMessage];
+}
+
+function isPendingLocalMessage(message: ChatMessageData) {
+  return message.id.startsWith("pending-");
+}
+
+function withGroupedMessageTimes(messages: ChatMessageData[]) {
+  return messages.map((message, index) => {
+    if (message.type === "date") {
+      return message;
+    }
+
+    const prevMessage = messages[index - 1];
+    const nextMessage = messages[index + 1];
+    const isSameGroupAsPrev =
+      prevMessage &&
+      prevMessage.type !== "date" &&
+      prevMessage.isMine === message.isMine &&
+      prevMessage.time === message.time;
+    const isSameGroupAsNext =
+      nextMessage &&
+      nextMessage.type !== "date" &&
+      nextMessage.isMine === message.isMine &&
+      nextMessage.time === message.time;
+
+    return {
+      ...message,
+      showTime: !isSameGroupAsNext,
+      compactSpacing: Boolean(isSameGroupAsPrev || isSameGroupAsNext),
+      groupTopSpacing: Boolean(prevMessage && !isSameGroupAsPrev),
+    };
+  });
+}
+
+function isSameChatMessage(
+  leftMessage: ChatMessageData,
+  rightMessage: ChatMessageData,
+) {
+  if (leftMessage.type !== rightMessage.type) return false;
+  if (leftMessage.type === "date" || rightMessage.type === "date") return false;
+  if (leftMessage.isMine !== rightMessage.isMine) return false;
+
+  if (leftMessage.type === "text" && rightMessage.type === "text") {
+    return leftMessage.text === rightMessage.text;
+  }
+
+  if (leftMessage.type === "voice" && rightMessage.type === "voice") {
+    return leftMessage.duration === rightMessage.duration;
+  }
+
+  return false;
+}
+
+function replaceOptimisticMessage(
+  messages: ChatMessageData[],
+  optimisticMessageId: string,
+  confirmedMessage: ChatMessageData,
+) {
+  if (messages.some((message) => message.id === confirmedMessage.id)) {
+    return messages.filter((message) => message.id !== optimisticMessageId);
+  }
+
+  return messages.map((message) =>
+    message.id === optimisticMessageId ? confirmedMessage : message,
+  );
+}
+
+function removeSocketMessage(
+  messages: ChatMessageData[],
+  deletedEvent: MessageDeletedData,
+) {
+  return messages.filter(
+    (message) => message.id !== `message-${deletedEvent.messageId}`,
+  );
+}
+
+function getSocketMessageData(payload: unknown): MessageNewData | null {
+  const data = unwrapSocketPayloadData(payload);
+  if (!isRecord(data)) return null;
+
+  const {
+    messageId,
+    chatRoomId,
+    senderUserId,
+    type,
+    text,
+    mediaUrl,
+    durationSec,
+    sentAt,
+    senderName,
+    senderProfileImage,
+  } = data;
+
+  if (
+    typeof messageId !== "number" ||
+    typeof chatRoomId !== "number" ||
+    typeof senderUserId !== "number" ||
+    !isChatMessageType(type) ||
+    typeof sentAt !== "string"
+  ) {
+    return null;
+  }
+
+  return {
+    messageId,
+    chatRoomId,
+    senderUserId,
+    type,
+    text: typeof text === "string" ? text : null,
+    mediaUrl: typeof mediaUrl === "string" ? mediaUrl : null,
+    durationSec: typeof durationSec === "number" ? durationSec : 0,
+    sentAt,
+    senderName: typeof senderName === "string" ? senderName : undefined,
+    senderProfileImage:
+      typeof senderProfileImage === "string" ? senderProfileImage : undefined,
+  };
+}
+
+function unwrapSocketPayloadData(payload: unknown) {
+  if (!isRecord(payload)) return payload;
+
+  const success = payload.success;
+  if (payload.resultType === "SUCCESS" && isRecord(success)) {
+    return success.data;
+  }
+
+  return payload.data ?? payload;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function isChatMessageType(value: unknown): value is MessageNewData["type"] {
+  return (
+    value === "TEXT" ||
+    value === "AUDIO" ||
+    value === "PHOTO" ||
+    value === "VIDEO"
+  );
+}
+
+async function uploadChatVoiceMessage(chatRoomId: number, uri: string) {
+  const contentType = resolveAudioContentType(uri);
+  const fileName = `chat-voice-${Date.now()}.${contentTypeToExtension(contentType)}`;
+  const uploadFile = await getVoiceUploadFileInfo(uri, contentType);
+
+  if (__DEV__) {
+    console.log("[ChatVoice] file ready", {
+      chatRoomId,
+      uri,
+      fileName,
+      contentType,
+      fileSize: uploadFile.size,
+      hasBlob: Boolean(uploadFile.blob),
+    });
+  }
+
+  const presignData = await runVoiceUploadStep("PRESIGN", () =>
+    postChatMediaPresign(chatRoomId, {
+      name: fileName,
+      type: contentType,
+      size: uploadFile.size,
+    }),
+  );
+
+  if (__DEV__) {
+    console.log("[ChatVoice] upload presign success", {
+      hasUploadUrl: Boolean(presignData.uploadUrl),
+      hasMediaRef: Boolean(presignData.mediaRef),
+      uploadHost: getDebugUrlHost(presignData.uploadUrl),
+      uploadUrlPreview: getDebugUrlPreview(presignData.uploadUrl),
+      mediaRef: presignData.mediaRef,
+      requiredHeaders: presignData.requiredHeaders,
+    });
+  }
+
+  if (Platform.OS !== "web" && isLocalFileUri(uri)) {
+    try {
+      await runVoiceUploadStep("S3_NATIVE", () =>
+        uploadChatFileUriToS3(presignData, uri, contentType),
+      );
+
+      if (__DEV__) {
+        console.log("[ChatVoice] upload native s3 success", {
+          mediaRef: presignData.mediaRef,
+        });
+      }
+
+      return presignData.mediaRef;
+    } catch (nativeUploadError) {
+      console.log("[ChatVoice] native s3 failed", {
+        message: formatVoiceUploadError(nativeUploadError),
+        raw: nativeUploadError,
+      });
+      if (isTerminalS3UploadError(nativeUploadError)) {
+        throw nativeUploadError;
+      }
+    }
+  }
+
+  const blob =
+    uploadFile.blob ?? (await readVoiceUploadBlob(uri, contentType));
+
+  await runVoiceUploadStep("S3_BLOB", () =>
+    uploadChatFileToS3(presignData, blob, contentType),
+  );
+
+  if (__DEV__) {
+    console.log("[ChatVoice] upload blob s3 success", {
+      mediaRef: presignData.mediaRef,
+      blobSize: blob.size,
+      blobType: blob.type,
+    });
+  }
+
+  return presignData.mediaRef;
+}
+
+type VoiceUploadStep =
+  | "FILE_INFO"
+  | "READ_LOCAL_FILE"
+  | "PRESIGN"
+  | "S3_NATIVE"
+  | "S3_BLOB"
+  | "UNKNOWN";
+
+class VoiceUploadError extends Error {
+  readonly step: VoiceUploadStep;
+  readonly source: unknown;
+
+  constructor(step: VoiceUploadStep, source: unknown) {
+    super(`${step}: ${formatUnknownError(source)}`);
+    this.name = "VoiceUploadError";
+    this.step = step;
+    this.source = source;
+  }
+}
+
+async function runVoiceUploadStep<T>(
+  step: Exclude<VoiceUploadStep, "UNKNOWN">,
+  action: () => Promise<T>,
+) {
+  try {
+    return await action();
+  } catch (error) {
+    throw new VoiceUploadError(step, error);
+  }
+}
+
+async function getVoiceUploadFileInfo(uri: string, contentType: string) {
+  if (Platform.OS !== "web" && isLocalFileUri(uri)) {
+    try {
+      const fileInfo = await FileSystem.getInfoAsync(uri);
+
+      if (
+        fileInfo.exists &&
+        !fileInfo.isDirectory &&
+        typeof fileInfo.size === "number" &&
+        fileInfo.size > 0
+      ) {
+        return { size: fileInfo.size, blob: undefined as Blob | undefined };
+      }
+
+      throw new Error(
+        `녹음 파일 정보가 올바르지 않습니다: exists=${fileInfo.exists}`,
+      );
+    } catch (error) {
+      console.log("[ChatVoice] file info failed, retry blob read", error);
+    }
+  }
+
+  const blob = await readVoiceUploadBlob(uri, contentType);
+
+  return { size: blob.size, blob };
+}
+
+async function readVoiceUploadBlob(uri: string, contentType: string) {
+  return runVoiceUploadStep("READ_LOCAL_FILE", () =>
+    getAudioBlob(uri, contentType),
+  );
+}
+
+async function getAudioBlob(uri: string, contentType: string) {
+  try {
+    return ensureAudioBlob(await getAudioBlobWithFetch(uri), contentType);
+  } catch (error) {
+    console.log("[ChatVoice] fetch local audio failed, retry xhr", error);
+    return ensureAudioBlob(await getAudioBlobWithXhr(uri), contentType);
+  }
+}
+
+async function getAudioBlobWithFetch(uri: string) {
+  const fileResponse = await fetch(uri);
+  return fileResponse.blob();
+}
+
+function getAudioBlobWithXhr(uri: string) {
+  return new Promise<Blob>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+
+    xhr.open("GET", uri);
+    xhr.responseType = "blob";
+    xhr.onload = () => {
+      const isSuccess = xhr.status === 0 || (xhr.status >= 200 && xhr.status < 300);
+      if (!isSuccess) {
+        reject(new Error(`로컬 음성 파일 읽기 실패: ${xhr.status}`));
+        return;
+      }
+
+      if (isBlobLike(xhr.response)) {
+        resolve(xhr.response);
+        return;
+      }
+
+      reject(new Error("로컬 음성 파일 응답이 Blob 형식이 아닙니다."));
+    };
+    xhr.onerror = () => {
+      reject(new Error("로컬 음성 파일 네트워크 읽기 실패"));
+    };
+    xhr.send();
+  });
+}
+
+function ensureAudioBlob(blob: Blob, contentType: string) {
+  if (blob.size <= 0) {
+    throw new Error("녹음 파일이 비어 있습니다.");
+  }
+
+  if (blob.type) {
+    return blob;
+  }
+
+  return new Blob([blob], { type: contentType });
+}
+
+function isBlobLike(value: unknown): value is Blob {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    typeof (value as Blob).size === "number" &&
+    typeof (value as Blob).slice === "function"
+  );
+}
+
+function isLocalFileUri(uri: string) {
+  return uri.startsWith("file://");
+}
+
+function formatVoiceUploadError(error: unknown) {
+  const step = getVoiceUploadErrorStep(error);
+  const source = error instanceof VoiceUploadError ? error.source : error;
+  const message = formatUnknownError(source);
+
+  return step === "UNKNOWN" ? message : `${step}: ${message}`;
+}
+
+function getVoiceUploadErrorStep(error: unknown): VoiceUploadStep {
+  return error instanceof VoiceUploadError ? error.step : "UNKNOWN";
+}
+
+function isTerminalS3UploadError(error: unknown) {
+  const source = error instanceof VoiceUploadError ? error.source : error;
+
+  return isChatS3UploadError(source) && source.status >= 400;
+}
+
+function formatUnknownError(error: unknown) {
+  if (isAxiosError(error)) {
+    const status = error.response?.status;
+    const responseMessage = getAxiosResponseMessage(error.response?.data);
+    const prefix = status ? `HTTP ${status}` : error.code ?? "AXIOS";
+
+    return responseMessage
+      ? `${prefix} ${responseMessage}`
+      : `${prefix} ${error.message}`;
+  }
+
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  if (typeof error === "string") {
+    return error;
+  }
+
+  return stringifyDebugValue(error);
+}
+
+function getAxiosResponseMessage(data: unknown) {
+  if (typeof data === "string") {
+    return data;
+  }
+
+  if (isRecord(data)) {
+    const error = data.error;
+    if (isRecord(error)) {
+      const code = typeof error.code === "string" ? error.code : "";
+      const message = typeof error.message === "string" ? error.message : "";
+      return [code, message].filter(Boolean).join(" ");
+    }
+
+    if (typeof data.message === "string") {
+      return data.message;
+    }
+  }
+
+  return stringifyDebugValue(data);
+}
+
+function stringifyDebugValue(value: unknown) {
+  try {
+    const stringified = JSON.stringify(value);
+    return stringified ?? String(value);
+  } catch {
+    return String(value);
+  }
+}
+
+function truncateDebugMessage(message: string, maxLength: number) {
+  return message.length > maxLength
+    ? `${message.slice(0, Math.max(0, maxLength - 3))}...`
+    : message;
+}
+
+function getDebugUrlHost(url: string) {
+  const match = /^https?:\/\/([^/?#]+)/i.exec(url);
+
+  return match?.[1] ?? "unknown";
+}
+
+function getDebugUrlPreview(url: string) {
+  const match = /^(https?:\/\/[^/?#]+\/[^?]*)/i.exec(url);
+  const baseUrl = match?.[1] ?? url.slice(0, 80);
+
+  return baseUrl.length > 120 ? `${baseUrl.slice(0, 120)}...` : baseUrl;
+}
+
+function resolveAudioContentType(uri: string) {
+  if (uri.toLowerCase().endsWith(".webm")) {
+    return "audio/webm";
+  }
+
+  return "audio/mp4";
+}
+
+function contentTypeToExtension(contentType: string) {
+  if (contentType === "audio/webm") {
+    return "webm";
+  }
+
+  return "m4a";
+}
+
+function parseDurationSeconds(duration: string) {
+  const [minutes = "0", seconds = "0"] = duration.split(":");
+  const totalSeconds = Number(minutes) * 60 + Number(seconds);
+
+  return Number.isFinite(totalSeconds) && totalSeconds > 0 ? totalSeconds : 1;
+}
+
+function wait(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function formatChatTime(value: string) {
@@ -458,6 +1557,9 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
   },
   container: {
+    flex: 1,
+  },
+  messageListFrame: {
     flex: 1,
   },
   header: {
@@ -561,11 +1663,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "#FF3E70",
-    shadowColor: "#FF3E70",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.28,
-    shadowRadius: 12,
-    elevation: 8,
     marginBottom: 10,
   },
   voiceRecorderPosition: {

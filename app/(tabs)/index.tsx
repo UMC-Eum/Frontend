@@ -185,26 +185,31 @@ function mapNotificationPages(data?: {
       body: string;
       title: string;
       createdAt: string;
-      sender: {
+      sender?: {
         id: number;
         nickname: string;
-        profileImageUrl: string;
-      };
+        profileImageUrl: string | null;
+      } | null;
     }[];
   }[];
 }): NotificationData[] {
   return (
     data?.pages.flatMap((page) =>
-      page.items.map((item) => ({
-        id: String(item.notificationId),
-        apiId: item.notificationId,
-        isRead: item.isRead,
-        userId: String(item.sender.id),
-        userName: item.sender.nickname,
-        userProfileImage: item.sender.profileImageUrl,
-        notificationContent: item.body || item.title,
-        timestamp: new Date(item.createdAt),
-      })),
+      page.items.map((item) => {
+        const sender = item.sender;
+        const notificationId = String(item.notificationId);
+
+        return {
+          id: notificationId,
+          apiId: item.notificationId,
+          isRead: item.isRead,
+          userId: sender?.id ? String(sender.id) : `notification-${notificationId}`,
+          userName: sender?.nickname || "알림",
+          userProfileImage: sender?.profileImageUrl || "",
+          notificationContent: item.body || item.title || "새 알림이 도착했어요.",
+          timestamp: new Date(item.createdAt),
+        };
+      }),
     ) ?? []
   );
 }

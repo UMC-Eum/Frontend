@@ -18,6 +18,7 @@ const DEFAULT_PAGE_SIZE = 30;
 type InfiniteQueryBehaviorOptions = {
   staleTime?: number;
   refetchOnMount?: boolean | "always";
+  refetchInterval?: number | false;
 };
 
 export function useChatRoomsInfiniteQuery(
