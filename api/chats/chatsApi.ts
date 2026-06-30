@@ -180,6 +180,7 @@ function uploadBlobToPresignedUrl(
 ) {
   return new Promise<void>((resolve, reject) => {
     const xhr = new XMLHttpRequest();
+    xhr.timeout = 30000;
 
     xhr.open("PUT", uploadUrl);
     Object.entries(headers).forEach(([key, value]) => {
@@ -202,6 +203,14 @@ function uploadBlobToPresignedUrl(
     };
     xhr.onerror = () => {
       reject(new Error(`S3 업로드 네트워크 실패: ${getUrlPreview(uploadUrl)}`));
+    };
+    xhr.ontimeout = () => {
+      reject(
+        new Error(`S3 업로드 시간이 초과되었습니다: ${getUrlPreview(uploadUrl)}`),
+      );
+    };
+    xhr.onabort = () => {
+      reject(new Error(`S3 업로드가 취소되었습니다: ${getUrlPreview(uploadUrl)}`));
     };
     xhr.send(blob);
   });
