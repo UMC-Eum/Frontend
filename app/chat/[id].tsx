@@ -115,6 +115,7 @@ export default function ChatRoom() {
   const [isBlocked, setIsBlocked] = useState(false);
   const [isAttachmentOpen, setIsAttachmentOpen] = useState(false);
   const [isVoiceRecorderOpen, setIsVoiceRecorderOpen] = useState(false);
+  const [isChatRealtimeActive, setIsChatRealtimeActive] = useState(false);
   const [recordingUri, setRecordingUri] = useState<string | null>(null);
   const [recordingTime, setRecordingTime] = useState(0);
   const [isUploadingVoice, setIsUploadingVoice] = useState(false);
@@ -209,14 +210,14 @@ export default function ChatRoom() {
   }, [isRecording, recorderState.durationMillis]);
 
   useEffect(() => {
-    if (!hasChatRoomId) return;
+    if (!hasChatRoomId || isChatRealtimeActive) return;
 
     const intervalId = setInterval(() => {
       void refetchMessages();
     }, 2500);
 
     return () => clearInterval(intervalId);
-  }, [hasChatRoomId, refetchMessages]);
+  }, [hasChatRoomId, isChatRealtimeActive, refetchMessages]);
 
   useEffect(() => {
     if (!hasChatRoomId) return;
@@ -254,6 +255,8 @@ export default function ChatRoom() {
   }, [chatRoomId, hasChatRoomId, messagesQuery.data, queryClient]);
 
   useEffect(() => {
+    setIsChatRealtimeActive(false);
+
     if (!hasChatRoomId) return;
 
     const socket = connectChatSocket();
@@ -279,6 +282,7 @@ export default function ChatRoom() {
           }
 
           hasJoinedRoom = true;
+          setIsChatRealtimeActive(true);
         })
         .catch((error) => {
           console.log("[ChatSocket] room.join error", error);
@@ -320,11 +324,16 @@ export default function ChatRoom() {
         context: error.context,
         type: error.type,
       });
+      setIsChatRealtimeActive(false);
       showToast(`채팅 서버 연결 실패: ${error.message}`);
+    };
+    const handleDisconnect = () => {
+      setIsChatRealtimeActive(false);
     };
 
     socket.on("connect", handleConnect);
     socket.on("connect_error", handleConnectError);
+    socket.on("disconnect", handleDisconnect);
 
     const appendIncomingMessage = (nextMessage: MessageNewData) => {
       if (nextMessage.chatRoomId !== chatRoomId) return;
@@ -398,6 +407,7 @@ export default function ChatRoom() {
       isActive = false;
       socket.off("connect", handleConnect);
       socket.off("connect_error", handleConnectError);
+      socket.off("disconnect", handleDisconnect);
       socket.offAny(handleAnyEvent);
       unsubscribeMessageNew();
       unsubscribeMessageRead();
