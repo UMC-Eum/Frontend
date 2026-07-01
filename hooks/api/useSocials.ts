@@ -67,9 +67,8 @@ export function useSendHeartMutation() {
 
   return useMutation({
     mutationFn: (targetUserId: number) => sendHeart({ targetUserId }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.socials.hearts.all() });
-    },
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: queryKeys.socials.hearts.all() }),
   });
 }
 
@@ -78,9 +77,8 @@ export function usePatchHeartMutation() {
 
   return useMutation({
     mutationFn: (heartId: number) => patchHeart(heartId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.socials.hearts.all() });
-    },
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: queryKeys.socials.hearts.all() }),
   });
 }
 

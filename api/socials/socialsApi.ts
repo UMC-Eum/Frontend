@@ -29,7 +29,7 @@ export const getSentHearts = async (params: {
     return data.success.data;
   } catch (error) {
     if (isEmptyHeartListError(error)) {
-      return emptyHeartList<DTO.IHeartsentResponse>();
+      return emptyHeartList<DTO.IHeartsentItem>();
     }
 
     throw error;
@@ -50,7 +50,7 @@ export const getReceivedHearts = async (params: {
     return data.success.data;
   } catch (error) {
     if (isEmptyHeartListError(error)) {
-      return emptyHeartList<DTO.IHeartreceivedResponse>();
+      return emptyHeartList<DTO.IHeartreceivedItem>();
     }
 
     throw error;
@@ -65,14 +65,16 @@ function isEmptyHeartListError(error: unknown) {
   );
 }
 
-function emptyHeartList<
-  T extends { nextCursor: string | null; totalCount?: number; items: unknown[] },
->() {
+function emptyHeartList<TItem>(): {
+  nextCursor: null;
+  totalCount: number;
+  items: TItem[];
+} {
   return {
     nextCursor: null,
     totalCount: 0,
     items: [],
-  } as T;
+  };
 }
 
 export const patchHeart = async (heartId: number) => {

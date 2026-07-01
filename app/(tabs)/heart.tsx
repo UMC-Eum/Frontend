@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -32,25 +32,34 @@ type HeartTab = "received" | "sent";
 
 type HeartProfile = {
   id: string;
+  targetUserId: number;
   name: string;
   age: number;
   location: string;
   image: string;
   isLiked: boolean;
+  likedHeartId?: number;
 };
 
 type ScreenHeartProfile = HeartProfile & {
-  heartId?: number;
-  targetUserId?: number;
+  receivedHeartId?: number;
+};
+
+type OptimisticHeartState = {
+  isLiked: boolean;
+  likedHeartId?: number;
 };
 
 export default function HeartScreen() {
   const router = useRouter();
   const { width } = useWindowDimensions();
   const [activeTab, setActiveTab] = useState<HeartTab>("received");
-  const [pendingIds, setPendingIds] = useState<Set<string>>(() => new Set());
+  const [isPullRefreshing, setIsPullRefreshing] = useState(false);
+  const [pendingUserIds, setPendingUserIds] = useState<Set<number>>(
+    () => new Set(),
+  );
   const [optimisticHeartState, setOptimisticHeartState] = useState<
-    Record<string, boolean>
+    Record<number, OptimisticHeartState>
   >({});
   const receivedQuery = useReceivedHeartsInfiniteQuery();
   const sentQuery = useSentHeartsInfiniteQuery();
@@ -58,75 +67,145 @@ export default function HeartScreen() {
   const patchHeartMutation = usePatchHeartMutation();
 
   const cardWidth = useMemo(() => (width - 40 - 12) / 2, [width]);
-  const receivedProfiles = useMemo(
-    () => mapReceivedHeartProfiles(receivedQuery.data),
-    [receivedQuery.data],
-  );
   const sentProfiles = useMemo(
     () => mapSentHeartProfiles(sentQuery.data),
     [sentQuery.data],
   );
+  const sentHeartIdsByTargetUserId = useMemo(() => {
+    const heartIds = new Map<number, number>();
+
+    sentProfiles.forEach((profile) => {
+      if (profile.likedHeartId != null) {
+        heartIds.set(profile.targetUserId, profile.likedHeartId);
+      }
+    });
+
+    return heartIds;
+  }, [sentProfiles]);
+  const receivedProfiles = useMemo(
+    () => mapReceivedHeartProfiles(receivedQuery.data, sentHeartIdsByTargetUserId),
+    [receivedQuery.data, sentHeartIdsByTargetUserId],
+  );
+  const displayedReceivedProfiles = applyOptimisticHeartState(
+    receivedProfiles,
+    optimisticHeartState,
+  );
+  const displayedSentProfiles = applyOptimisticHeartState(
+    sentProfiles,
+    optimisticHeartState,
+  ).filter((profile) => profile.isLiked);
   const profiles =
     activeTab === "received"
-      ? applyOptimisticHeartState(receivedProfiles, optimisticHeartState)
-      : applyOptimisticHeartState(sentProfiles, optimisticHeartState);
+      ? displayedReceivedProfiles
+      : displayedSentProfiles;
   const activeQuery = activeTab === "received" ? receivedQuery : sentQuery;
   const isInitialLoading = activeQuery.isLoading && profiles.length === 0;
-  const isRefreshing =
-    activeQuery.isRefetching && !activeQuery.isFetchingNextPage;
   const receivedCount = receivedProfiles.length;
 
   const handleRefresh = useCallback(() => {
-    void activeQuery.refetch();
+    setIsPullRefreshing(true);
+    void activeQuery.refetch().finally(() => {
+      setIsPullRefreshing(false);
+    });
   }, [activeQuery]);
 
-  // 하트 액션은 서버 반영 후 관련 목록을 invalidate하는 mutation 훅에서 동기화합니다.
+  useEffect(() => {
+    setOptimisticHeartState((prev) => {
+      const profilesByUserId = new Map<number, ScreenHeartProfile>();
+
+      receivedProfiles.forEach((profile) => {
+        profilesByUserId.set(profile.targetUserId, profile);
+      });
+      sentProfiles.forEach((profile) => {
+        profilesByUserId.set(profile.targetUserId, profile);
+      });
+
+      let hasSyncedState = false;
+      const next = { ...prev };
+
+      Object.entries(prev).forEach(([targetUserIdKey, optimisticState]) => {
+        const targetUserId = Number(targetUserIdKey);
+        const profile = profilesByUserId.get(targetUserId);
+        const isSynced = profile
+          ? profile.isLiked === optimisticState.isLiked &&
+            (optimisticState.likedHeartId == null ||
+              profile.likedHeartId === optimisticState.likedHeartId)
+          : !optimisticState.isLiked;
+
+        if (isSynced) {
+          delete next[targetUserId];
+          hasSyncedState = true;
+        }
+      });
+
+      return hasSyncedState ? next : prev;
+    });
+  }, [receivedProfiles, sentProfiles]);
+
+  // 하트 액션은 즉시 화면에 반영하고, 성공 후 받은/보낸 마음 목록을 다시 맞춥니다.
   const handleToggleHeart = useCallback(
     (profile: ScreenHeartProfile) => {
-      const profileId = profile.id;
-      if (pendingIds.has(profileId)) return;
+      const { targetUserId } = profile;
+      if (pendingUserIds.has(targetUserId)) return;
 
       const nextLiked = !profile.isLiked;
+      const previousState = {
+        isLiked: profile.isLiked,
+        likedHeartId: profile.likedHeartId,
+      };
 
-      setPendingIds((prev) => new Set(prev).add(profileId));
+      setPendingUserIds((prev) => new Set(prev).add(targetUserId));
       setOptimisticHeartState((prev) => ({
         ...prev,
-        [profileId]: nextLiked,
+        [targetUserId]: {
+          isLiked: nextLiked,
+          likedHeartId: nextLiked ? profile.likedHeartId : undefined,
+        },
       }));
 
       const resetPending = () => {
-        setPendingIds((prev) => {
+        setPendingUserIds((prev) => {
           const next = new Set(prev);
-          next.delete(profileId);
+          next.delete(targetUserId);
           return next;
         });
       };
       const rollbackHeartState = () => {
         setOptimisticHeartState((prev) => ({
           ...prev,
-          [profileId]: profile.isLiked,
+          [targetUserId]: previousState,
         }));
       };
 
-      if (profile.isLiked && profile.heartId) {
-        patchHeartMutation.mutate(profile.heartId, {
+      if (profile.isLiked) {
+        if (profile.likedHeartId == null) {
+          rollbackHeartState();
+          resetPending();
+          return;
+        }
+
+        patchHeartMutation.mutate(profile.likedHeartId, {
           onError: rollbackHeartState,
           onSettled: resetPending,
         });
         return;
       }
 
-      if (profile.targetUserId) {
-        sendHeartMutation.mutate(profile.targetUserId, {
-          onError: rollbackHeartState,
-          onSettled: resetPending,
-        });
-        return;
-      }
-
-      resetPending();
+      sendHeartMutation.mutate(targetUserId, {
+        onSuccess: (response) => {
+          setOptimisticHeartState((prev) => ({
+            ...prev,
+            [targetUserId]: {
+              isLiked: true,
+              likedHeartId: response.heartId,
+            },
+          }));
+        },
+        onError: rollbackHeartState,
+        onSettled: resetPending,
+      });
     },
-    [patchHeartMutation, pendingIds, sendHeartMutation],
+    [patchHeartMutation, pendingUserIds, sendHeartMutation],
   );
 
   return (
@@ -156,7 +235,7 @@ export default function HeartScreen() {
           <HeartProfileCard
             profile={item}
             width={cardWidth}
-            isPending={pendingIds.has(item.id)}
+            isPending={pendingUserIds.has(item.targetUserId)}
             onPress={() => router.push("/profile-detail" as never)}
             onPressHeart={() => handleToggleHeart(item)}
           />
@@ -172,7 +251,7 @@ export default function HeartScreen() {
         onEndReachedThreshold={0.35}
         refreshControl={
           <RefreshControl
-            refreshing={isRefreshing}
+            refreshing={isPullRefreshing}
             onRefresh={handleRefresh}
             tintColor={PINK}
             colors={[PINK]}
@@ -231,42 +310,61 @@ export default function HeartScreen() {
   );
 }
 
-function applyOptimisticHeartState<T extends HeartProfile>(
+function applyOptimisticHeartState<T extends ScreenHeartProfile>(
   profiles: T[],
-  optimisticState: Record<string, boolean>,
+  optimisticState: Record<number, OptimisticHeartState>,
 ) {
-  return profiles.map((profile) =>
-    Object.prototype.hasOwnProperty.call(optimisticState, profile.id)
-      ? { ...profile, isLiked: optimisticState[profile.id] }
-      : profile,
-  );
+  return profiles.map((profile) => {
+    const state = optimisticState[profile.targetUserId];
+
+    return state
+      ? {
+          ...profile,
+          isLiked: state.isLiked,
+          likedHeartId: state.likedHeartId,
+        }
+      : profile;
+  });
 }
 
-function mapReceivedHeartProfiles(data?: {
-  pages: {
-    items: {
-      heartId: number;
-      fromUserId: number;
-      fromUser: {
-        nickname: string;
-        age: number;
-        profileImageUrl: string;
-      };
-    }[];
-  }[];
-}): ScreenHeartProfile[] {
+function mapReceivedHeartProfiles(
+  data:
+    | {
+        pages: {
+          items: {
+            heartId: number;
+            fromUserId: number;
+            isLiked?: boolean;
+            likedHeartId?: number | null;
+            fromUser: {
+              nickname: string;
+              age: number;
+              profileImageUrl: string;
+            };
+          }[];
+        }[];
+      }
+    | undefined,
+  sentHeartIdsByTargetUserId: Map<number, number>,
+): ScreenHeartProfile[] {
   return (
     data?.pages.flatMap((page) =>
-      page.items.map((item) => ({
-        id: `received-${item.heartId}`,
-        heartId: item.heartId,
-        targetUserId: item.fromUserId,
-        name: item.fromUser.nickname,
-        age: item.fromUser.age,
-        location: "",
-        image: item.fromUser.profileImageUrl,
-        isLiked: false,
-      })),
+      page.items.map((item) => {
+        const likedHeartId =
+          item.likedHeartId ?? sentHeartIdsByTargetUserId.get(item.fromUserId);
+
+        return {
+          id: `received-${item.heartId}`,
+          receivedHeartId: item.heartId,
+          likedHeartId,
+          targetUserId: item.fromUserId,
+          name: item.fromUser.nickname,
+          age: item.fromUser.age,
+          location: "",
+          image: item.fromUser.profileImageUrl,
+          isLiked: item.isLiked ?? likedHeartId != null,
+        };
+      }),
     ) ?? []
   );
 }
@@ -288,7 +386,7 @@ function mapSentHeartProfiles(data?: {
     data?.pages.flatMap((page) =>
       page.items.map((item) => ({
         id: `sent-${item.heartId}`,
-        heartId: item.heartId,
+        likedHeartId: item.heartId,
         targetUserId: item.targetUserId,
         name: item.targetUser.nickname,
         age: item.targetUser.age,
