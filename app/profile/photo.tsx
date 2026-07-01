@@ -1,38 +1,29 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
-import * as ImageManipulator from "expo-image-manipulator";
 import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
-import React, { useCallback, useMemo, useRef, useState } from "react";
+import React, { useState } from "react";
 import {
   Alert,
-  Animated,
-  Dimensions,
   Modal,
-  PanResponder,
   Pressable,
   StyleSheet,
   Text,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import Svg, { Circle, Defs, Mask, Path, Rect } from "react-native-svg";
+import Svg, { Circle, Path } from "react-native-svg";
 
+import CircleImageCropper, {
+  CircleCropAsset,
+  CircleCropResult,
+} from "@/components/profile/CircleImageCropper";
 import ProfileStepLayout from "@/components/profile/ProfileStepLayout";
 import { useOnboardingDraftStore } from "@/stores/onboardingDraftStore";
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 const PROFILE_IMAGE_SIZE = 200;
-const CROP_CIRCLE_SIZE = Math.min(SCREEN_WIDTH - 40, 372);
-const CROP_CIRCLE_TOP = SCREEN_HEIGHT * 0.306;
 const DEFAULT_PROFILE_IMAGE_URL =
   "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=85&w=1200&auto=format&fit=crop";
-
-type PreviewAsset = {
-  uri: string;
-  width: number;
-  height: number;
-};
 
 /**
  * 사진 등록 화면
@@ -52,10 +43,7 @@ export default function PhotoScreen() {
   );
   const [photoUri, setPhotoUri] = useState<string | null>(draftProfileImageUri);
   const [showActionSheet, setShowActionSheet] = useState(false);
-  const [previewAsset, setPreviewAsset] = useState<PreviewAsset | null>(null);
-  const cropTranslate = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current;
-  const cropOffsetRef = useRef({ x: 0, y: 0 });
-  const cropStartOffsetRef = useRef({ x: 0, y: 0 });
+  const [previewAsset, setPreviewAsset] = useState<CircleCropAsset | null>(null);
 
   const handlePhotoPick = () => {
     setShowActionSheet(true);
@@ -88,7 +76,6 @@ export default function PhotoScreen() {
 
         if (!result.canceled && result.assets && result.assets.length > 0) {
           const asset = result.assets[0];
-          resetCropOffset();
           setPreviewAsset({
             uri: asset.uri,
             width: asset.width,
@@ -111,121 +98,21 @@ export default function PhotoScreen() {
     setShowActionSheet(false);
   };
 
-  const cropMetrics = useMemo(() => {
-    if (!previewAsset) return null;
-
-    const imageScale = Math.max(
-      SCREEN_WIDTH / previewAsset.width,
-      SCREEN_HEIGHT / previewAsset.height,
-    );
-    const displayWidth = previewAsset.width * imageScale;
-    const displayHeight = previewAsset.height * imageScale;
-
-    return {
-      imageScale,
-      displayWidth,
-      displayHeight,
-      imageLeft: (SCREEN_WIDTH - displayWidth) / 2,
-      imageTop: (SCREEN_HEIGHT - displayHeight) / 2,
-      circleLeft: (SCREEN_WIDTH - CROP_CIRCLE_SIZE) / 2,
-      circleTop: CROP_CIRCLE_TOP,
-    };
-  }, [previewAsset]);
-
-  const clampCropOffset = useCallback((x: number, y: number) => {
-    if (!cropMetrics) return { x: 0, y: 0 };
-
-    const circleRight = cropMetrics.circleLeft + CROP_CIRCLE_SIZE;
-    const circleBottom = cropMetrics.circleTop + CROP_CIRCLE_SIZE;
-    const minX = circleRight - cropMetrics.imageLeft - cropMetrics.displayWidth;
-    const maxX = cropMetrics.circleLeft - cropMetrics.imageLeft;
-    const minY = circleBottom - cropMetrics.imageTop - cropMetrics.displayHeight;
-    const maxY = cropMetrics.circleTop - cropMetrics.imageTop;
-
-    return {
-      x: clamp(x, minX, maxX),
-      y: clamp(y, minY, maxY),
-    };
-  }, [cropMetrics]);
-
-  const cropPanResponder = useMemo(
-    () =>
-      PanResponder.create({
-        onStartShouldSetPanResponder: () => true,
-        onMoveShouldSetPanResponder: () => true,
-        onPanResponderGrant: () => {
-          cropStartOffsetRef.current = cropOffsetRef.current;
-        },
-        onPanResponderMove: (_, gestureState) => {
-          const nextOffset = clampCropOffset(
-            cropStartOffsetRef.current.x + gestureState.dx,
-            cropStartOffsetRef.current.y + gestureState.dy,
-          );
-
-          cropOffsetRef.current = nextOffset;
-          cropTranslate.setValue(nextOffset);
-        },
-        onPanResponderRelease: () => {
-          cropStartOffsetRef.current = cropOffsetRef.current;
-        },
-      }),
-    [clampCropOffset, cropTranslate],
-  );
-
-  const resetCropOffset = () => {
-    const offset = { x: 0, y: 0 };
-    cropOffsetRef.current = offset;
-    cropStartOffsetRef.current = offset;
-    cropTranslate.setValue(offset);
+  // 원형 크롭 프리뷰: 확정
+  const handleCropConfirm = (croppedImage: CircleCropResult) => {
+    setPhotoUri(croppedImage.uri);
+    setDraftProfileImageUri(croppedImage.uri);
+    setPreviewAsset(null);
   };
 
-  // 원형 크롭 프리뷰: 확정
-  const handleCropConfirm = async () => {
-    if (!previewAsset || !cropMetrics) return;
-
-    const cropOffset = cropOffsetRef.current;
-    const imageScreenLeft = cropMetrics.imageLeft + cropOffset.x;
-    const imageScreenTop = cropMetrics.imageTop + cropOffset.y;
-    const originX =
-      (cropMetrics.circleLeft - imageScreenLeft) / cropMetrics.imageScale;
-    const originY =
-      (cropMetrics.circleTop - imageScreenTop) / cropMetrics.imageScale;
-    const cropSize = CROP_CIRCLE_SIZE / cropMetrics.imageScale;
-
-    try {
-      const croppedImage = await ImageManipulator.manipulateAsync(
-        previewAsset.uri,
-        [
-          {
-            crop: {
-              originX: Math.round(
-                clamp(originX, 0, previewAsset.width - cropSize),
-              ),
-              originY: Math.round(
-                clamp(originY, 0, previewAsset.height - cropSize),
-              ),
-              width: Math.round(Math.min(cropSize, previewAsset.width)),
-              height: Math.round(Math.min(cropSize, previewAsset.height)),
-            },
-          },
-        ],
-        { compress: 0.9, format: ImageManipulator.SaveFormat.JPEG },
-      );
-
-      setPhotoUri(croppedImage.uri);
-      setDraftProfileImageUri(croppedImage.uri);
-      setPreviewAsset(null);
-      resetCropOffset();
-    } catch (error) {
-      console.error("Crop Error:", error);
-      Alert.alert("사진 설정 실패", "사진을 다시 선택해주세요.");
-    }
+  const handleCropError = (error: unknown) => {
+    console.error("Crop Error:", error);
+    Alert.alert("사진 설정 실패", "사진을 다시 선택해주세요.");
   };
 
   // 원형 크롭 프리뷰: 취소
   const handleCropCancel = () => {
     setPreviewAsset(null);
-    resetCropOffset();
   };
 
   const handleNext = () => {
@@ -234,46 +121,14 @@ export default function PhotoScreen() {
   };
 
   // 원형 크롭 프리뷰 화면
-  if (previewAsset && cropMetrics) {
+  if (previewAsset) {
     return (
-      <View style={styles.cropContainer}>
-        <View style={styles.cropGestureArea} {...cropPanResponder.panHandlers}>
-          {/* 풀스크린 이미지 */}
-          <Animated.View
-            style={[
-              styles.cropImageFrame,
-              {
-                width: cropMetrics.displayWidth,
-                height: cropMetrics.displayHeight,
-                left: cropMetrics.imageLeft,
-                top: cropMetrics.imageTop,
-                transform: [
-                  { translateX: cropTranslate.x },
-                  { translateY: cropTranslate.y },
-                ],
-              },
-            ]}
-          >
-            <Image
-              source={{ uri: previewAsset.uri }}
-              style={styles.cropImage}
-              contentFit="cover"
-            />
-          </Animated.View>
-
-          <CropOverlay />
-        </View>
-
-        {/* 상단 헤더: 취소 / 다음 */}
-        <View style={[styles.cropHeader, { paddingTop: insets.top }]}>
-          <Pressable onPress={handleCropCancel} hitSlop={12}>
-            <Text style={styles.cropHeaderText}>취소</Text>
-          </Pressable>
-          <Pressable onPress={handleCropConfirm} hitSlop={12}>
-            <Text style={styles.cropHeaderText}>다음</Text>
-          </Pressable>
-        </View>
-      </View>
+      <CircleImageCropper
+        asset={previewAsset}
+        onCancel={handleCropCancel}
+        onConfirm={handleCropConfirm}
+        onError={handleCropError}
+      />
     );
   }
 
@@ -358,46 +213,6 @@ export default function PhotoScreen() {
   );
 }
 
-function CropOverlay() {
-  const circleCenterX = SCREEN_WIDTH / 2;
-  const circleCenterY = CROP_CIRCLE_TOP + CROP_CIRCLE_SIZE / 2;
-
-  return (
-    <Svg
-      width={SCREEN_WIDTH}
-      height={SCREEN_HEIGHT}
-      style={StyleSheet.absoluteFill}
-      pointerEvents="none"
-    >
-      <Defs>
-        <Mask id="cropMask">
-          <Rect width={SCREEN_WIDTH} height={SCREEN_HEIGHT} fill="#FFFFFF" />
-          <Circle
-            cx={circleCenterX}
-            cy={circleCenterY}
-            r={CROP_CIRCLE_SIZE / 2}
-            fill="#000000"
-          />
-        </Mask>
-      </Defs>
-      <Rect
-        width={SCREEN_WIDTH}
-        height={SCREEN_HEIGHT}
-        fill="rgba(0, 0, 0, 0.55)"
-        mask="url(#cropMask)"
-      />
-      <Circle
-        cx={circleCenterX}
-        cy={circleCenterY}
-        r={CROP_CIRCLE_SIZE / 2}
-        fill="transparent"
-        stroke="#FFFFFF"
-        strokeWidth={2}
-      />
-    </Svg>
-  );
-}
-
 function ProfilePlaceholder() {
   return (
     <Svg
@@ -413,10 +228,6 @@ function ProfilePlaceholder() {
       />
     </Svg>
   );
-}
-
-function clamp(value: number, min: number, max: number) {
-  return Math.min(Math.max(value, min), max);
 }
 
 const styles = StyleSheet.create({
@@ -503,37 +314,4 @@ const styles = StyleSheet.create({
     color: "#1F2937",
   },
 
-  // === 원형 크롭 프리뷰 ===
-  cropContainer: {
-    flex: 1,
-    backgroundColor: "#000000",
-  },
-  cropGestureArea: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  cropImageFrame: {
-    position: "absolute",
-  },
-  cropImage: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  cropHeader: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 2,
-    elevation: 2,
-    height: 88,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 20,
-  },
-  cropHeaderText: {
-    fontSize: 20,
-    fontWeight: "600",
-    color: "#FFFFFF",
-    lineHeight: 25,
-  },
 });
