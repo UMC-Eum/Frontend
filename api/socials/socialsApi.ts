@@ -72,7 +72,7 @@ function emptyHeartList<
     nextCursor: null,
     totalCount: 0,
     items: [],
-  } as T;
+  } as unknown as T;
 }
 
 export const patchHeart = async (heartId: number) => {
