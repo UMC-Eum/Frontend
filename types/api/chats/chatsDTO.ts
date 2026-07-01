@@ -30,7 +30,7 @@ export interface IChatsRoomItem {
     profileImageUrl: string;
     areaName: string;
   };
-  lastMessage: ILastMessage;
+  lastMessage: ILastMessage | null;
   unreadCount: number;
 }
 export interface IChatsRoomsGetResponse {
@@ -96,7 +96,5 @@ export interface IChatsRoomIdMediaPresignPostResponse {
   uploadUrl: string;
   mediaRef: string;
   expiresAt: string;
-  requiredHeaders: {
-    "Content-Type": string;
-  };
+  requiredHeaders?: Record<string, string>;
 }

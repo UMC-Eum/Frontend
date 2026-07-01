@@ -5,7 +5,7 @@ export default function ProfileLayout() {
     <Stack
       screenOptions={{
         headerShown: false,
-        animation: "slide_from_right",
+        animation: "none",
       }}
     >
       <Stack.Screen name="name" />

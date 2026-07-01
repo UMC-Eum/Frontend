@@ -523,14 +523,14 @@ export default function WelcomeScreen() {
       }
 
       setSelectedKeywords(keywords);
-      router.replace("/home" as any);
+      router.replace("/(tabs)" as any);
       return;
     }
 
     try {
       await runProfileUpdate();
       setSelectedKeywords(keywords);
-      router.replace("/home" as any);
+      router.replace("/(tabs)" as any);
     } catch (error) {
       console.error(
         "Profile Update Error:",
@@ -538,7 +538,7 @@ export default function WelcomeScreen() {
       );
 
       setSelectedKeywords(keywords);
-      router.replace("/home" as any);
+      router.replace("/(tabs)" as any);
     }
   };
 

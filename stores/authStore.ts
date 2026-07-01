@@ -35,6 +35,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       isNewUser: payload.isNewUser,
       onboardingRequired: payload.onboardingRequired,
       isAuthenticated: true,
+      isAuthInitialized: true,
     }),
   setAuthInitialized: (isAuthInitialized) =>
     set({

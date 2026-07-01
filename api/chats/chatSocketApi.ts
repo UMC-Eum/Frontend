@@ -14,7 +14,10 @@ import type {
 } from "@/types/api/socket";
 
 const CHAT_SOCKET_NAMESPACE = "/chats";
+const CHAT_SOCKET_PATH = "/ws";
 const DEFAULT_ACK_TIMEOUT_MS = 10000;
+export const CHAT_SOCKET_ACK_TIMEOUT_MESSAGE =
+  "Socket.IO ACK 응답 시간이 초과되었습니다.";
 
 type ChatServerToClientEvents = {
   "message.new": (payload: MessageNewPayload) => void;
@@ -45,25 +48,43 @@ type UnsubscribeSocketEvent = () => void;
 let chatSocket: ChatSocket | null = null;
 
 const getChatSocketBaseUrl = () => {
-  const normalizedBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL?.replace(
+  const normalizedSocketBaseUrl =
+    process.env.EXPO_PUBLIC_SOCKET_BASE_URL?.replace(/\/+$/, "");
+  if (normalizedSocketBaseUrl) {
+    return normalizedSocketBaseUrl;
+  }
+
+  const normalizedApiBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL?.replace(
     /\/+$/,
     "",
   );
-
-  if (!normalizedBaseUrl) {
-    throw new Error("EXPO_PUBLIC_API_BASE_URL이 설정되지 않았습니다.");
+  if (normalizedApiBaseUrl) {
+    return normalizedApiBaseUrl.replace(/\/api$/, "");
   }
 
-  return normalizedBaseUrl.replace(/\/api$/, "");
+  throw new Error(
+    "EXPO_PUBLIC_SOCKET_BASE_URL 또는 EXPO_PUBLIC_API_BASE_URL이 설정되지 않았습니다.",
+  );
 };
 
 const getChatSocketUrl = () => {
   return `${getChatSocketBaseUrl()}${CHAT_SOCKET_NAMESPACE}`;
 };
 
+export const getChatSocketDebugConfig = () => ({
+  socketUrl: getChatSocketUrl(),
+  path: CHAT_SOCKET_PATH,
+  hasToken: Boolean(getAccessToken()),
+});
+
 const getChatSocketAuth = () => {
   const token = getAccessToken();
   return token ? { token } : {};
+};
+
+const getChatSocketExtraHeaders = (): Record<string, string> | undefined => {
+  const token = getAccessToken();
+  return token ? { Authorization: `Bearer ${token}` } : undefined;
 };
 
 const validateMessageSendRequest = (payload: MessageSendRequest) => {
@@ -82,7 +103,7 @@ const emitWithAck = <TResponse>(
 ) => {
   return new Promise<TResponse>((resolve, reject) => {
     const timeoutId = setTimeout(() => {
-      reject(new Error("Socket.IO ACK 응답 시간이 초과되었습니다."));
+      reject(new Error(CHAT_SOCKET_ACK_TIMEOUT_MESSAGE));
     }, timeoutMs);
 
     emit((response) => {
@@ -93,10 +114,20 @@ const emitWithAck = <TResponse>(
 };
 
 export const createChatSocket = (options: ChatSocketOptions = {}) => {
-  return io(getChatSocketUrl(), {
+  const socketUrl = getChatSocketUrl();
+  const auth = getChatSocketAuth();
+  const extraHeaders = getChatSocketExtraHeaders();
+
+  if (__DEV__) {
+    console.log("[ChatSocket] create", getChatSocketDebugConfig());
+  }
+
+  return io(socketUrl, {
+    path: CHAT_SOCKET_PATH,
     transports: ["websocket"],
     autoConnect: false,
-    auth: getChatSocketAuth(),
+    auth,
+    extraHeaders,
     ...options,
   }) as ChatSocket;
 };
@@ -114,6 +145,7 @@ export const connectChatSocket = (options?: ChatSocketOptions) => {
 
   // 재연결 시 최신 accessToken을 handshake auth에 반영
   socket.auth = getChatSocketAuth();
+  socket.io.opts.extraHeaders = getChatSocketExtraHeaders();
 
   if (!socket.connected) {
     socket.connect();

@@ -5,19 +5,13 @@ export default function OnboardingLayout() {
     <Stack
       screenOptions={{
         headerShown: false,
-        animation: "fade",
+        animation: "none",
       }}
     >
       <Stack.Screen name="splash" />
       <Stack.Screen name="login" />
-      <Stack.Screen
-        name="terms-detail"
-        options={{ animation: "slide_from_right" }}
-      />
-      <Stack.Screen
-        name="permissions"
-        options={{ animation: "slide_from_right" }}
-      />
+      <Stack.Screen name="terms-detail" />
+      <Stack.Screen name="permissions" />
     </Stack>
   );
 }

@@ -3,11 +3,10 @@ import { useMemo } from "react";
 import { useChatRoomsInfiniteQuery } from "@/hooks/api/useChats";
 import { useReceivedHeartsInfiniteQuery } from "@/hooks/api/useSocials";
 
-const BADGE_QUERY_STALE_TIME = 60_000;
-
 export function useNavbarBadges() {
   const queryOptions = {
-    staleTime: BADGE_QUERY_STALE_TIME,
+    staleTime: 0,
+    refetchInterval: 2500,
     refetchOnMount: false,
   } as const;
   const receivedHeartsQuery = useReceivedHeartsInfiniteQuery(

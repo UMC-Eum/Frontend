@@ -21,6 +21,7 @@ import {
 import * as DTO from "@/types/api/club/clubDTO";
 
 import { queryKeys } from "./queryKeys";
+import { useProtectedQueryEnabled } from "./useProtectedQueryEnabled";
 
 const DEFAULT_PAGE_LIMIT = 20;
 
@@ -69,8 +70,10 @@ export function useTopHostsQuery(limit = 10) {
 
 export function useMyClubsInfiniteQuery(
   params: InfiniteParams<DTO.IMyClubsParams> = {},
+  enabled = true,
 ) {
   const { limit = DEFAULT_PAGE_LIMIT, ...restParams } = params;
+  const queryEnabled = useProtectedQueryEnabled(enabled);
 
   return useInfiniteQuery({
     queryKey: queryKeys.club.my({ ...restParams, limit }),
@@ -78,6 +81,7 @@ export function useMyClubsInfiniteQuery(
       getMyClubs({ ...restParams, cursor: pageParam, limit }),
     initialPageParam: null as string | null,
     getNextPageParam: (lastPage) => lastPage.nextCursor,
+    enabled: queryEnabled,
   });
 }
 

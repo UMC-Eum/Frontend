@@ -13,6 +13,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { TAB_SCREEN_BOTTOM_PADDING } from "@/constants/layout";
 import { useChatRoomsInfiniteQuery } from "@/hooks/api/useChats";
 
 type ChatPreview = {
@@ -32,6 +33,10 @@ type ActiveMember = {
   image: string;
 };
 
+const ACTIVE_MEMBER_PLACEHOLDERS = Array.from({ length: 4 }, (_, index) =>
+  `active-member-placeholder-${index}`,
+);
+
 interface ChatListScreenProps {
   showActiveMembers?: boolean;
 }
@@ -40,7 +45,10 @@ export default function ChatListScreen({
   showActiveMembers = true,
 }: ChatListScreenProps) {
   const router = useRouter();
-  const chatRoomsQuery = useChatRoomsInfiniteQuery();
+  const chatRoomsQuery = useChatRoomsInfiniteQuery(undefined, {
+    staleTime: 0,
+    refetchOnMount: "always",
+  });
   const apiChatPreviews = useMemo(
     () => mapChatRooms(chatRoomsQuery.data),
     [chatRoomsQuery.data],
@@ -50,6 +58,8 @@ export default function ChatListScreen({
     ? mapActiveMembers(chatPreviews).slice(0, 8)
     : [];
   const isInitialLoading = chatRoomsQuery.isLoading && chatPreviews.length === 0;
+  const shouldShowActiveSection =
+    showActiveMembers && (isInitialLoading || activeMembers.length > 0);
 
   const openChatRoom = (chatId: string) => {
     router.push({
@@ -59,7 +69,7 @@ export default function ChatListScreen({
   };
 
   const openNotifications = () => {
-    router.push("/(tabs)" as never);
+    router.push("/notifications" as never);
   };
 
   const renderChatPreview: ListRenderItem<ChatPreview> = ({ item }) => (
@@ -119,19 +129,30 @@ export default function ChatListScreen({
         </Pressable>
       </View>
 
-      {/* 현재 활동 중인 사람이 있을 때만 상단 콘텐츠를 보여줍니다. */}
-      {activeMembers.length > 0 ? (
+      {/* 첫 응답 전후로 헤더 높이가 튀지 않도록 활동중 섹션 자리를 유지합니다. */}
+      {shouldShowActiveSection ? (
         <View style={styles.activeSection}>
           <Text style={styles.activeTitle}>현재 활동중인 사람들이에요!</Text>
           <Text style={styles.activeSubtitle}>편하게 소통해봐요!</Text>
-          <FlatList
-            data={activeMembers}
-            keyExtractor={(item) => item.id}
-            renderItem={renderActiveMember}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.activeList}
-          />
+          {isInitialLoading ? (
+            <View style={styles.activePlaceholderList}>
+              {ACTIVE_MEMBER_PLACEHOLDERS.map((id) => (
+                <View key={id} style={styles.activeMember}>
+                  <View style={styles.activeImagePlaceholder} />
+                  <View style={styles.activeNamePlaceholder} />
+                </View>
+              ))}
+            </View>
+          ) : (
+            <FlatList
+              data={activeMembers}
+              keyExtractor={(item) => item.id}
+              renderItem={renderActiveMember}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.activeList}
+            />
+          )}
         </View>
       ) : null}
     </View>
@@ -257,7 +278,8 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
   },
   listContent: {
-    paddingBottom: 28,
+    flexGrow: 1,
+    paddingBottom: TAB_SCREEN_BOTTOM_PADDING,
   },
   loadingWrap: {
     minHeight: 180,
@@ -333,6 +355,10 @@ const styles = StyleSheet.create({
   activeList: {
     gap: 12,
   },
+  activePlaceholderList: {
+    flexDirection: "row",
+    gap: 12,
+  },
   activeMember: {
     width: 86,
   },
@@ -348,6 +374,19 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     fontWeight: "700",
     color: "#202020",
+  },
+  activeImagePlaceholder: {
+    width: 86,
+    height: 80,
+    borderRadius: 10,
+    backgroundColor: "#EEF1F4",
+    marginBottom: 8,
+  },
+  activeNamePlaceholder: {
+    width: 58,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: "#EEF1F4",
   },
   chatItem: {
     minHeight: 84,

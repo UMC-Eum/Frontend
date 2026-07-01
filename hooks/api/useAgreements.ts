@@ -9,10 +9,11 @@ import { UpdateMarketingRequest } from "@/types/api/agreements/agreementsDTO";
 
 import { queryKeys } from "./queryKeys";
 
-export function useAgreementsQuery() {
+export function useAgreementsQuery(enabled = true) {
   return useQuery({
     queryKey: queryKeys.agreements.list(),
     queryFn: getAgreements,
+    enabled,
   });
 }
 
