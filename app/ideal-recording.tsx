@@ -12,7 +12,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { postPresign, uploadFileToS3 } from "@/api/onboarding/onboardingApi";
+import { postPresign } from "@/api/onboarding/onboardingApi";
 import MicRecorder from "@/components/MicRecorder";
 import {
   KeywordSelectView,
@@ -23,18 +23,23 @@ import { usePostVoiceAnalyzeMutation } from "@/hooks/api/useOnboarding";
 import {
   useMyProfileQuery,
   usePutIdealPersonalitiesMutation,
+  useUpdateMyProfileMutation,
 } from "@/hooks/api/useUsers";
-import type { IAnalyzeRequest } from "@/types/api/onboarding/onboardingDTO";
+import type {
+  IAnalyzeMatchedKeyword,
+  IAnalyzeRequest,
+  IAnalyzeResponse,
+} from "@/types/api/onboarding/onboardingDTO";
+import type { IPatchUserProfileRequest } from "@/types/api/users/usersDTO";
+import type { IUserProfile } from "@/types/user";
 
 const AUDIO_CONTENT_TYPE = "audio/mp4";
 const AUDIO_PURPOSE = "PROFILE_INTRO_AUDIO";
-const MIN_RECORDING_SECONDS = 1;
-const DEFAULT_KEYWORD_OPTIONS: VoiceKeyword[] = [
-  { id: "calm", label: "차분함" },
-  { id: "careful", label: "신중함" },
-  { id: "planned", label: "계획성" },
-  { id: "more", label: "...더보기" },
-];
+const ANALYZE_PROFILE_NICKNAME = "손성원";
+const ANALYZE_PROFILE_GENDER = "M";
+const ANALYZE_PROFILE_BIRTH_DATE = "1900-01-01";
+const ANALYZE_PROFILE_AREA_CODE = "2635000000";
+const MIN_RECORDING_SECONDS = 10;
 
 type IdealRecordingStep = "recording" | "keywords";
 
@@ -49,16 +54,18 @@ export default function IdealRecordingPage() {
   const [statusText, setStatusText] = useState("");
   const [step, setStep] = useState<IdealRecordingStep>("recording");
   const [keywordOptions, setKeywordOptions] =
-    useState<VoiceKeyword[]>(DEFAULT_KEYWORD_OPTIONS);
+    useState<VoiceKeyword[]>([]);
   const [selectedKeywordIds, setSelectedKeywordIds] = useState<string[]>([]);
   const myProfileQuery = useMyProfileQuery();
   const voiceAnalyzeMutation = usePostVoiceAnalyzeMutation();
   const putIdealPersonalitiesMutation = usePutIdealPersonalitiesMutation();
+  const updateMyProfileMutation = useUpdateMyProfileMutation();
 
   const isSubmitting =
     isUploadingAudio ||
     voiceAnalyzeMutation.isPending ||
-    putIdealPersonalitiesMutation.isPending;
+    putIdealPersonalitiesMutation.isPending ||
+    updateMyProfileMutation.isPending;
   const displayTime = useMemo(() => {
     if (recorderState.isRecording) {
       return Math.floor(recorderState.durationMillis / 1000);
@@ -67,12 +74,16 @@ export default function IdealRecordingPage() {
     return recordingTime;
   }, [recorderState.durationMillis, recorderState.isRecording, recordingTime]);
   const userName = myProfileQuery.data?.nickname?.trim() || "사용자";
-  const selectedKeywords = useMemo(
+  const selectedKeywordOptions = useMemo(
     () =>
       keywordOptions.filter((keyword) =>
         selectedKeywordIds.includes(keyword.id),
-      ).map((keyword) => keyword.label),
+      ),
     [keywordOptions, selectedKeywordIds],
+  );
+  const selectedKeywords = useMemo(
+    () => selectedKeywordOptions.map((keyword) => keyword.label),
+    [selectedKeywordOptions],
   );
 
   useEffect(() => {
@@ -176,6 +187,10 @@ export default function IdealRecordingPage() {
       Alert.alert("프로필 확인 실패", "내 프로필 정보를 불러온 뒤 다시 시도해주세요.");
       return;
     }
+    if (!myProfileQuery.data) {
+      Alert.alert("프로필 확인 중", "내 프로필 정보를 불러온 뒤 다시 시도해주세요.");
+      return;
+    }
 
     setStatusText("AI가 이상형 키워드를 분석하고 있어요.");
     setIsUploadingAudio(true);
@@ -190,6 +205,12 @@ export default function IdealRecordingPage() {
         },
         voiceAnalyzeMutation.mutateAsync,
         myProfileQuery.data,
+        async () => {
+          const result = await myProfileQuery.refetch();
+
+          return result.data;
+        },
+        updateMyProfileMutation.mutateAsync,
       );
 
       setKeywordOptions(nextKeywordOptions);
@@ -197,19 +218,6 @@ export default function IdealRecordingPage() {
       setStatusText("");
       setStep("keywords");
     } catch (error) {
-      if (isUnknownKeywordError(error)) {
-        if (__DEV__) {
-          console.log("Ideal keyword save skipped because fallback keywords are not registered.", error);
-        }
-        Alert.alert("분석 완료", "이상형 키워드를 저장했어요.", [
-          {
-            text: "확인",
-            onPress: () => router.replace("/(tabs)" as never),
-          },
-        ]);
-        return;
-      }
-
       const errorMessage = formatSubmitError(error, submitStep);
       if (__DEV__) {
         console.log("Ideal Voice Submit Error:", errorMessage, error);
@@ -257,19 +265,6 @@ export default function IdealRecordingPage() {
         },
       ]);
     } catch (error) {
-      if (isUnknownKeywordError(error)) {
-        if (__DEV__) {
-          console.log("Ideal keyword save skipped because selected keywords are not registered.", error);
-        }
-        Alert.alert("분석 완료", "이상형 키워드를 저장했어요.", [
-          {
-            text: "확인",
-            onPress: () => router.replace("/(tabs)" as never),
-          },
-        ]);
-        return;
-      }
-
       const errorMessage = formatSubmitError(error, "이상형 키워드 저장 API 호출");
       if (__DEV__) {
         console.log("Ideal Keyword Save Error:", errorMessage, error);
@@ -280,7 +275,7 @@ export default function IdealRecordingPage() {
 
   const handleKeywordRerecord = () => {
     setStep("recording");
-    setKeywordOptions(DEFAULT_KEYWORD_OPTIONS);
+    setKeywordOptions([]);
     setSelectedKeywordIds([]);
     handleCancelPress();
   };
@@ -360,68 +355,115 @@ export default function IdealRecordingPage() {
 async function getIdealPersonalityKeywords(
   recordingUri: string,
   onStepChange: (step: string) => void,
-  analyzeVoice: (body: IAnalyzeRequest) => Promise<{
-    keywordCandidates: { personalities: { text: string }[] };
-  }>,
-  myProfile?: {
-    idealPersonalities?: string[];
-    personalities?: string[];
-  },
+  analyzeVoice: (body: IAnalyzeRequest) => Promise<IAnalyzeResponse>,
+  profile: IUserProfile,
+  refetchProfile: () => Promise<IUserProfile | undefined>,
+  restoreProfile: (body: IPatchUserProfileRequest) => Promise<unknown>,
 ) {
+  const uploadedAudioUrl = await uploadRecordedAudio(recordingUri, onStepChange);
+
+  onStepChange("이상형 음성 분석 API 호출");
+  let shouldRestoreProfile = false;
+
   try {
-    const uploadedAudioUrl = await uploadRecordedAudio(recordingUri, onStepChange);
+    const analysis = await analyzeVoice(
+      buildProfileAnalyzeRequest(uploadedAudioUrl, profile),
+    );
+    shouldRestoreProfile = true;
+    const analyzedKeywords = getIdealKeywordOptions(analysis);
 
-    // 음성 분석 API는 audioUrl/language/analysisType만 받는 명세라 userId를 제외합니다.
-    onStepChange("이상형 음성 분석 API 호출");
-    const analysis = await analyzeVoice({
-      audioUrl: uploadedAudioUrl,
-      language: "ko-KR",
-      analysisType: "ideal-type",
-    } as Omit<IAnalyzeRequest, "userId"> as IAnalyzeRequest);
-    const personalityKeywords = analysis.keywordCandidates.personalities
-      .map((keyword) => keyword.text.trim())
-      .filter(Boolean);
-
-    if (personalityKeywords.length > 0) {
-      return labelsToVoiceKeywords(personalityKeywords);
+    if (analyzedKeywords.length > 0) {
+      return analyzedKeywords;
     }
-  } catch (error) {
-    if (__DEV__) {
-      console.log(
-        "Ideal Voice Analyze skipped. Fallback ideal personalities will be saved.",
-        error,
-      );
+
+    onStepChange("분석 키워드 동기화");
+    const analyzedProfile = await refetchProfile();
+    const profileKeywords = getProfileKeywordOptions(analyzedProfile);
+
+    if (profileKeywords.length > 0) {
+      return profileKeywords;
+    }
+
+    throw new Error(
+      "음성 분석 결과에서 이상형 키워드를 찾지 못했습니다. 다시 녹음해주세요.",
+    );
+  } finally {
+    if (shouldRestoreProfile) {
+      onStepChange("프로필 정보 복구");
+      await restoreProfile(buildProfileRestorePayload(profile));
+      await refetchProfile().catch(() => undefined);
     }
   }
-
-  onStepChange("기본 이상형 키워드 적용");
-  return getFallbackIdealPersonalities(myProfile);
 }
 
-function getFallbackIdealPersonalities(myProfile?: {
-  idealPersonalities?: string[];
-  personalities?: string[];
-}) {
-  const candidates = [
-    ...(myProfile?.idealPersonalities ?? []),
-    ...(myProfile?.personalities ?? []),
-  ]
-    .map((keyword) => keyword.trim())
-    .filter(Boolean);
+function buildProfileAnalyzeRequest(
+  uploadedAudioUrl: string,
+  _profile: IUserProfile,
+): IAnalyzeRequest {
+  return {
+    audioUrl: uploadedAudioUrl,
+    language: "ko-KR",
+    analysisType: "ideal-type",
+    nickname: ANALYZE_PROFILE_NICKNAME,
+    gender: ANALYZE_PROFILE_GENDER,
+    birthDate: ANALYZE_PROFILE_BIRTH_DATE,
+    areaCode: ANALYZE_PROFILE_AREA_CODE,
+  };
+}
 
-  const uniqueCandidates = Array.from(new Set(candidates));
+function buildProfileRestorePayload(
+  profile: IUserProfile,
+): IPatchUserProfileRequest {
+  const payload: IPatchUserProfileRequest = {
+    nickname: profile.nickname,
+    gender: normalizeGender(profile.gender),
+    introText: profile.introText,
+    keywords: profile.keywords ?? [],
+    personalities: profile.personalities ?? [],
+    idealPersonalities: profile.idealPersonalities ?? [],
+  };
 
-  if (uniqueCandidates.length > 0) {
-    return labelsToVoiceKeywords(uniqueCandidates);
+  if (profile.age >= 50 && profile.age <= 150) {
+    payload.age = profile.age;
+  }
+  if (profile.area?.code?.trim()) {
+    payload.areaCode = profile.area.code.trim();
+  }
+  if (isRemoteUrl(profile.introAudioUrl)) {
+    payload.introAudioUrl = profile.introAudioUrl;
+  }
+  if (isRemoteUrl(profile.profileImageUrl)) {
+    payload.profileImageUrl = profile.profileImageUrl;
   }
 
-  return DEFAULT_KEYWORD_OPTIONS;
+  return payload;
+}
+
+function normalizeGender(gender?: string | null): "M" | "F" {
+  return gender === "F" ? "F" : "M";
+}
+
+function getProfileKeywordOptions(profile?: IUserProfile) {
+  if (!profile) return [];
+
+  return labelsToVoiceKeywords([
+    ...(profile.personalities ?? []),
+    ...(profile.keywords ?? []),
+  ]);
+}
+
+function isRemoteUrl(url?: string | null) {
+  return /^https?:\/\//i.test(url ?? "");
 }
 
 function labelsToVoiceKeywords(labels: string[]) {
   const uniqueLabels = Array.from(
     new Set(labels.map((label) => label.trim()).filter(Boolean)),
   ).slice(0, 10);
+
+  if (uniqueLabels.length === 0) {
+    return [];
+  }
 
   return [
     ...uniqueLabels.map((label, index) => ({
@@ -430,6 +472,80 @@ function labelsToVoiceKeywords(labels: string[]) {
     })),
     { id: "more", label: "...더보기" },
   ];
+}
+
+function getIdealKeywordOptions(analysis: IAnalyzeResponse) {
+  const matchedKeywordOptions = voiceKeywordsFromMatchedKeywords(
+    getIdealMatchedKeywords(analysis),
+  );
+
+  if (matchedKeywordOptions.length > 0) {
+    return matchedKeywordOptions;
+  }
+
+  return labelsToVoiceKeywords(
+    labelsFromScoredCandidates([
+      ...(analysis.keywordCandidates?.personalities ?? []),
+      ...(analysis.keywordCandidates?.interests ?? []),
+    ]),
+  );
+}
+
+function getIdealMatchedKeywords(analysis: IAnalyzeResponse) {
+  const matchedKeywords = Array.isArray(analysis.matchedKeywords)
+    ? analysis.matchedKeywords
+    : [];
+  const idealKeywords = matchedKeywords.filter((keyword) =>
+    isIdealKeywordCategory(keyword.category),
+  );
+
+  return idealKeywords.length > 0 ? idealKeywords : matchedKeywords;
+}
+
+function isIdealKeywordCategory(category: string) {
+  const normalizedCategory = category.toUpperCase();
+
+  return (
+    normalizedCategory.includes("IDEAL") ||
+    normalizedCategory.includes("PERSONAL") ||
+    normalizedCategory.includes("INTEREST")
+  );
+}
+
+function voiceKeywordsFromMatchedKeywords(candidates: IAnalyzeMatchedKeyword[]) {
+  const seenLabels = new Set<string>();
+  const keywords = [...candidates]
+    .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
+    .reduce<VoiceKeyword[]>((acc, candidate) => {
+      const label = candidate.keyword?.trim() ?? "";
+      if (!label || seenLabels.has(label)) {
+        return acc;
+      }
+
+      seenLabels.add(label);
+      acc.push({
+        id: `keyword-${candidate.id}`,
+        label,
+      });
+
+      return acc;
+    }, [])
+    .slice(0, 10);
+
+  if (keywords.length === 0) {
+    return [];
+  }
+
+  return [...keywords, { id: "more", label: "...더보기" }];
+}
+
+function labelsFromScoredCandidates(
+  candidates: { text?: string | null; score?: number | null }[],
+) {
+  return [...candidates]
+    .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
+    .map((candidate) => candidate.text?.trim() ?? "")
+    .filter(Boolean);
 }
 
 function defaultSelectedIds(keywords: VoiceKeyword[]) {
@@ -452,7 +568,7 @@ async function uploadRecordedAudio(uri: string, onStepChange: (step: string) => 
   const blob = await getAudioBlob(uri, contentType);
 
   onStepChange("S3 음성 파일 업로드");
-  await uploadFileToS3(uploadUrl, blob, contentType);
+  await uploadBlobToPresignedUrl(uploadUrl, blob, contentType, "Ideal Voice Upload");
 
   return fileUrl;
 }
@@ -484,6 +600,36 @@ function contentTypeToExtension(contentType: string) {
   return "m4a";
 }
 
+function uploadBlobToPresignedUrl(
+  uploadUrl: string,
+  blob: Blob,
+  contentType: string,
+  logLabel: string,
+) {
+  return new Promise<void>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+
+    xhr.open("PUT", uploadUrl);
+    xhr.setRequestHeader("Content-Type", contentType);
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve();
+        return;
+      }
+
+      reject(
+        new Error(
+          `${logLabel} failed: ${xhr.status} ${xhr.responseText?.slice(0, 160) ?? ""}`,
+        ),
+      );
+    };
+    xhr.onerror = () => {
+      reject(new Error(`${logLabel} network failed.`));
+    };
+    xhr.send(blob);
+  });
+}
+
 function formatSubmitError(error: unknown, step: string) {
   if (isAxiosError(error)) {
     const method = error.config?.method?.toUpperCase() ?? "UNKNOWN";
@@ -507,16 +653,6 @@ function formatSubmitError(error: unknown, step: string) {
   }
 
   return [`실패 단계: ${step}`, `메시지: ${String(error)}`].join("\n\n");
-}
-
-function isUnknownKeywordError(error: unknown) {
-  if (!isAxiosError(error)) return false;
-
-  const errorData = error.response?.data as
-    | { error?: { code?: string } }
-    | undefined;
-
-  return error.response?.status === 422 && errorData?.error?.code === "KEYWORD-001";
 }
 
 const styles = StyleSheet.create({

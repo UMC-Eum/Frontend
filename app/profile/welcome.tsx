@@ -317,6 +317,10 @@ export default function WelcomeScreen() {
             audioUrl: uploadedAudioUrl,
             language: "ko-KR",
             analysisType: "profile",
+            nickname: userName,
+            gender: draftGender ?? DEFAULT_GENDER,
+            birthDate: resolveBirthDate(draftBirthDate, draftAge),
+            areaCode: DEFAULT_AREA_CODE,
           }),
           VOICE_ANALYZE_TIMEOUT_MS,
         );
@@ -648,6 +652,15 @@ function calculateAge(birthDate?: string | null) {
   }
 
   return age > 0 ? age : null;
+}
+
+function resolveBirthDate(birthDate?: string | null, age?: number | null) {
+  if (birthDate) return birthDate;
+
+  const fallbackAge = age ?? 53;
+  const fallbackYear = new Date().getFullYear() - fallbackAge;
+
+  return `${fallbackYear}-01-01`;
 }
 
 function labelsFromIds(ids: string[], keywords = MOCK_KEYWORDS) {
