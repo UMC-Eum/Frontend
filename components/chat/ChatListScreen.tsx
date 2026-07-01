@@ -45,7 +45,10 @@ export default function ChatListScreen({
   showActiveMembers = true,
 }: ChatListScreenProps) {
   const router = useRouter();
-  const chatRoomsQuery = useChatRoomsInfiniteQuery();
+  const chatRoomsQuery = useChatRoomsInfiniteQuery(undefined, {
+    staleTime: 0,
+    refetchOnMount: "always",
+  });
   const apiChatPreviews = useMemo(
     () => mapChatRooms(chatRoomsQuery.data),
     [chatRoomsQuery.data],

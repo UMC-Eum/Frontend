@@ -96,7 +96,5 @@ export interface IChatsRoomIdMediaPresignPostResponse {
   uploadUrl: string;
   mediaRef: string;
   expiresAt: string;
-  requiredHeaders: {
-    "Content-Type": string;
-  };
+  requiredHeaders?: Record<string, string>;
 }

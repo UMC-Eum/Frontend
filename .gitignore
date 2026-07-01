@@ -11,6 +11,7 @@ __generated__
 .env
 .env.local
 .env.*.local
+api/chats/mockChatTestAccount.ts
 
 ### ReactNative.macOS Stack ###
 # General

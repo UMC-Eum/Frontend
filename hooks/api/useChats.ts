@@ -20,6 +20,7 @@ type InfiniteQueryBehaviorOptions = {
   enabled?: boolean;
   staleTime?: number;
   refetchOnMount?: boolean | "always";
+  refetchInterval?: number | false;
 };
 
 export function useChatRoomsInfiniteQuery(

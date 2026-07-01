@@ -14,6 +14,9 @@ export type ChatMessageData =
       text: string;
       isMine: boolean;
       time: string;
+      showTime?: boolean;
+      compactSpacing?: boolean;
+      groupTopSpacing?: boolean;
       avatar?: string;
     }
   | {
@@ -22,11 +25,21 @@ export type ChatMessageData =
       duration: string;
       isMine: boolean;
       time: string;
+      showTime?: boolean;
+      compactSpacing?: boolean;
+      groupTopSpacing?: boolean;
       avatar?: string;
+      mediaUrl?: string;
       isPlaying?: boolean;
     };
 
-export default function ChatMessage({ message }: { message: ChatMessageData }) {
+export default function ChatMessage({
+  message,
+  onVoicePress,
+}: {
+  message: ChatMessageData;
+  onVoicePress?: (message: Extract<ChatMessageData, { type: "voice" }>) => void;
+}) {
   if (message.type === "date") {
     return (
       <View style={styles.dateSeparator}>
@@ -39,6 +52,8 @@ export default function ChatMessage({ message }: { message: ChatMessageData }) {
     <View
       style={[
         styles.container,
+        message.compactSpacing && styles.compactContainer,
+        message.groupTopSpacing && styles.groupTopContainer,
         message.isMine ? styles.myContainer : styles.otherContainer,
       ]}
     >
@@ -57,7 +72,7 @@ export default function ChatMessage({ message }: { message: ChatMessageData }) {
         ]}
       >
         <View style={styles.bubbleRow}>
-          {message.isMine ? (
+          {message.isMine && message.showTime !== false ? (
             <Text style={[styles.time, styles.myTime]}>{message.time}</Text>
           ) : null}
 
@@ -80,7 +95,11 @@ export default function ChatMessage({ message }: { message: ChatMessageData }) {
 
             {message.type === "voice" ? (
               <View style={styles.voiceContainer}>
-                <Pressable style={styles.voicePlayBtn}>
+                <Pressable
+                  style={styles.voicePlayBtn}
+                  onPress={() => onVoicePress?.(message)}
+                  disabled={!message.mediaUrl}
+                >
                   <Ionicons
                     name={message.isPlaying ? "pause" : "play"}
                     size={16}
@@ -107,7 +126,7 @@ export default function ChatMessage({ message }: { message: ChatMessageData }) {
             ) : null}
           </View>
 
-          {!message.isMine ? (
+          {!message.isMine && message.showTime !== false ? (
             <Text style={[styles.time, styles.otherTime]}>{message.time}</Text>
           ) : null}
         </View>
@@ -119,8 +138,14 @@ export default function ChatMessage({ message }: { message: ChatMessageData }) {
 const styles = StyleSheet.create({
   container: {
     flexDirection: "row",
-    marginVertical: 8,
+    marginVertical: 10,
     maxWidth: "88%",
+  },
+  compactContainer: {
+    marginVertical: 2,
+  },
+  groupTopContainer: {
+    marginTop: 10,
   },
   myContainer: {
     alignSelf: "flex-end",
