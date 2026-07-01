@@ -75,7 +75,7 @@ export default function HeartScreen() {
     const heartIds = new Map<number, number>();
 
     sentProfiles.forEach((profile) => {
-      if (profile.likedHeartId) {
+      if (profile.likedHeartId != null) {
         heartIds.set(profile.targetUserId, profile.likedHeartId);
       }
     });
@@ -128,7 +128,7 @@ export default function HeartScreen() {
         const profile = profilesByUserId.get(targetUserId);
         const isSynced = profile
           ? profile.isLiked === optimisticState.isLiked &&
-            (!optimisticState.likedHeartId ||
+            (optimisticState.likedHeartId == null ||
               profile.likedHeartId === optimisticState.likedHeartId)
           : !optimisticState.isLiked;
 
@@ -178,7 +178,7 @@ export default function HeartScreen() {
       };
 
       if (profile.isLiked) {
-        if (!profile.likedHeartId) {
+        if (profile.likedHeartId == null) {
           rollbackHeartState();
           resetPending();
           return;
@@ -362,7 +362,7 @@ function mapReceivedHeartProfiles(
           age: item.fromUser.age,
           location: "",
           image: item.fromUser.profileImageUrl,
-          isLiked: item.isLiked ?? Boolean(likedHeartId),
+          isLiked: item.isLiked ?? likedHeartId != null,
         };
       }),
     ) ?? []
