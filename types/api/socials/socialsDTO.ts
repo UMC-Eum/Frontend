@@ -39,9 +39,9 @@ export interface IHeartreceivedResponse {
   items: IHeartreceivedItem[];
 }
 
-//v1/blocks(post)
+//v1/block(post)
 export interface IBlocksRequest {
-  targetUserId: number;
+  targetUserId: number | string;
   reason: string;
 }
 export interface IBlocksResponse {
@@ -49,23 +49,23 @@ export interface IBlocksResponse {
   status: "BLOCKED";
   blockedAt: string;
 }
-//v1/blocks(get)
+//v1/block(get)
 export interface IBlocksGetResponse {
   nextCursor: string | null;
   items: {
     blockId: number;
-    targetUserId: number;
+    targetUserId: number | string;
     reason: string;
     status: "BLOCKED";
     blockedAt: string;
   }[];
 }
-//v1/reports(post)
+//v1/report(post)
 export interface IReportsRequest {
   targetUserId: number;
   reason: string;
   category: string;
-  chatRoomId: number;
+  chatRoomId?: number;
 }
 export interface IReportsResponse {
   reportId: { reportId: number };

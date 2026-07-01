@@ -15,4 +15,6 @@ export interface IUserProfile {
   introAudioUrl: string;
   profileImageUrl: string;
   age: number;
+  isLiked?: boolean;
+  likedHeartId?: number | null;
 }

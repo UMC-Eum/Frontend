@@ -205,32 +205,37 @@ export default function ChatListScreen({
 function mapChatRooms(data?: {
   pages: {
     items: {
-      chatRoomId: number;
-      peer: {
+      chatRoomId?: number | null;
+      peer?: {
         nickname?: string | null;
         profileImageUrl?: string | null;
         areaName?: string | null;
       } | null;
-      lastMessage: {
+      lastMessage?: {
         textPreview?: string | null;
         sentAt?: string | null;
       } | null;
       unreadCount?: number | null;
-    }[];
+    }[] | null;
   }[];
 }): ChatPreview[] {
   return (
     data?.pages.flatMap((page) =>
-      page.items.map((room) => ({
-        id: String(room.chatRoomId),
-        name: room.peer?.nickname || "알 수 없음",
-        location: room.peer?.areaName || "",
-        lastMessage:
-          room.lastMessage?.textPreview || "새로운 대화를 시작해보세요.",
-        timeLabel: formatRelativeTime(room.lastMessage?.sentAt),
-        unreadCount: room.unreadCount ?? 0,
-        image: room.peer?.profileImageUrl || undefined,
-      })),
+      (page.items ?? []).flatMap((room) => {
+        if (!room?.chatRoomId) return [];
+
+        return {
+          id: String(room.chatRoomId),
+          name: room.peer?.nickname?.trim() || "이름 없는 사용자",
+          location: room.peer?.areaName?.trim() || "지역 정보 없음",
+          lastMessage:
+            room.lastMessage?.textPreview?.trim() ||
+            "새로운 대화를 시작해보세요.",
+          timeLabel: formatRelativeTime(room.lastMessage?.sentAt),
+          unreadCount: room.unreadCount ?? 0,
+          image: room.peer?.profileImageUrl ?? undefined,
+        };
+      }),
     ) ?? []
   );
 }

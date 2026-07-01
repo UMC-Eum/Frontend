@@ -11,6 +11,7 @@ import {
   getLikedClubs,
   getMyProfile,
   getMyProfileVisitors,
+  getUserProfile,
   putIdealPersonalities,
   putInterestKeywords,
   putPersonalities,
@@ -44,6 +45,18 @@ export function useMyProfileQuery(enabled = true) {
     queryKey: queryKeys.users.me(),
     queryFn: getMyProfile,
     enabled: queryEnabled,
+  });
+}
+
+export function useUserProfileQuery(userId: number | null) {
+  const enabled = typeof userId === "number" && Number.isFinite(userId) && userId > 0;
+
+  return useQuery({
+    queryKey: enabled
+      ? queryKeys.users.detail(userId)
+      : [...queryKeys.users.all, "detail", "unknown"],
+    queryFn: () => getUserProfile(userId ?? 0),
+    enabled,
   });
 }
 

@@ -82,7 +82,11 @@ export function usePatchHeartMutation() {
   });
 }
 
-export function useBlocksInfiniteQuery(size = DEFAULT_PAGE_SIZE, enabled = true) {
+export function useBlocksInfiniteQuery(
+  size = DEFAULT_PAGE_SIZE,
+  options: InfiniteQueryBehaviorOptions = {},
+) {
+  const { enabled = true, ...queryOptions } = options;
   const queryEnabled = useProtectedQueryEnabled(enabled);
 
   return useInfiniteQuery({
@@ -90,6 +94,7 @@ export function useBlocksInfiniteQuery(size = DEFAULT_PAGE_SIZE, enabled = true)
     queryFn: ({ pageParam }) => getBlocks({ cursor: pageParam, size }),
     initialPageParam: null as string | null,
     getNextPageParam: (lastPage) => lastPage.nextCursor,
+    ...queryOptions,
     enabled: queryEnabled,
   });
 }

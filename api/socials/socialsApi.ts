@@ -89,7 +89,7 @@ export const patchHeart = async (heartId: number) => {
 // 차단하기 (POST)
 export const blockUser = async (body: DTO.IBlocksRequest) => {
   const { data } = await api.post<ApiSuccessResponse<DTO.IBlocksResponse>>(
-    "/v1/blocks",
+    "/v1/block",
     body,
   );
   return data.success.data;
@@ -101,7 +101,7 @@ export const getBlocks = async (params: {
   size: number;
 }) => {
   const { data } = await api.get<ApiSuccessResponse<DTO.IBlocksGetResponse>>(
-    "/v1/blocks",
+    "/v1/block",
     {
       params,
     },
@@ -111,7 +111,7 @@ export const getBlocks = async (params: {
 
 export const patchBlock = async (blockId: number) => {
   const { data } = await api.patch<ApiSuccessResponse<null>>(
-    `/v1/blocks/${blockId}`,
+    `/v1/block/${blockId}`,
   );
   return data.success.data;
 };
@@ -119,7 +119,7 @@ export const patchBlock = async (blockId: number) => {
 // 신고하기 (POST)
 export const createReport = async (body: DTO.IReportsRequest) => {
   const { data } = await api.post<ApiSuccessResponse<DTO.IReportsResponse>>(
-    "/v1/reports",
+    "/v1/report",
     body,
   );
   return data.success.data;

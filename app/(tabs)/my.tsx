@@ -45,7 +45,9 @@ export default function MyTabScreen() {
     ) ?? (receivedHeartsQuery.isSuccess ? 0 : undefined);
   const myClubs = useMemo(
     () =>
-      myClubsQuery.data?.pages.flatMap((page) => page.clubs) ?? [],
+      myClubsQuery.data?.pages
+        .flatMap((page) => page.clubs ?? [])
+        .filter(Boolean) ?? [],
     [myClubsQuery.data],
   );
 

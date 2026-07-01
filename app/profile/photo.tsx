@@ -25,6 +25,8 @@ const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 const PROFILE_IMAGE_SIZE = 200;
 const CROP_CIRCLE_SIZE = Math.min(SCREEN_WIDTH - 40, 372);
 const CROP_CIRCLE_TOP = SCREEN_HEIGHT * 0.306;
+const DEFAULT_PROFILE_IMAGE_URL =
+  "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=85&w=1200&auto=format&fit=crop";
 
 type PreviewAsset = {
   uri: string;
@@ -101,8 +103,8 @@ export default function PhotoScreen() {
 
   const handleDefaultProfile = () => {
     setShowActionSheet(false);
-    setPhotoUri("default");
-    setDraftProfileImageUri("default");
+    setPhotoUri(DEFAULT_PROFILE_IMAGE_URL);
+    setDraftProfileImageUri(DEFAULT_PROFILE_IMAGE_URL);
   };
 
   const handleCancelAction = () => {

@@ -24,16 +24,25 @@ export interface IKeywordscandidate {
   personalities: IPersonality[];
   interests: IInterest[];
 }
+export interface IAnalyzeMatchedKeyword {
+  category: string;
+  id: number;
+  keyword: string;
+  score: number;
+}
 export interface IAnalyzeRequest {
   audioUrl: string;
   language: "ko-KR";
   analysisType: "profile" | "ideal-type";
 }
 export interface IAnalyzeResponse {
+  userId?: number;
   transcript: string;
   summary: string;
-  keywordCandidates: IKeywordscandidate;
-  vibeVector: number[];
+  matchedKeywords?: IAnalyzeMatchedKeyword[];
+  keywordCandidates?: IKeywordscandidate;
+  vibeVector?: number[];
+  profileCompleted?: boolean;
 }
 //v1/onboarding/profile(post)
 export interface IProfileRequest {
