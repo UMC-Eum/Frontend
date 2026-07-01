@@ -35,6 +35,7 @@ import {
   useSendHeartMutation,
 } from "@/hooks/api/useSocials";
 import { useUserProfileQuery } from "@/hooks/api/useUsers";
+import type { ReportCategory } from "@/types/api/socials/socialsDTO";
 import type { IUserProfile } from "@/types/user";
 
 const FALLBACK_PROFILE_IMAGE =
@@ -78,39 +79,39 @@ const REPORT_MAX_LENGTH = 300;
 
 type ReportReason = {
   label: string;
-  category: string;
+  category: ReportCategory;
   defaultReason: string;
 };
 
 const REPORT_REASONS: ReportReason[] = [
   {
     label: "불쾌한 메세지",
-    category: "Inappropriate",
+    category: "INAPPROPRIATE",
     defaultReason: "불쾌한 메시지를 반복 전송",
   },
   {
     label: "성희롱 / 성적 표현",
-    category: "Sexual",
+    category: "SEXUAL_HARASSMENT",
     defaultReason: "성희롱 또는 성적 표현",
   },
   {
     label: "사기/금전 요구",
-    category: "Fraud",
+    category: "MONEY_REQUEST",
     defaultReason: "사기 또는 금전 요구 의심",
   },
   {
     label: "욕설/비하/혐오",
-    category: "Abusive",
+    category: "ABUSE",
     defaultReason: "욕설 / 비하 / 혐오 표현",
   },
   {
     label: "스팸/광고",
-    category: "Spam",
+    category: "SPAM",
     defaultReason: "스팸 / 광고 목적 이용",
   },
   {
     label: "기타",
-    category: "Other",
+    category: "OTHERS",
     defaultReason: "기타 신고 사유",
   },
 ];
