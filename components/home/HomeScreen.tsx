@@ -194,12 +194,30 @@ export default function HomePage() {
   };
 
   // 상대 프로필 상세로 진입할 때 방문 기록을 서버에 남깁니다.
-  const handleOpenProfileDetail = (targetUserId?: number) => {
+  const handleOpenProfileDetail = (targetUserId?: number, fallback?: Profile) => {
     if (targetUserId) {
       createProfileVisitMutation.mutate(targetUserId);
     }
 
-    router.push("/profile-detail" as never);
+    router.push({
+      pathname: "/profile-detail",
+      params: {
+        ...(targetUserId ? { userId: String(targetUserId) } : {}),
+        ...(fallback
+          ? {
+              name: fallback.name,
+              age: fallback.age ? String(fallback.age) : "",
+              image: fallback.images[0] ?? "",
+              location: fallback.location,
+              intro: fallback.intro,
+              isLiked: String(fallback.isLiked),
+              ...(fallback.likedHeartId
+                ? { heartId: String(fallback.likedHeartId) }
+                : {}),
+            }
+          : {}),
+      },
+    } as never);
   };
 
   return (
@@ -276,7 +294,9 @@ export default function HomePage() {
                 imageIndex={imageIndex}
                 scrollRef={profileImageScrollRef}
                 onImageScroll={handleImageScroll}
-                onPress={() => handleOpenProfileDetail(profile.targetUserId)}
+                onPress={() =>
+                  handleOpenProfileDetail(profile.targetUserId, profile)
+                }
                 onDislike={handleDislike}
                 onLike={handleLike}
               />

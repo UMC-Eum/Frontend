@@ -73,7 +73,7 @@ type ProfileClub = {
   memberLabel: string;
 };
 
-const ENABLE_PROFILE_DETAIL_QUERY = false;
+const ENABLE_PROFILE_DETAIL_QUERY = true;
 const REPORT_MAX_LENGTH = 300;
 
 type ReportReason = {

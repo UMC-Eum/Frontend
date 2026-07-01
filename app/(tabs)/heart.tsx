@@ -236,7 +236,12 @@ export default function HeartScreen() {
             profile={item}
             width={cardWidth}
             isPending={pendingUserIds.has(item.targetUserId)}
-            onPress={() => router.push("/profile-detail" as never)}
+            onPress={() =>
+              router.push({
+                pathname: "/profile-detail",
+                params: buildProfileDetailParams(item),
+              } as never)
+            }
             onPressHeart={() => handleToggleHeart(item)}
           />
         )}
@@ -396,6 +401,23 @@ function mapSentHeartProfiles(data?: {
       })),
     ) ?? []
   );
+}
+
+function buildProfileDetailParams(profile: ScreenHeartProfile) {
+  const params: Record<string, string> = {
+    userId: String(profile.targetUserId),
+    name: profile.name,
+    age: String(profile.age),
+    image: profile.image,
+    location: profile.location,
+    isLiked: String(profile.isLiked),
+  };
+
+  if (profile.likedHeartId) {
+    params.heartId = String(profile.likedHeartId);
+  }
+
+  return params;
 }
 
 type HeartTabButtonProps = {
