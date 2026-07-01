@@ -184,31 +184,37 @@ export default function ChatListScreen({
 function mapChatRooms(data?: {
   pages: {
     items: {
-      chatRoomId: number;
-      peer: {
-        nickname: string;
-        profileImageUrl: string;
-        areaName: string;
-      };
-      lastMessage: {
-        textPreview: string;
-        sentAt: string;
-      };
-      unreadCount: number;
-    }[];
+      chatRoomId?: number | null;
+      peer?: {
+        nickname?: string | null;
+        profileImageUrl?: string | null;
+        areaName?: string | null;
+      } | null;
+      lastMessage?: {
+        textPreview?: string | null;
+        sentAt?: string | null;
+      } | null;
+      unreadCount?: number | null;
+    }[] | null;
   }[];
 }): ChatPreview[] {
   return (
     data?.pages.flatMap((page) =>
-      page.items.map((room) => ({
-        id: String(room.chatRoomId),
-        name: room.peer.nickname,
-        location: room.peer.areaName,
-        lastMessage: room.lastMessage.textPreview || "새로운 대화를 시작해보세요.",
-        timeLabel: formatRelativeTime(room.lastMessage.sentAt),
-        unreadCount: room.unreadCount,
-        image: room.peer.profileImageUrl,
-      })),
+      (page.items ?? []).flatMap((room) => {
+        if (!room?.chatRoomId) return [];
+
+        return {
+          id: String(room.chatRoomId),
+          name: room.peer?.nickname?.trim() || "이름 없는 사용자",
+          location: room.peer?.areaName?.trim() || "지역 정보 없음",
+          lastMessage:
+            room.lastMessage?.textPreview?.trim() ||
+            "새로운 대화를 시작해보세요.",
+          timeLabel: formatRelativeTime(room.lastMessage?.sentAt),
+          unreadCount: room.unreadCount ?? 0,
+          image: room.peer?.profileImageUrl ?? undefined,
+        };
+      }),
     ) ?? []
   );
 }
@@ -226,7 +232,9 @@ function mapActiveMembers(items: ChatPreview[]): ActiveMember[] {
   return fromChats;
 }
 
-function formatRelativeTime(value: string) {
+function formatRelativeTime(value?: string | null) {
+  if (!value) return "";
+
   const date = new Date(value);
   const timestamp = date.getTime();
 

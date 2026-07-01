@@ -27,16 +27,12 @@ import {
   VoiceTitle,
   VoiceKeyword,
 } from "@/components/profile/ProfileVoiceParts";
-import {
-  usePostProfileMutation,
-  usePostVoiceAnalyzeMutation,
-} from "@/hooks/api/useOnboarding";
+import { usePostVoiceAnalyzeMutation } from "@/hooks/api/useOnboarding";
 import { useUpdateMyProfileMutation } from "@/hooks/api/useUsers";
 import { useAuthStore } from "@/stores/authStore";
 import { useOnboardingDraftStore } from "@/stores/onboardingDraftStore";
 import type {
   IAnalyzeResponse,
-  IProfileRequest,
   PresignPurpose,
 } from "@/types/api/onboarding/onboardingDTO";
 
@@ -51,7 +47,6 @@ type VoiceStep =
 const MIN_RECORDING_SECONDS = 10;
 const DEFAULT_LOCATION_NAME = "서울 광진구";
 const DEFAULT_AREA_CODE = "1121500000";
-const DEFAULT_BIRTH_DATE = "1973-01-01";
 const DEFAULT_GENDER = "M";
 const INTRO_AUDIO_PURPOSE: PresignPurpose = "PROFILE_INTRO_AUDIO";
 const PROFILE_IMAGE_PURPOSE: PresignPurpose = "PROFILE_IMAGE";
@@ -93,8 +88,16 @@ export default function WelcomeScreen() {
   const setSelectedKeywords = useOnboardingDraftStore(
     (state) => state.setSelectedKeywords,
   );
+  const draftPersonalities = useOnboardingDraftStore(
+    (state) => state.personalities,
+  );
+  const draftIdealPersonalities = useOnboardingDraftStore(
+    (state) => state.idealPersonalities,
+  );
+  const setPersonalities = useOnboardingDraftStore(
+    (state) => state.setPersonalities,
+  );
   const setVibeVector = useOnboardingDraftStore((state) => state.setVibeVector);
-  const postProfileMutation = usePostProfileMutation();
   const voiceAnalyzeMutation = usePostVoiceAnalyzeMutation();
   const updateMyProfileMutation = useUpdateMyProfileMutation();
   const [step, setStep] = useState<VoiceStep>("idle");
@@ -317,7 +320,13 @@ export default function WelcomeScreen() {
           }),
           VOICE_ANALYZE_TIMEOUT_MS,
         );
+        const matchedKeywords = getAnalyzeMatchedKeywords(analyzeResult);
         const nextKeywords = keywordsFromAnalyze(analyzeResult);
+        const nextPersonalities = labelsFromMatchedKeywords(
+          matchedKeywords.filter(
+            (keyword) => keyword.category === "PERSONALITY",
+          ),
+        );
         const nextSelectedIds = nextKeywords
           .filter((keyword) => keyword.id !== "more")
           .slice(0, 3)
@@ -326,10 +335,12 @@ export default function WelcomeScreen() {
         setKeywordOptions(nextKeywords);
         setSelectedKeywordIds(nextSelectedIds);
         setSelectedKeywords(labelsFromIds(nextSelectedIds, nextKeywords));
-        setVibeVector(analyzeResult.vibeVector);
+        setPersonalities(nextPersonalities);
+        setVibeVector(getAnalyzeVibeVector(analyzeResult));
         if (__DEV__) {
           console.log("[Voice Analyze] success", {
-            vibeVectorLength: analyzeResult.vibeVector.length,
+            matchedKeywordCount: matchedKeywords.length,
+            vibeVectorLength: getAnalyzeVibeVector(analyzeResult).length,
           });
         }
       } catch (error) {
@@ -433,8 +444,6 @@ export default function WelcomeScreen() {
   };
 
   const handleStartApp = async () => {
-    const birthDate =
-      draftBirthDate ?? buildBirthDateFromAge(draftAge) ?? DEFAULT_BIRTH_DATE;
     const keywords =
       displayKeywords.length > 0
         ? displayKeywords
@@ -445,9 +454,9 @@ export default function WelcomeScreen() {
         : `${userName}님의 이야기를 들려주세요.`;
     const safeIntroAudioUrl = isRemoteUrl(introAudioUrl) ? introAudioUrl : "";
 
-    const syncProfileImage = async () => {
+    const resolveProfileImageUrl = async () => {
       if (!profileImageUri || profileImageUri === "default") {
-        return;
+        return null;
       }
 
       try {
@@ -459,52 +468,57 @@ export default function WelcomeScreen() {
           profileImageUrl = await uploadProfileImage(profileImageUri);
         }
 
-        await updateMyProfileMutation.mutateAsync({ profileImageUrl });
-
         if (__DEV__) {
           console.log("[Profile Image Upload] success", { profileImageUrl });
         }
+
+        return profileImageUrl;
       } catch (error) {
         console.log(
           "Profile Image Upload Error:",
           isAxiosError(error) ? error.response?.data : error,
         );
+
+        return null;
       }
     };
 
-    const runTestFallbackProfileUpdate = async () => {
-      const fallbackPayload = {
-        nickname: userName,
-        gender: draftGender ?? DEFAULT_GENDER,
-        ...(profileAge >= 50 && profileAge <= 150 ? { age: profileAge } : {}),
-        areaCode: DEFAULT_AREA_CODE,
-        introText: introText || generatedIntro,
-      };
+    const profileImageUrl = await resolveProfileImageUrl();
+    const profileUpdatePayload = {
+      nickname: userName,
+      gender: draftGender ?? DEFAULT_GENDER,
+      ...(profileAge >= 50 && profileAge <= 150 ? { age: profileAge } : {}),
+      areaCode: DEFAULT_AREA_CODE,
+      introText: introText || generatedIntro,
+      keywords,
+      personalities: draftPersonalities,
+      idealPersonalities: draftIdealPersonalities,
+      ...(safeIntroAudioUrl ? { introAudioUrl: safeIntroAudioUrl } : {}),
+      ...(profileImageUrl ? { profileImageUrl } : {}),
+    };
 
+    const runProfileUpdate = async () => {
       if (__DEV__) {
-        console.log("[Profile Create] test fallback", fallbackPayload);
+        console.log("[Profile Update] submit", profileUpdatePayload);
       }
 
-      await updateMyProfileMutation.mutateAsync(fallbackPayload);
-      await syncProfileImage();
+      await updateMyProfileMutation.mutateAsync(profileUpdatePayload);
       completeOnboarding();
     };
 
     if (!safeIntroAudioUrl) {
       if (__DEV__) {
-        console.log("[Profile Create] skip onboarding profile", {
+        console.log("[Profile Update] without intro audio", {
           hasIntroAudioUrl: !!safeIntroAudioUrl,
         });
       }
 
       try {
-        await runTestFallbackProfileUpdate();
-      } catch (fallbackError) {
+        await runProfileUpdate();
+      } catch (error) {
         console.log(
-          "Profile Fallback Update Error:",
-          isAxiosError(fallbackError)
-            ? fallbackError.response?.data
-            : fallbackError,
+          "Profile Update Error:",
+          isAxiosError(error) ? error.response?.data : error,
         );
       }
 
@@ -513,53 +527,15 @@ export default function WelcomeScreen() {
       return;
     }
 
-    const profilePayload: IProfileRequest = {
-      nickname: userName,
-      gender: draftGender ?? DEFAULT_GENDER,
-      birthDate,
-      areaCode: DEFAULT_AREA_CODE,
-      introText: introText || generatedIntro,
-      introAudioUrl: safeIntroAudioUrl,
-    };
-
     try {
-      if (__DEV__) {
-        console.log("[Profile Create] submit", profilePayload);
-      }
-
-      const profileResponse =
-        await postProfileMutation.mutateAsync(profilePayload);
-
-      if (__DEV__) {
-        console.log("[Profile Create] success", profileResponse);
-      }
-
-      await syncProfileImage();
-      completeOnboarding();
+      await runProfileUpdate();
       setSelectedKeywords(keywords);
       router.replace("/home" as any);
     } catch (error) {
-      if (isProfileNotRegisteredError(error)) {
-        try {
-          console.log(
-            "Profile Create Fallback:",
-            isAxiosError(error) ? error.response?.data : error,
-          );
-          await runTestFallbackProfileUpdate();
-        } catch (fallbackError) {
-          console.log(
-            "Profile Fallback Update Error:",
-            isAxiosError(fallbackError)
-              ? fallbackError.response?.data
-              : fallbackError,
-          );
-        }
-      } else {
-        console.error(
-          "Profile Create Error:",
-          isAxiosError(error) ? error.response?.data : error,
-        );
-      }
+      console.error(
+        "Profile Update Error:",
+        isAxiosError(error) ? error.response?.data : error,
+      );
 
       setSelectedKeywords(keywords);
       router.replace("/home" as any);
@@ -601,7 +577,7 @@ export default function WelcomeScreen() {
           locationName={DEFAULT_LOCATION_NAME}
           profileImageUri={profileImageUri}
           selectedKeywords={displayKeywords}
-          isSubmitting={postProfileMutation.isPending}
+          isSubmitting={updateMyProfileMutation.isPending}
           onStart={handleStartApp}
         />
       </SafeAreaView>
@@ -672,12 +648,6 @@ function calculateAge(birthDate?: string | null) {
   }
 
   return age > 0 ? age : null;
-}
-
-function buildBirthDateFromAge(age?: number | null) {
-  if (!age || age <= 0) return null;
-
-  return `${new Date().getFullYear() - age}-01-01`;
 }
 
 function labelsFromIds(ids: string[], keywords = MOCK_KEYWORDS) {
@@ -832,14 +802,44 @@ function wait(ms: number) {
   });
 }
 
-function keywordsFromAnalyze(result: IAnalyzeResponse) {
-  const candidates = [
-    ...result.keywordCandidates.interests,
-    ...result.keywordCandidates.personalities,
-  ]
-    .sort((a, b) => b.score - a.score)
-    .map((candidate) => candidate.text.trim())
+function labelsFromScoredCandidates(
+  candidates: { text?: string | null; score?: number | null }[],
+) {
+  return [...candidates]
+    .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
+    .map((candidate) => candidate.text?.trim() ?? "")
     .filter(Boolean);
+}
+
+function labelsFromMatchedKeywords(
+  candidates: { keyword?: string | null; score?: number | null }[],
+) {
+  return [...candidates]
+    .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
+    .map((candidate) => candidate.keyword?.trim() ?? "")
+    .filter(Boolean);
+}
+
+function keywordsFromAnalyze(result: IAnalyzeResponse) {
+  const matchedKeywords = getAnalyzeMatchedKeywords(result);
+  const matchedLabels = labelsFromMatchedKeywords(matchedKeywords);
+  const uniqueMatchedLabels = Array.from(new Set(matchedLabels)).slice(0, 10);
+
+  if (uniqueMatchedLabels.length > 0) {
+    return [
+      ...uniqueMatchedLabels.map((label, index) => ({
+        id: `analyzed-${index}-${label}`,
+        label,
+      })),
+      { id: "more", label: "...더보기" },
+    ];
+  }
+
+  const keywordCandidates = getAnalyzeKeywordCandidates(result);
+  const candidates = labelsFromScoredCandidates([
+    ...keywordCandidates.interests,
+    ...keywordCandidates.personalities,
+  ]);
   const uniqueLabels = Array.from(new Set(candidates)).slice(0, 10);
 
   if (uniqueLabels.length === 0) {
@@ -855,6 +855,25 @@ function keywordsFromAnalyze(result: IAnalyzeResponse) {
   ];
 }
 
+function getAnalyzeMatchedKeywords(result: IAnalyzeResponse) {
+  return Array.isArray(result.matchedKeywords) ? result.matchedKeywords : [];
+}
+
+function getAnalyzeKeywordCandidates(result: IAnalyzeResponse) {
+  return {
+    interests: Array.isArray(result.keywordCandidates?.interests)
+      ? result.keywordCandidates.interests
+      : [],
+    personalities: Array.isArray(result.keywordCandidates?.personalities)
+      ? result.keywordCandidates.personalities
+      : [],
+  };
+}
+
+function getAnalyzeVibeVector(result: IAnalyzeResponse) {
+  return Array.isArray(result.vibeVector) ? result.vibeVector : [];
+}
+
 function withTimeout<T>(promise: Promise<T>, ms: number) {
   return Promise.race<T>([
     promise,
@@ -862,16 +881,4 @@ function withTimeout<T>(promise: Promise<T>, ms: number) {
       setTimeout(() => reject(new Error("Voice analyze timeout")), ms);
     }),
   ]);
-}
-
-function isProfileNotRegisteredError(error: unknown) {
-  if (!isAxiosError(error)) return false;
-
-  const data = error.response?.data;
-  if (!data || typeof data !== "object") return false;
-
-  const errorBody = "error" in data ? data.error : null;
-  if (!errorBody || typeof errorBody !== "object") return false;
-
-  return "code" in errorBody && errorBody.code === "PROF-001";
 }
