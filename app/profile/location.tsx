@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -12,11 +12,13 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import ProfileStepLayout from "@/components/profile/ProfileStepLayout";
 import { DISTRICTS, LocationItem, REGIONS } from "@/constants/locationData";
 import {
   useMyProfileQuery,
   useUpdateMyProfileMutation,
 } from "@/hooks/api/useUsers";
+import { useOnboardingDraftStore } from "@/stores/onboardingDraftStore";
 
 const ACCENT = "#FC3367";
 const TEXT = "#202020";
@@ -24,7 +26,11 @@ const MUTED = "#A6AFB6";
 
 export default function LocationEditScreen() {
   const router = useRouter();
-  const myProfileQuery = useMyProfileQuery();
+  const { mode } = useLocalSearchParams<{ mode?: string }>();
+  const isOnboardingMode = mode === "onboarding";
+  const draftAreaCode = useOnboardingDraftStore((state) => state.areaCode);
+  const setDraftArea = useOnboardingDraftStore((state) => state.setArea);
+  const myProfileQuery = useMyProfileQuery(!isOnboardingMode);
   const updateMyProfileMutation = useUpdateMyProfileMutation();
   const [step, setStep] = useState<1 | 2>(1);
   const [selectedRegionCode, setSelectedRegionCode] = useState<string | null>(
@@ -35,7 +41,9 @@ export default function LocationEditScreen() {
   >(null);
 
   useEffect(() => {
-    const areaCode = myProfileQuery.data?.area?.code;
+    const areaCode = isOnboardingMode
+      ? draftAreaCode
+      : myProfileQuery.data?.area?.code;
     if (!areaCode) return;
 
     const currentRegion = findRegionByDistrictCode(areaCode);
@@ -43,7 +51,7 @@ export default function LocationEditScreen() {
 
     setSelectedRegionCode(currentRegion.code);
     setSelectedDistrictCode(areaCode);
-  }, [myProfileQuery.data?.area?.code]);
+  }, [draftAreaCode, isOnboardingMode, myProfileQuery.data?.area?.code]);
 
   const currentDistricts = useMemo(() => {
     if (!selectedRegionCode) return [];
@@ -51,7 +59,7 @@ export default function LocationEditScreen() {
     return DISTRICTS[selectedRegionCode] ?? [];
   }, [selectedRegionCode]);
 
-  const isSubmitting = updateMyProfileMutation.isPending;
+  const isSubmitting = !isOnboardingMode && updateMyProfileMutation.isPending;
   const canSubmit =
     !isSubmitting && (step === 1 ? !!selectedRegionCode : !!selectedDistrictCode);
 
@@ -66,7 +74,7 @@ export default function LocationEditScreen() {
       return;
     }
 
-    router.replace("/(tabs)/my" as never);
+    router.replace((isOnboardingMode ? "/profile/gender" : "/(tabs)/my") as never);
   };
 
   const handleRegionPress = (regionCode: string) => {
@@ -83,6 +91,18 @@ export default function LocationEditScreen() {
     }
 
     if (!selectedDistrictCode) return;
+    const selectedDistrict = currentDistricts.find(
+      (district) => district.code === selectedDistrictCode,
+    );
+
+    if (isOnboardingMode) {
+      setDraftArea(
+        selectedDistrictCode,
+        getLocationName(selectedRegionCode, selectedDistrict),
+      );
+      router.push("/profile/photo" as any);
+      return;
+    }
 
     try {
       await updateMyProfileMutation.mutateAsync({
@@ -109,11 +129,38 @@ export default function LocationEditScreen() {
     router.replace("/(tabs)/my" as never);
   };
 
-  if (myProfileQuery.isLoading) {
+  const displayedLocations = step === 1 ? REGIONS : currentDistricts;
+  const selectedCode = step === 1 ? selectedRegionCode : selectedDistrictCode;
+
+  if (!isOnboardingMode && myProfileQuery.isLoading) {
     return (
       <SafeAreaView style={styles.loadingContainer}>
         <ActivityIndicator color={ACCENT} />
       </SafeAreaView>
+    );
+  }
+
+  if (isOnboardingMode) {
+    return (
+      <ProfileStepLayout
+        title="현재 거주하는 지역이 어디인가요?"
+        subtitle="내 거주지와 가까운 분들과 더 잘 이어져요."
+        step={4}
+        totalSteps={5}
+        buttonEnabled={canSubmit}
+        onNext={handleNext}
+        onBack={handleBack}
+      >
+        <LocationGrid
+          items={displayedLocations}
+          selectedCode={selectedCode}
+          onItemPress={(item) =>
+            step === 1
+              ? handleRegionPress(item.code)
+              : setSelectedDistrictCode(item.code)
+          }
+        />
+      </ProfileStepLayout>
     );
   }
 
@@ -138,29 +185,15 @@ export default function LocationEditScreen() {
           </Text>
         </View>
 
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.listContent}
-        >
-          <View style={styles.grid}>
-            {(step === 1 ? REGIONS : currentDistricts).map((item) => (
-              <LocationChip
-                key={item.code}
-                item={item}
-                active={
-                  step === 1
-                    ? selectedRegionCode === item.code
-                    : selectedDistrictCode === item.code
-                }
-                onPress={() =>
-                  step === 1
-                    ? handleRegionPress(item.code)
-                    : setSelectedDistrictCode(item.code)
-                }
-              />
-            ))}
-          </View>
-        </ScrollView>
+        <LocationGrid
+          items={displayedLocations}
+          selectedCode={selectedCode}
+          onItemPress={(item) =>
+            step === 1
+              ? handleRegionPress(item.code)
+              : setSelectedDistrictCode(item.code)
+          }
+        />
 
         <Pressable
           style={[styles.submitButton, !canSubmit && styles.submitButtonDisabled]}
@@ -175,6 +208,34 @@ export default function LocationEditScreen() {
         </Pressable>
       </View>
     </SafeAreaView>
+  );
+}
+
+function LocationGrid({
+  items,
+  selectedCode,
+  onItemPress,
+}: {
+  items: LocationItem[];
+  selectedCode: string | null;
+  onItemPress: (item: LocationItem) => void;
+}) {
+  return (
+    <ScrollView
+      showsVerticalScrollIndicator={false}
+      contentContainerStyle={styles.listContent}
+    >
+      <View style={styles.grid}>
+        {items.map((item) => (
+          <LocationChip
+            key={item.code}
+            item={item}
+            active={selectedCode === item.code}
+            onPress={() => onItemPress(item)}
+          />
+        ))}
+      </View>
+    </ScrollView>
   );
 }
 
@@ -203,6 +264,18 @@ function findRegionByDistrictCode(districtCode: string) {
   return REGIONS.find((region) =>
     (DISTRICTS[region.code] ?? []).some((district) => district.code === districtCode),
   );
+}
+
+function getLocationName(
+  regionCode: string | null,
+  district?: LocationItem,
+) {
+  if (!district) return "";
+
+  const regionName =
+    REGIONS.find((region) => region.code === regionCode)?.name ?? "";
+
+  return district.fullName ?? `${regionName} ${district.name}`.trim();
 }
 
 const styles = StyleSheet.create({
