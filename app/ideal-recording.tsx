@@ -33,11 +33,13 @@ import type {
 } from "@/types/api/onboarding/onboardingDTO";
 import type { IPatchUserProfileRequest } from "@/types/api/users/usersDTO";
 import type { IUserProfile } from "@/types/user";
+import { resolveBirthDate } from "@/utils/profileVoice";
 
 const AUDIO_CONTENT_TYPE = "audio/mp4";
 const AUDIO_PURPOSE = "PROFILE_INTRO_AUDIO";
 const ANALYZE_PROFILE_AREA_CODE = "2635000000";
 const MIN_RECORDING_SECONDS = 10;
+const AUDIO_UPLOAD_TIMEOUT_MS = 30000;
 
 type IdealRecordingStep = "recording" | "keywords";
 
@@ -418,6 +420,7 @@ function buildProfileRestorePayload(
   const payload: IPatchUserProfileRequest = {
     nickname: profile.nickname,
     gender: normalizeGender(profile.gender),
+    birthDate: profile.birthDate,
     introText: profile.introText,
     keywords: profile.keywords ?? [],
     personalities: profile.personalities ?? [],
@@ -445,15 +448,6 @@ function normalizeGender(gender?: string | null): "M" | "F" {
   return gender === "F" ? "F" : "M";
 }
 
-function resolveBirthDate(birthDate?: string | null, age?: number | null) {
-  if (birthDate) return birthDate;
-
-  const fallbackAge = age ?? 53;
-  const fallbackYear = new Date().getFullYear() - fallbackAge;
-
-  return `${fallbackYear}-01-01`;
-}
-
 function resolveAreaCode(areaCode?: string | null) {
   const normalizedAreaCode = areaCode?.trim();
 
@@ -462,6 +456,14 @@ function resolveAreaCode(areaCode?: string | null) {
 
 function getProfileKeywordOptions(profile?: IUserProfile) {
   if (!profile) return [];
+
+  const idealPersonalityKeywords = labelsToVoiceKeywords(
+    profile.idealPersonalities ?? [],
+  );
+
+  if (idealPersonalityKeywords.length > 0) {
+    return idealPersonalityKeywords;
+  }
 
   return labelsToVoiceKeywords([
     ...(profile.personalities ?? []),
@@ -519,8 +521,8 @@ function getIdealMatchedKeywords(analysis: IAnalyzeResponse) {
   return idealKeywords.length > 0 ? idealKeywords : matchedKeywords;
 }
 
-function isIdealKeywordCategory(category: string) {
-  const normalizedCategory = category.toUpperCase();
+function isIdealKeywordCategory(category?: string | null) {
+  const normalizedCategory = category?.toUpperCase() ?? "";
 
   return (
     normalizedCategory.includes("IDEAL") ||
@@ -627,6 +629,7 @@ function uploadBlobToPresignedUrl(
     const xhr = new XMLHttpRequest();
 
     xhr.open("PUT", uploadUrl);
+    xhr.timeout = AUDIO_UPLOAD_TIMEOUT_MS;
     xhr.setRequestHeader("Content-Type", contentType);
     xhr.onload = () => {
       if (xhr.status >= 200 && xhr.status < 300) {
@@ -642,6 +645,9 @@ function uploadBlobToPresignedUrl(
     };
     xhr.onerror = () => {
       reject(new Error(`${logLabel} network failed.`));
+    };
+    xhr.ontimeout = () => {
+      reject(new Error(`${logLabel} timed out.`));
     };
     xhr.send(blob);
   });

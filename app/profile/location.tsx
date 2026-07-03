@@ -23,7 +23,8 @@ import { useOnboardingDraftStore } from "@/stores/onboardingDraftStore";
 const ACCENT = "#FC3367";
 const TEXT = "#202020";
 const MUTED = "#A6AFB6";
-const GYEONGGI_REGION_CODE = "4100000000";
+const GYEONGGI_REGION_CODE =
+  REGIONS.find((region) => region.name === "경기")?.code ?? "4100000000";
 
 export default function LocationEditScreen() {
   const router = useRouter();

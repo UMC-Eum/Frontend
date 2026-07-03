@@ -91,18 +91,27 @@ export default function ProfileEditScreen() {
   };
 
   const handlePickFromGallery = () => {
-    setPendingAction("gallery");
     setShowActionSheet(false);
+
+    if (Platform.OS === "ios") {
+      setPendingAction("gallery");
+      return;
+    }
+
+    void runGalleryPicker();
   };
 
   const onModalDismiss = async () => {
     if (pendingAction !== "gallery") return;
 
     setPendingAction(null);
+    await runGalleryPicker();
+  };
 
+  const runGalleryPicker = async () => {
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ["images"],
         allowsEditing: false,
         quality: 0.85,
       });

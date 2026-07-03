@@ -14,6 +14,7 @@ type AnalyzeResponseCandidate = IAnalyzeResponse & {
 
 export const postVoiceAnalyze = async (body: IAnalyzeRequest) => {
   const requestBody = {
+    analysisType: body.analysisType,
     nickname: body.nickname,
     gender: body.gender,
     birthDate: body.birthDate,
