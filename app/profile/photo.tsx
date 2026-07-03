@@ -1,29 +1,43 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
+import * as ImageManipulator from "expo-image-manipulator";
 import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
-import React, { useState } from "react";
+import React, { useCallback, useMemo, useRef, useState } from "react";
 import {
   Alert,
+  Animated,
+  Dimensions,
+  Image as RNImage,
   Modal,
+  PanResponder,
   Pressable,
   StyleSheet,
   Text,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import Svg, { Circle, Path } from "react-native-svg";
+import Svg, { Circle, Defs, Mask, Path, Rect } from "react-native-svg";
 
-import CircleImageCropper, {
-  CircleCropAsset,
-  CircleCropResult,
-} from "@/components/profile/CircleImageCropper";
 import ProfileStepLayout from "@/components/profile/ProfileStepLayout";
 import { useOnboardingDraftStore } from "@/stores/onboardingDraftStore";
 
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 const PROFILE_IMAGE_SIZE = 200;
-const DEFAULT_PROFILE_IMAGE_URL =
-  "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=85&w=1200&auto=format&fit=crop";
+const CROP_CIRCLE_SIZE = Math.min(SCREEN_WIDTH - 40, 372);
+const CROP_CIRCLE_TOP = SCREEN_HEIGHT * 0.306;
+const DEFAULT_PROFILE_IMAGE_ASSET = require("@/assets/images/default-profile.png");
+const DEFAULT_PROFILE_IMAGE_URI = RNImage.resolveAssetSource(
+  DEFAULT_PROFILE_IMAGE_ASSET,
+).uri;
+const MIN_CROP_ZOOM = 1;
+const MAX_CROP_ZOOM = 3;
+
+type PreviewAsset = {
+  uri: string;
+  width: number;
+  height: number;
+};
 
 /**
  * 사진 등록 화면
@@ -43,92 +57,310 @@ export default function PhotoScreen() {
   );
   const [photoUri, setPhotoUri] = useState<string | null>(draftProfileImageUri);
   const [showActionSheet, setShowActionSheet] = useState(false);
-  const [previewAsset, setPreviewAsset] = useState<CircleCropAsset | null>(null);
+  const [previewAsset, setPreviewAsset] = useState<PreviewAsset | null>(null);
+  const cropTranslate = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current;
+  const cropScale = useRef(new Animated.Value(1)).current;
+  const cropOffsetRef = useRef({ x: 0, y: 0 });
+  const cropStartOffsetRef = useRef({ x: 0, y: 0 });
+  const cropZoomRef = useRef(1);
+  const cropStartZoomRef = useRef(1);
+  const cropPinchDistanceRef = useRef<number | null>(null);
 
   const handlePhotoPick = () => {
     setShowActionSheet(true);
   };
 
-  const [pendingAction, setPendingAction] = useState<"gallery" | null>(null);
+  const [pendingAction, setPendingAction] = useState<"camera" | "gallery" | null>(
+    null,
+  );
 
   const handlePickFromGallery = () => {
     setPendingAction("gallery");
     setShowActionSheet(false);
   };
 
+  const handleTakePhoto = () => {
+    setPendingAction("camera");
+    setShowActionSheet(false);
+  };
+
   const onModalDismiss = async () => {
-    if (pendingAction === "gallery") {
-      setPendingAction(null);
+    const action = pendingAction;
+    if (!action) return;
 
-      try {
-        const permissionResult =
-          await ImagePicker.requestMediaLibraryPermissionsAsync();
-        if (permissionResult.status !== "granted") {
-          alert("갤러리 접근 권한이 필요합니다.");
-          return;
-        }
+    setPendingAction(null);
 
-        const result = await ImagePicker.launchImageLibraryAsync({
-          mediaTypes: ImagePicker.MediaTypeOptions.Images,
-          allowsEditing: false,
-          quality: 0.8,
+    try {
+      const result =
+        action === "gallery"
+          ? await pickImageFromGallery()
+          : await takePhotoWithCamera();
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const asset = result.assets[0];
+        resetCropOffset();
+        setPreviewAsset({
+          uri: asset.uri,
+          width: asset.width,
+          height: asset.height,
         });
-
-        if (!result.canceled && result.assets && result.assets.length > 0) {
-          const asset = result.assets[0];
-          setPreviewAsset({
-            uri: asset.uri,
-            width: asset.width,
-            height: asset.height,
-          });
-        }
-      } catch (error) {
-        console.error("Gallery Error:", error);
       }
+    } catch (error) {
+      console.error("Profile Image Pick Error:", error);
     }
+  };
+
+  const pickImageFromGallery = async () => {
+    const permissionResult =
+      await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (permissionResult.status !== "granted") {
+      alert("갤러리 접근 권한이 필요합니다.");
+      throw new Error("Media library permission denied.");
+    }
+
+    return ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: false,
+      quality: 0.8,
+    });
+  };
+
+  const takePhotoWithCamera = async () => {
+    const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
+    if (permissionResult.status !== "granted") {
+      alert("카메라 권한이 필요합니다.");
+      throw new Error("Camera permission denied.");
+    }
+
+    return ImagePicker.launchCameraAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: false,
+      quality: 0.85,
+    });
   };
 
   const handleDefaultProfile = () => {
     setShowActionSheet(false);
-    setPhotoUri(DEFAULT_PROFILE_IMAGE_URL);
-    setDraftProfileImageUri(DEFAULT_PROFILE_IMAGE_URL);
+    setPhotoUri(DEFAULT_PROFILE_IMAGE_URI);
+    setDraftProfileImageUri(DEFAULT_PROFILE_IMAGE_URI);
   };
 
   const handleCancelAction = () => {
     setShowActionSheet(false);
   };
 
-  // 원형 크롭 프리뷰: 확정
-  const handleCropConfirm = (croppedImage: CircleCropResult) => {
-    setPhotoUri(croppedImage.uri);
-    setDraftProfileImageUri(croppedImage.uri);
-    setPreviewAsset(null);
+  const cropMetrics = useMemo(() => {
+    if (!previewAsset) return null;
+
+    const imageScale = Math.max(
+      SCREEN_WIDTH / previewAsset.width,
+      SCREEN_HEIGHT / previewAsset.height,
+    );
+    const displayWidth = previewAsset.width * imageScale;
+    const displayHeight = previewAsset.height * imageScale;
+
+    return {
+      imageScale,
+      displayWidth,
+      displayHeight,
+      imageLeft: (SCREEN_WIDTH - displayWidth) / 2,
+      imageTop: (SCREEN_HEIGHT - displayHeight) / 2,
+      circleLeft: (SCREEN_WIDTH - CROP_CIRCLE_SIZE) / 2,
+      circleTop: CROP_CIRCLE_TOP,
+    };
+  }, [previewAsset]);
+
+  const clampCropOffset = useCallback((x: number, y: number, zoom = cropZoomRef.current) => {
+    if (!cropMetrics) return { x: 0, y: 0 };
+
+    const circleRight = cropMetrics.circleLeft + CROP_CIRCLE_SIZE;
+    const circleBottom = cropMetrics.circleTop + CROP_CIRCLE_SIZE;
+    const scaledWidth = cropMetrics.displayWidth * zoom;
+    const scaledHeight = cropMetrics.displayHeight * zoom;
+    const scaleInsetX = (scaledWidth - cropMetrics.displayWidth) / 2;
+    const scaleInsetY = (scaledHeight - cropMetrics.displayHeight) / 2;
+    const minX = circleRight - cropMetrics.imageLeft - scaledWidth + scaleInsetX;
+    const maxX = cropMetrics.circleLeft - cropMetrics.imageLeft + scaleInsetX;
+    const minY = circleBottom - cropMetrics.imageTop - scaledHeight + scaleInsetY;
+    const maxY = cropMetrics.circleTop - cropMetrics.imageTop + scaleInsetY;
+
+    return {
+      x: clamp(x, minX, maxX),
+      y: clamp(y, minY, maxY),
+    };
+  }, [cropMetrics]);
+
+  const cropPanResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => true,
+        onMoveShouldSetPanResponder: () => true,
+        onPanResponderTerminationRequest: () => false,
+        onPanResponderGrant: (event) => {
+          cropStartOffsetRef.current = cropOffsetRef.current;
+          cropStartZoomRef.current = cropZoomRef.current;
+          cropPinchDistanceRef.current = getTouchDistance(
+            event.nativeEvent.touches,
+          );
+        },
+        onPanResponderMove: (_, gestureState) => {
+          let nextZoom = cropZoomRef.current;
+          const pinchDistance = getTouchDistance(_.nativeEvent.touches);
+
+          if (pinchDistance && !cropPinchDistanceRef.current) {
+            cropPinchDistanceRef.current = pinchDistance;
+            cropStartZoomRef.current = cropZoomRef.current;
+          }
+
+          if (pinchDistance && cropPinchDistanceRef.current) {
+            nextZoom = clamp(
+              cropStartZoomRef.current *
+                (pinchDistance / cropPinchDistanceRef.current),
+              MIN_CROP_ZOOM,
+              MAX_CROP_ZOOM,
+            );
+            cropZoomRef.current = nextZoom;
+            cropScale.setValue(nextZoom);
+          }
+
+          const nextOffset = clampCropOffset(
+            cropStartOffsetRef.current.x + gestureState.dx,
+            cropStartOffsetRef.current.y + gestureState.dy,
+            nextZoom,
+          );
+
+          cropOffsetRef.current = nextOffset;
+          cropTranslate.setValue(nextOffset);
+        },
+        onPanResponderRelease: () => {
+          const nextOffset = clampCropOffset(
+            cropOffsetRef.current.x,
+            cropOffsetRef.current.y,
+            cropZoomRef.current,
+          );
+
+          cropOffsetRef.current = nextOffset;
+          cropStartOffsetRef.current = nextOffset;
+          cropStartZoomRef.current = cropZoomRef.current;
+          cropPinchDistanceRef.current = null;
+          cropTranslate.setValue(nextOffset);
+        },
+      }),
+    [clampCropOffset, cropScale, cropTranslate],
+  );
+
+  const resetCropOffset = () => {
+    const offset = { x: 0, y: 0 };
+    cropOffsetRef.current = offset;
+    cropStartOffsetRef.current = offset;
+    cropZoomRef.current = 1;
+    cropStartZoomRef.current = 1;
+    cropPinchDistanceRef.current = null;
+    cropTranslate.setValue(offset);
+    cropScale.setValue(1);
   };
 
-  const handleCropError = (error: unknown) => {
-    console.error("Crop Error:", error);
-    Alert.alert("사진 설정 실패", "사진을 다시 선택해주세요.");
+  // 원형 크롭 프리뷰: 확정
+  const handleCropConfirm = async () => {
+    if (!previewAsset || !cropMetrics) return;
+
+    const cropOffset = cropOffsetRef.current;
+    const cropZoom = cropZoomRef.current;
+    const scaledWidth = cropMetrics.displayWidth * cropZoom;
+    const scaledHeight = cropMetrics.displayHeight * cropZoom;
+    const imageScreenLeft =
+      cropMetrics.imageLeft + cropOffset.x - (scaledWidth - cropMetrics.displayWidth) / 2;
+    const imageScreenTop =
+      cropMetrics.imageTop + cropOffset.y - (scaledHeight - cropMetrics.displayHeight) / 2;
+    const originX =
+      (cropMetrics.circleLeft - imageScreenLeft) / (cropMetrics.imageScale * cropZoom);
+    const originY =
+      (cropMetrics.circleTop - imageScreenTop) / (cropMetrics.imageScale * cropZoom);
+    const cropSize = CROP_CIRCLE_SIZE / (cropMetrics.imageScale * cropZoom);
+
+    try {
+      const croppedImage = await ImageManipulator.manipulateAsync(
+        previewAsset.uri,
+        [
+          {
+            crop: {
+              originX: Math.round(
+                clamp(originX, 0, previewAsset.width - cropSize),
+              ),
+              originY: Math.round(
+                clamp(originY, 0, previewAsset.height - cropSize),
+              ),
+              width: Math.round(Math.min(cropSize, previewAsset.width)),
+              height: Math.round(Math.min(cropSize, previewAsset.height)),
+            },
+          },
+        ],
+        { compress: 0.9, format: ImageManipulator.SaveFormat.JPEG },
+      );
+
+      setPhotoUri(croppedImage.uri);
+      setDraftProfileImageUri(croppedImage.uri);
+      setPreviewAsset(null);
+      resetCropOffset();
+    } catch (error) {
+      console.error("Crop Error:", error);
+      Alert.alert("사진 설정 실패", "사진을 다시 선택해주세요.");
+    }
   };
 
   // 원형 크롭 프리뷰: 취소
   const handleCropCancel = () => {
     setPreviewAsset(null);
+    resetCropOffset();
   };
 
   const handleNext = () => {
-    setDraftProfileImageUri(photoUri);
+    setDraftProfileImageUri(photoUri ?? DEFAULT_PROFILE_IMAGE_URI);
     router.push("/profile/welcome" as any);
   };
 
   // 원형 크롭 프리뷰 화면
-  if (previewAsset) {
+  if (previewAsset && cropMetrics) {
     return (
-      <CircleImageCropper
-        asset={previewAsset}
-        onCancel={handleCropCancel}
-        onConfirm={handleCropConfirm}
-        onError={handleCropError}
-      />
+      <View style={styles.cropContainer}>
+        <View style={styles.cropGestureArea} {...cropPanResponder.panHandlers}>
+          {/* 풀스크린 이미지 */}
+          <Animated.View
+            style={[
+              styles.cropImageFrame,
+              {
+                width: cropMetrics.displayWidth,
+                height: cropMetrics.displayHeight,
+                left: cropMetrics.imageLeft,
+                top: cropMetrics.imageTop,
+                transform: [
+                  { translateX: cropTranslate.x },
+                  { translateY: cropTranslate.y },
+                  { scale: cropScale },
+                ],
+              },
+            ]}
+          >
+            <Image
+              source={{ uri: previewAsset.uri }}
+              style={styles.cropImage}
+              contentFit="cover"
+            />
+          </Animated.View>
+
+          <CropOverlay />
+        </View>
+
+        {/* 상단 헤더: 취소 / 다음 */}
+        <View style={[styles.cropHeader, { paddingTop: insets.top }]}>
+          <Pressable onPress={handleCropCancel} hitSlop={12}>
+            <Text style={styles.cropHeaderText}>취소</Text>
+          </Pressable>
+          <Pressable onPress={handleCropConfirm} hitSlop={12}>
+            <Text style={styles.cropHeaderText}>다음</Text>
+          </Pressable>
+        </View>
+      </View>
     );
   }
 
@@ -136,8 +368,9 @@ export default function PhotoScreen() {
     <ProfileStepLayout
       title="사진을 등록해주세요."
       subtitle="따뜻한 미소가 담긴 사진은 매칭에 큰 도움이 됩니다."
-      step={2}
-      buttonEnabled={photoUri !== null}
+      step={5}
+      totalSteps={5}
+      buttonEnabled
       onNext={handleNext}
     >
       <View style={styles.photoArea}>
@@ -146,7 +379,7 @@ export default function PhotoScreen() {
           <Pressable style={styles.photoCircle} onPress={handlePhotoPick}>
             {photoUri && photoUri !== "default" ? (
               <Image
-                source={{ uri: photoUri }}
+                source={getProfileImageSource(photoUri)}
                 style={styles.photoImage}
                 contentFit="cover"
               />
@@ -179,11 +412,19 @@ export default function PhotoScreen() {
                   styles.modalOption,
                   pressed && styles.modalOptionPressed,
                 ]}
+                onPress={handleTakePhoto}
+              >
+                <Text style={styles.modalOptionText}>카메라로 촬영</Text>
+              </Pressable>
+              <View style={styles.modalDivider} />
+              <Pressable
+                style={({ pressed }) => [
+                  styles.modalOption,
+                  pressed && styles.modalOptionPressed,
+                ]}
                 onPress={handlePickFromGallery}
               >
-                <Text style={styles.modalOptionText}>
-                  촬영 또는 앨범에서 선택
-                </Text>
+                <Text style={styles.modalOptionText}>앨범에서 선택</Text>
               </Pressable>
               <View style={styles.modalDivider} />
               <Pressable
@@ -213,6 +454,46 @@ export default function PhotoScreen() {
   );
 }
 
+function CropOverlay() {
+  const circleCenterX = SCREEN_WIDTH / 2;
+  const circleCenterY = CROP_CIRCLE_TOP + CROP_CIRCLE_SIZE / 2;
+
+  return (
+    <Svg
+      width={SCREEN_WIDTH}
+      height={SCREEN_HEIGHT}
+      style={StyleSheet.absoluteFill}
+      pointerEvents="none"
+    >
+      <Defs>
+        <Mask id="cropMask">
+          <Rect width={SCREEN_WIDTH} height={SCREEN_HEIGHT} fill="#FFFFFF" />
+          <Circle
+            cx={circleCenterX}
+            cy={circleCenterY}
+            r={CROP_CIRCLE_SIZE / 2}
+            fill="#000000"
+          />
+        </Mask>
+      </Defs>
+      <Rect
+        width={SCREEN_WIDTH}
+        height={SCREEN_HEIGHT}
+        fill="rgba(0, 0, 0, 0.55)"
+        mask="url(#cropMask)"
+      />
+      <Circle
+        cx={circleCenterX}
+        cy={circleCenterY}
+        r={CROP_CIRCLE_SIZE / 2}
+        fill="transparent"
+        stroke="#FFFFFF"
+        strokeWidth={2}
+      />
+    </Svg>
+  );
+}
+
 function ProfilePlaceholder() {
   return (
     <Svg
@@ -228,6 +509,26 @@ function ProfilePlaceholder() {
       />
     </Svg>
   );
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(Math.max(value, min), max);
+}
+
+function getTouchDistance(touches: { pageX: number; pageY: number }[]) {
+  if (touches.length < 2) return null;
+
+  const [first, second] = touches;
+  const dx = first.pageX - second.pageX;
+  const dy = first.pageY - second.pageY;
+
+  return Math.hypot(dx, dy);
+}
+
+function getProfileImageSource(uri: string) {
+  return uri === DEFAULT_PROFILE_IMAGE_URI
+    ? DEFAULT_PROFILE_IMAGE_ASSET
+    : { uri };
 }
 
 const styles = StyleSheet.create({
@@ -314,4 +615,37 @@ const styles = StyleSheet.create({
     color: "#1F2937",
   },
 
+  // === 원형 크롭 프리뷰 ===
+  cropContainer: {
+    flex: 1,
+    backgroundColor: "#000000",
+  },
+  cropGestureArea: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  cropImageFrame: {
+    position: "absolute",
+  },
+  cropImage: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  cropHeader: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 2,
+    elevation: 2,
+    height: 88,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 20,
+  },
+  cropHeaderText: {
+    fontSize: 20,
+    fontWeight: "600",
+    color: "#FFFFFF",
+    lineHeight: 25,
+  },
 });

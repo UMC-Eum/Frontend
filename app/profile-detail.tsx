@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import * as Linking from "expo-linking";
+import Constants from "expo-constants";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import React, { useEffect, useMemo, useState } from "react";
@@ -40,6 +40,10 @@ import type { IUserProfile } from "@/types/user";
 
 const FALLBACK_PROFILE_IMAGE =
   "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=85&w=1200&auto=format&fit=crop";
+const expoScheme = Constants.expoConfig?.scheme;
+const APP_SCHEME = Array.isArray(expoScheme)
+  ? expoScheme[0]
+  : expoScheme ?? "eummobile";
 
 type ProfileDetailParams = {
   userId?: string | string[];
@@ -208,9 +212,7 @@ export default function ProfileDetailScreen() {
     const targetUserId = getTargetUserId();
     if (!targetUserId) return;
 
-    const profileUrl = Linking.createURL("/profile-detail", {
-      queryParams: { userId: String(targetUserId) },
-    });
+    const profileUrl = createProfileShareUrl(targetUserId);
     const profileName = profile?.name ?? "상대";
 
     try {
@@ -770,6 +772,12 @@ function findBlockedRelation(
       .flatMap((page) => page.items)
       .find((item) => String(item.targetUserId) === String(userId)) ?? null
   );
+}
+
+function createProfileShareUrl(userId: number) {
+  const query = new URLSearchParams({ userId: String(userId) }).toString();
+
+  return `${APP_SCHEME}://profile-detail?${query}`;
 }
 
 function ActionSheetModal({

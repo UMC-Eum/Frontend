@@ -1,17 +1,23 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   Animated,
+  Modal,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   useWindowDimensions,
   View,
 } from "react-native";
-import Svg, { Path } from "react-native-svg";
+import Svg, { Defs, LinearGradient, Path, Rect, Stop } from "react-native-svg";
 
 import { Chip } from "@/components/Chip";
+import {
+  DEFAULT_PROFILE_IMAGE_ASSET,
+  DEFAULT_PROFILE_IMAGE_URI,
+} from "@/constants/defaultProfileImage";
 
 const PINK = "#FC3367";
 const HOT_PINK = "#FF3E70";
@@ -20,24 +26,10 @@ const GRAY_700 = "#636970";
 const GRAY_500 = "#A6AFB6";
 const GRAY_150 = "#E9ECED";
 
-const PROFILE_PREVIEW_IMAGE =
-  "https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?q=85&w=900&auto=format&fit=crop";
-const PREVIEW_OVERLAY_LAYERS = [
-  { height: 270, opacity: 0.03 },
-  { height: 246, opacity: 0.04 },
-  { height: 222, opacity: 0.05 },
-  { height: 198, opacity: 0.06 },
-  { height: 174, opacity: 0.07 },
-  { height: 150, opacity: 0.08 },
-  { height: 126, opacity: 0.09 },
-  { height: 102, opacity: 0.1 },
-  { height: 78, opacity: 0.11 },
-  { height: 54, opacity: 0.12 },
-];
-
 export type VoiceKeyword = {
   id: string;
   label: string;
+  category?: "interest" | "personality";
 };
 
 type HeaderProps = {
@@ -77,7 +69,9 @@ type PlaybackControlsProps = {
 type KeywordSelectProps = {
   userName: string;
   keywords: VoiceKeyword[];
+  moreKeywords?: VoiceKeyword[];
   selectedIds: string[];
+  selectedLabels?: string[];
   onToggleKeyword: (id: string) => void;
   onRerecord: () => void;
   onNext: () => void;
@@ -97,7 +91,7 @@ export function VoiceHeader({ onBack }: HeaderProps) {
   return (
     <View style={styles.header}>
       <Pressable style={styles.backButton} onPress={onBack} hitSlop={12}>
-        <Ionicons name="chevron-back" size={28} color="#A6AFB6" />
+        <Ionicons name="chevron-back" size={24} color="#202020" />
       </Pressable>
     </View>
   );
@@ -239,11 +233,25 @@ export function AnalyzingView({ userName }: { userName: string }) {
 export function KeywordSelectView({
   userName,
   keywords,
+  moreKeywords = [],
   selectedIds,
+  selectedLabels = [],
   onToggleKeyword,
   onRerecord,
   onNext,
 }: KeywordSelectProps) {
+  const [isMoreOpen, setIsMoreOpen] = useState(false);
+  const baseKeywords = keywords.filter((keyword) => keyword.id !== "more");
+  const moreChip = keywords.find((keyword) => keyword.id === "more");
+  const baseKeywordLabels = new Set(baseKeywords.map((keyword) => keyword.label));
+  const selectedMoreKeywords = moreKeywords.filter(
+    (keyword) =>
+      selectedIds.includes(keyword.id) && !baseKeywordLabels.has(keyword.label),
+  );
+  const visibleKeywords = moreChip
+    ? [...baseKeywords, ...selectedMoreKeywords, moreChip]
+    : [...baseKeywords, ...selectedMoreKeywords];
+
   return (
     <View style={styles.keywordScreen}>
       <View style={styles.keywordIntro}>
@@ -265,16 +273,22 @@ export function KeywordSelectView({
           <Text style={styles.keywordCountActive}>{selectedIds.length}</Text>/5
         </Text>
         <View style={styles.keywordWrap}>
-          {keywords.map((keyword) => {
+          {visibleKeywords.map((keyword) => {
             const isMore = keyword.id === "more";
-            const selected = selectedIds.includes(keyword.id);
+            const selected =
+              selectedIds.includes(keyword.id) ||
+              selectedLabels.includes(keyword.label);
             return (
               <Chip
                 key={keyword.id}
                 label={keyword.label}
                 shape="rect"
                 variant={selected ? "outlineActive" : "outline"}
-                onPress={isMore ? undefined : () => onToggleKeyword(keyword.id)}
+                onPress={
+                  isMore
+                    ? () => setIsMoreOpen(true)
+                    : () => onToggleKeyword(keyword.id)
+                }
                 style={isMore ? styles.keywordMoreChip : styles.keywordChip}
                 textStyle={selected ? styles.keywordTextActive : styles.keywordText}
               />
@@ -291,6 +305,60 @@ export function KeywordSelectView({
           <Text style={styles.primaryCtaText}>다음</Text>
         </Pressable>
       </View>
+
+      <Modal
+        visible={isMoreOpen}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setIsMoreOpen(false)}
+      >
+        <View style={styles.keywordModalOverlay}>
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            onPress={() => setIsMoreOpen(false)}
+          />
+          <View style={styles.keywordModalSheet}>
+            <View style={styles.keywordModalHeader}>
+              <Text style={styles.keywordModalTitle}>관심사 더보기</Text>
+              <Pressable
+                style={styles.keywordModalClose}
+                onPress={() => setIsMoreOpen(false)}
+                hitSlop={10}
+              >
+                <Ionicons name="close" size={24} color={TEXT} />
+              </Pressable>
+            </View>
+            <Text style={styles.keywordModalDescription}>
+              최대 5개까지 자유롭게 고를 수 있어요.
+            </Text>
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.keywordModalContent}
+            >
+              {moreKeywords.map((keyword) => {
+                const selected =
+                  selectedIds.includes(keyword.id) ||
+                  selectedLabels.includes(keyword.label);
+
+                return (
+                  <Chip
+                    key={keyword.id}
+                    label={keyword.label}
+                    shape="rect"
+                    size="small"
+                    variant={selected ? "outlineActive" : "outline"}
+                    onPress={() => onToggleKeyword(keyword.id)}
+                    style={styles.keywordModalChip}
+                    textStyle={
+                      selected ? styles.keywordTextActive : styles.keywordText
+                    }
+                  />
+                );
+              })}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -307,7 +375,7 @@ export function CompletePreviewView({
   const previewImage =
     profileImageUri && profileImageUri !== "default"
       ? profileImageUri
-      : PROFILE_PREVIEW_IMAGE;
+      : DEFAULT_PROFILE_IMAGE_URI;
   const { height } = useWindowDimensions();
   const previewCardHeight = Math.min(472, Math.max(390, height - 420));
 
@@ -322,11 +390,13 @@ export function CompletePreviewView({
         <Text style={styles.previewCaption}>다른 분들에게는 이렇게 보여요</Text>
         <View style={[styles.previewCard, { height: previewCardHeight }]}>
           <Image
-            source={{ uri: previewImage }}
+            source={previewImage === DEFAULT_PROFILE_IMAGE_URI
+              ? DEFAULT_PROFILE_IMAGE_ASSET
+              : { uri: previewImage }}
             style={styles.previewImage}
             contentFit="cover"
           />
-          <SoftPreviewOverlay />
+          <SoftPreviewOverlay height={previewCardHeight} />
           <View style={styles.previewContent}>
             <View style={styles.previewNameRow}>
               <Text style={styles.previewName}>
@@ -367,22 +437,24 @@ export function CompletePreviewView({
   );
 }
 
-function SoftPreviewOverlay() {
+function SoftPreviewOverlay({ height }: { height: number }) {
   return (
-    <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-      {PREVIEW_OVERLAY_LAYERS.map((layer) => (
-        <View
-          key={`${layer.height}-${layer.opacity}`}
-          style={[
-            styles.previewOverlayLayer,
-            {
-              height: layer.height,
-              backgroundColor: `rgba(0, 0, 0, ${layer.opacity})`,
-            },
-          ]}
-        />
-      ))}
-    </View>
+    <Svg
+      pointerEvents="none"
+      width="100%"
+      height={height}
+      style={StyleSheet.absoluteFill}
+    >
+      <Defs>
+        <LinearGradient id="previewGradient" x1="0" y1="0" x2="0" y2="1">
+          <Stop offset="0" stopColor="#000000" stopOpacity="0" />
+          <Stop offset="0.42" stopColor="#000000" stopOpacity="0.05" />
+          <Stop offset="0.68" stopColor="#000000" stopOpacity="0.28" />
+          <Stop offset="1" stopColor="#000000" stopOpacity="0.7" />
+        </LinearGradient>
+      </Defs>
+      <Rect width="100%" height={height} fill="url(#previewGradient)" />
+    </Svg>
   );
 }
 
@@ -503,10 +575,11 @@ const styles = StyleSheet.create({
   header: {
     height: 48,
     justifyContent: "center",
+    paddingHorizontal: 20,
   },
   backButton: {
-    width: 48,
-    height: 48,
+    width: 24,
+    height: 24,
     alignItems: "flex-start",
     justifyContent: "center",
   },
@@ -843,6 +916,54 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     lineHeight: 24,
   },
+  keywordModalOverlay: {
+    flex: 1,
+    justifyContent: "flex-end",
+    backgroundColor: "rgba(0, 0, 0, 0.36)",
+  },
+  keywordModalSheet: {
+    maxHeight: "72%",
+    borderTopLeftRadius: 18,
+    borderTopRightRadius: 18,
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 24,
+  },
+  keywordModalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  keywordModalTitle: {
+    color: TEXT,
+    fontSize: 20,
+    fontWeight: "700",
+    lineHeight: 28,
+  },
+  keywordModalClose: {
+    width: 36,
+    height: 36,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  keywordModalDescription: {
+    marginTop: 4,
+    color: GRAY_700,
+    fontSize: 14,
+    fontWeight: "500",
+    lineHeight: 20,
+  },
+  keywordModalContent: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+    paddingTop: 18,
+    paddingBottom: 8,
+  },
+  keywordModalChip: {
+    borderRadius: 7,
+  },
   doubleCta: {
     position: "absolute",
     left: 20,
@@ -904,12 +1025,6 @@ const styles = StyleSheet.create({
   previewImage: {
     ...StyleSheet.absoluteFillObject,
     borderRadius: 14,
-  },
-  previewOverlayLayer: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
   },
   previewContent: {
     paddingHorizontal: 20,

@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -12,11 +12,13 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import ProfileStepLayout from "@/components/profile/ProfileStepLayout";
 import { DISTRICTS, LocationItem, REGIONS } from "@/constants/locationData";
 import {
   useMyProfileQuery,
   useUpdateMyProfileMutation,
 } from "@/hooks/api/useUsers";
+import { useOnboardingDraftStore } from "@/stores/onboardingDraftStore";
 
 const ACCENT = "#FC3367";
 const TEXT = "#202020";
@@ -25,7 +27,11 @@ const GYEONGGI_REGION_CODE = "4100000000";
 
 export default function LocationEditScreen() {
   const router = useRouter();
-  const myProfileQuery = useMyProfileQuery();
+  const { mode } = useLocalSearchParams<{ mode?: string }>();
+  const isOnboardingMode = mode === "onboarding";
+  const draftAreaCode = useOnboardingDraftStore((state) => state.areaCode);
+  const setDraftArea = useOnboardingDraftStore((state) => state.setArea);
+  const myProfileQuery = useMyProfileQuery(!isOnboardingMode);
   const updateMyProfileMutation = useUpdateMyProfileMutation();
   const [step, setStep] = useState<1 | 2>(1);
   const [selectedRegionCode, setSelectedRegionCode] = useState<string | null>(
@@ -36,7 +42,9 @@ export default function LocationEditScreen() {
   >(null);
 
   useEffect(() => {
-    const areaCode = myProfileQuery.data?.area?.code;
+    const areaCode = isOnboardingMode
+      ? draftAreaCode
+      : myProfileQuery.data?.area?.code;
     if (!areaCode) return;
 
     const currentRegion = findRegionByDistrictCode(areaCode);
@@ -51,7 +59,7 @@ export default function LocationEditScreen() {
         ? areaCode
         : null,
     );
-  }, [myProfileQuery.data?.area?.code]);
+  }, [draftAreaCode, isOnboardingMode, myProfileQuery.data?.area?.code]);
 
   const currentDistricts = useMemo(() => {
     if (!selectedRegionCode) return [];
@@ -61,7 +69,7 @@ export default function LocationEditScreen() {
     );
   }, [selectedRegionCode]);
 
-  const isSubmitting = updateMyProfileMutation.isPending;
+  const isSubmitting = !isOnboardingMode && updateMyProfileMutation.isPending;
   const canSubmit =
     !isSubmitting && (step === 1 ? !!selectedRegionCode : !!selectedDistrictCode);
 
@@ -76,7 +84,7 @@ export default function LocationEditScreen() {
       return;
     }
 
-    router.replace("/(tabs)/my" as never);
+    router.replace((isOnboardingMode ? "/profile/gender" : "/(tabs)/my") as never);
   };
 
   const handleRegionPress = (regionCode: string) => {
@@ -93,6 +101,18 @@ export default function LocationEditScreen() {
     }
 
     if (!selectedDistrictCode) return;
+    const selectedDistrict = currentDistricts.find(
+      (district) => district.code === selectedDistrictCode,
+    );
+
+    if (isOnboardingMode) {
+      setDraftArea(
+        selectedDistrictCode,
+        getLocationName(selectedRegionCode, selectedDistrict),
+      );
+      router.push("/profile/photo" as any);
+      return;
+    }
 
     try {
       await updateMyProfileMutation.mutateAsync({
@@ -122,11 +142,35 @@ export default function LocationEditScreen() {
   const displayedLocations = step === 1 ? REGIONS : currentDistricts;
   const selectedCode = step === 1 ? selectedRegionCode : selectedDistrictCode;
 
-  if (myProfileQuery.isLoading) {
+  if (!isOnboardingMode && myProfileQuery.isLoading) {
     return (
       <SafeAreaView style={styles.loadingContainer}>
         <ActivityIndicator color={ACCENT} />
       </SafeAreaView>
+    );
+  }
+
+  if (isOnboardingMode) {
+    return (
+      <ProfileStepLayout
+        title="현재 거주하는 지역이 어디인가요?"
+        subtitle="내 거주지와 가까운 분들과 더 잘 이어져요."
+        step={4}
+        totalSteps={5}
+        buttonEnabled={canSubmit}
+        onNext={handleNext}
+        onBack={handleBack}
+      >
+        <LocationGrid
+          items={displayedLocations}
+          selectedCode={selectedCode}
+          onItemPress={(item) =>
+            step === 1
+              ? handleRegionPress(item.code)
+              : setSelectedDistrictCode(item.code)
+          }
+        />
+      </ProfileStepLayout>
     );
   }
 
@@ -238,6 +282,18 @@ function isSelectableDistrict(regionCode: string, location: LocationItem) {
   }
 
   return location.name.endsWith("시") || location.name.endsWith("군");
+}
+
+function getLocationName(
+  regionCode: string | null,
+  district?: LocationItem,
+) {
+  if (!district) return "";
+
+  const regionName =
+    REGIONS.find((region) => region.code === regionCode)?.name ?? "";
+
+  return district.fullName ?? `${regionName} ${district.name}`.trim();
 }
 
 const styles = StyleSheet.create({

@@ -1,6 +1,7 @@
 import React from "react";
 import {
   StyleSheet,
+  StyleProp,
   Text,
   TextStyle,
   TouchableOpacity,
@@ -20,8 +21,8 @@ interface ChipProps {
   shape?: ChipShape; // 칩의 외곽 형태 (기본값: pill)
   size?: ChipSize; // 칩의 크기 (기본값: medium)
   onPress?: () => void; // 칩을 터치했을 때 실행될 함수
-  style?: ViewStyle; // 컨테이너(가장 바깥 View)에 추가로 적용할 커스텀 스타일
-  textStyle?: TextStyle; // 텍스트에 추가로 적용할 커스텀 스타일
+  style?: StyleProp<ViewStyle>; // 컨테이너(가장 바깥 View)에 추가로 적용할 커스텀 스타일
+  textStyle?: StyleProp<TextStyle>; // 텍스트에 추가로 적용할 커스텀 스타일
 }
 
 /**

@@ -23,6 +23,7 @@ const MY_CLUBS = [
     title: "우리집 강아지 산책 동호회",
     image:
       "https://images.unsplash.com/photo-1517849845537-4d257902454a?w=400&q=80&auto=format&fit=crop",
+    status: "가입 대기",
   },
   {
     id: "my-club-2",
@@ -31,6 +32,14 @@ const MY_CLUBS = [
       "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?w=400&q=80&auto=format&fit=crop",
   },
 ];
+
+const CATEGORIES = [
+  { label: "운동, 스포츠", icon: "walk" },
+  { label: "봉사활동", icon: "heart" },
+  { label: "자기개발", icon: "trending-up" },
+  { label: "취미생활", icon: "musical-notes" },
+  { label: "사교", icon: "people" },
+] as const;
 
 export default function ClubHomeScreen() {
   const router = useRouter();
@@ -98,16 +107,7 @@ export default function ClubHomeScreen() {
       >
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>내 동호회</Text>
-          <Pressable
-            onPress={() =>
-              router.push({
-                pathname: "/club/post-create",
-                params: { clubId: "1" },
-              } as never)
-            }
-          >
-            <Text style={styles.sectionLink}>글쓰기 | 전체보기</Text>
-          </Pressable>
+          <Text style={styles.sectionLink}>전체보기</Text>
         </View>
 
         <ScrollView
@@ -116,17 +116,31 @@ export default function ClubHomeScreen() {
           contentContainerStyle={styles.myClubList}
         >
           {MY_CLUBS.map((club) => (
-            <MyClubCard key={club.id} title={club.title} image={club.image} />
+            <MyClubCard
+              key={club.id}
+              title={club.title}
+              image={club.image}
+              status={club.status}
+            />
           ))}
-          <CreateClubCard onPress={() => router.push("/club/create" as never)} />
         </ScrollView>
 
-        {/* 카테고리 아이콘 자리입니다. 아이콘 확정 전까지 동일한 크기의 플레이스홀더를 유지합니다. */}
-        <View style={styles.categoryRow}>
-          {Array.from({ length: 5 }).map((_, index) => (
-            <View key={index} style={styles.categoryPlaceholder} />
-          ))}
+        <View style={styles.sectionDivider} />
+
+        <View style={styles.categorySection}>
+          <Text style={styles.sectionTitle}>추천 카테고리</Text>
+          <View style={styles.categoryRow}>
+            {CATEGORIES.map((category) => (
+              <CategoryButton
+                key={category.label}
+                label={category.label}
+                icon={category.icon}
+              />
+            ))}
+          </View>
         </View>
+
+        <View style={styles.sectionDivider} />
 
         <ClubSection
           title="루씨 님을 위한 동호회"
@@ -143,6 +157,14 @@ export default function ClubHomeScreen() {
           onClubPress={openClubDetail}
         />
       </ScrollView>
+
+      <Pressable
+        style={[styles.createFab, { bottom: insets.bottom + 96 }]}
+        onPress={() => router.push("/club/create" as never)}
+        hitSlop={10}
+      >
+        <Ionicons name="add" size={38} color="#FFFFFF" />
+      </Pressable>
 
       <View style={styles.navbarWrap}>
         <AppNavbar
@@ -166,10 +188,26 @@ function parseClubId(value: string) {
   return match?.[0] ?? value;
 }
 
-function MyClubCard({ title, image }: { title: string; image: string }) {
+function MyClubCard({
+  title,
+  image,
+  status,
+}: {
+  title: string;
+  image: string;
+  status?: string;
+}) {
   return (
     <TouchableOpacity style={styles.myClubCard} activeOpacity={0.85}>
-      <Image source={{ uri: image }} style={styles.myClubImage} contentFit="cover" />
+      <View style={styles.myClubImageWrap}>
+        <Image source={{ uri: image }} style={styles.myClubImage} contentFit="cover" />
+        {status ? (
+          <>
+            <View style={styles.myClubDim} />
+            <Text style={styles.myClubStatus}>{status}</Text>
+          </>
+        ) : null}
+      </View>
       <Text style={styles.myClubTitle} numberOfLines={2}>
         {title}
       </Text>
@@ -177,14 +215,22 @@ function MyClubCard({ title, image }: { title: string; image: string }) {
   );
 }
 
-function CreateClubCard({ onPress }: { onPress: () => void }) {
+function CategoryButton({
+  label,
+  icon,
+}: {
+  label: string;
+  icon: keyof typeof Ionicons.glyphMap;
+}) {
   return (
-    <TouchableOpacity style={styles.createClubCard} onPress={onPress} activeOpacity={0.8}>
-      <View style={styles.createImageBox}>
-        <Ionicons name="add" size={36} color="#A6AFB6" />
+    <View style={styles.categoryItem}>
+      <View style={styles.categoryIconBox}>
+        <Ionicons name={icon} size={28} color="#FC3367" />
       </View>
-      <Text style={styles.createClubText}>동호회 만들기</Text>
-    </TouchableOpacity>
+      <Text style={styles.categoryLabel} numberOfLines={1}>
+        {label}
+      </Text>
+    </View>
   );
 }
 
@@ -252,8 +298,9 @@ const styles = StyleSheet.create({
   },
   locationText: {
     color: "#202020",
-    fontSize: 18,
-    fontWeight: "800",
+    fontSize: 24,
+    lineHeight: 30,
+    fontWeight: "600",
   },
   headerActions: {
     flexDirection: "row",
@@ -273,32 +320,34 @@ const styles = StyleSheet.create({
     backgroundColor: "#FC3367",
   },
   topTabs: {
-    height: 44,
+    height: 48,
     borderBottomWidth: 1,
     borderBottomColor: "#F0F2F4",
     paddingHorizontal: 20,
     flexDirection: "row",
     alignItems: "flex-end",
-    gap: 18,
+    gap: 16,
     backgroundColor: "#FFFFFF",
   },
   inactiveTab: {
-    color: "#4B5563",
-    fontSize: 13,
+    color: "#636970",
+    fontSize: 18,
+    lineHeight: 23,
     fontWeight: "600",
-    paddingBottom: 12,
+    paddingBottom: 11,
   },
   activeTabWrap: {
     alignItems: "center",
   },
   activeTab: {
     color: "#FC3367",
-    fontSize: 13,
-    fontWeight: "800",
-    paddingBottom: 10,
+    fontSize: 18,
+    lineHeight: 23,
+    fontWeight: "700",
+    paddingBottom: 11,
   },
   activeUnderline: {
-    width: 48,
+    width: 51,
     height: 2,
     borderRadius: 1,
     backgroundColor: "#FC3367",
@@ -308,7 +357,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
   },
   scrollContent: {
-    paddingTop: 22,
+    paddingTop: 24,
   },
   sectionHeader: {
     paddingHorizontal: 20,
@@ -318,67 +367,95 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     color: "#202020",
-    fontSize: 17,
-    fontWeight: "800",
+    fontSize: 20,
+    lineHeight: 25,
+    fontWeight: "600",
   },
   sectionLink: {
-    color: "#202020",
-    fontSize: 12,
-    fontWeight: "600",
+    color: "#A6AFB6",
+    fontSize: 16,
+    lineHeight: 24,
+    fontWeight: "500",
   },
   myClubList: {
     paddingHorizontal: 20,
-    paddingTop: 14,
-    gap: 14,
+    paddingTop: 16,
+    gap: 20,
   },
   myClubCard: {
-    width: 86,
+    width: 108,
+  },
+  myClubImageWrap: {
+    width: 108,
+    height: 108,
+    borderRadius: 14,
+    overflow: "hidden",
+    backgroundColor: "#D9D9D9",
   },
   myClubImage: {
-    width: 86,
-    height: 86,
-    borderRadius: 10,
-    backgroundColor: "#D7D7D7",
+    width: "100%",
+    height: "100%",
+  },
+  myClubDim: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(2,2,2,0.6)",
+  },
+  myClubStatus: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    top: 42,
+    color: "#FFFFFF",
+    fontSize: 16,
+    lineHeight: 24,
+    fontWeight: "500",
+    textAlign: "center",
   },
   myClubTitle: {
     color: "#202020",
-    fontSize: 13,
-    fontWeight: "700",
-    lineHeight: 18,
-    marginTop: 8,
+    fontSize: 16,
+    fontWeight: "500",
+    lineHeight: 24,
+    marginTop: 4,
+    textAlign: "center",
   },
-  createClubCard: {
-    width: 86,
-    alignItems: "center",
+  sectionDivider: {
+    height: 8,
+    marginTop: 16,
+    marginBottom: 16,
+    backgroundColor: "#F8FAFB",
   },
-  createImageBox: {
-    width: 86,
-    height: 86,
-    borderRadius: 10,
-    backgroundColor: "#EEF1F3",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  createClubText: {
-    color: "#202020",
-    fontSize: 13,
-    fontWeight: "700",
-    marginTop: 8,
+  categorySection: {
+    paddingHorizontal: 20,
+    gap: 16,
   },
   categoryRow: {
     flexDirection: "row",
-    gap: 12,
-    paddingHorizontal: 20,
-    paddingTop: 28,
-    paddingBottom: 26,
+    justifyContent: "space-between",
   },
-  categoryPlaceholder: {
-    flex: 1,
-    height: 56,
-    backgroundColor: "#D7D7D7",
+  categoryItem: {
+    alignItems: "center",
+    gap: 4,
+  },
+  categoryIconBox: {
+    width: 64,
+    height: 64,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: "#F8FAFB",
+    backgroundColor: "#F7F7F8",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  categoryLabel: {
+    color: "#202020",
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: "500",
+    textAlign: "center",
   },
   clubSection: {
-    marginBottom: 26,
+    marginBottom: 32,
   },
   clubSectionTitleRow: {
     paddingHorizontal: 20,
@@ -389,8 +466,9 @@ const styles = StyleSheet.create({
   },
   clubSectionTitle: {
     color: "#202020",
-    fontSize: 17,
-    fontWeight: "800",
+    fontSize: 20,
+    lineHeight: 25,
+    fontWeight: "600",
   },
   accentText: {
     color: "#FC3367",
@@ -402,15 +480,33 @@ const styles = StyleSheet.create({
     height: 42,
     marginHorizontal: 20,
     marginTop: 12,
-    borderRadius: 9,
+    borderRadius: 12,
     backgroundColor: "#E9EEF1",
     alignItems: "center",
     justifyContent: "center",
   },
   moreButtonText: {
     color: "#A6AFB6",
-    fontSize: 13,
-    fontWeight: "800",
+    fontSize: 16,
+    lineHeight: 24,
+    fontWeight: "600",
+  },
+  createFab: {
+    position: "absolute",
+    right: 20,
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    borderWidth: 1,
+    borderColor: "#FFA0B4",
+    backgroundColor: "#FC3367",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000000",
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.16,
+    shadowRadius: 9,
+    elevation: 8,
   },
   navbarWrap: {
     position: "absolute",

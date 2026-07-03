@@ -1,15 +1,25 @@
 import { useRouter } from "expo-router";
-import React, { useRef, useState } from "react";
-import { Animated, PanResponder, StyleSheet, Text, View } from "react-native";
+import React, { useEffect, useRef, useState } from "react";
+import {
+  Animated,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
+  ScrollView,
+  StyleSheet,
+  View,
+} from "react-native";
 
 import ProfileStepLayout from "@/components/profile/ProfileStepLayout";
 import { useOnboardingDraftStore } from "@/stores/onboardingDraftStore";
 
-const MIN_AGE = 20;
-const MAX_AGE = 80;
-const DEFAULT_AGE = 32;
-const ITEM_HEIGHT = 50;
-const VISIBLE_ITEMS = 5;
+const MIN_AGE = 50;
+const MAX_AGE = 120;
+const DEFAULT_AGE = 60;
+const ITEM_HEIGHT = 58;
+const VISIBLE_ITEMS = 7;
+const PICKER_HEIGHT = ITEM_HEIGHT * VISIBLE_ITEMS;
+const PICKER_PADDING = (PICKER_HEIGHT - ITEM_HEIGHT) / 2;
+const SELECTION_OFFSET = 24;
 
 /**
  * 나이 선택 화면
@@ -20,130 +30,130 @@ export default function AgeScreen() {
   const router = useRouter();
   const draftAge = useOnboardingDraftStore((state) => state.age);
   const setDraftAge = useOnboardingDraftStore((state) => state.setAge);
-  const initialAge = draftAge ?? DEFAULT_AGE;
+  const initialAge = clampAge(draftAge ?? DEFAULT_AGE);
   const initialOffset = (initialAge - MIN_AGE) * ITEM_HEIGHT;
   const [selectedAge, setSelectedAge] = useState(initialAge);
+  const selectedAgeRef = useRef(initialAge);
   const scrollY = useRef(new Animated.Value(initialOffset)).current;
-  const lastOffset = useRef(initialOffset);
+  const scrollRef = useRef<ScrollView>(null);
 
   const ages = Array.from(
     { length: MAX_AGE - MIN_AGE + 1 },
     (_, i) => MIN_AGE + i,
   );
 
-  const panResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: () => true,
-      onPanResponderGrant: () => {
-        scrollY.stopAnimation();
-      },
-      onPanResponderMove: (_, gestureState) => {
-        const newOffset = lastOffset.current - gestureState.dy;
-        scrollY.setValue(newOffset);
-      },
-      onPanResponderRelease: (_, gestureState) => {
-        let newOffset = lastOffset.current - gestureState.dy;
-        // 스냅: 가장 가까운 아이템으로 정렬
-        newOffset = Math.round(newOffset / ITEM_HEIGHT) * ITEM_HEIGHT;
-        // 범위 제한
-        newOffset = Math.max(
-          0,
-          Math.min(newOffset, (ages.length - 1) * ITEM_HEIGHT),
-        );
-        lastOffset.current = newOffset;
-
-        Animated.spring(scrollY, {
-          toValue: newOffset,
-          useNativeDriver: false,
-          tension: 80,
-          friction: 12,
-        }).start();
-
-        const newAge = MIN_AGE + Math.round(newOffset / ITEM_HEIGHT);
-        setSelectedAge(newAge);
-      },
-    }),
-  ).current;
-
   const handleNext = () => {
     setDraftAge(selectedAge);
     router.push("/profile/gender" as any);
   };
 
+  useEffect(() => {
+    requestAnimationFrame(() => {
+      scrollRef.current?.scrollTo({ y: initialOffset, animated: false });
+    });
+  }, [initialOffset]);
+
+  const updateSelectedAgeFromOffset = (offset: number) => {
+    const offsetY = clampOffset(offset, ages.length);
+    const nextAge = MIN_AGE + Math.round(offsetY / ITEM_HEIGHT);
+
+    if (selectedAgeRef.current === nextAge) return;
+
+    selectedAgeRef.current = nextAge;
+    setSelectedAge(nextAge);
+  };
+
+  const settleSelectedAge = (
+    event: NativeSyntheticEvent<NativeScrollEvent>,
+  ) => {
+    const offsetY = clampOffset(event.nativeEvent.contentOffset.y, ages.length);
+    const targetOffset = Math.round(offsetY / ITEM_HEIGHT) * ITEM_HEIGHT;
+
+    updateSelectedAgeFromOffset(targetOffset);
+    scrollRef.current?.scrollTo({ y: targetOffset, animated: true });
+  };
+
   return (
     <ProfileStepLayout
       title="나이가 어떻게 되세요?"
-      subtitle="만나이로 알려주세요 추후에 수정이 불가능해요!"
+      subtitle="만나이로 알려주세요! 추후에 변경이 불가능해요."
       step={2}
+      totalSteps={5}
       buttonEnabled
       onNext={handleNext}
     >
       <View style={styles.pickerContainer}>
-        {/* 선택 하이라이트 영역 */}
-        <View style={styles.highlightBar} />
-
-        <View style={styles.pickerWindow} {...panResponder.panHandlers}>
+        <Animated.ScrollView
+          ref={scrollRef}
+          style={styles.pickerWindow}
+          contentContainerStyle={styles.pickerContent}
+          showsVerticalScrollIndicator={false}
+          snapToInterval={ITEM_HEIGHT}
+          decelerationRate="fast"
+          bounces={false}
+          overScrollMode="never"
+          scrollEventThrottle={16}
+          contentOffset={{ x: 0, y: initialOffset }}
+          onMomentumScrollEnd={settleSelectedAge}
+          onScroll={Animated.event(
+            [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+            {
+              useNativeDriver: true,
+              listener: (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+                updateSelectedAgeFromOffset(event.nativeEvent.contentOffset.y);
+              },
+            },
+          )}
+        >
           {ages.map((age, index) => {
+            const itemOffset = index * ITEM_HEIGHT;
             const inputRange = [
-              (index - 2) * ITEM_HEIGHT,
-              (index - 1) * ITEM_HEIGHT,
-              index * ITEM_HEIGHT,
-              (index + 1) * ITEM_HEIGHT,
-              (index + 2) * ITEM_HEIGHT,
+              itemOffset - ITEM_HEIGHT * 3,
+              itemOffset - ITEM_HEIGHT * 2,
+              itemOffset - ITEM_HEIGHT,
+              itemOffset,
+              itemOffset + ITEM_HEIGHT,
+              itemOffset + ITEM_HEIGHT * 2,
+              itemOffset + ITEM_HEIGHT * 3,
             ];
-
             const opacity = scrollY.interpolate({
               inputRange,
-              outputRange: [0.3, 0.5, 1, 0.5, 0.3],
+              outputRange: [0.3, 0.5, 1, 1, 1, 0.5, 0.3],
               extrapolate: "clamp",
             });
-
             const scale = scrollY.interpolate({
               inputRange,
-              outputRange: [0.8, 0.9, 1.2, 0.9, 0.8],
+              outputRange: [1, 1.25, 1.5, 1.9, 1.5, 1.25, 1],
               extrapolate: "clamp",
             });
-
-            const translateY = scrollY.interpolate({
-              inputRange: [0, (ages.length - 1) * ITEM_HEIGHT],
-              outputRange: [
-                index * ITEM_HEIGHT +
-                  (VISIBLE_ITEMS * ITEM_HEIGHT) / 2 -
-                  ITEM_HEIGHT / 2,
-                index * ITEM_HEIGHT -
-                  (ages.length - 1) * ITEM_HEIGHT +
-                  (VISIBLE_ITEMS * ITEM_HEIGHT) / 2 -
-                  ITEM_HEIGHT / 2,
-              ],
-              extrapolate: "clamp",
-            });
-
             const isSelected = age === selectedAge;
+            const isNear = Math.abs(age - selectedAge) === 1;
 
             return (
               <Animated.View
                 key={age}
                 style={[
                   styles.pickerItem,
+                  isSelected && styles.pickerItemSelected,
                   {
                     opacity,
-                    transform: [{ translateY }, { scale }],
                   },
                 ]}
               >
-                <Text
+                <Animated.Text
                   style={[
                     styles.pickerText,
                     isSelected && styles.pickerTextSelected,
+                    isNear && styles.pickerTextNear,
+                    { transform: [{ scale }] },
                   ]}
                 >
                   {age}
-                </Text>
+                </Animated.Text>
               </Animated.View>
             );
           })}
-        </View>
+        </Animated.ScrollView>
       </View>
     </ProfileStepLayout>
   );
@@ -157,33 +167,44 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   pickerWindow: {
-    height: VISIBLE_ITEMS * ITEM_HEIGHT,
-    width: 120,
-    overflow: "hidden",
+    height: PICKER_HEIGHT,
+    width: 160,
   },
-  highlightBar: {
-    position: "absolute",
-    width: 120,
-    height: ITEM_HEIGHT,
-    backgroundColor: "rgba(255, 62, 112, 0.1)",
-    borderRadius: 14,
-    zIndex: 1,
+  pickerContent: {
+    paddingTop: PICKER_PADDING + SELECTION_OFFSET,
+    paddingBottom: PICKER_PADDING + SELECTION_OFFSET + ITEM_HEIGHT,
   },
   pickerItem: {
     height: ITEM_HEIGHT,
     justifyContent: "center",
     alignItems: "center",
-    position: "absolute",
-    width: "100%",
+    alignSelf: "center",
+    width: 146,
+    borderRadius: 18,
+  },
+  pickerItemSelected: {
+    backgroundColor: "rgba(255, 226, 233, 0.65)",
   },
   pickerText: {
-    fontSize: 24,
-    fontWeight: "500",
-    color: "#A6AFB6",
+    fontSize: 32,
+    fontWeight: "400",
+    color: "#111111",
+    lineHeight: ITEM_HEIGHT,
+    textAlign: "center",
   },
   pickerTextSelected: {
-    fontSize: 32,
     fontWeight: "700",
-    color: "#FF3E70",
+    color: "#FC3367",
+  },
+  pickerTextNear: {
+    color: "#FC3367",
   },
 });
+
+function clampOffset(offset: number, itemCount: number) {
+  return Math.max(0, Math.min(offset, (itemCount - 1) * ITEM_HEIGHT));
+}
+
+function clampAge(age: number) {
+  return Math.max(MIN_AGE, Math.min(age, MAX_AGE));
+}
