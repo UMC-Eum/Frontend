@@ -21,6 +21,7 @@ import {
 const ACCENT = "#FC3367";
 const TEXT = "#202020";
 const MUTED = "#A6AFB6";
+const GYEONGGI_REGION_CODE = "4100000000";
 
 export default function LocationEditScreen() {
   const router = useRouter();
@@ -42,13 +43,22 @@ export default function LocationEditScreen() {
     if (!currentRegion) return;
 
     setSelectedRegionCode(currentRegion.code);
-    setSelectedDistrictCode(areaCode);
+    const currentDistrict = (DISTRICTS[currentRegion.code] ?? []).find(
+      (district) => district.code === areaCode,
+    );
+    setSelectedDistrictCode(
+      currentDistrict && isSelectableDistrict(currentRegion.code, currentDistrict)
+        ? areaCode
+        : null,
+    );
   }, [myProfileQuery.data?.area?.code]);
 
   const currentDistricts = useMemo(() => {
     if (!selectedRegionCode) return [];
 
-    return DISTRICTS[selectedRegionCode] ?? [];
+    return (DISTRICTS[selectedRegionCode] ?? []).filter((district) =>
+      isSelectableDistrict(selectedRegionCode, district),
+    );
   }, [selectedRegionCode]);
 
   const isSubmitting = updateMyProfileMutation.isPending;
@@ -109,6 +119,9 @@ export default function LocationEditScreen() {
     router.replace("/(tabs)/my" as never);
   };
 
+  const displayedLocations = step === 1 ? REGIONS : currentDistricts;
+  const selectedCode = step === 1 ? selectedRegionCode : selectedDistrictCode;
+
   if (myProfileQuery.isLoading) {
     return (
       <SafeAreaView style={styles.loadingContainer}>
@@ -138,29 +151,15 @@ export default function LocationEditScreen() {
           </Text>
         </View>
 
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.listContent}
-        >
-          <View style={styles.grid}>
-            {(step === 1 ? REGIONS : currentDistricts).map((item) => (
-              <LocationChip
-                key={item.code}
-                item={item}
-                active={
-                  step === 1
-                    ? selectedRegionCode === item.code
-                    : selectedDistrictCode === item.code
-                }
-                onPress={() =>
-                  step === 1
-                    ? handleRegionPress(item.code)
-                    : setSelectedDistrictCode(item.code)
-                }
-              />
-            ))}
-          </View>
-        </ScrollView>
+        <LocationGrid
+          items={displayedLocations}
+          selectedCode={selectedCode}
+          onItemPress={(item) =>
+            step === 1
+              ? handleRegionPress(item.code)
+              : setSelectedDistrictCode(item.code)
+          }
+        />
 
         <Pressable
           style={[styles.submitButton, !canSubmit && styles.submitButtonDisabled]}
@@ -175,6 +174,34 @@ export default function LocationEditScreen() {
         </Pressable>
       </View>
     </SafeAreaView>
+  );
+}
+
+function LocationGrid({
+  items,
+  selectedCode,
+  onItemPress,
+}: {
+  items: LocationItem[];
+  selectedCode: string | null;
+  onItemPress: (item: LocationItem) => void;
+}) {
+  return (
+    <ScrollView
+      showsVerticalScrollIndicator={false}
+      contentContainerStyle={styles.listContent}
+    >
+      <View style={styles.grid}>
+        {items.map((item) => (
+          <LocationChip
+            key={item.code}
+            item={item}
+            active={selectedCode === item.code}
+            onPress={() => onItemPress(item)}
+          />
+        ))}
+      </View>
+    </ScrollView>
   );
 }
 
@@ -203,6 +230,14 @@ function findRegionByDistrictCode(districtCode: string) {
   return REGIONS.find((region) =>
     (DISTRICTS[region.code] ?? []).some((district) => district.code === districtCode),
   );
+}
+
+function isSelectableDistrict(regionCode: string, location: LocationItem) {
+  if (regionCode !== GYEONGGI_REGION_CODE) {
+    return true;
+  }
+
+  return location.name.endsWith("시") || location.name.endsWith("군");
 }
 
 const styles = StyleSheet.create({

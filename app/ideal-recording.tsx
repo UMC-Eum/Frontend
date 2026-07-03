@@ -13,6 +13,7 @@ import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { postPresign } from "@/api/onboarding/onboardingApi";
+import { getMyProfile } from "@/api/users/usersApi";
 import MicRecorder from "@/components/MicRecorder";
 import {
   KeywordSelectView,
@@ -35,9 +36,6 @@ import type { IUserProfile } from "@/types/user";
 
 const AUDIO_CONTENT_TYPE = "audio/mp4";
 const AUDIO_PURPOSE = "PROFILE_INTRO_AUDIO";
-const ANALYZE_PROFILE_NICKNAME = "손성원";
-const ANALYZE_PROFILE_GENDER = "M";
-const ANALYZE_PROFILE_BIRTH_DATE = "1900-01-01";
 const ANALYZE_PROFILE_AREA_CODE = "2635000000";
 const MIN_RECORDING_SECONDS = 10;
 
@@ -205,12 +203,9 @@ export default function IdealRecordingPage() {
         },
         voiceAnalyzeMutation.mutateAsync,
         myProfileQuery.data,
-        async () => {
-          const result = await myProfileQuery.refetch();
-
-          return result.data;
-        },
+        getMyProfile,
         updateMyProfileMutation.mutateAsync,
+        () => myProfileQuery.refetch(),
       );
 
       setKeywordOptions(nextKeywordOptions);
@@ -357,8 +352,9 @@ async function getIdealPersonalityKeywords(
   onStepChange: (step: string) => void,
   analyzeVoice: (body: IAnalyzeRequest) => Promise<IAnalyzeResponse>,
   profile: IUserProfile,
-  refetchProfile: () => Promise<IUserProfile | undefined>,
+  fetchProfile: () => Promise<IUserProfile | undefined>,
   restoreProfile: (body: IPatchUserProfileRequest) => Promise<unknown>,
+  refreshProfileCache: () => Promise<unknown>,
 ) {
   const uploadedAudioUrl = await uploadRecordedAudio(recordingUri, onStepChange);
 
@@ -377,7 +373,7 @@ async function getIdealPersonalityKeywords(
     }
 
     onStepChange("분석 키워드 동기화");
-    const analyzedProfile = await refetchProfile();
+    const analyzedProfile = await fetchProfile();
     const profileKeywords = getProfileKeywordOptions(analyzedProfile);
 
     if (profileKeywords.length > 0) {
@@ -391,23 +387,28 @@ async function getIdealPersonalityKeywords(
     if (shouldRestoreProfile) {
       onStepChange("프로필 정보 복구");
       await restoreProfile(buildProfileRestorePayload(profile));
-      await refetchProfile().catch(() => undefined);
+      await refreshProfileCache().catch(() => undefined);
     }
   }
 }
 
 function buildProfileAnalyzeRequest(
   uploadedAudioUrl: string,
-  _profile: IUserProfile,
+  profile: IUserProfile,
 ): IAnalyzeRequest {
+  const profileAge =
+    typeof profile.age === "number" && Number.isFinite(profile.age)
+      ? profile.age
+      : null;
+
   return {
     audioUrl: uploadedAudioUrl,
     language: "ko-KR",
     analysisType: "ideal-type",
-    nickname: ANALYZE_PROFILE_NICKNAME,
-    gender: ANALYZE_PROFILE_GENDER,
-    birthDate: ANALYZE_PROFILE_BIRTH_DATE,
-    areaCode: ANALYZE_PROFILE_AREA_CODE,
+    nickname: profile.nickname?.trim() || "사용자",
+    gender: normalizeGender(profile.gender),
+    birthDate: resolveBirthDate(profile.birthDate, profileAge),
+    areaCode: resolveAreaCode(profile.area?.code),
   };
 }
 
@@ -429,9 +430,10 @@ function buildProfileRestorePayload(
   if (profile.area?.code?.trim()) {
     payload.areaCode = profile.area.code.trim();
   }
-  if (isRemoteUrl(profile.introAudioUrl)) {
-    payload.introAudioUrl = profile.introAudioUrl;
-  }
+  payload.introAudioUrl = isRemoteUrl(profile.introAudioUrl)
+    ? profile.introAudioUrl
+    : null;
+
   if (isRemoteUrl(profile.profileImageUrl)) {
     payload.profileImageUrl = profile.profileImageUrl;
   }
@@ -441,6 +443,21 @@ function buildProfileRestorePayload(
 
 function normalizeGender(gender?: string | null): "M" | "F" {
   return gender === "F" ? "F" : "M";
+}
+
+function resolveBirthDate(birthDate?: string | null, age?: number | null) {
+  if (birthDate) return birthDate;
+
+  const fallbackAge = age ?? 53;
+  const fallbackYear = new Date().getFullYear() - fallbackAge;
+
+  return `${fallbackYear}-01-01`;
+}
+
+function resolveAreaCode(areaCode?: string | null) {
+  const normalizedAreaCode = areaCode?.trim();
+
+  return normalizedAreaCode || ANALYZE_PROFILE_AREA_CODE;
 }
 
 function getProfileKeywordOptions(profile?: IUserProfile) {
