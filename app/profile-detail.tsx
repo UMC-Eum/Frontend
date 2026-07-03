@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import Constants from "expo-constants";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import React, { useEffect, useMemo, useState } from "react";
@@ -39,7 +40,10 @@ import type { IUserProfile } from "@/types/user";
 
 const FALLBACK_PROFILE_IMAGE =
   "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=85&w=1200&auto=format&fit=crop";
-const APP_SCHEME = "eummobile";
+const expoScheme = Constants.expoConfig?.scheme;
+const APP_SCHEME = Array.isArray(expoScheme)
+  ? expoScheme[0]
+  : expoScheme ?? "eummobile";
 
 type ProfileDetailParams = {
   userId?: string | string[];

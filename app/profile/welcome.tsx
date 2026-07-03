@@ -11,7 +11,7 @@ import { isAxiosError } from "axios";
 import type { AudioPlayer } from "expo-audio";
 import { useRouter } from "expo-router";
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Alert, Image as RNImage, StyleSheet, View } from "react-native";
+import { Alert, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { postPresign } from "@/api/onboarding/onboardingApi";
@@ -27,7 +27,11 @@ import {
   VoiceTitle,
   VoiceKeyword,
 } from "@/components/profile/ProfileVoiceParts";
-import { PROFILE_INTEREST_KEYWORDS } from "@/constants/profileKeywords";
+import { DEFAULT_PROFILE_IMAGE_URI } from "@/constants/defaultProfileImage";
+import {
+  PROFILE_INTEREST_KEYWORDS,
+  PROFILE_PERSONALITY_KEYWORDS,
+} from "@/constants/profileKeywords";
 import { usePostVoiceAnalyzeMutation } from "@/hooks/api/useOnboarding";
 import { useUpdateMyProfileMutation } from "@/hooks/api/useUsers";
 import { useAuthStore } from "@/stores/authStore";
@@ -46,10 +50,6 @@ type VoiceStep =
   | "complete";
 
 const MIN_RECORDING_SECONDS = 10;
-const DEFAULT_PROFILE_IMAGE_ASSET = require("@/assets/images/default-profile.png");
-const DEFAULT_PROFILE_IMAGE_URI = RNImage.resolveAssetSource(
-  DEFAULT_PROFILE_IMAGE_ASSET,
-).uri;
 const INTRO_AUDIO_PURPOSE: PresignPurpose = "PROFILE_INTRO_AUDIO";
 const PROFILE_IMAGE_PURPOSE: PresignPurpose = "PROFILE_IMAGE";
 const VOICE_ANALYZE_TIMEOUT_MS = 60000;
@@ -67,13 +67,18 @@ const MOCK_KEYWORDS: VoiceKeyword[] = [
   { id: "movie", label: "영화", category: "interest" },
   { id: "more", label: "...더보기" },
 ];
-const MORE_INTEREST_KEYWORDS: VoiceKeyword[] = PROFILE_INTEREST_KEYWORDS.map(
-  (label, index) => ({
+const MORE_INTEREST_KEYWORDS: VoiceKeyword[] = [
+  ...PROFILE_INTEREST_KEYWORDS.map((label, index) => ({
     id: `interest-${index}-${label}`,
     label,
-    category: "interest",
-  }),
-);
+    category: "interest" as const,
+  })),
+  ...PROFILE_PERSONALITY_KEYWORDS.map((label, index) => ({
+    id: `personality-${index}-${label}`,
+    label,
+    category: "personality" as const,
+  })),
+];
 
 export default function WelcomeScreen() {
   const router = useRouter();
@@ -509,21 +514,21 @@ export default function WelcomeScreen() {
     const safeIntroAudioUrl = isRemoteUrl(introAudioUrl) ? introAudioUrl : "";
 
     const resolveProfileImageUrl = async () => {
-      const nextProfileImageUri =
-        profileImageUri && profileImageUri !== "default"
-          ? profileImageUri
-          : DEFAULT_PROFILE_IMAGE_URI;
+      if (
+        !profileImageUri ||
+        profileImageUri === "default" ||
+        profileImageUri === DEFAULT_PROFILE_IMAGE_URI
+      ) {
+        return null;
+      }
 
       try {
-        let profileImageUrl = nextProfileImageUri;
+        let profileImageUrl = profileImageUri;
 
-        if (
-          isRemoteUrl(nextProfileImageUri) &&
-          nextProfileImageUri !== DEFAULT_PROFILE_IMAGE_URI
-        ) {
-          profileImageUrl = nextProfileImageUri;
+        if (isRemoteUrl(profileImageUri)) {
+          profileImageUrl = profileImageUri;
         } else {
-          profileImageUrl = await uploadProfileImage(nextProfileImageUri);
+          profileImageUrl = await uploadProfileImage(profileImageUri);
         }
 
         if (__DEV__) {

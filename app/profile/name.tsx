@@ -49,7 +49,7 @@ export default function NameScreen() {
   const handleNext = () => {
     inputRef.current?.blur();
     setDraftNickname(trimmedName);
-    router.push("/profile/age" as any);
+    router.push("/profile/age");
   };
 
   const handleClear = () => {

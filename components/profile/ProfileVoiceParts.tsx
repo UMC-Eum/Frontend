@@ -3,7 +3,6 @@ import { Image } from "expo-image";
 import React, { useEffect, useRef, useState } from "react";
 import {
   Animated,
-  Image as RNImage,
   Modal,
   Pressable,
   ScrollView,
@@ -15,6 +14,10 @@ import {
 import Svg, { Defs, LinearGradient, Path, Rect, Stop } from "react-native-svg";
 
 import { Chip } from "@/components/Chip";
+import {
+  DEFAULT_PROFILE_IMAGE_ASSET,
+  DEFAULT_PROFILE_IMAGE_URI,
+} from "@/constants/defaultProfileImage";
 
 const PINK = "#FC3367";
 const HOT_PINK = "#FF3E70";
@@ -23,10 +26,6 @@ const GRAY_700 = "#636970";
 const GRAY_500 = "#A6AFB6";
 const GRAY_150 = "#E9ECED";
 
-const DEFAULT_PROFILE_IMAGE_ASSET = require("@/assets/images/default-profile.png");
-const DEFAULT_PROFILE_IMAGE_URI = RNImage.resolveAssetSource(
-  DEFAULT_PROFILE_IMAGE_ASSET,
-).uri;
 export type VoiceKeyword = {
   id: string;
   label: string;
@@ -242,6 +241,16 @@ export function KeywordSelectView({
   onNext,
 }: KeywordSelectProps) {
   const [isMoreOpen, setIsMoreOpen] = useState(false);
+  const baseKeywords = keywords.filter((keyword) => keyword.id !== "more");
+  const moreChip = keywords.find((keyword) => keyword.id === "more");
+  const baseKeywordLabels = new Set(baseKeywords.map((keyword) => keyword.label));
+  const selectedMoreKeywords = moreKeywords.filter(
+    (keyword) =>
+      selectedIds.includes(keyword.id) && !baseKeywordLabels.has(keyword.label),
+  );
+  const visibleKeywords = moreChip
+    ? [...baseKeywords, ...selectedMoreKeywords, moreChip]
+    : [...baseKeywords, ...selectedMoreKeywords];
 
   return (
     <View style={styles.keywordScreen}>
@@ -264,7 +273,7 @@ export function KeywordSelectView({
           <Text style={styles.keywordCountActive}>{selectedIds.length}</Text>/5
         </Text>
         <View style={styles.keywordWrap}>
-          {keywords.map((keyword) => {
+          {visibleKeywords.map((keyword) => {
             const isMore = keyword.id === "more";
             const selected =
               selectedIds.includes(keyword.id) ||
