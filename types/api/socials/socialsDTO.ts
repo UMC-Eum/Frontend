@@ -2,6 +2,10 @@ export interface IProfileSummary {
   profileImageUrl: string;
   nickname: string;
   age: number;
+  areaName?: string | null;
+  area?: {
+    name?: string | null;
+  } | null;
 }
 
 //v1/hearts(post)
