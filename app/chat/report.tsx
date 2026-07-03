@@ -1,24 +1,100 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  Alert,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-const REPORT_REASONS = [
-  "불쾌하거나 부적절한 발언",
-  "성희롱 / 성적 표현",
-  "사기 또는 금전 요구 의심",
-  "욕설 / 비하 / 혐오 표현",
-  "스팸 / 광고 목적 이용",
+import { useCreateReportMutation } from "@/hooks/api/useSocials";
+import type { ReportCategory } from "@/types/api/socials/socialsDTO";
+
+type ReportReason = {
+  label: string;
+  category: ReportCategory;
+  defaultReason: string;
+};
+
+const REPORT_REASONS: ReportReason[] = [
+  {
+    label: "불쾌하거나 부적절한 발언",
+    category: "INAPPROPRIATE",
+    defaultReason: "불쾌하거나 부적절한 발언",
+  },
+  {
+    label: "성희롱 / 성적 표현",
+    category: "SEXUAL_HARASSMENT",
+    defaultReason: "성희롱 또는 성적 표현",
+  },
+  {
+    label: "사기 또는 금전 요구 의심",
+    category: "MONEY_REQUEST",
+    defaultReason: "사기 또는 금전 요구 의심",
+  },
+  {
+    label: "욕설 / 비하 / 혐오 표현",
+    category: "ABUSE",
+    defaultReason: "욕설 / 비하 / 혐오 표현",
+  },
+  {
+    label: "스팸 / 광고 목적 이용",
+    category: "SPAM",
+    defaultReason: "스팸 / 광고 목적 이용",
+  },
+  {
+    label: "기타",
+    category: "OTHERS",
+    defaultReason: "기타 신고 사유",
+  },
 ];
 
 export default function ReportScreen() {
   const router = useRouter();
-  const [selectedReason, setSelectedReason] = useState<string | null>(null);
+  const params = useLocalSearchParams<{
+    targetUserId?: string;
+    chatRoomId?: string;
+    nickname?: string;
+  }>();
+  const createReportMutation = useCreateReportMutation();
+  const [selectedReason, setSelectedReason] = useState<ReportReason | null>(
+    null,
+  );
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const targetUserId = parsePositiveInt(params.targetUserId);
+  const chatRoomId = parsePositiveInt(params.chatRoomId);
+  const isSubmitting = createReportMutation.isPending;
 
   const closeReport = () => {
     router.back();
+  };
+
+  const handleSubmit = () => {
+    if (!selectedReason || isSubmitting) return;
+
+    if (!targetUserId) {
+      Alert.alert("신고 실패", "대화방 정보를 불러온 뒤 다시 시도해주세요.");
+      return;
+    }
+
+    createReportMutation.mutate(
+      {
+        targetUserId,
+        category: selectedReason.category,
+        reason: selectedReason.defaultReason,
+        ...(chatRoomId ? { chatRoomId } : {}),
+      },
+      {
+        onSuccess: () => setIsSubmitted(true),
+        onError: () => {
+          Alert.alert("신고 실패", "잠시 후 다시 시도해주세요.");
+        },
+      },
+    );
   };
 
   if (isSubmitted) {
@@ -65,15 +141,15 @@ export default function ReportScreen() {
 
         <View style={styles.reasonList}>
           {REPORT_REASONS.map((reason) => {
-            const isSelected = selectedReason === reason;
+            const isSelected = selectedReason?.category === reason.category;
 
             return (
               <Pressable
-                key={reason}
+                key={reason.category}
                 style={[styles.reasonItem, isSelected && styles.selectedReason]}
                 onPress={() => setSelectedReason(reason)}
               >
-                <Text style={styles.reasonText}>{reason}</Text>
+                <Text style={styles.reasonText}>{reason.label}</Text>
               </Pressable>
             );
           })}
@@ -84,23 +160,34 @@ export default function ReportScreen() {
         <Pressable
           style={[
             styles.submitButton,
-            !selectedReason && styles.submitButtonDisabled,
+            (!selectedReason || isSubmitting) && styles.submitButtonDisabled,
           ]}
-          disabled={!selectedReason}
-          onPress={() => setIsSubmitted(true)}
+          disabled={!selectedReason || isSubmitting}
+          onPress={handleSubmit}
         >
-          <Text
-            style={[
-              styles.submitButtonText,
-              !selectedReason && styles.submitButtonTextDisabled,
-            ]}
-          >
-            신고하기
-          </Text>
+          {isSubmitting ? (
+            <ActivityIndicator color="#FFFFFF" />
+          ) : (
+            <Text
+              style={[
+                styles.submitButtonText,
+                !selectedReason && styles.submitButtonTextDisabled,
+              ]}
+            >
+              신고하기
+            </Text>
+          )}
         </Pressable>
       </View>
     </SafeAreaView>
   );
+}
+
+function parsePositiveInt(value?: string | string[]) {
+  const rawValue = Array.isArray(value) ? value[0] : value;
+  const parsed = Number(rawValue);
+
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
 }
 
 const styles = StyleSheet.create({
