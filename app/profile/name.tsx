@@ -49,7 +49,7 @@ export default function NameScreen() {
   const handleNext = () => {
     inputRef.current?.blur();
     setDraftNickname(trimmedName);
-    router.push("/profile/photo" as any);
+    router.push("/profile/age");
   };
 
   const handleClear = () => {
@@ -67,6 +67,7 @@ export default function NameScreen() {
         title="성함이 어떻게 되세요?"
         subtitle="실명도, 닉네임도 모두 괜찮아요."
         step={1}
+        totalSteps={5}
         buttonEnabled={isValid}
         onNext={handleNext}
       >

@@ -27,6 +27,8 @@ interface ProfileStepLayoutProps {
   hideBottomButton?: boolean;
   /** 뒤로가기 표시 여부 */
   showBack?: boolean;
+  /** 뒤로가기 클릭 */
+  onBack?: () => void;
   /** 현재 프로필 설정 단계 */
   step?: number;
   /** 전체 프로필 설정 단계 수 */
@@ -51,6 +53,7 @@ const ProfileStepLayout = ({
   onNext,
   hideBottomButton = false,
   showBack = true,
+  onBack,
   step = 1,
   totalSteps = 3,
   children,
@@ -66,7 +69,7 @@ const ProfileStepLayout = ({
       {/* 헤더: 뒤로가기 + 진행 상태 */}
       <View style={styles.header}>
         {showBack ? (
-          <Pressable onPress={() => router.back()} hitSlop={12}>
+          <Pressable onPress={onBack ?? (() => router.back())} hitSlop={12}>
             <Ionicons name="chevron-back" size={24} color="#202020" />
           </Pressable>
         ) : (

@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
+import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import React, { useMemo, useState } from "react";
 import {
@@ -14,7 +15,6 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import Cta from "@/components/Cta";
-import DevBackHeader from "@/components/DevBackHeader";
 import { Chip } from "@/components/Chip";
 import TextBox from "@/components/TextBox";
 import TxtBox from "@/components/txt-box";
@@ -33,6 +33,7 @@ type JoinType = "free" | "approval";
 type BoardScope = "all" | "member";
 
 export default function ClubCreateScreen() {
+  const router = useRouter();
   const [name, setName] = useState("");
   const [intro, setIntro] = useState("");
   const [category, setCategory] = useState(categories[0]);
@@ -74,13 +75,23 @@ export default function ClubCreateScreen() {
   };
 
   const handleSubmit = () => {
-    Alert.alert("동호회 생성", "동호회 생성 플로우 연결 전 테스트 화면입니다.");
+    router.push("/club/create-complete" as never);
   };
 
   return (
     <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
       <StatusBar style="dark" />
-      <DevBackHeader title="동호회 만들기" />
+      <View style={styles.header}>
+        <Pressable
+          style={styles.headerIconButton}
+          onPress={() => router.back()}
+          hitSlop={12}
+        >
+          <Ionicons name="chevron-back" size={26} color="#A6AFB6" />
+        </Pressable>
+        <Text style={styles.headerTitle}>동호회 만들기</Text>
+        <View style={styles.headerIconButton} />
+      </View>
 
       <ScrollView
         style={styles.scrollView}
@@ -150,8 +161,14 @@ export default function ClubCreateScreen() {
                 variant={category === item ? "outlineActive" : "outline"}
                 size="small"
                 onPress={() => setCategory(item)}
-                style={styles.categoryChip}
-                textStyle={styles.categoryChipText}
+                style={[
+                  styles.categoryChip,
+                  category === item ? styles.categoryChipActive : null,
+                ]}
+                textStyle={[
+                  styles.categoryChipText,
+                  category === item ? styles.categoryChipTextActive : null,
+                ]}
               />
             ))}
           </View>
@@ -171,27 +188,28 @@ export default function ClubCreateScreen() {
         </FormSection>
 
         <FormSection>
-          <RequiredLabel label="최대인원" required={false} />
+          <RequiredLabel label="최대인원" />
           <View style={styles.counterBox}>
-            <RoundIconButton
-              icon="remove"
-              disabled={maxMembers <= 2}
-              onPress={() => setMaxMembers((prev) => Math.max(2, prev - 1))}
-            />
-            <View style={styles.memberCountRow}>
+            <View style={styles.memberCountBox}>
               <Text style={styles.memberCount}>{maxMembers}</Text>
               <Text style={styles.memberUnit}>명</Text>
             </View>
-            <RoundIconButton
-              icon="add"
-              active
-              onPress={() => setMaxMembers((prev) => Math.min(99, prev + 1))}
-            />
+            <View style={styles.stepperGroup}>
+              <RoundIconButton
+                icon="remove"
+                disabled={maxMembers <= 2}
+                onPress={() => setMaxMembers((prev) => Math.max(2, prev - 1))}
+              />
+              <RoundIconButton
+                icon="add"
+                onPress={() => setMaxMembers((prev) => Math.min(99, prev + 1))}
+              />
+            </View>
           </View>
         </FormSection>
 
         <FormSection>
-          <RequiredLabel label="가입 방식" required={false} />
+          <RequiredLabel label="가입 방식" />
           <View style={styles.optionRow}>
             <OptionCard
               title="자유 가입"
@@ -209,7 +227,7 @@ export default function ClubCreateScreen() {
         </FormSection>
 
         <FormSection>
-          <RequiredLabel label="게시판 공개 범위" required={false} />
+          <RequiredLabel label="게시판 공개 범위" />
           <View style={styles.optionRow}>
             <OptionCard
               title="전체 공개"
@@ -231,6 +249,8 @@ export default function ClubCreateScreen() {
         label={canSubmit ? "동호회 만들기" : "다음"}
         disabled={!canSubmit}
         onPress={handleSubmit}
+        buttonStyle={styles.ctaButton}
+        labelStyle={styles.ctaLabel}
       />
     </SafeAreaView>
   );
@@ -301,14 +321,9 @@ function OptionCard({
       style={[styles.optionCard, selected && styles.optionCardSelected]}
       onPress={onPress}
     >
-      <View style={styles.optionTitleRow}>
-        <Text style={[styles.optionTitle, selected && styles.optionTitleSelected]}>
-          {title}
-        </Text>
-        <View style={[styles.checkCircle, selected && styles.checkCircleSelected]}>
-          {selected ? <Ionicons name="checkmark" size={12} color="#FFFFFF" /> : null}
-        </View>
-      </View>
+      <Text style={[styles.optionTitle, selected && styles.optionTitleSelected]}>
+        {title}
+      </Text>
       <Text style={styles.optionDescription}>{description}</Text>
     </Pressable>
   );
@@ -319,16 +334,35 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#FFFFFF",
   },
+  header: {
+    height: 56,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#FFFFFF",
+  },
+  headerIconButton: {
+    width: 48,
+    height: 48,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  headerTitle: {
+    fontSize: 24,
+    lineHeight: 30,
+    fontWeight: "600",
+    color: "#202020",
+  },
   scrollView: {
     flex: 1,
-    backgroundColor: "#F8FAFB",
+    backgroundColor: "#FFFFFF",
   },
   scrollContent: {
-    paddingBottom: 20,
+    paddingBottom: 112,
   },
   coverBox: {
-    height: 176,
-    backgroundColor: "#EEF1F3",
+    height: 240,
+    backgroundColor: "#E9ECED",
     alignItems: "center",
     justifyContent: "center",
     overflow: "hidden",
@@ -358,30 +392,29 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   cameraCircle: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: "#FFFFFF",
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 10,
+    marginBottom: 12,
   },
   coverText: {
     color: "#A6AFB6",
-    fontSize: 14,
-    fontWeight: "600",
+    fontSize: 16,
+    lineHeight: 24,
+    fontWeight: "500",
   },
   coverSubText: {
     color: "#A6AFB6",
-    fontSize: 13,
-    marginTop: 4,
+    fontSize: 16,
+    lineHeight: 24,
+    fontWeight: "500",
   },
   section: {
     backgroundColor: "#FFFFFF",
     paddingHorizontal: 20,
-    paddingVertical: 18,
-    borderBottomWidth: 8,
-    borderBottomColor: "#F8FAFB",
+    paddingVertical: 8,
   },
   labelRow: {
     flexDirection: "row",
@@ -389,9 +422,10 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   label: {
-    color: "#111827",
-    fontSize: 15,
-    fontWeight: "800",
+    color: "#202020",
+    fontSize: 18,
+    lineHeight: 23,
+    fontWeight: "600",
     marginBottom: 12,
   },
   required: {
@@ -399,7 +433,9 @@ const styles = StyleSheet.create({
   },
   hint: {
     color: "#A6AFB6",
-    fontSize: 12,
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: "500",
     marginBottom: 12,
   },
   chipList: {
@@ -408,11 +444,23 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   categoryChip: {
-    backgroundColor: "#FFFFFF",
+    height: 32,
+    borderRadius: 100,
+    backgroundColor: "#F8FAFB",
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+  },
+  categoryChipActive: {
+    borderColor: "#FC3367",
+    backgroundColor: "#FFF0F2",
   },
   categoryChipText: {
-    fontSize: 12,
-    fontWeight: "600",
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: "500",
+  },
+  categoryChipTextActive: {
+    color: "#FC3367",
   },
   selectBox: {
     height: 48,
@@ -434,10 +482,16 @@ const styles = StyleSheet.create({
     color: "#1F2937",
   },
   counterBox: {
-    height: 62,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  memberCountBox: {
+    flex: 1,
+    height: 48,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: "#DEE3E5",
+    borderColor: "#E9ECED",
     backgroundColor: "#FFFFFF",
     paddingHorizontal: 12,
     flexDirection: "row",
@@ -445,35 +499,37 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   roundButton: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+    width: 48,
+    height: 48,
     alignItems: "center",
     justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#DEE3E5",
   },
   roundButtonMuted: {
-    backgroundColor: "#E9EEF1",
+    backgroundColor: "#F8FAFB",
   },
   roundButtonActive: {
-    backgroundColor: "#FC3367",
+    backgroundColor: "#F8FAFB",
   },
   roundButtonDisabled: {
     opacity: 0.7,
   },
-  memberCountRow: {
+  stepperGroup: {
     flexDirection: "row",
-    alignItems: "baseline",
-    gap: 6,
+    alignItems: "center",
   },
   memberCount: {
-    color: "#111827",
+    color: "#202020",
     fontSize: 20,
-    fontWeight: "800",
+    lineHeight: 25,
+    fontWeight: "600",
   },
   memberUnit: {
-    color: "#4B5563",
-    fontSize: 13,
-    fontWeight: "700",
+    color: "#202020",
+    fontSize: 18,
+    lineHeight: 23,
+    fontWeight: "500",
   },
   optionRow: {
     flexDirection: "row",
@@ -481,49 +537,41 @@ const styles = StyleSheet.create({
   },
   optionCard: {
     flex: 1,
-    minHeight: 68,
-    borderRadius: 10,
+    height: 72,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#E5E7EB",
+    borderColor: "#E9ECED",
     padding: 12,
     backgroundColor: "#FFFFFF",
   },
   optionCardSelected: {
+    borderWidth: 2,
     borderColor: "#FC3367",
-    backgroundColor: "#FFF1F4",
-  },
-  optionTitleRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 8,
+    backgroundColor: "#FFF0F2",
   },
   optionTitle: {
-    color: "#111827",
-    fontSize: 14,
-    fontWeight: "800",
+    color: "#202020",
+    fontSize: 16,
+    lineHeight: 24,
+    fontWeight: "600",
   },
   optionTitleSelected: {
     color: "#FC3367",
   },
   optionDescription: {
-    color: "#4B5563",
-    fontSize: 12,
+    color: "#636970",
+    fontSize: 14,
+    lineHeight: 20,
     fontWeight: "500",
-    marginTop: 6,
+    marginTop: 2,
   },
-  checkCircle: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#FFFFFF",
+  ctaButton: {
+    height: 54,
+    borderRadius: 14,
   },
-  checkCircleSelected: {
-    borderColor: "#FC3367",
-    backgroundColor: "#FC3367",
+  ctaLabel: {
+    fontSize: 18,
+    lineHeight: 23,
+    fontWeight: "600",
   },
 });
