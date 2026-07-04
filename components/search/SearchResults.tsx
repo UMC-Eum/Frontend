@@ -50,7 +50,7 @@ export default function SearchResults({
     <FlatList
       style={styles.resultList}
       data={results}
-      keyExtractor={(item, index) => `${item.id}-${index}`}
+      keyExtractor={(item) => item.id}
       showsVerticalScrollIndicator={false}
       contentContainerStyle={styles.resultListContent}
       ListHeaderComponent={

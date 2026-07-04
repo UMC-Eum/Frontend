@@ -239,7 +239,7 @@ export default function HeartScreen() {
 
       <FlatList
         data={isInitialLoading ? [] : profiles}
-        keyExtractor={(item, index) => `${item.id}-${index}`}
+        keyExtractor={(item) => item.id}
         numColumns={2}
         renderItem={({ item }) => (
           <HeartProfileCard

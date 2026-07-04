@@ -384,7 +384,7 @@ export default function HomePage() {
                   <FlatList
                     ref={profileListRef}
                     data={profiles}
-                    keyExtractor={(item, index) => `${item.id}-${index}`}
+                    keyExtractor={(item) => item.id}
                     horizontal
                     pagingEnabled
                     showsHorizontalScrollIndicator={false}

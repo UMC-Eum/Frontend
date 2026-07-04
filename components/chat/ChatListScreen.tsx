@@ -163,7 +163,7 @@ export default function ChatListScreen({
     <SafeAreaView style={styles.safeArea} edges={["top"]}>
       <FlatList
         data={chatPreviews}
-        keyExtractor={(item, index) => `${item.id}-${index}`}
+        keyExtractor={(item) => item.id}
         renderItem={renderChatPreview}
         ListHeaderComponent={renderHeader}
         ListEmptyComponent={
