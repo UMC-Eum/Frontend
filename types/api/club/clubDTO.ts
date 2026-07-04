@@ -9,7 +9,7 @@ export type ClubCategory =
 
 export type ClubAuthority = "HOST" | "MANAGER" | "GENERAL";
 export type ClubMemberStatus = "ACTIVE" | "PENDING" | "REJECTED";
-export type ClubJoinPolicy = "AUTO" | "APPROVAL";
+export type ClubJoinPolicy = "AUTO" | "APPROVAL_REQUIRED";
 export type ClubListSort = "POPULAR" | "RECENT" | "LIKES";
 export type MyClubRole = "ALL" | "HOST" | "MEMBER";
 

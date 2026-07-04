@@ -136,7 +136,12 @@ export default function Index() {
       {/* 정기모임 생성 플로우 확인 버튼입니다. */}
       <Pressable
         style={[styles.button, styles.meetingCreateButton]}
-        onPress={() => router.push("/meeting-create" as any)}
+        onPress={() =>
+          router.push({
+            pathname: "/meeting-create",
+            params: { clubId: "1" },
+          } as any)
+        }
       >
         <Text style={[styles.buttonText, styles.meetingCreateButtonText]}>
           📅 정기모임 생성 테스트

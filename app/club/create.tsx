@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
+import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import React, { useMemo, useState } from "react";
 import {
@@ -18,21 +19,26 @@ import DevBackHeader from "@/components/DevBackHeader";
 import { Chip } from "@/components/Chip";
 import TextBox from "@/components/TextBox";
 import TxtBox from "@/components/txt-box";
+import { useCreateClubMutation } from "@/hooks/api/useClub";
+import type { ClubCategory } from "@/types/api/club/clubDTO";
+import type { ApiFailResponse } from "@/types/api/api";
 
-const categories = [
-  "운동 / 스포츠",
-  "취미 / 여가",
-  "문화 / 예술",
-  "봉사활동",
-  "음식 / 맛집",
-  "독서 / 공부",
-  "기타",
+const categories: { label: string; value: ClubCategory }[] = [
+  { label: "운동 / 스포츠", value: "SPORTS" },
+  { label: "취미 / 여가", value: "HOBBY" },
+  { label: "문화 / 예술", value: "CULTURE" },
+  { label: "봉사활동", value: "SOCIAL" },
+  { label: "음식 / 맛집", value: "SOCIAL" },
+  { label: "독서 / 공부", value: "STUDY" },
+  { label: "기타", value: "ETC" },
 ];
 
 type JoinType = "free" | "approval";
 type BoardScope = "all" | "member";
 
 export default function ClubCreateScreen() {
+  const router = useRouter();
+  const createClubMutation = useCreateClubMutation();
   const [name, setName] = useState("");
   const [intro, setIntro] = useState("");
   const [category, setCategory] = useState(categories[0]);
@@ -73,8 +79,29 @@ export default function ClubCreateScreen() {
     }
   };
 
-  const handleSubmit = () => {
-    Alert.alert("동호회 생성", "동호회 생성 플로우 연결 전 테스트 화면입니다.");
+  const handleSubmit = async () => {
+    if (!canSubmit || createClubMutation.isPending) return;
+
+    try {
+      const createdClub = await createClubMutation.mutateAsync({
+        name: name.trim(),
+        category: category.value,
+        introText: intro.trim(),
+        capacity: maxMembers,
+        keywordIds: [],
+      });
+
+      router.replace({
+        pathname: "/club/detail",
+        params: { clubId: String(createdClub.clubId) },
+      } as never);
+    } catch (error) {
+      Alert.alert(
+        "동호회 생성 실패",
+        getApiErrorMessage(error) ??
+          "동호회를 생성하지 못했어요. 잠시 후 다시 시도해주세요.",
+      );
+    }
   };
 
   return (
@@ -145,9 +172,9 @@ export default function ClubCreateScreen() {
           <View style={styles.chipList}>
             {categories.map((item) => (
               <Chip
-                key={item}
-                label={item}
-                variant={category === item ? "outlineActive" : "outline"}
+                key={item.label}
+                label={item.label}
+                variant={category.label === item.label ? "outlineActive" : "outline"}
                 size="small"
                 onPress={() => setCategory(item)}
                 style={styles.categoryChip}
@@ -228,12 +255,17 @@ export default function ClubCreateScreen() {
       </ScrollView>
 
       <Cta
-        label={canSubmit ? "동호회 만들기" : "다음"}
-        disabled={!canSubmit}
+        label={createClubMutation.isPending ? "생성 중..." : canSubmit ? "동호회 만들기" : "다음"}
+        disabled={!canSubmit || createClubMutation.isPending}
         onPress={handleSubmit}
       />
     </SafeAreaView>
   );
+}
+
+function getApiErrorMessage(error: unknown) {
+  const apiError = error as { response?: { data?: ApiFailResponse } };
+  return apiError.response?.data?.error?.message;
 }
 
 function FormSection({ children }: { children: React.ReactNode }) {

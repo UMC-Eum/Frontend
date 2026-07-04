@@ -61,6 +61,7 @@ export default function RootLayout() {
               name="meeting-create-complete"
               options={{ headerShown: false }}
             />
+            <Stack.Screen name="meeting-manage" options={{ headerShown: false }} />
             <Stack.Screen
               name="(tabs)"
               options={{ headerShown: false }}

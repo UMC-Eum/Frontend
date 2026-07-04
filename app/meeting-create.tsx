@@ -1,11 +1,10 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import React, { useRef, useState } from "react";
+import React from "react";
 import {
   KeyboardAvoidingView,
   Platform,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -19,91 +18,20 @@ import {
   MeetingFieldSection,
   MeetingInput,
   MeetingJoinOption,
-  MeetingJoinType,
   MeetingMemberCounter,
+  MeetingScreenHeader,
 } from "@/components/meeting/MeetingCreateParts";
-
-type RequiredMeetingField = "title" | "intro" | "dateText" | "location";
-
-const REQUIRED_FIELD_MESSAGES: Record<RequiredMeetingField, string> = {
-  title: "모임 제목을 입력해주세요.",
-  intro: "모임 소개를 입력해주세요.",
-  dateText: "정기모임 일시를 입력해주세요.",
-  location: "정기모임 위치를 입력해주세요.",
-};
+import {
+  MeetingScheduleField,
+  MeetingSchedulePicker,
+} from "@/components/meeting/MeetingSchedulePicker";
+import { useMeetingCreateForm } from "@/hooks/useMeetingCreateForm";
 
 export default function MeetingCreateScreen() {
   const router = useRouter();
-  const scrollViewRef = useRef<ScrollView>(null);
-  const sectionOffsets = useRef<Record<RequiredMeetingField, number>>({
-    title: 0,
-    intro: 0,
-    dateText: 0,
-    location: 0,
-  });
-  const [title, setTitle] = useState("");
-  const [intro, setIntro] = useState("");
-  const [dateText, setDateText] = useState("");
-  const [location, setLocation] = useState("");
-  const [cost, setCost] = useState("");
-  const [maxMembers, setMaxMembers] = useState(15);
-  const [joinType, setJoinType] = useState<MeetingJoinType>("free");
-  const [submitted, setSubmitted] = useState(false);
-
-  const requiredValues: Record<RequiredMeetingField, string> = {
-    title,
-    intro,
-    dateText,
-    location,
-  };
-
-  const getFieldError = (field: RequiredMeetingField) => {
-    if (!submitted || requiredValues[field].trim().length > 0) {
-      return "";
-    }
-
-    return REQUIRED_FIELD_MESSAGES[field];
-  };
-
-  const getFirstInvalidField = () =>
-    (Object.keys(requiredValues) as RequiredMeetingField[]).find(
-      (field) => requiredValues[field].trim().length === 0,
-    );
-
-  const firstInvalidField = submitted ? getFirstInvalidField() : undefined;
-  const validationWarning = firstInvalidField
-    ? REQUIRED_FIELD_MESSAGES[firstInvalidField]
-    : "";
-
-  const handleSectionLayout =
-    (field: RequiredMeetingField) =>
-    (event: { nativeEvent: { layout: { y: number } } }) => {
-      sectionOffsets.current[field] = event.nativeEvent.layout.y;
-    };
-
-  const decreaseMembers = () => {
-    setMaxMembers((current) => Math.max(2, current - 1));
-  };
-
-  const increaseMembers = () => {
-    setMaxMembers((current) => Math.min(99, current + 1));
-  };
-
-  const handleSubmit = () => {
-    setSubmitted(true);
-
-    const nextInvalidField = getFirstInvalidField();
-
-    if (nextInvalidField) {
-      scrollViewRef.current?.scrollTo({
-        y: Math.max(sectionOffsets.current[nextInvalidField] - 8, 0),
-        animated: true,
-      });
-      return;
-    }
-
-    router.push("/meeting-create-complete" as never);
-  };
+  const params = useLocalSearchParams<{ clubId?: string }>();
+  const clubId = Number(params.clubId);
+  const form = useMeetingCreateForm(clubId);
 
   return (
     <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
@@ -112,99 +40,87 @@ export default function MeetingCreateScreen() {
         style={styles.keyboardView}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
-        <View style={styles.header}>
-          <Pressable
-            style={styles.headerButton}
-            onPress={() => router.back()}
-            hitSlop={12}
-          >
-            <Ionicons name="chevron-back" size={28} color={MEETING_COLORS.gray500} />
-          </Pressable>
-          <Text style={styles.headerTitle}>정기모임 만들기</Text>
-          <View style={styles.headerButton} />
-        </View>
+        <MeetingScreenHeader
+          title="정기모임 만들기"
+          onPressIcon={() => router.back()}
+        />
 
         <ScrollView
-          ref={scrollViewRef}
+          ref={form.scrollViewRef}
           style={styles.scrollView}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
         >
-          {/* 정기모임 생성에 필요한 기본 입력값입니다. */}
           <MeetingFieldSection
             label="모임 제목"
-            onLayout={handleSectionLayout("title")}
+            onLayout={form.handleSectionLayout("title")}
           >
             <MeetingInput
-              value={title}
-              onChangeText={setTitle}
+              value={form.title}
+              onChangeText={form.setTitle}
               placeholder="어떤 정기 모임인지 알려주세요."
-              hasError={!!getFieldError("title")}
-              errorMessage={getFieldError("title")}
+              hasError={!!form.getFieldError("title")}
+              errorMessage={form.getFieldError("title")}
             />
           </MeetingFieldSection>
 
           <MeetingFieldSection
             label="모임 소개"
-            onLayout={handleSectionLayout("intro")}
+            onLayout={form.handleSectionLayout("intro")}
           >
             <MeetingInput
-              value={intro}
-              onChangeText={setIntro}
+              value={form.intro}
+              onChangeText={form.setIntro}
               placeholder={
                 "모임에 대해 소개해주세요.\n어떤 분들과 함께하고 싶은지, 무엇을 할 예정인지 적어주세요."
               }
               multiline
               maxLength={200}
-              minHeight={108}
+              minHeight={117}
               showCounter
-              hasError={!!getFieldError("intro")}
-              errorMessage={getFieldError("intro")}
+              hasError={!!form.getFieldError("intro")}
+              errorMessage={form.getFieldError("intro")}
             />
           </MeetingFieldSection>
 
           <MeetingFieldSection
-            label="일시"
-            icon="calendar-outline"
-            onLayout={handleSectionLayout("dateText")}
+            label="일정"
+            onLayout={form.handleSectionLayout("schedule")}
           >
-            <MeetingInput
-              value={dateText}
-              onChangeText={setDateText}
-              placeholder="예) 매주 목요일 저녁 18시"
-              hasError={!!getFieldError("dateText")}
-              errorMessage={getFieldError("dateText")}
+            <MeetingScheduleField
+              value={form.schedule}
+              onPress={form.openSchedulePicker}
+              hasError={!!form.getFieldError("schedule")}
+              errorMessage={form.getFieldError("schedule")}
             />
           </MeetingFieldSection>
 
           <MeetingFieldSection
             label="위치"
-            icon="location"
-            onLayout={handleSectionLayout("location")}
+            onLayout={form.handleSectionLayout("location")}
           >
             <MeetingInput
-              value={location}
-              onChangeText={setLocation}
+              value={form.location}
+              onChangeText={form.setLocation}
               placeholder="예) 종로역 1번 출구 앞"
-              hasError={!!getFieldError("location")}
-              errorMessage={getFieldError("location")}
+              hasError={!!form.getFieldError("location")}
+              errorMessage={form.getFieldError("location")}
             />
           </MeetingFieldSection>
 
-          {/* 인원 조정 UI는 완료 카드와 분리해 폼 전용 상태로만 관리합니다. */}
           <MeetingFieldSection label="최대인원">
             <MeetingMemberCounter
-              value={maxMembers}
-              onDecrease={decreaseMembers}
-              onIncrease={increaseMembers}
+              value={form.maxMembers}
+              onDecrease={form.decreaseMembers}
+              onIncrease={form.increaseMembers}
             />
           </MeetingFieldSection>
 
           <MeetingFieldSection label="비용" optional>
             <MeetingInput
-              value={cost}
-              onChangeText={setCost}
+              value={form.cost}
+              onChangeText={form.setCost}
               placeholder="예) 1인 10,000원"
             />
           </MeetingFieldSection>
@@ -214,37 +130,47 @@ export default function MeetingCreateScreen() {
               <MeetingJoinOption
                 title="자유 가입"
                 description="누구나 바로 참여"
-                selected={joinType === "free"}
-                onPress={() => setJoinType("free")}
+                selected={form.joinType === "free"}
+                onPress={() => form.setJoinType("free")}
               />
               <MeetingJoinOption
                 title="승인 필요"
                 description="운영자 확인 후 참여"
-                selected={joinType === "approval"}
-                onPress={() => setJoinType("approval")}
+                selected={form.joinType === "approval"}
+                onPress={() => form.setJoinType("approval")}
               />
             </View>
           </MeetingFieldSection>
         </ScrollView>
 
         <View style={styles.bottomArea}>
-          {validationWarning ? (
+          {form.validationWarning ? (
             <View style={styles.validationBanner}>
               <Ionicons
                 name="alert-circle"
                 size={18}
                 color={MEETING_COLORS.pink}
               />
-              <Text style={styles.validationText}>{validationWarning}</Text>
+              <Text style={styles.validationText}>{form.validationWarning}</Text>
             </View>
           ) : null}
           <Cta
-            label="정기모임 생성"
-            onPress={handleSubmit}
+            label={form.isSubmitting ? "생성 중..." : "정기모임 생성"}
+            onPress={form.handleSubmit}
+            disabled={form.isSubmitting}
             containerStyle={styles.ctaContainer}
+            buttonStyle={styles.ctaButton}
+            labelStyle={styles.ctaLabel}
           />
         </View>
       </KeyboardAvoidingView>
+
+      <MeetingSchedulePicker
+        visible={form.isSchedulePickerVisible}
+        value={form.schedule}
+        onConfirm={form.confirmSchedule}
+        onClose={form.closeSchedulePicker}
+      />
     </SafeAreaView>
   );
 }
@@ -257,25 +183,6 @@ const styles = StyleSheet.create({
   keyboardView: {
     flex: 1,
   },
-  header: {
-    height: 56,
-    backgroundColor: MEETING_COLORS.white,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  headerButton: {
-    width: 48,
-    height: 48,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  headerTitle: {
-    color: MEETING_COLORS.text,
-    fontSize: 24,
-    fontWeight: "600",
-    lineHeight: 30,
-  },
   scrollView: {
     flex: 1,
     backgroundColor: MEETING_COLORS.white,
@@ -283,6 +190,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingTop: 8,
     paddingBottom: 24,
+    gap: 16,
   },
   optionRow: {
     flexDirection: "row",
@@ -314,5 +222,15 @@ const styles = StyleSheet.create({
   },
   ctaContainer: {
     paddingTop: 8,
+  },
+  ctaButton: {
+    height: 54,
+    borderRadius: 14,
+    backgroundColor: MEETING_COLORS.pink,
+  },
+  ctaLabel: {
+    fontSize: 18,
+    fontWeight: "600",
+    lineHeight: 23,
   },
 });

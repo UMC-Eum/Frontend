@@ -457,9 +457,7 @@ function ClubHomeTab({
             />
             <MeetingInfo
               label="비용"
-              value={
-                "n만원"
-              }
+              value={firstMeeting?.cost ?? "n만원"}
             />
           </View>
 
@@ -468,10 +466,8 @@ function ClubHomeTab({
             <View style={[styles.attendeeAvatar, styles.attendeeOverlap]} />
             <View style={[styles.attendeeAvatar, styles.attendeeOverlap]} />
             <Text style={styles.attendeeText}>
-              {firstMeeting?.attendeeCount ?? firstMeeting?.currentAttendeeCount ?? 4}
-              명 참석중 (
-              {firstMeeting?.attendeeCount ?? firstMeeting?.currentAttendeeCount ?? 4}/
-              {firstMeeting?.maxAttendeeCount ?? 8})
+              {firstMeeting?.attendeeCount ?? 4}명 참석중 (
+              {firstMeeting?.attendeeCount ?? 4}/{firstMeeting?.capacity ?? 8})
             </Text>
           </View>
 
