@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import { isAxiosError } from "axios";
 import Constants from "expo-constants";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
@@ -230,14 +231,22 @@ export default function ProfileDetailScreen() {
     const targetUserId = getTargetUserId();
     if (!targetUserId || createChatRoomMutation.isPending) return;
 
+    if (blockedRelation) {
+      Alert.alert(
+        "대화할 수 없어요",
+        "차단한 사용자와는 대화방을 열 수 없어요. 차단 해제 후 다시 시도해주세요.",
+      );
+      return;
+    }
+
     try {
       const room = await createChatRoomMutation.mutateAsync({ targetUserId });
       router.push({
         pathname: "/chat/[id]",
         params: { id: String(room.chatRoomId) },
       } as never);
-    } catch {
-      Alert.alert("대화 시작 실패", "대화방을 여는 중 문제가 발생했어요.");
+    } catch (error) {
+      Alert.alert("대화할 수 없어요", formatStartChatErrorMessage(error));
     }
   };
 
@@ -771,6 +780,58 @@ function findBlockedRelation(
     data.pages
       .flatMap((page) => page.items)
       .find((item) => String(item.targetUserId) === String(userId)) ?? null
+  );
+}
+
+function formatStartChatErrorMessage(error: unknown) {
+  const apiError = getApiErrorDetail(error);
+  const code = apiError.code.toUpperCase();
+  const message = apiError.message;
+
+  if (
+    code.includes("BLOCK") ||
+    message.includes("차단") ||
+    message.toUpperCase().includes("BLOCK")
+  ) {
+    return "차단 상태에서는 대화방을 열 수 없어요.";
+  }
+
+  return "대화방을 여는 중 문제가 발생했어요. 잠시 후 다시 시도해주세요.";
+}
+
+function getApiErrorDetail(error: unknown) {
+  if (!isAxiosError(error)) {
+    return { code: "", message: "" };
+  }
+
+  const data = error.response?.data;
+  if (isApiErrorPayload(data)) {
+    return {
+      code: data.error.code,
+      message: data.error.message,
+    };
+  }
+
+  return {
+    code: error.code ?? "",
+    message: error.message,
+  };
+}
+
+function isApiErrorPayload(
+  value: unknown,
+): value is { error: { code: string; message: string } } {
+  if (typeof value !== "object" || value === null || !("error" in value)) {
+    return false;
+  }
+
+  const error = (value as { error?: unknown }).error;
+
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    typeof (error as { code?: unknown }).code === "string" &&
+    typeof (error as { message?: unknown }).message === "string"
   );
 }
 

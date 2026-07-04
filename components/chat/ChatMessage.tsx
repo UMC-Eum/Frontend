@@ -14,9 +14,11 @@ export type ChatMessageData =
       text: string;
       isMine: boolean;
       time: string;
+      sentAt?: string;
       showTime?: boolean;
       compactSpacing?: boolean;
       groupTopSpacing?: boolean;
+      showAvatar?: boolean;
       avatar?: string;
     }
   | {
@@ -25,9 +27,11 @@ export type ChatMessageData =
       duration: string;
       isMine: boolean;
       time: string;
+      sentAt?: string;
       showTime?: boolean;
       compactSpacing?: boolean;
       groupTopSpacing?: boolean;
+      showAvatar?: boolean;
       avatar?: string;
       mediaUrl?: string;
       isPlaying?: boolean;
@@ -58,7 +62,9 @@ export default function ChatMessage({
       ]}
     >
       {!message.isMine ? (
-        message.avatar ? (
+        message.showAvatar === false ? (
+          <View style={[styles.avatar, styles.avatarSpacer]} />
+        ) : message.avatar ? (
           <Image source={{ uri: message.avatar }} style={styles.avatar} />
         ) : (
           <View style={styles.avatar} />
@@ -159,6 +165,9 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     backgroundColor: "#D9D9D9",
     marginRight: 8,
+  },
+  avatarSpacer: {
+    backgroundColor: "transparent",
   },
   wrapper: {
     flex: 1,
