@@ -17,6 +17,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   ActivityIndicator,
   FlatList,
+  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -55,6 +56,11 @@ import {
   useLeaveChatRoomMutation,
 } from "@/hooks/api/useChats";
 import { queryKeys } from "@/hooks/api/queryKeys";
+import {
+  useBlockUserMutation,
+  useBlocksInfiniteQuery,
+  usePatchBlockMutation,
+} from "@/hooks/api/useSocials";
 import { useAuthStore } from "@/stores/authStore";
 import type {
   MessageDeletedData,
@@ -77,8 +83,15 @@ export default function ChatRoom() {
     30,
     hasChatRoomId,
   );
+  const peerUserId = roomDetailQuery.data?.peer.userId;
+  const blocksQuery = useBlocksInfiniteQuery(100, {
+    enabled: typeof peerUserId === "number",
+    staleTime: 10000,
+  });
   const refetchMessages = messagesQuery.refetch;
   const leaveChatRoomMutation = useLeaveChatRoomMutation(chatRoomId);
+  const blockUserMutation = useBlockUserMutation();
+  const patchBlockMutation = usePatchBlockMutation();
   const messageListRef = useRef<FlatList<ChatMessageData>>(null);
   const shouldScrollToLatestRef = useRef(false);
   const toastTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -94,10 +107,24 @@ export default function ChatRoom() {
             age: roomDetailQuery.data.peer.age,
             area: roomDetailQuery.data.peer.areaName,
             image: roomDetailQuery.data.peer.profileImageUrl,
+            userId: roomDetailQuery.data.peer.userId,
           }
         : null,
     [roomDetailQuery.data],
   );
+  const activeBlock = useMemo(() => {
+    if (typeof peerUserId !== "number") return null;
+
+    return (
+      blocksQuery.data?.pages
+        .flatMap((page) => page.items)
+        .find(
+          (block) =>
+            Number(block.targetUserId) === peerUserId &&
+            block.status === "BLOCKED",
+        ) ?? null
+    );
+  }, [blocksQuery.data, peerUserId]);
   const apiMessages = useMemo(
     () =>
       mapChatMessages(
@@ -113,6 +140,7 @@ export default function ChatRoom() {
   const [showLeaveModal, setShowLeaveModal] = useState(false);
   const [showBlockModal, setShowBlockModal] = useState(false);
   const [isBlocked, setIsBlocked] = useState(false);
+  const [localBlockId, setLocalBlockId] = useState<number | null>(null);
   const [isAttachmentOpen, setIsAttachmentOpen] = useState(false);
   const [isVoiceRecorderOpen, setIsVoiceRecorderOpen] = useState(false);
   const [isChatRealtimeActive, setIsChatRealtimeActive] = useState(false);
@@ -134,12 +162,31 @@ export default function ChatRoom() {
       ...optimisticMessages.filter((message) => !apiMessageIds.has(message.id)),
     ];
   }, [apiMessages, optimisticMessages]);
-  const visibleMessages = useMemo(() => withGroupedMessageTimes(messages), [
-    messages,
-  ]);
+  const visibleMessages = useMemo(
+    () => withGroupedMessageTimes(withDateSeparators(messages)),
+    [messages],
+  );
+  const displayedMessages = useMemo(
+    () => [...visibleMessages].reverse(),
+    [visibleMessages],
+  );
   const peerUserIdRef = useRef<number | undefined>(undefined);
   const peerProfileImageUrlRef = useRef<string | undefined>(undefined);
+  const isBlockedRef = useRef(false);
   const readMessageIdsRef = useRef<Set<number>>(new Set());
+  const blockId = activeBlock?.blockId ?? localBlockId;
+  const isBlockSubmitting =
+    blockUserMutation.isPending || patchBlockMutation.isPending;
+
+  useEffect(() => {
+    setIsBlocked(!!activeBlock);
+    isBlockedRef.current = !!activeBlock;
+    setLocalBlockId(activeBlock?.blockId ?? null);
+  }, [activeBlock]);
+
+  useEffect(() => {
+    isBlockedRef.current = isBlocked;
+  }, [isBlocked]);
 
   useEffect(() => {
     peerUserIdRef.current = roomDetailQuery.data?.peer.userId;
@@ -165,11 +212,11 @@ export default function ChatRoom() {
     shouldScrollToLatestRef.current = true;
 
     requestAnimationFrame(() => {
-      messageListRef.current?.scrollToEnd({ animated: true });
+      messageListRef.current?.scrollToOffset({ offset: 0, animated: true });
     });
 
     setTimeout(() => {
-      messageListRef.current?.scrollToEnd({ animated: true });
+      messageListRef.current?.scrollToOffset({ offset: 0, animated: true });
     }, 80);
   }, []);
 
@@ -178,7 +225,7 @@ export default function ChatRoom() {
 
     shouldScrollToLatestRef.current = false;
     requestAnimationFrame(() => {
-      messageListRef.current?.scrollToEnd({ animated: true });
+      messageListRef.current?.scrollToOffset({ offset: 0, animated: true });
     });
   }, []);
 
@@ -339,6 +386,12 @@ export default function ChatRoom() {
 
     const appendIncomingMessage = (nextMessage: MessageNewData) => {
       if (nextMessage.chatRoomId !== chatRoomId) return;
+      if (
+        isBlockedRef.current &&
+        nextMessage.senderUserId === peerUserIdRef.current
+      ) {
+        return;
+      }
 
       queryClient.invalidateQueries({
         queryKey: queryKeys.chats.messages(chatRoomId, 30),
@@ -427,7 +480,19 @@ export default function ChatRoom() {
 
   const handleReport = () => {
     setShowActionSheet(false);
-    router.push("/chat/report");
+    if (!profile || typeof profile.userId !== "number") {
+      showToast("대화방 정보를 불러온 뒤 다시 시도해주세요.");
+      return;
+    }
+
+    router.push({
+      pathname: "/chat/report",
+      params: {
+        targetUserId: String(profile.userId),
+        chatRoomId: String(chatRoomId),
+        nickname: profile.name,
+      },
+    } as never);
   };
 
   const handleBlockToggle = () => {
@@ -438,8 +503,19 @@ export default function ChatRoom() {
     }
 
     if (isBlocked) {
-      setIsBlocked(false);
-      showToast(`${profile.name}님을 차단 해제했습니다`);
+      if (!blockId || isBlockSubmitting) return;
+
+      patchBlockMutation.mutate(blockId, {
+        onSuccess: () => {
+          setIsBlocked(false);
+          setLocalBlockId(null);
+          queryClient.invalidateQueries({ queryKey: queryKeys.chats.all });
+          showToast(`${profile.name}님을 차단 해제했습니다`);
+        },
+        onError: () => {
+          showToast("차단 해제에 실패했습니다.");
+        },
+      });
       return;
     }
 
@@ -470,12 +546,14 @@ export default function ChatRoom() {
   );
 
   const handleSend = (text: string) => {
+    const sentAt = new Date().toISOString();
     const nextMessage: ChatMessageData = {
       id: `pending-message-${Date.now()}`,
       type: "text",
       text,
       isMine: true,
-      time: formatChatTime(new Date().toISOString()),
+      time: formatChatTime(sentAt),
+      sentAt,
     };
 
     setOptimisticMessages((prevMessages) => [...prevMessages, nextMessage]);
@@ -500,6 +578,7 @@ export default function ChatRoom() {
           ...nextMessage,
           id: `message-${sentMessage.messageId}`,
           time: formatChatTime(sentMessage.sentAt),
+          sentAt: sentMessage.sentAt,
         };
 
         setOptimisticMessages((prevMessages) =>
@@ -627,12 +706,14 @@ export default function ChatRoom() {
       return;
     }
 
+    const sentAt = new Date().toISOString();
     const nextMessage: ChatMessageData = {
       id: `pending-voice-${Date.now()}`,
       type: "voice",
       duration: formatVoiceDuration(recording.durationSec),
       isMine: true,
-      time: formatChatTime(new Date().toISOString()),
+      time: formatChatTime(sentAt),
+      sentAt,
       mediaUrl: recording.uri,
       isPlaying: false,
     };
@@ -659,6 +740,7 @@ export default function ChatRoom() {
             ...nextMessage,
             id: `message-${sentMessage.messageId}`,
             time: formatChatTime(sentMessage.sentAt),
+            sentAt: sentMessage.sentAt,
           };
 
           setOptimisticMessages((prevMessages) =>
@@ -747,9 +829,16 @@ export default function ChatRoom() {
 
   const renderProfileInfo = () => (
     <View style={styles.profileHeader}>
-      <View style={styles.profileAvatar} />
       {profile ? (
         <>
+          {profile.image ? (
+            <Image
+              source={{ uri: profile.image }}
+              style={styles.profileAvatar}
+            />
+          ) : (
+            <View style={styles.profileAvatar} />
+          )}
           <Text style={styles.profileName}>{profile.name}</Text>
           <Text style={styles.profileInfo}>
             {profile.age}세 · {profile.area}
@@ -805,7 +894,8 @@ export default function ChatRoom() {
         <View style={styles.messageListFrame}>
           <FlatList
             ref={messageListRef}
-            data={visibleMessages}
+            data={displayedMessages}
+            inverted
             keyExtractor={(item) => item.id}
             renderItem={({ item }) => (
               <ChatMessage
@@ -817,7 +907,7 @@ export default function ChatRoom() {
                 onVoicePress={handleVoicePlay}
               />
             )}
-            ListHeaderComponent={
+            ListFooterComponent={
               <>
                 {messagesQuery.isFetchingNextPage ? (
                   <View style={styles.paginationLoading}>
@@ -850,7 +940,7 @@ export default function ChatRoom() {
             contentContainerStyle={styles.messageList}
             showsVerticalScrollIndicator={false}
             onContentSizeChange={handleMessageListContentSizeChange}
-            onStartReached={() => {
+            onEndReached={() => {
               if (
                 messagesQuery.hasNextPage &&
                 !messagesQuery.isFetchingNextPage
@@ -858,7 +948,7 @@ export default function ChatRoom() {
                 messagesQuery.fetchNextPage();
               }
             }}
-            onStartReachedThreshold={0.35}
+            onEndReachedThreshold={0.35}
           />
         </View>
 
@@ -952,9 +1042,28 @@ export default function ChatRoom() {
         confirmLabel="차단"
         onClose={() => setShowBlockModal(false)}
         onConfirm={() => {
+          if (!profile || typeof profile.userId !== "number" || isBlockSubmitting) {
+            return;
+          }
+
           setShowBlockModal(false);
-          setIsBlocked(true);
-          showToast(`${profile?.name ?? "상대방"}님을 차단했습니다`);
+          blockUserMutation.mutate(
+            {
+              targetUserId: profile.userId,
+              reason: "채팅방에서 사용자 차단",
+            },
+            {
+              onSuccess: (block) => {
+                setIsBlocked(true);
+                setLocalBlockId(block.blockId);
+                queryClient.invalidateQueries({ queryKey: queryKeys.chats.all });
+                showToast(`${profile.name}님을 차단했습니다`);
+              },
+              onError: () => {
+                showToast("차단에 실패했습니다.");
+              },
+            },
+          );
         }}
       />
     </SafeAreaView>
@@ -992,6 +1101,7 @@ function mapChatMessages(
           id: `message-${item.messageId}`,
           isMine: item.isMine,
           time: formatChatTime(item.sentAt),
+          sentAt: item.sentAt,
           avatar: item.isMine ? undefined : peerAvatar,
         };
 
@@ -1040,6 +1150,7 @@ function mapSocketMessage(
     id: `message-${item.messageId}`,
     isMine,
     time: formatChatTime(item.sentAt),
+    sentAt: item.sentAt,
     avatar: isMine ? undefined : item.senderProfileImage ?? peerAvatar,
   };
 
@@ -1098,6 +1209,32 @@ function isPendingLocalMessage(message: ChatMessageData) {
   return message.id.startsWith("pending-");
 }
 
+function withDateSeparators(messages: ChatMessageData[]) {
+  const messagesWithDates: ChatMessageData[] = [];
+  let previousDateKey: string | null = null;
+
+  messages.forEach((message) => {
+    if (message.type === "date") {
+      messagesWithDates.push(message);
+      return;
+    }
+
+    const dateKey = getChatDateKey(message.sentAt);
+    if (dateKey && dateKey !== previousDateKey) {
+      messagesWithDates.push({
+        id: `date-${dateKey}`,
+        type: "date",
+        dateText: formatChatDate(message.sentAt),
+      });
+      previousDateKey = dateKey;
+    }
+
+    messagesWithDates.push(message);
+  });
+
+  return messagesWithDates;
+}
+
 function withGroupedMessageTimes(messages: ChatMessageData[]) {
   return messages.map((message, index) => {
     if (message.type === "date") {
@@ -1120,6 +1257,7 @@ function withGroupedMessageTimes(messages: ChatMessageData[]) {
     return {
       ...message,
       showTime: !isSameGroupAsNext,
+      showAvatar: message.isMine ? undefined : !isSameGroupAsNext,
       compactSpacing: Boolean(isSameGroupAsPrev || isSameGroupAsNext),
       groupTopSpacing: Boolean(prevMessage && !isSameGroupAsPrev),
     };
@@ -1567,6 +1705,29 @@ function formatChatTime(value: string) {
   });
 }
 
+function formatChatDate(value?: string) {
+  const date = new Date(value ?? "");
+  if (Number.isNaN(date.getTime())) return "";
+
+  return date.toLocaleDateString("ko-KR", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    weekday: "short",
+  });
+}
+
+function getChatDateKey(value?: string) {
+  const date = new Date(value ?? "");
+  if (Number.isNaN(date.getTime())) return null;
+
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
 function formatDuration(seconds: number) {
   const mins = Math.floor(seconds / 60);
   const secs = seconds % 60;
@@ -1613,6 +1774,7 @@ const styles = StyleSheet.create({
   },
   messageList: {
     paddingHorizontal: 16,
+    paddingTop: 18,
     paddingBottom: 18,
   },
   paginationLoading: {
@@ -1656,6 +1818,7 @@ const styles = StyleSheet.create({
     borderRadius: 52,
     backgroundColor: "#D9D9D9",
     marginBottom: 14,
+    overflow: "hidden",
   },
   profileName: {
     fontSize: 17,
