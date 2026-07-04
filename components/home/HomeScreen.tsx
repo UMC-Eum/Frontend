@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Animated,
+  FlatList,
   ImageBackground,
   NativeScrollEvent,
   NativeSyntheticEvent,
@@ -15,6 +16,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
 
 import {
   useRecommendationsInfiniteQuery,
@@ -50,19 +52,12 @@ type Profile = {
 const USER_NICKNAME = "루씨";
 const FALLBACK_PROFILE_IMAGE =
   "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=85&w=1200&auto=format&fit=crop";
+const RECOMMENDATION_COUNTDOWN_MS = 60 * 60 * 1000;
 
-const getCountdownText = () => {
-  const now = new Date();
-  const nextNoon = new Date(now);
-  nextNoon.setHours(12, 0, 0, 0);
-
-  if (now.getTime() >= nextNoon.getTime()) {
-    nextNoon.setDate(nextNoon.getDate() + 1);
-  }
-
+const getCountdownText = (endAt: number) => {
   const remainingSeconds = Math.max(
     0,
-    Math.floor((nextNoon.getTime() - now.getTime()) / 1000),
+    Math.ceil((endAt - Date.now()) / 1000),
   );
   const hours = String(Math.floor(remainingSeconds / 3600)).padStart(2, "0");
   const minutes = String(Math.floor((remainingSeconds % 3600) / 60)).padStart(
@@ -79,15 +74,18 @@ export default function HomePage() {
   const { width } = useWindowDimensions();
   const fabAnimation = useRef(new Animated.Value(1)).current;
   const lastScrollY = useRef(0);
-  const profileImageScrollRef = useRef<ScrollView>(null);
+  const profileListRef = useRef<FlatList<Profile>>(null);
+  const countdownEndAt = useRef(Date.now() + RECOMMENDATION_COUNTDOWN_MS);
   const [activeHomeTab, setActiveHomeTab] = useState<HomeTab>("home");
   const [profileIndex, setProfileIndex] = useState(0);
-  const [imageIndex, setImageIndex] = useState(0);
-  const [countdown, setCountdown] = useState(getCountdownText);
+  const [countdown, setCountdown] = useState(() =>
+    getCountdownText(countdownEndAt.current),
+  );
   const [, setLikedCount] = useState(0);
   const myProfileQuery = useMyProfileQuery();
   const visitorsQuery = useMyProfileVisitorsQuery({ limit: 12 });
   const recommendationsQuery = useRecommendationsInfiniteQuery();
+  const refetchRecommendations = recommendationsQuery.refetch;
   const heartNotificationsQuery = useNotificationsInfiniteQuery("heart");
   const chatNotificationsQuery = useNotificationsInfiniteQuery("chat");
   const sendHeartMutation = useSendRecommendationHeartMutation();
@@ -115,17 +113,25 @@ export default function HomePage() {
   const cardWidth = width - 40;
   const hasNotificationBadge = heartUnreadCount + chatUnreadCount > 0;
 
-  // 실시간 추천 마감 카운트다운을 1초마다 갱신합니다.
+  // 추천 마감 카운트다운이 끝나면 추천 목록을 새로 받아옵니다.
   useEffect(() => {
-    const timer = setInterval(() => setCountdown(getCountdownText()), 1000);
-    return () => clearInterval(timer);
-  }, []);
+    const tick = () => {
+      const now = Date.now();
 
-  // 프로필이 바뀌면 사진 슬라이더를 첫 장으로 초기화합니다.
-  useEffect(() => {
-    setImageIndex(0);
-    profileImageScrollRef.current?.scrollTo({ x: 0, animated: false });
-  }, [profileIndex]);
+      if (now >= countdownEndAt.current) {
+        countdownEndAt.current = now + RECOMMENDATION_COUNTDOWN_MS;
+        setProfileIndex(0);
+        profileListRef.current?.scrollToOffset({ offset: 0, animated: false });
+        void refetchRecommendations();
+      }
+
+      setCountdown(getCountdownText(countdownEndAt.current));
+    };
+
+    tick();
+    const timer = setInterval(tick, 1000);
+    return () => clearInterval(timer);
+  }, [refetchRecommendations]);
 
   // 추천 목록 길이가 변해도 현재 인덱스가 유효한 카드만 가리키도록 보정합니다.
   useEffect(() => {
@@ -152,43 +158,48 @@ export default function HomePage() {
     lastScrollY.current = Math.max(0, currentY);
   };
 
-  // 사진 슬라이더의 현재 페이지를 점 인디케이터와 동기화합니다.
-  const handleImageScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    if (!profile) return;
+  const fetchMoreRecommendationsIfNeeded = (nextIndex: number) => {
+    if (
+      nextIndex >= profiles.length - 2 &&
+      recommendationsQuery.hasNextPage &&
+      !recommendationsQuery.isFetchingNextPage
+    ) {
+      recommendationsQuery.fetchNextPage();
+    }
+  };
+
+  // 추천 카드를 좌우 스와이프할 때 현재 프로필 인덱스를 맞춥니다.
+  const handleProfileListScroll = (
+    event: NativeSyntheticEvent<NativeScrollEvent>,
+  ) => {
+    if (profiles.length === 0) return;
 
     const nextIndex = Math.min(
-      profile.images.length - 1,
-      Math.max(0, Math.round(event.nativeEvent.contentOffset.x / cardWidth)),
+      profiles.length - 1,
+      Math.max(0, Math.round(event.nativeEvent.contentOffset.x / width)),
     );
-    setImageIndex(nextIndex);
+    setProfileIndex(nextIndex);
+    fetchMoreRecommendationsIfNeeded(nextIndex);
   };
 
   // 별로예요를 누르면 다음 추천 프로필로 넘깁니다.
   const handleDislike = () => {
     if (profiles.length === 0) return;
 
-    setProfileIndex((prev) => {
-      const nextIndex = (prev + 1) % profiles.length;
-
-      if (
-        nextIndex >= profiles.length - 2 &&
-        recommendationsQuery.hasNextPage &&
-        !recommendationsQuery.isFetchingNextPage
-      ) {
-        recommendationsQuery.fetchNextPage();
-      }
-
-      return nextIndex;
+    const nextIndex = (profileIndex + 1) % profiles.length;
+    setProfileIndex(nextIndex);
+    fetchMoreRecommendationsIfNeeded(nextIndex);
+    profileListRef.current?.scrollToOffset({
+      offset: width * nextIndex,
+      animated: true,
     });
   };
 
   // 마음이들어요를 누르면 내부 카운트를 올리고 마음 탭으로 이동합니다.
-  const handleLike = () => {
-    if (!profile) return;
-
+  const handleLike = (selectedProfile: Profile) => {
     setLikedCount((prev) => prev + 1);
-    if (profile.targetUserId && !profile.isLiked) {
-      sendHeartMutation.mutate(profile.targetUserId);
+    if (selectedProfile.targetUserId && !selectedProfile.isLiked) {
+      sendHeartMutation.mutate(selectedProfile.targetUserId);
     }
     router.replace("/(tabs)/heart" as never);
   };
@@ -263,7 +274,7 @@ export default function HomePage() {
           {/* 오늘 추천 영역: 제목과 실시간 카운트다운을 한 줄에 배치합니다. */}
           <View style={styles.recommendHeader}>
             <View style={styles.sectionTitleRow}>
-              <Ionicons name="sparkles" size={16} color={PINK} />
+              <Ionicons name="sparkles" size={24} color={PINK} />
               <Text style={styles.sectionTitle}>오늘의 이상형 추천</Text>
             </View>
             <View style={styles.countdownRow}>
@@ -288,17 +299,31 @@ export default function HomePage() {
                   </Text>
                 </View>
               ) : null}
-              <ProfileCard
-                profile={profile}
-                cardWidth={cardWidth}
-                imageIndex={imageIndex}
-                scrollRef={profileImageScrollRef}
-                onImageScroll={handleImageScroll}
-                onPress={() =>
-                  handleOpenProfileDetail(profile.targetUserId, profile)
-                }
-                onDislike={handleDislike}
-                onLike={handleLike}
+              <FlatList
+                ref={profileListRef}
+                data={profiles}
+                keyExtractor={(item) => item.id}
+                horizontal
+                pagingEnabled
+                showsHorizontalScrollIndicator={false}
+                onMomentumScrollEnd={handleProfileListScroll}
+                getItemLayout={(_, index) => ({
+                  length: width,
+                  offset: width * index,
+                  index,
+                })}
+                renderItem={({ item }) => (
+                  <ProfileCard
+                    profile={item}
+                    screenWidth={width}
+                    cardWidth={cardWidth}
+                    onPress={() =>
+                      handleOpenProfileDetail(item.targetUserId, item)
+                    }
+                    onDislike={handleDislike}
+                    onLike={() => handleLike(item)}
+                  />
+                )}
               />
             </>
           ) : (
@@ -344,9 +369,13 @@ export default function HomePage() {
                       style={styles.viewerImage}
                       imageStyle={styles.viewerImageRadius}
                     />
-                    <Text style={styles.viewerName} numberOfLines={1}>
-                      {visitor.nickname}
-                    </Text>
+                    <View style={styles.viewerMetaRow}>
+                      <Text style={styles.viewerName} numberOfLines={1}>
+                        {visitor.nickname}
+                      </Text>
+                      <Text style={styles.viewerDot}>·</Text>
+                      <Text style={styles.viewerAge}>{visitor.age}</Text>
+                    </View>
                   </Pressable>
                 ))}
               </ScrollView>
@@ -471,10 +500,8 @@ function HomeTabButton({ label, isActive, onPress }: HomeTabButtonProps) {
 
 type ProfileCardProps = {
   profile: Profile;
+  screenWidth: number;
   cardWidth: number;
-  imageIndex: number;
-  scrollRef: React.RefObject<ScrollView | null>;
-  onImageScroll: (event: NativeSyntheticEvent<NativeScrollEvent>) => void;
   onPress: () => void;
   onDislike: () => void;
   onLike: () => void;
@@ -482,50 +509,23 @@ type ProfileCardProps = {
 
 function ProfileCard({
   profile,
+  screenWidth,
   cardWidth,
-  imageIndex,
-  scrollRef,
-  onImageScroll,
   onPress,
   onDislike,
   onLike,
 }: ProfileCardProps) {
   return (
-    <View style={styles.profileCard}>
-      {/* 프로필 카드는 사진 스와이프와 상세 진입을 함께 제공합니다. */}
+    <View style={[styles.profileCard, { width: screenWidth }]}>
+      {/* 추천 프로필 카드는 좌우 스와이프로 목록을 넘길 수 있습니다. */}
       <View style={styles.profilePressable}>
-        <ScrollView
-          ref={scrollRef}
-          horizontal
-          pagingEnabled
-          directionalLockEnabled
-          bounces={false}
-          showsHorizontalScrollIndicator={false}
-          onScroll={onImageScroll}
-          onMomentumScrollEnd={onImageScroll}
-          scrollEventThrottle={16}
-          nestedScrollEnabled
+        <ImageBackground
+          source={{ uri: profile.images[0] ?? FALLBACK_PROFILE_IMAGE }}
+          style={[styles.profileImage, { width: cardWidth }]}
+          imageStyle={styles.profileImageRadius}
         >
-          {profile.images.map((image) => (
-            <ImageBackground
-              key={image}
-              source={{ uri: image }}
-              style={[styles.profileImage, { width: cardWidth }]}
-              imageStyle={styles.profileImageRadius}
-            >
-              <View style={styles.imageScrim} />
-            </ImageBackground>
-          ))}
-        </ScrollView>
-
-        <View style={styles.imageDots}>
-          {profile.images.map((image, index) => (
-            <View
-              key={`${image}-dot`}
-              style={[styles.imageDot, index === imageIndex && styles.imageDotActive]}
-            />
-          ))}
-        </View>
+          <ProfileCardGradient />
+        </ImageBackground>
 
         <Pressable style={styles.profileInfo} onPress={onPress}>
           <View style={styles.nameRow}>
@@ -545,13 +545,29 @@ function ProfileCard({
       {/* 추천 프로필에 대한 즉시 액션 버튼입니다. */}
       <View style={styles.actionRow}>
         <Pressable style={[styles.actionButton, styles.dislikeButton]} onPress={onDislike}>
-          <Text style={styles.dislikeText}>별로예요</Text>
+          <Text style={styles.dislikeText}>별로에요</Text>
         </Pressable>
         <Pressable style={[styles.actionButton, styles.likeButton]} onPress={onLike}>
-          <Text style={styles.likeText}>마음이들어요</Text>
+          <Text style={styles.likeText}>마음에들어요</Text>
         </Pressable>
       </View>
     </View>
+  );
+}
+
+function ProfileCardGradient() {
+  return (
+    <Svg pointerEvents="none" style={styles.imageScrim}>
+      <Defs>
+        <LinearGradient id="homeProfileGradient" x1="0" y1="0" x2="0" y2="1">
+          <Stop offset="0" stopColor="#000000" stopOpacity="0" />
+          <Stop offset="0.62" stopColor="#000000" stopOpacity="0" />
+          <Stop offset="0.79" stopColor="#000000" stopOpacity="0.9" />
+          <Stop offset="1" stopColor="#000000" stopOpacity="0.9" />
+        </LinearGradient>
+      </Defs>
+      <Rect width="100%" height="100%" fill="url(#homeProfileGradient)" />
+    </Svg>
   );
 }
 
@@ -614,11 +630,13 @@ const styles = StyleSheet.create({
     marginRight: 16,
   },
   homeTabText: {
-    fontSize: 16,
-    fontWeight: "700",
+    fontSize: 18,
+    lineHeight: 23,
+    fontWeight: "600",
     color: "#737780",
   },
   homeTabTextActive: {
+    fontWeight: "700",
     color: PINK,
   },
   homeTabUnderline: {
@@ -630,9 +648,9 @@ const styles = StyleSheet.create({
     backgroundColor: PINK,
   },
   recommendHeader: {
-    paddingTop: 24,
+    paddingTop: 28,
     paddingHorizontal: 20,
-    paddingBottom: 12,
+    paddingBottom: 16,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
@@ -642,10 +660,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   sectionTitle: {
-    marginLeft: 8,
-    fontSize: 16,
-    lineHeight: 22,
-    fontWeight: "700",
+    marginLeft: 4,
+    fontSize: 20,
+    lineHeight: 25,
+    fontWeight: "600",
     color: BLACK,
   },
   countdownRow: {
@@ -654,8 +672,9 @@ const styles = StyleSheet.create({
   },
   countdown: {
     marginRight: 4,
-    fontSize: 12,
-    lineHeight: 18,
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: "500",
     color: GRAY,
   },
   recommendationState: {
@@ -680,7 +699,7 @@ const styles = StyleSheet.create({
   },
   profilePressable: {
     height: 492,
-    borderRadius: 12,
+    borderRadius: 14,
     overflow: "hidden",
     backgroundColor: LIGHT_GRAY,
   },
@@ -729,29 +748,10 @@ const styles = StyleSheet.create({
     justifyContent: "flex-end",
   },
   profileImageRadius: {
-    borderRadius: 12,
+    borderRadius: 14,
   },
   imageScrim: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,0,0,0.22)",
-  },
-  imageDots: {
-    position: "absolute",
-    top: 17,
-    left: 0,
-    right: 0,
-    flexDirection: "row",
-    justifyContent: "center",
-  },
-  imageDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginHorizontal: 3,
-    backgroundColor: "#E0E0E0",
-  },
-  imageDotActive: {
-    backgroundColor: PINK,
   },
   profileInfo: {
     position: "absolute",
@@ -765,9 +765,9 @@ const styles = StyleSheet.create({
   },
   profileName: {
     marginRight: 6,
-    fontSize: 23,
+    fontSize: 24,
     lineHeight: 30,
-    fontWeight: "800",
+    fontWeight: "600",
     color: "#FFFFFF",
   },
   locationRow: {
@@ -777,15 +777,16 @@ const styles = StyleSheet.create({
   },
   locationText: {
     marginLeft: 4,
-    fontSize: 14,
-    lineHeight: 20,
-    fontWeight: "600",
+    fontSize: 16,
+    lineHeight: 24,
+    fontWeight: "500",
     color: "#FFFFFF",
   },
   introText: {
     marginTop: 4,
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: 16,
+    lineHeight: 24,
+    fontWeight: "500",
     color: "#FFFFFF",
   },
   actionRow: {
@@ -799,7 +800,7 @@ const styles = StyleSheet.create({
   actionButton: {
     flex: 1,
     height: 48,
-    borderRadius: 12,
+    borderRadius: 14,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -810,13 +811,15 @@ const styles = StyleSheet.create({
     backgroundColor: PINK,
   },
   dislikeText: {
-    fontSize: 15,
-    fontWeight: "700",
+    fontSize: 18,
+    lineHeight: 23,
+    fontWeight: "600",
     color: "#6F7780",
   },
   likeText: {
-    fontSize: 15,
-    fontWeight: "700",
+    fontSize: 18,
+    lineHeight: 23,
+    fontWeight: "600",
     color: "#FFFFFF",
   },
   viewerSection: {
@@ -825,9 +828,9 @@ const styles = StyleSheet.create({
   viewerTitle: {
     paddingHorizontal: 20,
     marginBottom: 16,
-    fontSize: 18,
-    lineHeight: 24,
-    fontWeight: "800",
+    fontSize: 20,
+    lineHeight: 25,
+    fontWeight: "600",
     color: BLACK,
   },
   viewerEmptyBox: {
@@ -852,25 +855,43 @@ const styles = StyleSheet.create({
     paddingBottom: 4,
   },
   viewerItem: {
-    width: 76,
+    width: 84,
     marginRight: 12,
   },
   viewerImage: {
-    width: 76,
-    height: 76,
+    width: 84,
+    height: 84,
     overflow: "hidden",
     backgroundColor: LIGHT_GRAY,
   },
   viewerImageRadius: {
-    borderRadius: 38,
+    borderRadius: 14,
+  },
+  viewerMetaRow: {
+    marginTop: 4,
+    flexDirection: "row",
+    alignItems: "center",
   },
   viewerName: {
-    marginTop: 8,
-    fontSize: 13,
-    lineHeight: 18,
-    fontWeight: "700",
+    maxWidth: 49,
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: "600",
     color: BLACK,
+  },
+  viewerDot: {
+    width: 16,
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: "500",
+    color: "#636970",
     textAlign: "center",
+  },
+  viewerAge: {
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: "500",
+    color: "#636970",
   },
   fabWrap: {
     position: "absolute",

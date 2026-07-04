@@ -428,13 +428,6 @@ export default function ProfileDetailScreen() {
             <ProfileHeroMeta profile={profile} />
             <HeroLikeButton liked={liked} onPress={handleToggleLike} />
           </View>
-
-          <View style={styles.pagination}>
-            <View style={styles.activeDot} />
-            <View style={styles.dot} />
-            <View style={styles.dot} />
-            <View style={styles.dot} />
-          </View>
         </ImageBackground>
 
         {/* 소개와 사용자 성향을 카드/칩 형태로 보여주는 본문입니다. */}
@@ -516,7 +509,7 @@ function ProfileHeroMeta({ profile }: { profile: ProfileViewData }) {
     <View style={styles.heroMeta}>
       <View style={styles.nameRow}>
         <Text style={styles.profileName}>{profile.name}</Text>
-        {profile.age ? <Text style={styles.profileName}>{profile.age}</Text> : null}
+        {profile.age ? <Text style={styles.profileName}>{profile.age}세</Text> : null}
         <View style={styles.verifiedIconWrap}>
           <VerifiedBadgeIcon />
         </View>
@@ -1204,29 +1197,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "rgba(255, 255, 255, 0.24)",
-  },
-  pagination: {
-    position: "absolute",
-    bottom: 22,
-    left: 0,
-    right: 0,
-    zIndex: 1,
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    gap: 6,
-  },
-  activeDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: "#FFFFFF",
-  },
-  dot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: "rgba(255, 255, 255, 0.48)",
   },
   content: {
     paddingHorizontal: 20,
