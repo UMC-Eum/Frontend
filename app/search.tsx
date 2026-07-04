@@ -314,11 +314,18 @@ function CategoryFilters({
 function mapClubListItemToSearchClub(item: IClubListItem): Club {
   const extendedItem = item as IClubListItem & {
     areaName?: string | null;
+    capacity?: number | null;
+    createdAt?: string | null;
     district?: string | null;
+    host?: { nickname?: string | null } | null;
+    likeCount?: number | null;
     location?: string | null;
   };
-  const createdAt = item.createdAt ? Date.parse(item.createdAt) : item.clubId;
+  const createdAt = extendedItem.createdAt
+    ? Date.parse(extendedItem.createdAt)
+    : item.clubId;
   const memberCount = item.memberCount ?? 0;
+  const capacity = extendedItem.capacity ?? null;
 
   return {
     id: String(item.clubId),
@@ -328,11 +335,11 @@ function mapClubListItemToSearchClub(item: IClubListItem): Club {
       extendedItem.district?.trim() ||
       extendedItem.location?.trim() ||
       getClubCategoryLabel(item.category),
-    host: item.host?.nickname || "운영자",
+    host: extendedItem.host?.nickname || "운영자",
     description: item.introText || "",
     members: memberCount,
-    date: item.capacity ? `${memberCount}/${item.capacity}` : `${memberCount}`,
-    score: item.likeCount ?? 0,
+    date: capacity ? `${memberCount}/${capacity}` : `${memberCount}`,
+    score: extendedItem.likeCount ?? item.likes ?? 0,
     createdAt: Number.isFinite(createdAt) ? createdAt : 0,
     thumbnailUrl: item.thumbnailUrl,
     category: item.category,

@@ -122,7 +122,7 @@ export function useMeetingCreateForm(clubId: number) {
     const scheduleSummary = getScheduleSummary(schedule);
     const trimmedCost = cost.trim();
     const joinPolicy: ClubJoinPolicy =
-      joinType === "free" ? "AUTO" : "APPROVAL_REQUIRED";
+      joinType === "free" ? "AUTO" : "APPROVAL";
 
     const meetingCreateBody: IMeetingCreateRequest = {
       name: title.trim(),

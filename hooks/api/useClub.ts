@@ -70,19 +70,12 @@ export function useTopHostsQuery(limit = 10) {
   });
 }
 
-export function useMyClubsInfiniteQuery(
-  params: InfiniteParams<DTO.IMyClubsParams> = {},
-  enabled = true,
-) {
-  const { limit = DEFAULT_PAGE_LIMIT, ...restParams } = params;
+export function useMyClubsQuery(enabled = true) {
   const queryEnabled = useProtectedQueryEnabled(enabled);
 
-  return useInfiniteQuery({
-    queryKey: queryKeys.club.my({ ...restParams, limit }),
-    queryFn: ({ pageParam }) =>
-      getMyClubs({ ...restParams, cursor: pageParam, limit }),
-    initialPageParam: null as string | null,
-    getNextPageParam: (lastPage) => lastPage.nextCursor,
+  return useQuery({
+    queryKey: queryKeys.club.my(),
+    queryFn: getMyClubs,
     enabled: queryEnabled,
   });
 }
@@ -119,7 +112,7 @@ export function useJoinClubMutation(clubId: number) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (body: DTO.IClubJoinRequest = {}) => joinClub(clubId, body),
+    mutationFn: (body: DTO.IClubJoinRequest) => joinClub(clubId, body),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.club.all });
     },

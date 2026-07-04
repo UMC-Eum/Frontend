@@ -16,6 +16,7 @@ export type ChatMessageData =
       time: string;
       sentAt?: string;
       showTime?: boolean;
+      showUnreadIndicator?: boolean;
       compactSpacing?: boolean;
       groupTopSpacing?: boolean;
       showAvatar?: boolean;
@@ -29,6 +30,7 @@ export type ChatMessageData =
       time: string;
       sentAt?: string;
       showTime?: boolean;
+      showUnreadIndicator?: boolean;
       compactSpacing?: boolean;
       groupTopSpacing?: boolean;
       showAvatar?: boolean;
@@ -78,8 +80,18 @@ export default function ChatMessage({
         ]}
       >
         <View style={styles.bubbleRow}>
-          {message.isMine && message.showTime !== false ? (
-            <Text style={[styles.time, styles.myTime]}>{message.time}</Text>
+          {message.isMine &&
+          (message.showUnreadIndicator || message.showTime !== false) ? (
+            <View style={styles.myMeta}>
+              {message.showUnreadIndicator ? (
+                <Text style={styles.unreadCount}>1</Text>
+              ) : null}
+              {message.showTime !== false ? (
+                <Text style={[styles.time, styles.myTime]}>
+                  {message.time}
+                </Text>
+              ) : null}
+            </View>
           ) : null}
 
           <View
@@ -212,8 +224,19 @@ const styles = StyleSheet.create({
     lineHeight: 14,
     color: "#A6AFB6",
   },
-  myTime: {
+  myMeta: {
+    alignItems: "flex-end",
     marginRight: 2,
+  },
+  unreadCount: {
+    marginBottom: 2,
+    fontSize: 10,
+    lineHeight: 12,
+    fontWeight: "700",
+    color: "#FFB000",
+  },
+  myTime: {
+    marginRight: 0,
   },
   otherTime: {
     marginLeft: 6,

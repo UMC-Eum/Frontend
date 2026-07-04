@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import {
   Alert,
   ActivityIndicator,
@@ -14,7 +14,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { useMyClubsInfiniteQuery } from "@/hooks/api/useClub";
+import { useMyClubsQuery } from "@/hooks/api/useClub";
 import { useLogoutMutation } from "@/hooks/api/useAuth";
 import { useReceivedHeartsInfiniteQuery } from "@/hooks/api/useSocials";
 import {
@@ -34,7 +34,7 @@ export default function MyTabScreen() {
   const [notificationEnabled, setNotificationEnabled] = useState(true);
   const myProfileQuery = useMyProfileQuery();
   const receivedHeartsQuery = useReceivedHeartsInfiniteQuery();
-  const myClubsQuery = useMyClubsInfiniteQuery({ limit: 5 });
+  const myClubsQuery = useMyClubsQuery();
   const logoutMutation = useLogoutMutation();
   const deactivateUserMutation = useDeactivateUserMutation();
   const profile = myProfileQuery.data;
@@ -43,13 +43,8 @@ export default function MyTabScreen() {
       (total, page) => total + page.items.length,
       0,
     ) ?? (receivedHeartsQuery.isSuccess ? 0 : undefined);
-  const myClubs = useMemo(
-    () =>
-      myClubsQuery.data?.pages
-        .flatMap((page) => page.clubs ?? [])
-        .filter(Boolean) ?? [],
-    [myClubsQuery.data],
-  );
+  // ponytail: 엔드포인트에 페이지네이션이 없어 slice로 기존 5개 노출 유지
+  const myClubs = (myClubsQuery.data?.items ?? []).slice(0, 5);
 
   const handleNotificationToggle = (enabled: boolean) => {
     setNotificationEnabled(enabled);

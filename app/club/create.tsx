@@ -17,23 +17,19 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import Cta from "@/components/Cta";
 import { Chip } from "@/components/Chip";
 import TextBox from "@/components/TextBox";
-import TxtBox from "@/components/txt-box";
+import { CLUB_CREATE_CATEGORIES } from "@/constants/club";
+import { postPresign, uploadFileToS3 } from "@/api/onboarding/onboardingApi";
 import { useCreateClubMutation } from "@/hooks/api/useClub";
-import type { ClubCategory } from "@/types/api/club/clubDTO";
 import type { ApiFailResponse } from "@/types/api/api";
 
-const categories: { label: string; value: ClubCategory }[] = [
-  { label: "운동 / 스포츠", value: "SPORTS" },
-  { label: "취미 / 여가", value: "HOBBY" },
-  { label: "문화 / 예술", value: "HOBBY" },
-  { label: "봉사활동", value: "VOLUNTEER" },
-  { label: "음식 / 맛집", value: "OTHERS" },
-  { label: "독서 / 공부", value: "STUDY" },
-  { label: "기타", value: "OTHERS" },
-];
+const categories = CLUB_CREATE_CATEGORIES;
 
 type JoinType = "free" | "approval";
 type BoardScope = "all" | "member";
+type CoverImage = {
+  uri: string;
+  contentType: string;
+};
 
 export default function ClubCreateScreen() {
   const router = useRouter();
@@ -45,7 +41,8 @@ export default function ClubCreateScreen() {
   const [maxMembers, setMaxMembers] = useState(15);
   const [joinType, setJoinType] = useState<JoinType>("free");
   const [boardScope, setBoardScope] = useState<BoardScope>("member");
-  const [coverImageUris, setCoverImageUris] = useState<string[]>([]);
+  const [coverImages, setCoverImages] = useState<CoverImage[]>([]);
+  const [isUploadingCover, setUploadingCover] = useState(false);
 
   const canSubmit = useMemo(
     () => name.trim().length > 0 && intro.trim().length > 0 && !!category && !!region,
@@ -70,7 +67,12 @@ export default function ClubCreateScreen() {
       });
 
       if (!result.canceled) {
-        setCoverImageUris(result.assets.slice(0, 5).map((asset) => asset.uri));
+        setCoverImages(
+          result.assets.slice(0, 5).map((asset) => ({
+            uri: asset.uri,
+            contentType: asset.mimeType ?? resolveImageContentType(asset.uri),
+          })),
+        );
       }
     } catch (error) {
       console.error("Cover Image Picker Error:", error);
@@ -79,20 +81,31 @@ export default function ClubCreateScreen() {
   };
 
   const handleSubmit = async () => {
-    if (!canSubmit || createClubMutation.isPending) return;
+    if (!canSubmit || createClubMutation.isPending || isUploadingCover) return;
 
     try {
+      setUploadingCover(true);
+      const thumbnailUrl = coverImages[0]
+        ? await uploadClubCoverImage(coverImages[0])
+        : null;
       const createdClub = await createClubMutation.mutateAsync({
         name: name.trim(),
         category: category.value,
         introText: intro.trim(),
+        thumbnailUrl,
         capacity: maxMembers,
-        keywordIds: [],
       });
 
-      router.replace({
-        pathname: "/club/detail",
-        params: { clubId: String(createdClub.clubId) },
+      router.push({
+        pathname: "/club/create-complete",
+        params: {
+          clubId: String(createdClub.clubId),
+          name: createdClub.name,
+          intro: intro.trim(),
+          location: region,
+          host: createdClub.host?.nickname ?? "",
+          image: thumbnailUrl ?? coverImages[0]?.uri ?? "",
+        },
       } as never);
     } catch (error) {
       Alert.alert(
@@ -100,6 +113,8 @@ export default function ClubCreateScreen() {
         getApiErrorMessage(error) ??
           "동호회를 생성하지 못했어요. 잠시 후 다시 시도해주세요.",
       );
+    } finally {
+      setUploadingCover(false);
     }
   };
 
@@ -128,10 +143,10 @@ export default function ClubCreateScreen() {
           style={styles.coverBox}
           onPress={handlePickCoverImages}
         >
-          {coverImageUris[0] ? (
+          {coverImages[0] ? (
             <>
               <Image
-                source={{ uri: coverImageUris[0] }}
+                source={{ uri: coverImages[0].uri }}
                 style={styles.coverImage}
                 contentFit="cover"
               />
@@ -139,14 +154,15 @@ export default function ClubCreateScreen() {
               <View style={styles.coverEditBadge}>
                 <Ionicons name="camera" size={17} color="#FFFFFF" />
                 <Text style={styles.coverEditText}>
-                  {coverImageUris.length}/5
+                  {coverImages.length}/5
                 </Text>
               </View>
             </>
           ) : (
             <>
               <View style={styles.cameraCircle}>
-                <Ionicons name="camera" size={22} color="#9EA8AF" />
+                {/* ponytail: Figma MCP 미연결로 아이콘 크기 36 적용, 실제 값 다르면 수치만 조정 */}
+                <Ionicons name="camera" size={36} color="#9EA8AF" />
               </View>
               <Text style={styles.coverText}>커버 사진 추가</Text>
               <Text style={styles.coverSubText}>(최대 5장까지 가능)</Text>
@@ -156,10 +172,13 @@ export default function ClubCreateScreen() {
 
         <FormSection>
           <RequiredLabel label="동호회 이름" />
-          <TxtBox
+          <TextBox
             value={name}
             onChangeText={setName}
             placeholder="동호회 이름을 입력해주세요"
+            multiline={false}
+            inputBoxStyle={styles.nameInputBox}
+            style={styles.nameInput}
           />
         </FormSection>
 
@@ -225,6 +244,7 @@ export default function ClubCreateScreen() {
                 disabled={maxMembers <= 2}
                 onPress={() => setMaxMembers((prev) => Math.max(2, prev - 1))}
               />
+              <View style={styles.stepperDivider} />
               <RoundIconButton
                 icon="add"
                 onPress={() => setMaxMembers((prev) => Math.min(99, prev + 1))}
@@ -271,8 +291,14 @@ export default function ClubCreateScreen() {
       </ScrollView>
 
       <Cta
-        label={createClubMutation.isPending ? "생성 중..." : canSubmit ? "동호회 만들기" : "다음"}
-        disabled={!canSubmit || createClubMutation.isPending}
+        label={
+          createClubMutation.isPending || isUploadingCover
+            ? "생성 중..."
+            : canSubmit
+              ? "동호회 만들기"
+              : "다음"
+        }
+        disabled={!canSubmit || createClubMutation.isPending || isUploadingCover}
         onPress={handleSubmit}
         buttonStyle={styles.ctaButton}
         labelStyle={styles.ctaLabel}
@@ -284,6 +310,45 @@ export default function ClubCreateScreen() {
 function getApiErrorMessage(error: unknown) {
   const apiError = error as { response?: { data?: ApiFailResponse } };
   return apiError.response?.data?.error?.message;
+}
+
+async function uploadClubCoverImage(image: CoverImage) {
+  const extension = contentTypeToImageExtension(image.contentType);
+  const { uploadUrl, fileUrl } = await postPresign({
+    fileName: `club-cover-${Date.now()}.${extension}`,
+    contentType: image.contentType,
+    purpose: "PROFILE_IMAGE",
+  });
+  const fileResponse = await fetch(image.uri);
+  const blob = await fileResponse.blob();
+  const uploadBlob = blob.type
+    ? blob
+    : new Blob([blob], { type: image.contentType });
+
+  await uploadFileToS3(uploadUrl, uploadBlob, image.contentType);
+
+  return fileUrl;
+}
+
+function resolveImageContentType(uri: string) {
+  const lowerUri = uri.toLowerCase();
+
+  if (lowerUri.startsWith("data:image/png") || lowerUri.endsWith(".png")) {
+    return "image/png";
+  }
+
+  if (lowerUri.startsWith("data:image/webp") || lowerUri.endsWith(".webp")) {
+    return "image/webp";
+  }
+
+  return "image/jpeg";
+}
+
+function contentTypeToImageExtension(contentType: string) {
+  if (contentType === "image/png") return "png";
+  if (contentType === "image/webp") return "webp";
+
+  return "jpg";
 }
 
 function FormSection({ children }: { children: React.ReactNode }) {
@@ -511,6 +576,16 @@ const styles = StyleSheet.create({
   selectTextActive: {
     color: "#1F2937",
   },
+  nameInputBox: {
+    height: 48,
+    minHeight: 48,
+    paddingTop: 0,
+    paddingBottom: 0,
+    justifyContent: "center",
+  },
+  nameInput: {
+    minHeight: 0,
+  },
   counterBox: {
     flexDirection: "row",
     alignItems: "center",
@@ -533,8 +608,6 @@ const styles = StyleSheet.create({
     height: 48,
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: 1,
-    borderColor: "#DEE3E5",
   },
   roundButtonMuted: {
     backgroundColor: "#F8FAFB",
@@ -548,6 +621,15 @@ const styles = StyleSheet.create({
   stepperGroup: {
     flexDirection: "row",
     alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#DEE3E5",
+    borderRadius: 10,
+    overflow: "hidden",
+  },
+  stepperDivider: {
+    width: 1,
+    alignSelf: "stretch",
+    backgroundColor: "#DEE3E5",
   },
   memberCount: {
     color: "#202020",
