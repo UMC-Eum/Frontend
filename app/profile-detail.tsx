@@ -37,7 +37,7 @@ import {
 } from "@/hooks/api/useSocials";
 import { useUserProfileQuery } from "@/hooks/api/useUsers";
 import type { ReportCategory } from "@/types/api/socials/socialsDTO";
-import type { IUserProfile } from "@/types/user";
+import type { IProfileClubSummary, IUserPublicProfile } from "@/types/user";
 
 const FALLBACK_PROFILE_IMAGE =
   "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=85&w=1200&auto=format&fit=crop";
@@ -162,14 +162,11 @@ export default function ProfileDetailScreen() {
   );
 
   useEffect(() => {
-    if (typeof profileQuery.data?.isLiked === "boolean") {
-      setLiked(profileQuery.data.isLiked);
+    // 공개 프로필 응답은 하트 발송 여부(hasSentHeart)만 제공 — heartId는 마음함 경유 params로만 확보
+    if (typeof profileQuery.data?.hasSentHeart === "boolean") {
+      setLiked(profileQuery.data.hasSentHeart);
     }
-
-    if (typeof profileQuery.data?.likedHeartId === "number") {
-      setCurrentHeartId(profileQuery.data.likedHeartId);
-    }
-  }, [profileQuery.data?.isLiked, profileQuery.data?.likedHeartId]);
+  }, [profileQuery.data?.hasSentHeart]);
 
   const getTargetUserId = () => {
     if (userId) return userId;
@@ -658,12 +655,15 @@ function ProfileClubSection({
               {club.title}
             </Text>
             <Text style={styles.clubMeta} numberOfLines={1}>
-              {club.location} · {club.category}
+              {club.location ? `${club.location} · ${club.category}` : club.category}
             </Text>
-            <View style={styles.memberRow}>
-              <Ionicons name="person" size={18} color="#A6AFB6" />
-              <Text style={styles.memberText}>{club.memberLabel}</Text>
-            </View>
+            {/* 위치·인원은 프로필 응답에 없어 값이 있을 때만 표시 */}
+            {club.memberLabel ? (
+              <View style={styles.memberRow}>
+                <Ionicons name="person" size={18} color="#A6AFB6" />
+                <Text style={styles.memberText}>{club.memberLabel}</Text>
+              </View>
+            ) : null}
           </View>
         </View>
       ))}
@@ -705,23 +705,33 @@ function mapParamsToProfile(params: ProfileDetailParams): ProfileViewData | null
 }
 
 function mapProfileToViewData(
-  profile: IUserProfile | undefined,
+  profile: IUserPublicProfile | undefined,
   fallback: ProfileViewData | null,
 ): ProfileViewData | null {
   if (!profile) return fallback;
 
   return {
     name: profile.nickname || fallback?.name || "프로필",
-    age: normalizeAge(profile.age, profile.birthDate) ?? fallback?.age ?? null,
+    age: normalizeAge(profile.age) ?? fallback?.age ?? null,
     location: profile.area?.name || fallback?.location || "",
     distance: fallback?.distance || "",
     intro: profile.introText || fallback?.intro || "",
     image: profile.profileImageUrl || fallback?.image || FALLBACK_PROFILE_IMAGE,
-    interests: profile.keywords ?? [],
+    interests: profile.interests ?? [],
     preferences: profile.idealPersonalities ?? [],
-    joinedClubs: fallback?.joinedClubs ?? [],
-    hostedClubs: fallback?.hostedClubs ?? [],
+    joinedClubs: mapProfileClubs(profile.participatingClubs),
+    hostedClubs: mapProfileClubs(profile.hostingClubs),
   };
+}
+
+function mapProfileClubs(clubs?: IProfileClubSummary[]): ProfileClub[] {
+  return (clubs ?? []).map((club) => ({
+    id: String(club.clubId),
+    title: club.name,
+    location: "",
+    category: club.category,
+    memberLabel: "",
+  }));
 }
 
 function normalizeAge(age?: number | string | null, birthDate?: string | null) {

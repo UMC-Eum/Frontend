@@ -22,12 +22,20 @@ import {
   useSentHeartsInfiniteQuery,
 } from "@/hooks/api/useSocials";
 import { TAB_SCREEN_BOTTOM_PADDING } from "@/constants/layout";
+import { getAgeFromBirthdate } from "@/utils/age";
+import type {
+  IHeartreceivedResponse,
+  IHeartsentResponse,
+  IProfileSummary,
+} from "@/types/api/socials/socialsDTO";
 
 const PINK = "#FF3E70";
 const BLACK = "#202020";
 const GRAY_100 = "#F8FAFB";
 const GRAY_150 = "#E9ECED";
 const GRAY_700 = "#636970";
+const FALLBACK_PROFILE_IMAGE =
+  "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=85&w=1200&auto=format&fit=crop";
 
 type HeartTab = "received" | "sent";
 
@@ -35,7 +43,7 @@ type HeartProfile = {
   id: string;
   targetUserId: number;
   name: string;
-  age: number;
+  age: number | null;
   location: string;
   image: string;
   isLiked: boolean;
@@ -333,33 +341,15 @@ function applyOptimisticHeartState<T extends ScreenHeartProfile>(
   });
 }
 
+// 받은 마음 응답엔 좋아요 여부가 없어, 보낸 마음 목록과 대조해 맞하트를 판단
 function mapReceivedHeartProfiles(
-  data:
-    | {
-        pages: {
-          items: {
-            heartId: number;
-            fromUserId: number;
-            isLiked?: boolean;
-            likedHeartId?: number | null;
-            fromUser: {
-              nickname: string;
-              age: number;
-              areaName?: string | null;
-              area?: { name?: string | null } | null;
-              profileImageUrl: string;
-            };
-          }[];
-        }[];
-      }
-    | undefined,
+  data: { pages: IHeartreceivedResponse[] } | undefined,
   sentHeartIdsByTargetUserId: Map<number, number>,
 ): ScreenHeartProfile[] {
   return (
     data?.pages.flatMap((page) =>
       page.items.map((item) => {
-        const likedHeartId =
-          item.likedHeartId ?? sentHeartIdsByTargetUserId.get(item.fromUserId);
+        const likedHeartId = sentHeartIdsByTargetUserId.get(item.fromUserId);
 
         return {
           id: `received-${item.heartId}`,
@@ -367,31 +357,19 @@ function mapReceivedHeartProfiles(
           likedHeartId,
           targetUserId: item.fromUserId,
           name: item.fromUser.nickname,
-          age: item.fromUser.age,
+          age: getAgeFromBirthdate(item.fromUser.birthdate),
           location: getProfileLocation(item.fromUser),
-          image: item.fromUser.profileImageUrl,
-          isLiked: item.isLiked ?? likedHeartId != null,
+          image: item.fromUser.profileImageUrl || FALLBACK_PROFILE_IMAGE,
+          isLiked: likedHeartId != null,
         };
       }),
     ) ?? []
   );
 }
 
-function mapSentHeartProfiles(data?: {
-  pages: {
-    items: {
-      heartId: number;
-      targetUserId: number;
-      targetUser: {
-        nickname: string;
-        age: number;
-        areaName?: string | null;
-        area?: { name?: string | null } | null;
-        profileImageUrl: string;
-      };
-    }[];
-  }[];
-}): ScreenHeartProfile[] {
+function mapSentHeartProfiles(
+  data: { pages: IHeartsentResponse[] } | undefined,
+): ScreenHeartProfile[] {
   return (
     data?.pages.flatMap((page) =>
       page.items.map((item) => ({
@@ -399,31 +377,32 @@ function mapSentHeartProfiles(data?: {
         likedHeartId: item.heartId,
         targetUserId: item.targetUserId,
         name: item.targetUser.nickname,
-        age: item.targetUser.age,
+        age: getAgeFromBirthdate(item.targetUser.birthdate),
         location: getProfileLocation(item.targetUser),
-        image: item.targetUser.profileImageUrl,
+        image: item.targetUser.profileImageUrl || FALLBACK_PROFILE_IMAGE,
         isLiked: true,
       })),
     ) ?? []
   );
 }
 
-function getProfileLocation(profile: {
-  areaName?: string | null;
-  area?: { name?: string | null } | null;
-}) {
-  return profile.areaName?.trim() || profile.area?.name?.trim() || "";
+// 마음 응답의 지역은 address.fullName로 내려옴 — 없으면 빈 값
+function getProfileLocation(profile: IProfileSummary) {
+  return profile.address?.fullName?.trim() || "";
 }
 
 function buildProfileDetailParams(profile: ScreenHeartProfile) {
   const params: Record<string, string> = {
     userId: String(profile.targetUserId),
     name: profile.name,
-    age: String(profile.age),
     image: profile.image,
     location: profile.location,
     isLiked: String(profile.isLiked),
   };
+
+  if (profile.age != null) {
+    params.age = String(profile.age);
+  }
 
   if (profile.likedHeartId) {
     params.heartId = String(profile.likedHeartId);
@@ -491,12 +470,18 @@ function HeartProfileCard({
             <Text style={styles.cardName} numberOfLines={1}>
               {profile.name}
             </Text>
-            <View style={styles.nameDot} />
-            <Text style={styles.cardName}>{profile.age}세</Text>
+            {profile.age != null ? (
+              <>
+                <View style={styles.nameDot} />
+                <Text style={styles.cardName}>{profile.age}세</Text>
+              </>
+            ) : null}
           </View>
-          <Text style={styles.cardLocation} numberOfLines={1}>
-            {profile.location}
-          </Text>
+          {profile.location ? (
+            <Text style={styles.cardLocation} numberOfLines={1}>
+              {profile.location}
+            </Text>
+          ) : null}
         </View>
       </ImageBackground>
     </Pressable>

@@ -1,10 +1,11 @@
 export interface IProfileSummary {
-  profileImageUrl: string;
+  id?: number;
+  profileImageUrl: string | null;
   nickname: string;
-  age: number;
-  areaName?: string | null;
-  area?: {
-    name?: string | null;
+  // 서버는 나이/지역을 birthdate·address로 내려줌 (age/areaName 아님)
+  birthdate?: string | null;
+  address?: {
+    fullName?: string | null;
   } | null;
 }
 

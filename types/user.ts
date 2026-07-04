@@ -18,3 +18,27 @@ export interface IUserProfile {
   isLiked?: boolean;
   likedHeartId?: number | null;
 }
+
+// 타인 공개 프로필 (GET /v1/users/{userId}/profile) — /users/me와 응답 스키마가 다름
+export interface IProfileClubSummary {
+  clubId: number;
+  name: string;
+  thumbnailUrl: string | null;
+  category: string;
+  introText: string | null;
+}
+
+export interface IUserPublicProfile {
+  userId: number;
+  nickname: string;
+  age: number;
+  gender: string;
+  area: { name: string };
+  introText: string;
+  interests: string[];
+  idealPersonalities: string[];
+  participatingClubs: IProfileClubSummary[];
+  hostingClubs: IProfileClubSummary[];
+  hasSentHeart: boolean;
+  profileImageUrl: string;
+}
