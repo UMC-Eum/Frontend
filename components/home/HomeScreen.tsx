@@ -516,8 +516,13 @@ function ProfileCard({
   onLike,
 }: ProfileCardProps) {
   return (
-    <View style={[styles.profileCard, { width: screenWidth }]}>
-      {/* 추천 프로필 카드는 좌우 스와이프로 목록을 넘길 수 있습니다. */}
+    <Pressable
+      style={[styles.profileCard, { width: screenWidth }]}
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`${profile.name} 프로필 상세 보기`}
+    >
+      {/* 추천 프로필 카드는 좌우 스와이프와 상세 진입을 함께 제공합니다. */}
       <View style={styles.profilePressable}>
         <ImageBackground
           source={{ uri: profile.images[0] ?? FALLBACK_PROFILE_IMAGE }}
@@ -551,7 +556,7 @@ function ProfileCard({
           <Text style={styles.likeText}>마음에들어요</Text>
         </Pressable>
       </View>
-    </View>
+    </Pressable>
   );
 }
 

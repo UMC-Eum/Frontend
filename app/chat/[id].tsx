@@ -65,6 +65,7 @@ import { useAuthStore } from "@/stores/authStore";
 import type {
   MessageDeletedData,
   MessageNewData,
+  MessageReadData,
   SocketAckResponse,
 } from "@/types/api/socket";
 
@@ -441,6 +442,14 @@ export default function ChatRoom() {
       if (readEvent.chatRoomId !== chatRoomId) return;
 
       console.log("[ChatSocket] message.read", readEvent);
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.chats.messages(chatRoomId, 30),
+      });
+      queryClient.invalidateQueries({ queryKey: queryKeys.chats.all });
+
+      setOptimisticMessages((prevMessages) =>
+        markSocketMessageRead(prevMessages, readEvent),
+      );
     }, socket);
 
     const unsubscribeMessageDeleted = onMessageDeleted((payload) => {
@@ -554,6 +563,7 @@ export default function ChatRoom() {
       isMine: true,
       time: formatChatTime(sentAt),
       sentAt,
+      showUnreadIndicator: true,
     };
 
     setOptimisticMessages((prevMessages) => [...prevMessages, nextMessage]);
@@ -716,6 +726,7 @@ export default function ChatRoom() {
       sentAt,
       mediaUrl: recording.uri,
       isPlaying: false,
+      showUnreadIndicator: true,
     };
 
     setOptimisticMessages((prevMessages) => [...prevMessages, nextMessage]);
@@ -1103,6 +1114,7 @@ function mapChatMessages(
           time: formatChatTime(item.sentAt),
           sentAt: item.sentAt,
           avatar: item.isMine ? undefined : peerAvatar,
+          showUnreadIndicator: item.isMine && !item.readAt,
         };
 
         if (item.type === "AUDIO") {
@@ -1152,6 +1164,7 @@ function mapSocketMessage(
     time: formatChatTime(item.sentAt),
     sentAt: item.sentAt,
     avatar: isMine ? undefined : item.senderProfileImage ?? peerAvatar,
+    showUnreadIndicator: isMine,
   };
 
   if (item.type === "AUDIO") {
@@ -1304,6 +1317,26 @@ function removeSocketMessage(
   return messages.filter(
     (message) => message.id !== `message-${deletedEvent.messageId}`,
   );
+}
+
+function markSocketMessageRead(
+  messages: ChatMessageData[],
+  readEvent: MessageReadData,
+) {
+  return messages.map((message) => {
+    if (message.id !== `message-${readEvent.messageId}`) {
+      return message;
+    }
+
+    if (message.type === "date") {
+      return message;
+    }
+
+    return {
+      ...message,
+      showUnreadIndicator: false,
+    };
+  });
 }
 
 function getSocketMessageData(payload: unknown): MessageNewData | null {

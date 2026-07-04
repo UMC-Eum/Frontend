@@ -1,15 +1,16 @@
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 
+import ChatNotificationBanner from "@/components/chat/ChatNotificationBanner";
 import { useUiStore } from "@/stores/uiStore";
 
 export default function GlobalUiOverlay() {
   const globalLoadingCount = useUiStore((state) => state.globalLoadingCount);
   const toast = useUiStore((state) => state.toast);
 
-  if (globalLoadingCount === 0 && !toast) return null;
-
   return (
     <View style={styles.pointerBox} pointerEvents="box-none">
+      <ChatNotificationBanner />
+
       {globalLoadingCount > 0 ? (
         <View style={styles.loadingBackdrop}>
           <ActivityIndicator color="#FF3E70" />
