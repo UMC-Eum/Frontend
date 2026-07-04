@@ -9,7 +9,6 @@ import {
   Alert,
   ImageBackground,
   Keyboard,
-  KeyboardAvoidingView,
   LayoutChangeEvent,
   Modal,
   Pressable,
@@ -22,6 +21,7 @@ import {
   View,
   useWindowDimensions,
 } from "react-native";
+import { KeyboardAvoidingView } from "@/components/KeyboardCompat";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { ClipPath, Defs, G, Path, Rect } from "react-native-svg";
 

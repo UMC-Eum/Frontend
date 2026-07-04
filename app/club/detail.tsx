@@ -8,7 +8,6 @@ import {
   Alert,
   Animated,
   Easing,
-  KeyboardAvoidingView,
   Modal,
   Pressable,
   ScrollView,
@@ -18,19 +17,30 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
+import { KeyboardAvoidingView } from "@/components/KeyboardCompat";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { KEYBOARD_AVOIDING_BEHAVIOR } from "@/constants/keyboard";
 import { CLUB_CATEGORY_LABELS } from "@/constants/club";
 import {
+  useArticleArchiveInfiniteQuery,
+  useArticlesInfiniteQuery,
+} from "@/hooks/api/useArticles";
+import {
   useClubDetailQuery,
   useJoinClubMutation,
   useLeaveClubMutation,
 } from "@/hooks/api/useClub";
+import { useMeetingsInfiniteQuery } from "@/hooks/api/useMeetings";
+import { IArticleListItem } from "@/types/api/articles/articlesDTO";
 import { ClubMemberStatus } from "@/types/api/club/clubDTO";
 import { ClubPostCategory } from "@/types/api/clubs/clubPostsDTO";
 import { IMeetingListItem } from "@/types/api/meetings/meetingsDTO";
+<<<<<<< Updated upstream
 import type { ApiFailResponse } from "@/types/api/api";
+=======
+import { uniqueBy } from "@/utils/array";
+>>>>>>> Stashed changes
 
 const PINK = "#FF3E70";
 const BLACK = "#202020";
@@ -66,109 +76,9 @@ const CATEGORY_LABELS: Record<ClubPostCategory, string> = {
   FREE: "자유게시판",
 };
 
-type BoardPost = {
-  id: string;
-  apiId?: number;
-  author: string;
-  time: string;
-  category: string;
-  content: string;
-  likes: number;
-  comments: number;
-  hasImage: boolean;
-  isPinned?: boolean;
-};
-
-const BOARD_POSTS: BoardPost[] = [
-  {
-    id: "post-1",
-    apiId: 1,
-    author: "등산하는 사람",
-    time: "2일전",
-    category: "후기",
-    content:
-      "오늘 아침 등반은 정말 상쾌했어요! 멋진 일출을 보니 힘든 일도 잊혀지네요. 다음 주에 또 만나요!",
-    likes: 0,
-    comments: 4,
-    hasImage: false,
-  },
-  {
-    id: "post-2",
-    apiId: 2,
-    author: "밤먹는거북이",
-    time: "7일전",
-    category: "자유게시판",
-    content:
-      "오늘 운악산 다녀왔는데, 정말 힐링되는 하루였어요! 정상에서 막걸리 한 잔, 캬! 다들 이번 주말에 운악산 어때요?",
-    likes: 0,
-    comments: 4,
-    hasImage: false,
-  },
-  {
-    id: "post-3",
-    apiId: 3,
-    author: "루시",
-    time: "30분전",
-    category: "가입인사",
-    content:
-      "안녕하세요 처음 가입하고 활동 했는데 너무 좋았습니다. 다음에도 또 봐요...",
-    likes: 23,
-    comments: 1,
-    hasImage: true,
-  },
-  {
-    id: "post-4",
-    apiId: 4,
-    author: "광진구등산",
-    time: "3/20",
-    category: "자유게시판",
-    content:
-      "오늘 아침, 구름 사이로 쏟아지는 햇살이 너무 아름다웠어요! 등산 후 먹는 따뜻한 차 맛은 정말 최고! 이번 주말엔...",
-    likes: 0,
-    comments: 0,
-    hasImage: false,
-  },
-  {
-    id: "post-5",
-    apiId: 5,
-    author: "도봉산모임",
-    time: "3/19",
-    category: "후기",
-    content:
-      "지난 토요일 도봉산 등산 모임 정말 즐거웠어요! 함께한 분들 덕분에 힘든...",
-    likes: 2,
-    comments: 8,
-    hasImage: true,
-  },
-  {
-    id: "post-6",
-    apiId: 6,
-    author: "한강등산클럽",
-    time: "1일전",
-    category: "가입인사",
-    content:
-      "안녕하세요! 한강 주변 산책과 등산을 좋아하는 새 회원입니다. 앞으로 종...",
-    likes: 0,
-    comments: 0,
-    hasImage: true,
-  },
-  {
-    id: "post-7",
-    apiId: 7,
-    author: "관악산사랑",
-    time: "5일전",
-    category: "자유게시판",
-    content:
-      "가을 단풍 시즌이 다가오네요. 관악산에서 단풍 구경하며 등산하는 계획 세우는 중인데, 같이 가실 분 있을까요?",
-    likes: 3,
-    comments: 7,
-    hasImage: false,
-  },
-];
-
 /**
- * 동호회 가입 전 상세 화면입니다.
- * - 상단 소개 영역과 탭 본문을 한 화면에서 확인할 수 있게 목 데이터로 구성합니다.
+ * 동호회 상세 화면입니다.
+ * - 상단 소개 영역과 탭 본문(홈/게시판/사진첩/채팅)을 한 화면에서 확인합니다.
  * - 하단 가입 CTA는 스크롤과 분리해 항상 화면 아래에 고정합니다.
  */
 export default function ClubDetailScreen() {
@@ -189,6 +99,12 @@ export default function ClubDetailScreen() {
   const detailQuery = useClubDetailQuery(clubId);
   const joinMutation = useJoinClubMutation(clubId);
   const leaveMutation = useLeaveClubMutation();
+  const meetingsQuery = useMeetingsInfiniteQuery(clubId, { filter: "upcoming" });
+  const archivesQuery = useArticleArchiveInfiniteQuery(
+    clubId,
+    {},
+    activeTab === "album",
+  );
   const detail = detailQuery.data;
 
   const isJoined =
@@ -199,8 +115,16 @@ export default function ClubDetailScreen() {
     : insets.bottom + 96;
   const albumItemSize = width / 3;
   const trimmedJoinMessage = joinMessage.trim();
-  const meetings: IMeetingListItem[] = [];
-  const archives: { archiveId: number; imageUrl: string }[] = [];
+  const meetings: IMeetingListItem[] =
+    meetingsQuery.data?.pages.flatMap((page) => page.meetings) ?? [];
+  const archives =
+    archivesQuery.data?.pages.flatMap((page) =>
+      page.items.map((item) => ({
+        archiveId: item.photoId,
+        imageUrl: item.photoUrl,
+      })),
+    ) ?? [];
+  const isHost = detail?.myAuthority === "HOST";
   // ponytail: 상세 API에 이미지/주소 필드가 없어 히어로는 placeholder 유지, 지역 표기는 생략
   const heroImage = HERO_IMAGE;
   const clubTitle = detail?.name ?? "";
@@ -339,11 +263,19 @@ export default function ClubDetailScreen() {
           <ClubHomeTab
             description={description}
             isJoined={isJoined}
+            isHost={isHost}
             meetings={meetings}
+            onPressCreateMeeting={() =>
+              router.push({
+                pathname: "/meeting-create",
+                params: { clubId: String(clubId) },
+              } as never)
+            }
           />
         ) : null}
         {activeTab === "board" ? (
           <BoardTab
+            clubId={clubId}
             onPostPress={(postId) =>
               router.push({
                 pathname: "/club/post-detail",
@@ -355,7 +287,7 @@ export default function ClubDetailScreen() {
         {activeTab === "album" ? (
           <AlbumTab
             archives={archives}
-            isLoading={false}
+            isLoading={archivesQuery.isLoading}
             itemSize={albumItemSize}
           />
         ) : null}
@@ -469,11 +401,15 @@ function getApiErrorMessage(error: unknown) {
 function ClubHomeTab({
   description,
   isJoined,
+  isHost,
   meetings,
+  onPressCreateMeeting,
 }: {
   description: string;
   isJoined: boolean;
+  isHost: boolean;
   meetings: IMeetingListItem[];
+  onPressCreateMeeting: () => void;
 }) {
   const firstMeeting = meetings[0];
 
@@ -482,55 +418,79 @@ function ClubHomeTab({
       <Text style={styles.descriptionText}>{description}</Text>
 
       <View style={styles.meetingSection}>
-        <Text style={styles.sectionTitle}>정기모임</Text>
-        <View style={styles.meetingCard}>
-          <View style={styles.meetingTitleRow}>
-            <View style={styles.dDayBadge}>
-              <Text style={styles.dDayText}>
-                {firstMeeting?.date
-                  ? formatDday(firstMeeting.date)
-                  : "D-4"}
-              </Text>
-            </View>
-            <Text style={styles.meetingTitle}>
-              {firstMeeting?.name ?? "매주하는 새벽등산🔥"}
-            </Text>
-          </View>
-
-          <View style={styles.meetingInfoList}>
-            <MeetingInfo
-              label="일시"
-              value={
-                formatDateTime(firstMeeting?.date) ??
-                "매주 목요일 저녁 19시"
-              }
-            />
-            <MeetingInfo
-              label="위치"
-              value={firstMeeting?.spot ?? "종로역 1번 출구 앞"}
-            />
-            <MeetingInfo
-              label="비용"
-              value={firstMeeting?.cost ?? "n만원"}
-            />
-          </View>
-
-          <View style={styles.attendeeRow}>
-            <View style={styles.attendeeAvatar} />
-            <View style={[styles.attendeeAvatar, styles.attendeeOverlap]} />
-            <View style={[styles.attendeeAvatar, styles.attendeeOverlap]} />
-            <Text style={styles.attendeeText}>
-              {firstMeeting?.attendeeCount ?? 4}명 참석중 (
-              {firstMeeting?.attendeeCount ?? 4}/{firstMeeting?.capacity ?? 8})
-            </Text>
-          </View>
-
-          {isJoined ? (
-            <Pressable style={styles.attendanceButton}>
-              <Text style={styles.attendanceButtonText}>참석 현황 확인</Text>
+        <View style={styles.meetingSectionHeader}>
+          <Text style={styles.sectionTitle}>정기모임</Text>
+          {isHost ? (
+            <Pressable
+              style={styles.meetingCreateButton}
+              onPress={onPressCreateMeeting}
+              hitSlop={8}
+            >
+              <Ionicons name="add" size={16} color={PINK} />
+              <Text style={styles.meetingCreateButtonText}>정기모임 만들기</Text>
             </Pressable>
           ) : null}
         </View>
+
+        {firstMeeting ? (
+          <View style={styles.meetingCard}>
+            <View style={styles.meetingTitleRow}>
+              <View style={styles.dDayBadge}>
+                <Text style={styles.dDayText}>{formatDday(firstMeeting.date)}</Text>
+              </View>
+              <Text style={styles.meetingTitle}>{firstMeeting.name}</Text>
+            </View>
+
+            <View style={styles.meetingInfoList}>
+              <MeetingInfo
+                label="일시"
+                value={formatDateTime(firstMeeting.date) ?? "-"}
+              />
+              <MeetingInfo label="위치" value={firstMeeting.spot} />
+              <MeetingInfo label="비용" value={firstMeeting.cost ?? "없음"} />
+            </View>
+
+            <View style={styles.attendeeRow}>
+              {Array.from({
+                length: Math.min(firstMeeting.attendeeCount, 3),
+              }).map((_, index) => (
+                <View
+                  key={index}
+                  style={[
+                    styles.attendeeAvatar,
+                    index > 0 && styles.attendeeOverlap,
+                  ]}
+                />
+              ))}
+              <Text style={styles.attendeeText}>
+                {firstMeeting.attendeeCount}명 참석중 (
+                {firstMeeting.attendeeCount}/{firstMeeting.capacity ?? "-"})
+              </Text>
+            </View>
+
+            {isJoined ? (
+              <Pressable style={styles.attendanceButton}>
+                <Text style={styles.attendanceButtonText}>참석 현황 확인</Text>
+              </Pressable>
+            ) : null}
+          </View>
+        ) : (
+          <View style={[styles.meetingCard, styles.meetingEmptyCard]}>
+            <Text style={styles.meetingEmptyText}>
+              아직 예정된 정기모임이 없어요.
+            </Text>
+            {isHost ? (
+              <Pressable
+                style={styles.meetingEmptyCreateButton}
+                onPress={onPressCreateMeeting}
+              >
+                <Text style={styles.meetingEmptyCreateButtonText}>
+                  첫 정기모임 만들기
+                </Text>
+              </Pressable>
+            ) : null}
+          </View>
+        )}
       </View>
     </View>
   );
@@ -572,20 +532,23 @@ function MeetingInfo({ label, value }: { label: string; value: string }) {
 }
 
 function BoardTab({
+  clubId,
   onPostPress,
 }: {
+  clubId: number;
   onPostPress: (postId: number) => void;
 }) {
   const [activeCategory, setActiveCategory] =
     useState<ClubPostCategory | "ALL">("ALL");
-  const posts =
-    activeCategory === "ALL"
-      ? BOARD_POSTS
-      : BOARD_POSTS.filter(
-          (post) => post.category === CATEGORY_LABELS[activeCategory],
-        );
-  const pinnedPosts = posts.filter((post) => post.isPinned);
-  const normalPosts = posts.filter((post) => !post.isPinned);
+  const articlesQuery = useArticlesInfiniteQuery(clubId, {
+    category: activeCategory === "ALL" ? undefined : activeCategory,
+  });
+  const articles = uniqueBy(
+    articlesQuery.data?.pages.flatMap((page) => page.articles) ?? [],
+    (article) => article.articleId,
+  );
+  const pinnedArticles = articles.filter((article) => article.isPinned);
+  const normalArticles = articles.filter((article) => !article.isPinned);
 
   return (
     <View style={styles.boardContent}>
@@ -616,79 +579,147 @@ function BoardTab({
         })}
       </ScrollView>
 
-      <View style={styles.pinnedList}>
-        {(pinnedPosts.length > 0 ? pinnedPosts : normalPosts.slice(0, 2)).map((post) => (
-          <PinnedPost key={`pinned-${post.id}`} text={`[필독] ${post.content}`} />
-        ))}
-      </View>
+      {pinnedArticles.length > 0 ? (
+        <View style={styles.pinnedList}>
+          {pinnedArticles.map((article) => (
+            <PinnedPost
+              key={`pinned-${article.articleId}`}
+              text={`[필독] ${article.title ?? article.preview}`}
+              onPress={() => onPostPress(article.articleId)}
+            />
+          ))}
+        </View>
+      ) : null}
 
-      <View style={styles.postList}>
-        {normalPosts.map((post) => (
-          <BoardPostItem
-            key={post.id}
-            post={post}
-            onPress={() => {
-              if (post.apiId) {
-                onPostPress(post.apiId);
-              }
-            }}
-          />
-        ))}
-      </View>
+      {articlesQuery.isLoading ? (
+        <View style={styles.statusBox}>
+          <ActivityIndicator color={PINK} />
+        </View>
+      ) : articles.length === 0 ? (
+        <View style={styles.statusBox}>
+          <Text style={styles.emptyStateText}>
+            {articlesQuery.isError
+              ? "게시글을 불러오지 못했어요. 잠시 후 다시 시도해주세요."
+              : "아직 게시글이 없어요."}
+          </Text>
+        </View>
+      ) : (
+        <View style={styles.postList}>
+          {normalArticles.map((article) => (
+            <BoardPostItem
+              key={article.articleId}
+              article={article}
+              onPress={() => onPostPress(article.articleId)}
+            />
+          ))}
+          {articlesQuery.hasNextPage ? (
+            <Pressable
+              style={styles.moreButton}
+              onPress={() => articlesQuery.fetchNextPage()}
+              disabled={articlesQuery.isFetchingNextPage}
+            >
+              {articlesQuery.isFetchingNextPage ? (
+                <ActivityIndicator color={PINK} />
+              ) : (
+                <Text style={styles.moreButtonText}>더보기</Text>
+              )}
+            </Pressable>
+          ) : null}
+        </View>
+      )}
     </View>
   );
 }
 
-function PinnedPost({ text }: { text: string }) {
+function PinnedPost({ text, onPress }: { text: string; onPress: () => void }) {
   return (
-    <Pressable style={styles.pinnedPost}>
+    <Pressable style={styles.pinnedPost} onPress={onPress}>
       <Ionicons name="megaphone-outline" size={20} color="#636970" />
-      <Text style={styles.pinnedPostText}>{text}</Text>
+      <Text style={styles.pinnedPostText} numberOfLines={1}>
+        {text}
+      </Text>
     </Pressable>
   );
 }
 
 function BoardPostItem({
-  post,
+  article,
   onPress,
 }: {
-  post: BoardPost;
+  article: IArticleListItem;
   onPress: () => void;
 }) {
-  const hasReactions = post.likes > 0 || post.comments > 0;
+  const hasReactions = article.likeCount > 0 || article.commentCount > 0;
+  const hasImage = Boolean(article.thumbnailUrl);
+  const categoryLabel =
+    CATEGORY_LABELS[article.category as ClubPostCategory] ?? article.category;
 
   return (
     <Pressable style={styles.boardPost} onPress={onPress}>
       <View style={styles.boardPostTop}>
-        <View style={styles.boardAvatar} />
+        {article.author.profileImageUrl ? (
+          <Image
+            source={{ uri: article.author.profileImageUrl }}
+            style={styles.boardAvatar}
+            contentFit="cover"
+          />
+        ) : (
+          <View style={styles.boardAvatar} />
+        )}
         <View style={styles.boardPostMeta}>
-          <Text style={styles.boardAuthor}>{post.author}</Text>
+          <Text style={styles.boardAuthor}>{article.author.nickname}</Text>
           <Text style={styles.boardMetaText}>
-            {post.time} · {post.category}
+            {formatRelativeTime(article.createdAt)} · {categoryLabel}
           </Text>
         </View>
       </View>
 
       <View style={styles.boardPostBody}>
         <Text
-          style={[styles.boardPostText, post.hasImage && styles.boardPostTextWithImage]}
-          numberOfLines={post.hasImage ? 3 : 4}
+          style={[styles.boardPostText, hasImage && styles.boardPostTextWithImage]}
+          numberOfLines={hasImage ? 3 : 4}
         >
-          {post.content}
+          {article.preview}
         </Text>
-        {post.hasImage ? <View style={styles.boardPostImage} /> : null}
+        {article.thumbnailUrl ? (
+          <Image
+            source={{ uri: article.thumbnailUrl }}
+            style={styles.boardPostImage}
+            contentFit="cover"
+          />
+        ) : null}
       </View>
 
       {hasReactions ? (
         <View style={styles.reactionSummaryRow}>
           <Ionicons name="heart-outline" size={18} color="#A6AFB6" />
-          <Text style={styles.reactionSummaryText}>{post.likes}</Text>
+          <Text style={styles.reactionSummaryText}>{article.likeCount}</Text>
           <Ionicons name="chatbubble-outline" size={18} color="#A6AFB6" />
-          <Text style={styles.reactionSummaryText}>{post.comments}</Text>
+          <Text style={styles.reactionSummaryText}>{article.commentCount}</Text>
         </View>
       ) : null}
     </Pressable>
   );
+}
+
+function formatRelativeTime(value: string) {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) return "";
+
+  const diffMs = Date.now() - date.getTime();
+  const diffMinutes = Math.floor(diffMs / (1000 * 60));
+
+  if (diffMinutes < 1) return "방금 전";
+  if (diffMinutes < 60) return `${diffMinutes}분전`;
+
+  const diffHours = Math.floor(diffMinutes / 60);
+  if (diffHours < 24) return `${diffHours}시간전`;
+
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays < 8) return `${diffDays}일전`;
+
+  return `${date.getMonth() + 1}/${date.getDate()}`;
 }
 
 function AlbumTab({
@@ -702,40 +733,38 @@ function AlbumTab({
 }) {
   const hasArchives = archives.length > 0;
 
+  if (isLoading && !hasArchives) {
+    return (
+      <View style={styles.statusBox}>
+        <ActivityIndicator color={PINK} />
+      </View>
+    );
+  }
+
+  if (!hasArchives) {
+    return (
+      <View style={styles.statusBox}>
+        <Text style={styles.emptyStateText}>아직 등록된 사진이 없어요.</Text>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.albumGrid}>
-      {isLoading && !hasArchives ? (
-        <View style={styles.statusBox}>
-          <ActivityIndicator color={PINK} />
-        </View>
-      ) : null}
-      {hasArchives
-        ? archives.map((archive) => (
-            <Image
-              key={archive.archiveId}
-              source={{ uri: archive.imageUrl }}
-              style={[
-                styles.albumItem,
-                {
-                  width: itemSize,
-                  height: itemSize,
-                },
-              ]}
-              contentFit="cover"
-            />
-          ))
-        : Array.from({ length: 12 }).map((_, index) => (
-            <View
-              key={index}
-              style={[
-                styles.albumItem,
-                {
-                  width: itemSize,
-                  height: itemSize,
-                },
-              ]}
-            />
-          ))}
+      {archives.map((archive) => (
+        <Image
+          key={archive.archiveId}
+          source={{ uri: archive.imageUrl }}
+          style={[
+            styles.albumItem,
+            {
+              width: itemSize,
+              height: itemSize,
+            },
+          ]}
+          contentFit="cover"
+        />
+      ))}
     </View>
   );
 }
@@ -748,48 +777,8 @@ type ClubChatMessage = {
   text: string;
 };
 
-const INITIAL_CLUB_CHAT_MESSAGES: ClubChatMessage[] = [
-  {
-    id: "club-chat-1",
-    mine: true,
-    time: "오후 01:39",
-    text: "안녕하세요 새로 가입했어요",
-  },
-  {
-    id: "club-chat-2",
-    name: "등산라버",
-    time: "오후 03:39",
-    text: "네 안녕하세요~~",
-  },
-  {
-    id: "club-chat-3",
-    mine: true,
-    time: "오후 03:40",
-    text: "다들 등산 많이 가시나요?",
-  },
-  {
-    id: "club-chat-4",
-    name: "등산등산",
-    text: "넵 많이 갑니다",
-  },
-  {
-    id: "club-chat-5",
-    time: "오후 07:00",
-    text: "관악산 많이가요 ^^",
-  },
-  {
-    id: "club-chat-6",
-    name: "dla1203",
-    time: "오후 07:01",
-    text: "어서오세요!\n처음 오신분들은 공지를 한번씩\n만 확인 부탁드려요",
-  },
-  {
-    id: "club-chat-7",
-    mine: true,
-    time: "오후 07:40",
-    text: "재밌겠네요~~",
-  },
-];
+// ponytail: 동호회 단체 채팅 API가 아직 없어 화면 안에서만 동작하는 임시 UI로 유지
+const INITIAL_CLUB_CHAT_MESSAGES: ClubChatMessage[] = [];
 
 function formatChatTime() {
   const now = new Date();
@@ -827,24 +816,15 @@ function ChatTab({ bottomPadding }: { bottomPadding: number }) {
 
   return (
     <View style={[styles.chatContent, { paddingBottom: bottomPadding }]}>
-      <View style={styles.chatDateBlock}>
-        <Text style={styles.chatDate}>2026년 5월 2일</Text>
-        <Text style={styles.chatNotice}>루시님이 들어왔어요.</Text>
-      </View>
+      {messages.length === 0 ? (
+        <View style={styles.statusBox}>
+          <Text style={styles.emptyStateText}>
+            아직 대화가 없어요. 첫 메시지를 남겨보세요.
+          </Text>
+        </View>
+      ) : null}
 
-      {messages.slice(0, 5).map((message) => (
-        <ChatBubble
-          key={message.id}
-          mine={message.mine}
-          name={message.name}
-          time={message.time}
-          text={message.text}
-        />
-      ))}
-
-      <Text style={styles.chatEnterNotice}>안녕하세요54님이 들어왔어요.</Text>
-
-      {messages.slice(5).map((message) => (
+      {messages.map((message) => (
         <ChatBubble
           key={message.id}
           mine={message.mine}
@@ -1314,6 +1294,56 @@ const styles = StyleSheet.create({
   meetingSection: {
     marginTop: 48,
   },
+  meetingSectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  meetingCreateButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 2,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderWidth: 1,
+    borderColor: PINK,
+    borderRadius: 14,
+  },
+  meetingCreateButtonText: {
+    color: PINK,
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  meetingEmptyCard: {
+    alignItems: "center",
+    paddingVertical: 32,
+    gap: 16,
+  },
+  meetingEmptyText: {
+    color: "#636970",
+    fontSize: 14,
+    fontWeight: "500",
+  },
+  meetingEmptyCreateButton: {
+    height: 44,
+    paddingHorizontal: 24,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 22,
+    backgroundColor: PINK,
+  },
+  meetingEmptyCreateButtonText: {
+    color: "#FFFFFF",
+    fontSize: 15,
+    fontWeight: "700",
+  },
+  emptyStateText: {
+    paddingHorizontal: 24,
+    color: "#636970",
+    fontSize: 14,
+    fontWeight: "500",
+    textAlign: "center",
+  },
   sectionTitle: {
     color: BLACK,
     fontSize: 20,
@@ -1578,29 +1608,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 24,
     backgroundColor: "#FFFFFF",
-  },
-  chatDateBlock: {
-    alignItems: "center",
-    marginBottom: 28,
-  },
-  chatDate: {
-    color: "#6A747C",
-    fontSize: 16,
-    fontWeight: "700",
-  },
-  chatNotice: {
-    marginTop: 12,
-    color: "#A6AFB6",
-    fontSize: 13,
-    fontWeight: "600",
-  },
-  chatEnterNotice: {
-    marginTop: 12,
-    marginBottom: 18,
-    color: "#A6AFB6",
-    fontSize: 12,
-    fontWeight: "600",
-    textAlign: "center",
   },
   chatBubbleRow: {
     flexDirection: "row",

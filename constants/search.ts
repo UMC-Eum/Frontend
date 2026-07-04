@@ -59,7 +59,6 @@ export const CLUBS: Club[] = [
   },
 ];
 
-export const RECENT_SEARCHES = ["뜨개질", "골프 모임", "등산 동호회"];
 export const SUGGESTIONS = ["등산 동호회", "동작구 등산 모임", "등산 스팟"];
 export const RECOMMENDED_CLUBS = CLUBS.filter((club) =>
   club.title.includes("등산"),

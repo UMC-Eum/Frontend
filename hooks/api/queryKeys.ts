@@ -65,6 +65,7 @@ export const queryKeys = {
     my: () => [...queryKeys.club.all, "my"] as const,
     archives: (clubId: number, params: object) =>
       [...queryKeys.club.detail(clubId), "archives", params] as const,
+    recentSearches: () => [...queryKeys.club.all, "recentSearches"] as const,
   },
   articles: {
     all: (clubId: number) => [...queryKeys.club.detail(clubId), "articles"] as const,

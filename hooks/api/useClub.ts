@@ -6,11 +6,14 @@ import {
 } from "@tanstack/react-query";
 
 import {
+  clearRecentClubSearches,
   createClub,
+  deleteRecentClubSearch,
   getClubArchives,
   getClubDetail,
   getClubs,
   getMyClubs,
+  getRecentClubSearches,
   getRecommendedClubs,
   getTopHosts,
   joinClub,
@@ -148,6 +151,53 @@ export function useUnlikeClubMutation() {
     mutationFn: (clubId: number) => unlikeClub(clubId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.club.all });
+    },
+  });
+}
+
+export function useRecentClubSearchesQuery(enabled = true) {
+  const queryEnabled = useProtectedQueryEnabled(enabled);
+
+  return useQuery({
+    queryKey: queryKeys.club.recentSearches(),
+    queryFn: getRecentClubSearches,
+    enabled: queryEnabled,
+  });
+}
+
+export function useDeleteRecentClubSearchMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (keyword: string) => deleteRecentClubSearch(keyword),
+    onSuccess: (_data, keyword) => {
+      queryClient.setQueryData<DTO.IRecentClubSearchesResponse>(
+        queryKeys.club.recentSearches(),
+        (current) =>
+          current && {
+            keywords: current.keywords.filter((item) => item !== keyword),
+          },
+      );
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.club.recentSearches(),
+      });
+    },
+  });
+}
+
+export function useClearRecentClubSearchesMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: clearRecentClubSearches,
+    onSuccess: () => {
+      queryClient.setQueryData<DTO.IRecentClubSearchesResponse>(
+        queryKeys.club.recentSearches(),
+        { keywords: [] },
+      );
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.club.recentSearches(),
+      });
     },
   });
 }

@@ -1,5 +1,5 @@
 //v1/files/presign(post)
-export type PresignPurpose = "PROFILE_INTRO_AUDIO" | "PROFILE_IMAGE";
+export type PresignPurpose = "PROFILE_INTRO_AUDIO" | "PROFILE_IMAGE" | "CLUB";
 
 export interface IPresignRequest {
   fileName: string;

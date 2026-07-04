@@ -3,10 +3,9 @@ import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
-  KeyboardAvoidingView,
   LayoutChangeEvent,
   Pressable,
   ScrollView,
@@ -14,6 +13,7 @@ import {
   Text,
   View,
 } from "react-native";
+import { KeyboardAvoidingView } from "@/components/KeyboardCompat";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import Cta from "@/components/Cta";
@@ -21,8 +21,14 @@ import { Chip } from "@/components/Chip";
 import { KEYBOARD_AVOIDING_BEHAVIOR } from "@/constants/keyboard";
 import TextBox from "@/components/TextBox";
 import { CLUB_CREATE_CATEGORIES } from "@/constants/club";
-import { postPresign, uploadFileToS3 } from "@/api/onboarding/onboardingApi";
+import { postPresign } from "@/api/onboarding/onboardingApi";
+import {
+  contentTypeToImageExtension,
+  resolveImageContentType,
+  uploadImageUriToS3,
+} from "@/utils/s3ImageUpload";
 import { useCreateClubMutation } from "@/hooks/api/useClub";
+import { useClubCreateAreaStore } from "@/stores/clubLocationStore";
 import { useFastInputScroll } from "@/hooks/useFastInputScroll";
 import { useClubLocationStore } from "@/stores/clubLocationStore";
 import type { ApiFailResponse } from "@/types/api/api";
@@ -45,6 +51,9 @@ export default function ClubCreateScreen() {
     intro: 0,
   });
   const createClubMutation = useCreateClubMutation();
+  const areaCode = useClubCreateAreaStore((state) => state.areaCode);
+  const areaName = useClubCreateAreaStore((state) => state.areaName);
+  const clearArea = useClubCreateAreaStore((state) => state.clear);
   const [name, setName] = useState("");
   const [intro, setIntro] = useState("");
   const [category, setCategory] = useState(categories[0]);
@@ -56,12 +65,21 @@ export default function ClubCreateScreen() {
   const areaCode = useClubLocationStore((state) => state.areaCode);
   const areaName = useClubLocationStore((state) => state.areaName);
 
+  // 이전 생성 시도에서 고른 지역이 남지 않도록 화면 진입 시 초기화한다.
+  useEffect(() => {
+    clearArea();
+  }, [clearArea]);
+
   const canSubmit = useMemo(
     () =>
+<<<<<<< Updated upstream
       name.trim().length > 0 &&
       intro.trim().length > 0 &&
       !!category &&
       !!areaCode,
+=======
+      name.trim().length > 0 && intro.trim().length > 0 && !!category && !!areaCode,
+>>>>>>> Stashed changes
     [areaCode, category, intro, name],
   );
 
@@ -108,23 +126,38 @@ export default function ClubCreateScreen() {
 
   const handleSubmit = async () => {
     if (!canSubmit || createClubMutation.isPending || isUploadingCover) return;
+    if (!areaCode) return;
 
     try {
       setUploadingCover(true);
+<<<<<<< Updated upstream
       const imageUrls = await Promise.all(coverImages.map(uploadClubCoverImage));
+=======
+      const imageUrls: string[] = [];
+      for (const image of coverImages) {
+        imageUrls.push(await uploadClubCoverImage(image));
+      }
+>>>>>>> Stashed changes
       const thumbnailUrl = imageUrls[0] ?? null;
       const createdClub = await createClubMutation.mutateAsync({
         name: name.trim(),
         category: category.value,
         introText: intro.trim(),
         capacity: maxMembers,
+<<<<<<< Updated upstream
         areaCode: areaCode!,
         approvalRequired: joinType === "approval",
         boardPublic: boardScope === "all",
         thumbnailUrl,
+=======
+        areaCode,
+        approvalRequired: joinType === "approval",
+        boardPublic: boardScope === "all",
+>>>>>>> Stashed changes
         imageUrls,
       });
 
+      clearArea();
       router.push({
         pathname: "/club/create-complete",
         params: {
@@ -137,10 +170,13 @@ export default function ClubCreateScreen() {
         },
       } as never);
     } catch (error) {
+      console.error("[ClubCreate] 생성 실패", error);
       Alert.alert(
         "동호회 생성 실패",
         getApiErrorMessage(error) ??
-          "동호회를 생성하지 못했어요. 잠시 후 다시 시도해주세요.",
+          (error instanceof Error && error.message
+            ? error.message
+            : "동호회를 생성하지 못했어요. 잠시 후 다시 시도해주세요."),
       );
     } finally {
       setUploadingCover(false);
@@ -262,10 +298,14 @@ export default function ClubCreateScreen() {
             <Pressable
               style={styles.selectBox}
               onPress={() =>
+<<<<<<< Updated upstream
                 router.push({
                   pathname: "/profile/location",
                   params: { mode: "club" },
                 } as never)
+=======
+                router.push("/profile/location?mode=club-create" as never)
+>>>>>>> Stashed changes
               }
             >
               <Text style={[styles.selectText, areaName && styles.selectTextActive]}>
@@ -362,38 +402,11 @@ async function uploadClubCoverImage(image: CoverImage) {
   const { uploadUrl, fileUrl } = await postPresign({
     fileName: `club-cover-${Date.now()}.${extension}`,
     contentType: image.contentType,
-    purpose: "PROFILE_IMAGE",
+    purpose: "CLUB",
   });
-  const fileResponse = await fetch(image.uri);
-  const blob = await fileResponse.blob();
-  const uploadBlob = blob.type
-    ? blob
-    : new Blob([blob], { type: image.contentType });
-
-  await uploadFileToS3(uploadUrl, uploadBlob, image.contentType);
+  await uploadImageUriToS3(uploadUrl, image.uri, image.contentType);
 
   return fileUrl;
-}
-
-function resolveImageContentType(uri: string) {
-  const lowerUri = uri.toLowerCase();
-
-  if (lowerUri.startsWith("data:image/png") || lowerUri.endsWith(".png")) {
-    return "image/png";
-  }
-
-  if (lowerUri.startsWith("data:image/webp") || lowerUri.endsWith(".webp")) {
-    return "image/webp";
-  }
-
-  return "image/jpeg";
-}
-
-function contentTypeToImageExtension(contentType: string) {
-  if (contentType === "image/png") return "png";
-  if (contentType === "image/webp") return "webp";
-
-  return "jpg";
 }
 
 function FormSection({

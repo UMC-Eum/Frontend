@@ -63,34 +63,46 @@ const USER_NICKNAME = "루씨";
 const RECOMMENDATION_COUNTDOWN_MS = 60 * 60 * 1000;
 const CLUB_CATEGORIES = [
   {
-    label: "운동, 스포츠",
+    label: "운동 / 스포츠",
     searchLabel: "운동 / 스포츠",
     value: "SPORTS",
-    image: require("../../assets/images/club-categories/sports.png"),
+    image: require("../../assets/images/club-categories/figma-sports.png"),
   },
   {
     label: "봉사활동",
     searchLabel: "봉사활동",
     value: "VOLUNTEER",
-    image: require("../../assets/images/club-categories/volunteer.png"),
+    image: require("../../assets/images/club-categories/figma-volunteer.png"),
   },
   {
-    label: "자기개발",
-    searchLabel: "자기개발",
+    label: "독서 / 공부",
+    searchLabel: "독서 / 공부",
     value: "STUDY",
-    image: require("../../assets/images/club-categories/self-development.png"),
+    image: require("../../assets/images/club-categories/figma-study.png"),
   },
   {
-    label: "취미생활",
-    searchLabel: "취미생활",
+    label: "취미 / 여가",
+    searchLabel: "취미 / 여가",
     value: "HOBBY",
-    image: require("../../assets/images/club-categories/hobby.png"),
+    image: require("../../assets/images/club-categories/figma-hobby.png"),
   },
   {
-    label: "사교",
-    searchLabel: "사교",
+    label: "음식 / 맛집",
+    searchLabel: "음식 / 맛집",
+    value: "FOOD",
+    image: require("../../assets/images/club-categories/figma-food.png"),
+  },
+  {
+    label: "문화/예술",
+    searchLabel: "문화/예술",
+    value: "CULTURE_ART",
+    image: require("../../assets/images/club-categories/figma-culture-art.png"),
+  },
+  {
+    label: "기타",
+    searchLabel: "기타",
     value: "OTHERS",
-    image: require("../../assets/images/club-categories/social.png"),
+    image: require("../../assets/images/club-categories/figma-others.png"),
   },
 ] as const;
 
@@ -689,7 +701,11 @@ function ClubHomeContent({
 
       <View style={styles.clubCategorySection}>
         <Text style={styles.clubSectionTitle}>추천 카테고리</Text>
-        <View style={styles.clubCategoryRow}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.clubCategoryRow}
+        >
           {CLUB_CATEGORIES.map((category) => (
             <ClubCategoryButton
               key={category.label}
@@ -706,7 +722,7 @@ function ClubHomeContent({
               }
             />
           ))}
-        </View>
+        </ScrollView>
       </View>
 
       <View style={styles.clubDivider} />
@@ -1347,9 +1363,10 @@ const styles = StyleSheet.create({
   },
   clubCategoryRow: {
     flexDirection: "row",
-    justifyContent: "space-between",
+    gap: 12,
   },
   clubCategoryItem: {
+    width: 64,
     alignItems: "center",
     gap: 4,
   },
@@ -1362,10 +1379,11 @@ const styles = StyleSheet.create({
     backgroundColor: "#F7F7F8",
   },
   clubCategoryIcon: {
-    width: 52,
-    height: 52,
+    width: 62,
+    height: 62,
   },
   clubCategoryLabel: {
+    width: 76,
     fontSize: 14,
     lineHeight: 20,
     fontWeight: "500",

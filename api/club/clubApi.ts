@@ -88,3 +88,27 @@ export const getRecommendedClubs = async () => {
   >("/v1/matches/club/recommended");
   return data.success.data;
 };
+
+// v1/clubs/search/recent (GET) — 최근 동호회 검색어 목록 조회
+export const getRecentClubSearches = async () => {
+  const { data } = await api.get<
+    ApiSuccessResponse<DTO.IRecentClubSearchesResponse>
+  >("/v1/clubs/search/recent");
+  return data.success.data;
+};
+
+// v1/clubs/search/recent (DELETE) — 최근 동호회 검색어 전체 삭제
+export const clearRecentClubSearches = async () => {
+  const { data } = await api.delete<
+    ApiSuccessResponse<DTO.IClearRecentClubSearchesResponse>
+  >("/v1/clubs/search/recent");
+  return data.success.data;
+};
+
+// v1/clubs/search/recent/items (DELETE) — 최근 동호회 검색어 단건 삭제
+export const deleteRecentClubSearch = async (keyword: string) => {
+  const { data } = await api.delete<
+    ApiSuccessResponse<DTO.IDeleteRecentClubSearchResponse>
+  >("/v1/clubs/search/recent/items", { params: { keyword } });
+  return data.success.data;
+};

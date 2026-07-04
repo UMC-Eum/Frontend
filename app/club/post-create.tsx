@@ -5,13 +5,13 @@ import { StatusBar } from "expo-status-bar";
 import React, { useMemo, useRef, useState } from "react";
 import {
   Alert,
-  KeyboardAvoidingView,
   LayoutChangeEvent,
   ScrollView,
   StyleSheet,
   TextInput,
   View,
 } from "react-native";
+import { KeyboardAvoidingView } from "@/components/KeyboardCompat";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
 import {
@@ -24,6 +24,12 @@ import {
 } from "@/components/club/ClubPostParts";
 import { KEYBOARD_AVOIDING_BEHAVIOR } from "@/constants/keyboard";
 import { createClubPost } from "@/api/clubs/clubPostsApi";
+import { postPresign } from "@/api/onboarding/onboardingApi";
+import {
+  contentTypeToImageExtension,
+  resolveImageContentType,
+  uploadImageUriToS3,
+} from "@/utils/s3ImageUpload";
 import { queryKeys } from "@/hooks/api/queryKeys";
 import { useFastInputScroll } from "@/hooks/useFastInputScroll";
 import { ClubPostCategory } from "@/types/api/clubs/clubPostsDTO";
@@ -66,14 +72,20 @@ export default function ClubPostCreateScreen() {
     [clubId, content],
   );
   const createPostMutation = useMutation({
-    mutationFn: () => {
-      const remoteImageUrls = images.filter((uri) => uri.startsWith("http"));
+    mutationFn: async () => {
+      const imageUrls: string[] = [];
+
+      for (const uri of images) {
+        imageUrls.push(
+          uri.startsWith("http") ? uri : await uploadPostImage(uri),
+        );
+      }
 
       return createClubPost(clubId, {
         category: selectedCategory,
         title: title.trim() || null,
         content: content.trim(),
-        imageUrls: remoteImageUrls,
+        imageUrls,
       });
     },
     onSuccess: ({ postId }) => {
@@ -222,6 +234,19 @@ export default function ClubPostCreateScreen() {
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
+}
+
+async function uploadPostImage(uri: string) {
+  const contentType = resolveImageContentType(uri);
+  const extension = contentTypeToImageExtension(contentType);
+  const { uploadUrl, fileUrl } = await postPresign({
+    fileName: `club-post-${Date.now()}.${extension}`,
+    contentType,
+    purpose: "CLUB",
+  });
+  await uploadImageUriToS3(uploadUrl, uri, contentType);
+
+  return fileUrl;
 }
 
 const styles = StyleSheet.create({

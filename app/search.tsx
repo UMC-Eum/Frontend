@@ -1,8 +1,8 @@
+import { useQueryClient } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Keyboard,
-  KeyboardAvoidingView,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -10,6 +10,7 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { KeyboardAvoidingView } from "@/components/KeyboardCompat";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import RecentSearches from "@/components/search/RecentSearches";
@@ -18,12 +19,19 @@ import SearchResults from "@/components/search/SearchResults";
 import SortSheet from "@/components/search/SortSheet";
 import SuggestionList from "@/components/search/SuggestionList";
 import { KEYBOARD_AVOIDING_BEHAVIOR } from "@/constants/keyboard";
-import { RECENT_SEARCHES, SUGGESTIONS } from "@/constants/search";
-import { useClubsInfiniteQuery } from "@/hooks/api/useClub";
+import { SUGGESTIONS } from "@/constants/search";
+import {
+  useClearRecentClubSearchesMutation,
+  useClubsInfiniteQuery,
+  useDeleteRecentClubSearchMutation,
+  useRecentClubSearchesQuery,
+} from "@/hooks/api/useClub";
+import { queryKeys } from "@/hooks/api/queryKeys";
 import type {
   ClubCategory,
   ClubListSort,
   IClubListItem,
+  IRecentClubSearchesResponse,
 } from "@/types/api/club/clubDTO";
 import { Club, SortOption } from "@/types/search";
 import { uniqueBy } from "@/utils/array";
@@ -31,17 +39,21 @@ import { uniqueBy } from "@/utils/array";
 const CATEGORY_TABS = [
   { label: "운동 / 스포츠", value: "SPORTS" },
   { label: "봉사활동", value: "VOLUNTEER" },
-  { label: "자기개발", value: "STUDY" },
-  { label: "취미생활", value: "HOBBY" },
-  { label: "사교", value: "OTHERS" },
+  { label: "독서 / 공부", value: "STUDY" },
+  { label: "취미 / 여가", value: "HOBBY" },
+  { label: "음식 / 맛집", value: "FOOD" },
+  { label: "문화/예술", value: "CULTURE_ART" },
+  { label: "기타", value: "OTHERS" },
 ] as const satisfies readonly { label: string; value: ClubCategory }[];
 
 const CATEGORY_CHIPS_BY_LABEL: Record<string, string[]> = {
   "운동 / 스포츠": ["전체", "러닝", "등산", "필라테스"],
   봉사활동: ["전체", "봉사", "나눔", "지역활동"],
-  자기개발: ["전체", "스터디", "독서", "외국어"],
-  취미생활: ["전체", "공예", "사진", "음악"],
-  사교: ["전체", "친목", "동네친구", "네트워킹"],
+  "독서 / 공부": ["전체", "스터디", "독서", "외국어"],
+  "취미 / 여가": ["전체", "공예", "사진", "음악"],
+  "음식 / 맛집": ["전체", "맛집", "카페", "요리"],
+  "문화/예술": ["전체", "전시", "공연", "영화"],
+  기타: ["전체", "친목", "동네친구", "네트워킹"],
 };
 
 const DEFAULT_CATEGORY_CHIPS = ["전체"];
@@ -59,9 +71,13 @@ export default function SearchScreen() {
   );
   const routeCategoryValue = routeCategory?.value ?? null;
   const routeCategoryLabel = routeCategory?.label ?? "";
+  const queryClient = useQueryClient();
   const [query, setQuery] = useState("");
   const [submittedQuery, setSubmittedQuery] = useState("");
-  const [recentSearches, setRecentSearches] = useState(RECENT_SEARCHES);
+  const recentSearchesQuery = useRecentClubSearchesQuery();
+  const deleteRecentSearchMutation = useDeleteRecentClubSearchMutation();
+  const clearRecentSearchesMutation = useClearRecentClubSearchesMutation();
+  const recentSearches = recentSearchesQuery.data?.keywords ?? [];
   const [sortOption, setSortOption] = useState<SortOption>("recommended");
   const [isSortVisible, setIsSortVisible] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<ClubCategory | null>(
@@ -134,10 +150,16 @@ export default function SearchScreen() {
     setSubmittedQuery(keyword);
     setSelectedChip("전체");
     if (keyword) {
-      setRecentSearches((items) => [
-        keyword,
-        ...items.filter((item) => item !== keyword),
-      ]);
+      // 서버는 클럽 목록 검색 시 검색어를 기록하므로, 화면에는 캐시를 직접 갱신해 즉시 반영한다.
+      queryClient.setQueryData<IRecentClubSearchesResponse>(
+        queryKeys.club.recentSearches(),
+        (current) => ({
+          keywords: [
+            keyword,
+            ...(current?.keywords ?? []).filter((item) => item !== keyword),
+          ],
+        }),
+      );
     }
     Keyboard.dismiss();
   };
@@ -150,7 +172,7 @@ export default function SearchScreen() {
   };
 
   const removeRecentSearch = (keyword: string) => {
-    setRecentSearches((items) => items.filter((item) => item !== keyword));
+    deleteRecentSearchMutation.mutate(keyword);
   };
 
   const renderBody = () => {
@@ -160,7 +182,7 @@ export default function SearchScreen() {
           searches={recentSearches}
           onPressSearch={submitSearch}
           onRemoveSearch={removeRecentSearch}
-          onClearAll={() => setRecentSearches([])}
+          onClearAll={() => clearRecentSearchesMutation.mutate()}
         />
       );
     }
@@ -416,13 +438,17 @@ function getClubCategoryLabel(category: ClubCategory) {
     case "SPORTS":
       return "운동 / 스포츠";
     case "HOBBY":
-      return "취미생활";
+      return "취미 / 여가";
+    case "CULTURE_ART":
+      return "문화/예술";
+    case "FOOD":
+      return "음식 / 맛집";
     case "STUDY":
-      return "자기개발";
+      return "독서 / 공부";
     case "VOLUNTEER":
       return "봉사활동";
     case "OTHERS":
-      return "사교";
+      return "기타";
     default:
       return String(category);
   }
