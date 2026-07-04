@@ -1,5 +1,5 @@
 export interface IProfileSummary {
-  profileImageUrl: string;
+  profileImageUrl: string | null;
   nickname: string;
   age: number;
   areaName?: string | null;

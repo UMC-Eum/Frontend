@@ -23,6 +23,25 @@ const normalizedBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL?.replace(
 );
 const REFRESH_TOKEN_PATH = "/v1/auth/token/refresh";
 
+const getJwtDebugInfo = (token: string | null) => {
+  if (!token) return null;
+
+  try {
+    const payload = JSON.parse(
+      atob(token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/")),
+    ) as { exp?: number; sub?: string; userId?: number | string };
+
+    return {
+      exp: payload.exp,
+      expired: payload.exp ? payload.exp * 1000 <= Date.now() : undefined,
+      sub: payload.sub,
+      userId: payload.userId,
+    };
+  } catch {
+    return { parseFailed: true };
+  }
+};
+
 const api = axios.create({
   baseURL: normalizedBaseUrl,
   headers: { "Content-Type": "application/json" },
@@ -59,7 +78,11 @@ api.interceptors.request.use((config) => {
   }
   if (__DEV__) {
     const method = config.method?.toUpperCase() ?? "GET";
-    console.log(`[API Request] ${method} ${config.baseURL}${config.url}`);
+    console.log(`[API Request] ${method} ${config.baseURL}${config.url}`, {
+      hasAuthorizationHeader: Boolean(config.headers.Authorization),
+      hasToken: Boolean(token),
+      token: getJwtDebugInfo(token),
+    });
   }
   return config;
 });
