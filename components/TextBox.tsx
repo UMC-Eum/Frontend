@@ -25,6 +25,8 @@ export default function TextBox({
   containerStyle,
   inputBoxStyle,
   style,
+  onFocus,
+  onBlur,
   ...props
 }: TextBoxProps) {
   const [isFocused, setIsFocused] = useState(false);
@@ -43,8 +45,14 @@ export default function TextBox({
           textAlignVertical="top"
           placeholderTextColor="#A6AFB6"
           style={[styles.input, style]}
-          onFocus={() => setIsFocused(true)}
-          onBlur={() => setIsFocused(false)}
+          onFocus={(event) => {
+            setIsFocused(true);
+            onFocus?.(event);
+          }}
+          onBlur={(event) => {
+            setIsFocused(false);
+            onBlur?.(event);
+          }}
           {...props}
         />
         {(supportingText || hasLimit) && (

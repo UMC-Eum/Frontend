@@ -51,6 +51,8 @@ export default function MeetingCreateScreen() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
+          scrollEventThrottle={form.scrollEventThrottle}
+          onScroll={form.onScroll}
         >
           <MeetingFieldSection
             label="모임 제목"
@@ -60,6 +62,7 @@ export default function MeetingCreateScreen() {
               value={form.title}
               onChangeText={form.setTitle}
               placeholder="어떤 정기 모임인지 알려주세요."
+              onFocus={() => form.scrollToField("title")}
               hasError={!!form.getFieldError("title")}
               errorMessage={form.getFieldError("title")}
             />
@@ -79,6 +82,7 @@ export default function MeetingCreateScreen() {
               maxLength={200}
               minHeight={117}
               showCounter
+              onFocus={() => form.scrollToField("intro")}
               hasError={!!form.getFieldError("intro")}
               errorMessage={form.getFieldError("intro")}
             />
@@ -104,6 +108,7 @@ export default function MeetingCreateScreen() {
               value={form.location}
               onChangeText={form.setLocation}
               placeholder="예) 종로역 1번 출구 앞"
+              onFocus={() => form.scrollToField("location")}
               hasError={!!form.getFieldError("location")}
               errorMessage={form.getFieldError("location")}
             />
@@ -117,11 +122,16 @@ export default function MeetingCreateScreen() {
             />
           </MeetingFieldSection>
 
-          <MeetingFieldSection label="비용" optional>
+          <MeetingFieldSection
+            label="비용"
+            optional
+            onLayout={form.handleSectionLayout("cost")}
+          >
             <MeetingInput
               value={form.cost}
               onChangeText={form.setCost}
               placeholder="예) 1인 10,000원"
+              onFocus={() => form.scrollToField("cost")}
             />
           </MeetingFieldSection>
 
