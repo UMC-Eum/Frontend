@@ -14,41 +14,59 @@ type AnalyzeResponseCandidate = IAnalyzeResponse & {
 
 export const postVoiceAnalyze = async (body: IAnalyzeRequest) => {
   const requestBody = {
-    nickname: "손성원",
-    gender: "M",
-    birthDate: "1900-01-01",
-    areaCode: "2635000000",
+    nickname: body.nickname,
+    gender: body.gender,
+    birthDate: body.birthDate,
+    areaCode: body.areaCode,
     introAudioUrl: body.audioUrl,
   };
 
   if (__DEV__) {
     console.log("[Voice Analyze API] POST /v1/onboarding/profile", {
+      analysisType: body.analysisType,
       hasIntroAudioUrl: !!requestBody.introAudioUrl,
     });
-    console.log("[Voice Analyze API] request body", requestBody);
+    console.log("[Voice Analyze API] request body summary", {
+      nickname: requestBody.nickname,
+      gender: requestBody.gender,
+      birthDate: requestBody.birthDate,
+      areaCode: requestBody.areaCode,
+      introAudioUrlLength: requestBody.introAudioUrl.length,
+      introAudioUrlHead: requestBody.introAudioUrl.slice(0, 36),
+    });
   }
 
   const { data } = await api.post<ApiSuccessResponse<IAnalyzeResponse>>(
     "/v1/onboarding/profile",
     requestBody,
   );
+  const analyzeData = normalizeAnalyzeResponse(data);
 
   if (__DEV__) {
     console.log("[Voice Analyze API] success");
-    console.log("[Voice Analyze API] response data", data.success.data);
+    console.log("[Voice Analyze API] response data", analyzeData);
   }
 
-  return normalizeAnalyzeResponse(data.success.data);
+  return analyzeData;
 };
 
-function normalizeAnalyzeResponse(data: IAnalyzeResponse) {
-  const candidate = data as AnalyzeResponseCandidate;
+function normalizeAnalyzeResponse(response: unknown): IAnalyzeResponse {
+  const candidate = unwrapAnalyzePayload(response) as AnalyzeResponseCandidate;
 
-  return (
+  return ((
     candidate.analysisResult ??
     candidate.analysis ??
     candidate.profileAnalysis ??
     candidate.voiceAnalysis ??
     candidate
-  );
+  ) as IAnalyzeResponse);
+}
+
+function unwrapAnalyzePayload(response: unknown) {
+  const candidate = response as {
+    success?: { data?: unknown };
+    data?: unknown;
+  };
+
+  return candidate.success?.data ?? candidate.data ?? response;
 }

@@ -23,6 +23,8 @@ import { useOnboardingDraftStore } from "@/stores/onboardingDraftStore";
 const ACCENT = "#FC3367";
 const TEXT = "#202020";
 const MUTED = "#A6AFB6";
+const GYEONGGI_REGION_CODE =
+  REGIONS.find((region) => region.name === "경기")?.code ?? "4100000000";
 
 export default function LocationEditScreen() {
   const router = useRouter();
@@ -50,13 +52,22 @@ export default function LocationEditScreen() {
     if (!currentRegion) return;
 
     setSelectedRegionCode(currentRegion.code);
-    setSelectedDistrictCode(areaCode);
+    const currentDistrict = (DISTRICTS[currentRegion.code] ?? []).find(
+      (district) => district.code === areaCode,
+    );
+    setSelectedDistrictCode(
+      currentDistrict && isSelectableDistrict(currentRegion.code, currentDistrict)
+        ? areaCode
+        : null,
+    );
   }, [draftAreaCode, isOnboardingMode, myProfileQuery.data?.area?.code]);
 
   const currentDistricts = useMemo(() => {
     if (!selectedRegionCode) return [];
 
-    return DISTRICTS[selectedRegionCode] ?? [];
+    return (DISTRICTS[selectedRegionCode] ?? []).filter((district) =>
+      isSelectableDistrict(selectedRegionCode, district),
+    );
   }, [selectedRegionCode]);
 
   const isSubmitting = !isOnboardingMode && updateMyProfileMutation.isPending;
@@ -264,6 +275,14 @@ function findRegionByDistrictCode(districtCode: string) {
   return REGIONS.find((region) =>
     (DISTRICTS[region.code] ?? []).some((district) => district.code === districtCode),
   );
+}
+
+function isSelectableDistrict(regionCode: string, location: LocationItem) {
+  if (regionCode !== GYEONGGI_REGION_CODE) {
+    return true;
+  }
+
+  return location.name.endsWith("시") || location.name.endsWith("군");
 }
 
 function getLocationName(

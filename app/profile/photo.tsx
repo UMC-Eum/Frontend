@@ -11,6 +11,7 @@ import {
   Image as RNImage,
   Modal,
   PanResponder,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -75,13 +76,22 @@ export default function PhotoScreen() {
   );
 
   const handlePickFromGallery = () => {
-    setPendingAction("gallery");
-    setShowActionSheet(false);
+    handleImageAction("gallery");
   };
 
   const handleTakePhoto = () => {
-    setPendingAction("camera");
+    handleImageAction("camera");
+  };
+
+  const handleImageAction = (action: "camera" | "gallery") => {
     setShowActionSheet(false);
+
+    if (Platform.OS === "ios") {
+      setPendingAction(action);
+      return;
+    }
+
+    void runImageAction(action);
   };
 
   const onModalDismiss = async () => {
@@ -89,7 +99,10 @@ export default function PhotoScreen() {
     if (!action) return;
 
     setPendingAction(null);
+    await runImageAction(action);
+  };
 
+  const runImageAction = async (action: "camera" | "gallery") => {
     try {
       const result =
         action === "gallery"
@@ -119,7 +132,7 @@ export default function PhotoScreen() {
     }
 
     return ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ["images"],
       allowsEditing: false,
       quality: 0.8,
     });
@@ -133,7 +146,7 @@ export default function PhotoScreen() {
     }
 
     return ImagePicker.launchCameraAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ["images"],
       allowsEditing: false,
       quality: 0.85,
     });
@@ -277,6 +290,18 @@ export default function PhotoScreen() {
     const originY =
       (cropMetrics.circleTop - imageScreenTop) / (cropMetrics.imageScale * cropZoom);
     const cropSize = CROP_CIRCLE_SIZE / (cropMetrics.imageScale * cropZoom);
+    const roundedOriginX = Math.round(
+      clamp(originX, 0, Math.max(previewAsset.width - cropSize, 0)),
+    );
+    const roundedOriginY = Math.round(
+      clamp(originY, 0, Math.max(previewAsset.height - cropSize, 0)),
+    );
+    const roundedWidth = Math.round(
+      Math.min(cropSize, previewAsset.width - roundedOriginX),
+    );
+    const roundedHeight = Math.round(
+      Math.min(cropSize, previewAsset.height - roundedOriginY),
+    );
 
     try {
       const croppedImage = await ImageManipulator.manipulateAsync(
@@ -284,14 +309,10 @@ export default function PhotoScreen() {
         [
           {
             crop: {
-              originX: Math.round(
-                clamp(originX, 0, previewAsset.width - cropSize),
-              ),
-              originY: Math.round(
-                clamp(originY, 0, previewAsset.height - cropSize),
-              ),
-              width: Math.round(Math.min(cropSize, previewAsset.width)),
-              height: Math.round(Math.min(cropSize, previewAsset.height)),
+              originX: roundedOriginX,
+              originY: roundedOriginY,
+              width: roundedWidth,
+              height: roundedHeight,
             },
           },
         ],
