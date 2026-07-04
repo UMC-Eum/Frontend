@@ -197,10 +197,7 @@ export default function ChatNotificationBanner() {
   };
 
   return (
-    <View
-      pointerEvents="box-none"
-      style={[styles.container, { paddingTop: insets.top + 8 }]}
-    >
+    <View style={[styles.container, { paddingTop: insets.top + 8 }]}>
       <View style={styles.card}>
         <View style={styles.contentRow}>
           {notification.senderProfileImage ? (
@@ -334,6 +331,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     alignItems: "center",
+    pointerEvents: "box-none",
   },
   card: {
     width: "92%",

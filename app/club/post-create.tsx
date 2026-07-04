@@ -23,7 +23,7 @@ import {
   RequiredLabel,
 } from "@/components/club/ClubPostParts";
 import { KEYBOARD_AVOIDING_BEHAVIOR } from "@/constants/keyboard";
-import { createClubPost } from "@/api/clubs/clubPostsApi";
+import { createArticle } from "@/api/articles/articlesApi";
 import { postPresign } from "@/api/onboarding/onboardingApi";
 import {
   contentTypeToImageExtension,
@@ -36,7 +36,7 @@ import { ClubPostCategory } from "@/types/api/clubs/clubPostsDTO";
 
 const CATEGORY_OPTIONS: { label: string; value: ClubPostCategory }[] = [
   { label: "공지", value: "NOTICE" },
-  { label: "가입인사", value: "GREETING" },
+  { label: "가입인사", value: "CHECKIN" },
   { label: "후기", value: "REVIEW" },
   { label: "자유게시판", value: "FREE" },
 ];
@@ -68,8 +68,11 @@ export default function ClubPostCreateScreen() {
     CATEGORY_OPTIONS.find((category) => category.label === categoryLabel)?.value ??
     CATEGORY_OPTIONS[0].value;
   const canSubmit = useMemo(
-    () => Number.isFinite(clubId) && content.trim().length > 0,
-    [clubId, content],
+    () =>
+      Number.isFinite(clubId) &&
+      title.trim().length > 0 &&
+      content.trim().length > 0,
+    [clubId, content, title],
   );
   const createPostMutation = useMutation({
     mutationFn: async () => {
@@ -81,18 +84,20 @@ export default function ClubPostCreateScreen() {
         );
       }
 
-      return createClubPost(clubId, {
+      const body = {
         category: selectedCategory,
-        title: title.trim() || null,
-        content: content.trim(),
-        imageUrls,
-      });
+        title: title.trim(),
+        contents: content.trim(),
+        ...(imageUrls.length > 0 ? { photoUrls: imageUrls } : {}),
+      };
+
+      return createArticle(clubId, body);
     },
-    onSuccess: ({ postId }) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.clubs.posts() });
+    onSuccess: ({ articleId }) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.articles.all(clubId) });
       router.replace({
         pathname: "/club/post-detail",
-        params: { postId: String(postId) },
+        params: { postId: String(articleId), clubId: String(clubId) },
       } as never);
     },
     onError: (error) => {
@@ -128,12 +133,33 @@ export default function ClubPostCreateScreen() {
     });
 
     if (!result.canceled) {
-      setImages(result.assets.slice(0, 4).map((asset) => asset.uri));
+      setImages((current) =>
+        [...current, ...result.assets.map((asset) => asset.uri)].slice(0, 4),
+      );
     }
   };
 
-  const handleCameraMock = () => {
-    Alert.alert("준비 중", "카메라 촬영 기능은 추후 연결 예정입니다.");
+  const handleTakePhoto = async () => {
+    if (images.length >= 4) {
+      Alert.alert("사진 첨부 제한", "사진은 최대 4장까지 첨부할 수 있습니다.");
+      return;
+    }
+
+    const permission = await ImagePicker.requestCameraPermissionsAsync();
+
+    if (!permission.granted) {
+      Alert.alert("카메라 권한 필요", "사진을 촬영하려면 카메라 권한이 필요합니다.");
+      return;
+    }
+
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.85,
+    });
+
+    if (!result.canceled) {
+      setImages((current) => [...current, result.assets[0].uri].slice(0, 4));
+    }
   };
 
   const handleRemoveImage = (index: number) => {
@@ -143,6 +169,11 @@ export default function ClubPostCreateScreen() {
   const handleSubmit = () => {
     if (!Number.isFinite(clubId)) {
       Alert.alert("동호회 정보 없음", "게시글을 작성할 동호회 정보를 찾을 수 없습니다.");
+      return;
+    }
+
+    if (title.trim().length === 0) {
+      Alert.alert("제목 입력 필요", "게시글 제목을 입력해주세요.");
       return;
     }
 
@@ -197,7 +228,7 @@ export default function ClubPostCreateScreen() {
           >
             <TextInput
               style={[styles.titleInput, !title && styles.titleInputEmpty]}
-              placeholder="제목 (선택)"
+              placeholder="제목"
               placeholderTextColor={CLUB_COLORS.gray500}
               value={title}
               onChangeText={setTitle}
@@ -222,14 +253,13 @@ export default function ClubPostCreateScreen() {
               onFocus={() => scrollToInput("content")}
             />
           </View>
-
-          <ClubImagePreviewList images={images} onRemove={handleRemoveImage} />
         </ScrollView>
 
+        <ClubImagePreviewList images={images} onRemove={handleRemoveImage} />
         <ClubMediaBar
           bottomPadding={insets.bottom + 12}
           onGalleryPress={handlePickImages}
-          onCameraPress={handleCameraMock}
+          onCameraPress={handleTakePhoto}
         />
       </KeyboardAvoidingView>
     </SafeAreaView>

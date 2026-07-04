@@ -1,3 +1,4 @@
+import { KeyboardAvoidingView } from "@/components/KeyboardCompat";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
@@ -13,25 +14,23 @@ import {
   Text,
   View,
 } from "react-native";
-import { KeyboardAvoidingView } from "@/components/KeyboardCompat";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import Cta from "@/components/Cta";
+import { postPresign } from "@/api/onboarding/onboardingApi";
 import { Chip } from "@/components/Chip";
-import { KEYBOARD_AVOIDING_BEHAVIOR } from "@/constants/keyboard";
+import Cta from "@/components/Cta";
 import TextBox from "@/components/TextBox";
 import { CLUB_CREATE_CATEGORIES } from "@/constants/club";
-import { postPresign } from "@/api/onboarding/onboardingApi";
+import { KEYBOARD_AVOIDING_BEHAVIOR } from "@/constants/keyboard";
+import { useCreateClubMutation } from "@/hooks/api/useClub";
+import { useFastInputScroll } from "@/hooks/useFastInputScroll";
+import { useClubCreateAreaStore, useClubLocationStore } from "@/stores/clubLocationStore";
+import type { ApiFailResponse } from "@/types/api/api";
 import {
   contentTypeToImageExtension,
   resolveImageContentType,
   uploadImageUriToS3,
 } from "@/utils/s3ImageUpload";
-import { useCreateClubMutation } from "@/hooks/api/useClub";
-import { useClubCreateAreaStore } from "@/stores/clubLocationStore";
-import { useFastInputScroll } from "@/hooks/useFastInputScroll";
-import { useClubLocationStore } from "@/stores/clubLocationStore";
-import type { ApiFailResponse } from "@/types/api/api";
 
 const categories = CLUB_CREATE_CATEGORIES;
 
@@ -51,8 +50,6 @@ export default function ClubCreateScreen() {
     intro: 0,
   });
   const createClubMutation = useCreateClubMutation();
-  const areaCode = useClubCreateAreaStore((state) => state.areaCode);
-  const areaName = useClubCreateAreaStore((state) => state.areaName);
   const clearArea = useClubCreateAreaStore((state) => state.clear);
   const [name, setName] = useState("");
   const [intro, setIntro] = useState("");
@@ -72,20 +69,15 @@ export default function ClubCreateScreen() {
 
   const canSubmit = useMemo(
     () =>
-<<<<<<< Updated upstream
       name.trim().length > 0 &&
       intro.trim().length > 0 &&
       !!category &&
       !!areaCode,
-=======
-      name.trim().length > 0 && intro.trim().length > 0 && !!category && !!areaCode,
->>>>>>> Stashed changes
     [areaCode, category, intro, name],
   );
 
   const handleInputLayout =
-    (field: InputField) =>
-    (event: LayoutChangeEvent) => {
+    (field: InputField) => (event: LayoutChangeEvent) => {
       inputOffsets.current[field] = event.nativeEvent.layout.y;
     };
 
@@ -99,7 +91,10 @@ export default function ClubCreateScreen() {
         await ImagePicker.requestMediaLibraryPermissionsAsync();
 
       if (permissionResult.status !== "granted") {
-        Alert.alert("권한 필요", "커버 사진을 선택하려면 앨범 접근 권한이 필요합니다.");
+        Alert.alert(
+          "권한 필요",
+          "커버 사진을 선택하려면 앨범 접근 권한이 필요합니다.",
+        );
         return;
       }
 
@@ -130,30 +125,19 @@ export default function ClubCreateScreen() {
 
     try {
       setUploadingCover(true);
-<<<<<<< Updated upstream
-      const imageUrls = await Promise.all(coverImages.map(uploadClubCoverImage));
-=======
-      const imageUrls: string[] = [];
-      for (const image of coverImages) {
-        imageUrls.push(await uploadClubCoverImage(image));
-      }
->>>>>>> Stashed changes
+      const imageUrls = await Promise.all(
+        coverImages.map(uploadClubCoverImage),
+      );
       const thumbnailUrl = imageUrls[0] ?? null;
       const createdClub = await createClubMutation.mutateAsync({
         name: name.trim(),
         category: category.value,
         introText: intro.trim(),
         capacity: maxMembers,
-<<<<<<< Updated upstream
         areaCode: areaCode!,
         approvalRequired: joinType === "approval",
         boardPublic: boardScope === "all",
         thumbnailUrl,
-=======
-        areaCode,
-        approvalRequired: joinType === "approval",
-        boardPublic: boardScope === "all",
->>>>>>> Stashed changes
         imageUrls,
       });
 
@@ -212,10 +196,7 @@ export default function ClubCreateScreen() {
           onScroll={inputScroll.onScroll}
         >
           {/* 커버 사진 업로드 진입 영역입니다. */}
-          <Pressable
-            style={styles.coverBox}
-            onPress={handlePickCoverImages}
-          >
+          <Pressable style={styles.coverBox} onPress={handlePickCoverImages}>
             {coverImages[0] ? (
               <>
                 <Image
@@ -261,7 +242,9 @@ export default function ClubCreateScreen() {
             <TextBox
               value={intro}
               onChangeText={setIntro}
-              placeholder={"동호회를 소개해주세요.\n(활동 내용, 분위기, 참여 방법 등)"}
+              placeholder={
+                "동호회를 소개해주세요.\n(활동 내용, 분위기, 참여 방법 등)"
+              }
               maxLength={200}
               onFocus={() => scrollToInput("intro")}
             />
@@ -277,7 +260,9 @@ export default function ClubCreateScreen() {
                 <Chip
                   key={item.label}
                   label={item.label}
-                  variant={category.label === item.label ? "outlineActive" : "outline"}
+                  variant={
+                    category.label === item.label ? "outlineActive" : "outline"
+                  }
                   size="small"
                   onPress={() => setCategory(item)}
                   style={[
@@ -298,17 +283,15 @@ export default function ClubCreateScreen() {
             <Pressable
               style={styles.selectBox}
               onPress={() =>
-<<<<<<< Updated upstream
                 router.push({
                   pathname: "/profile/location",
                   params: { mode: "club" },
                 } as never)
-=======
-                router.push("/profile/location?mode=club-create" as never)
->>>>>>> Stashed changes
               }
             >
-              <Text style={[styles.selectText, areaName && styles.selectTextActive]}>
+              <Text
+                style={[styles.selectText, areaName && styles.selectTextActive]}
+              >
                 {areaName || "지역을 선택해주세요"}
               </Text>
               <Ionicons name="chevron-forward" size={22} color="#A6AFB6" />
@@ -331,7 +314,9 @@ export default function ClubCreateScreen() {
                 <View style={styles.stepperDivider} />
                 <RoundIconButton
                   icon="add"
-                  onPress={() => setMaxMembers((prev) => Math.min(99, prev + 1))}
+                  onPress={() =>
+                    setMaxMembers((prev) => Math.min(99, prev + 1))
+                  }
                 />
               </View>
             </View>
@@ -382,7 +367,9 @@ export default function ClubCreateScreen() {
                 ? "동호회 만들기"
                 : "다음"
           }
-          disabled={!canSubmit || createClubMutation.isPending || isUploadingCover}
+          disabled={
+            !canSubmit || createClubMutation.isPending || isUploadingCover
+          }
           onPress={handleSubmit}
           buttonStyle={styles.ctaButton}
           labelStyle={styles.ctaLabel}
@@ -484,7 +471,9 @@ function OptionCard({
       style={[styles.optionCard, selected && styles.optionCardSelected]}
       onPress={onPress}
     >
-      <Text style={[styles.optionTitle, selected && styles.optionTitleSelected]}>
+      <Text
+        style={[styles.optionTitle, selected && styles.optionTitleSelected]}
+      >
         {title}
       </Text>
       <Text style={styles.optionDescription}>{description}</Text>

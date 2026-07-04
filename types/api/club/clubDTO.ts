@@ -67,12 +67,8 @@ export interface IClubCreateRequest {
   areaCode: string;
   approvalRequired: boolean;
   boardPublic: boolean;
-<<<<<<< Updated upstream
   thumbnailUrl: string | null;
   imageUrls: string[];
-=======
-  imageUrls?: string[];
->>>>>>> Stashed changes
 }
 
 export interface IClubCreateResponse {
@@ -90,6 +86,7 @@ export interface IClubDetailResponse {
   clubId: number;
   name: string;
   category: ClubCategory;
+  thumbnailUrl: string | null;
   introVoice: string | null;
   introText: string;
   capacity: number;

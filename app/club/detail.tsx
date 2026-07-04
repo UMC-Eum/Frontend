@@ -1,3 +1,4 @@
+import { KeyboardAvoidingView } from "@/components/KeyboardCompat";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -17,11 +18,13 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
-import { KeyboardAvoidingView } from "@/components/KeyboardCompat";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 
-import { KEYBOARD_AVOIDING_BEHAVIOR } from "@/constants/keyboard";
 import { CLUB_CATEGORY_LABELS } from "@/constants/club";
+import { KEYBOARD_AVOIDING_BEHAVIOR } from "@/constants/keyboard";
 import {
   useArticleArchiveInfiniteQuery,
   useArticlesInfiniteQuery,
@@ -31,16 +34,30 @@ import {
   useJoinClubMutation,
   useLeaveClubMutation,
 } from "@/hooks/api/useClub";
-import { useMeetingsInfiniteQuery } from "@/hooks/api/useMeetings";
-import { IArticleListItem } from "@/types/api/articles/articlesDTO";
-import { ClubMemberStatus } from "@/types/api/club/clubDTO";
-import { ClubPostCategory } from "@/types/api/clubs/clubPostsDTO";
-import { IMeetingListItem } from "@/types/api/meetings/meetingsDTO";
-<<<<<<< Updated upstream
+import {
+  useAttendMeetingMutation,
+  useMeetingDetailQuery,
+} from "@/hooks/api/useMeetings";
 import type { ApiFailResponse } from "@/types/api/api";
-=======
+import { IArticleListItem } from "@/types/api/articles/articlesDTO";
+import {
+  ClubMemberStatus,
+  IClubUserSummary,
+  IClubMeetingSummary,
+} from "@/types/api/club/clubDTO";
+import { ClubPostCategory } from "@/types/api/clubs/clubPostsDTO";
+import {
+  formatDday,
+  formatOccurrenceDate,
+} from "@/components/meeting/meetingSchedule";
+import {
+  IconCalendar,
+  IconLocation,
+  IconWallet,
+} from "@/components/SvgIcons";
+import type { SvgProps } from "react-native-svg";
+import type { IMeetingDetailResponse } from "@/types/api/meetings/meetingsDTO";
 import { uniqueBy } from "@/utils/array";
->>>>>>> Stashed changes
 
 const PINK = "#FF3E70";
 const BLACK = "#202020";
@@ -65,13 +82,13 @@ const BOARD_CATEGORIES: {
   { label: "전체", value: "ALL" },
   { label: "공지", value: "NOTICE" },
   { label: "후기", value: "REVIEW" },
-  { label: "가입인사", value: "GREETING" },
+  { label: "가입인사", value: "CHECKIN" },
   { label: "자유게시판", value: "FREE" },
 ];
 
 const CATEGORY_LABELS: Record<ClubPostCategory, string> = {
   NOTICE: "공지",
-  GREETING: "가입인사",
+  CHECKIN: "가입인사",
   REVIEW: "후기",
   FREE: "자유게시판",
 };
@@ -99,7 +116,6 @@ export default function ClubDetailScreen() {
   const detailQuery = useClubDetailQuery(clubId);
   const joinMutation = useJoinClubMutation(clubId);
   const leaveMutation = useLeaveClubMutation();
-  const meetingsQuery = useMeetingsInfiniteQuery(clubId, { filter: "upcoming" });
   const archivesQuery = useArticleArchiveInfiniteQuery(
     clubId,
     {},
@@ -108,15 +124,15 @@ export default function ClubDetailScreen() {
   const detail = detailQuery.data;
 
   const isJoined =
-    joinStatus === "ACTIVE" || Boolean(detail?.isJoined && joinStatus !== "LEFT");
+    joinStatus === "ACTIVE" ||
+    Boolean(detail?.isJoined && joinStatus !== "LEFT");
   const isJoinPending = joinStatus === "PENDING";
   const bottomBarHeight = isJoined
     ? insets.bottom + (activeTab === "board" ? 110 : 24)
     : insets.bottom + 96;
   const albumItemSize = width / 3;
   const trimmedJoinMessage = joinMessage.trim();
-  const meetings: IMeetingListItem[] =
-    meetingsQuery.data?.pages.flatMap((page) => page.meetings) ?? [];
+  const meetings = detail?.meetings ?? [];
   const archives =
     archivesQuery.data?.pages.flatMap((page) =>
       page.items.map((item) => ({
@@ -125,8 +141,8 @@ export default function ClubDetailScreen() {
       })),
     ) ?? [];
   const isHost = detail?.myAuthority === "HOST";
-  // ponytail: 상세 API에 이미지/주소 필드가 없어 히어로는 placeholder 유지, 지역 표기는 생략
-  const heroImage = HERO_IMAGE;
+  // ponytail: 서버 썸네일이 없을 때만 placeholder 유지
+  const heroImage = detail?.thumbnailUrl ?? HERO_IMAGE;
   const clubTitle = detail?.name ?? "";
   const categoryText = detail
     ? (CLUB_CATEGORY_LABELS[detail.category] ?? detail.category)
@@ -219,7 +235,11 @@ export default function ClubDetailScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <Image source={{ uri: heroImage }} style={styles.heroImage} contentFit="cover" />
+        <Image
+          source={{ uri: heroImage }}
+          style={styles.heroImage}
+          contentFit="cover"
+        />
 
         <View style={styles.summary}>
           <View style={styles.categoryChip}>
@@ -253,14 +273,19 @@ export default function ClubDetailScreen() {
               >
                 {tab.label}
               </Text>
-              {isJoined && tab.id === "chat" ? <View style={styles.chatDot} /> : null}
-              {activeTab === tab.id ? <View style={styles.tabUnderline} /> : null}
+              {isJoined && tab.id === "chat" ? (
+                <View style={styles.chatDot} />
+              ) : null}
+              {activeTab === tab.id ? (
+                <View style={styles.tabUnderline} />
+              ) : null}
             </Pressable>
           ))}
         </View>
 
         {activeTab === "home" ? (
           <ClubHomeTab
+            clubId={clubId}
             description={description}
             isJoined={isJoined}
             isHost={isHost}
@@ -269,6 +294,15 @@ export default function ClubDetailScreen() {
               router.push({
                 pathname: "/meeting-create",
                 params: { clubId: String(clubId) },
+              } as never)
+            }
+            onPressMeetingManage={(meetingId) =>
+              router.push({
+                pathname: "/meeting-manage",
+                params: {
+                  clubId: String(clubId),
+                  meetingId: String(meetingId),
+                },
               } as never)
             }
           />
@@ -328,7 +362,10 @@ export default function ClubDetailScreen() {
             />
           </Pressable>
           <Pressable
-            style={[styles.joinButton, isJoinPending && styles.joinButtonDisabled]}
+            style={[
+              styles.joinButton,
+              isJoinPending && styles.joinButtonDisabled,
+            ]}
             disabled={isJoinPending}
             onPress={() => {
               setTriedJoinSubmit(false);
@@ -399,19 +436,53 @@ function getApiErrorMessage(error: unknown) {
 }
 
 function ClubHomeTab({
+  clubId,
   description,
   isJoined,
   isHost,
   meetings,
   onPressCreateMeeting,
+  onPressMeetingManage,
 }: {
+  clubId: number;
   description: string;
   isJoined: boolean;
   isHost: boolean;
-  meetings: IMeetingListItem[];
+  meetings: IClubMeetingSummary[];
   onPressCreateMeeting: () => void;
+  onPressMeetingManage: (meetingId: number) => void;
 }) {
-  const firstMeeting = meetings[0];
+  const firstMeetingSummary = meetings[0];
+  // 호스트는 서버에서 isJoined=false로 내려올 수 있어 별도로 허용한다.
+  const meetingDetailQuery = useMeetingDetailQuery(
+    clubId,
+    firstMeetingSummary?.meetingId ?? 0,
+    (isJoined || isHost) && !!firstMeetingSummary?.meetingId,
+  );
+  const firstMeeting = meetingDetailQuery.data;
+  const meetingTitle = firstMeeting?.name ?? firstMeetingSummary?.name;
+  const meetingDateText =
+    firstMeeting?.dateLabel ??
+    [firstMeetingSummary?.day, formatSummaryTime(firstMeetingSummary?.time)]
+      .filter(Boolean)
+      .join(" ");
+  const meetingId = firstMeeting?.meetingId ?? firstMeetingSummary?.meetingId;
+  const ddaySource = firstMeeting?.nextOccurrenceAt;
+  const [isMeetingSheetVisible, setMeetingSheetVisible] = useState(false);
+  const attendMeetingMutation = useAttendMeetingMutation(
+    clubId,
+    meetingId ?? 0,
+  );
+
+  const handleAttendMeeting = () => {
+    if (!meetingId || firstMeeting?.isAttending) return;
+
+    attendMeetingMutation.mutate(undefined, {
+      onError: () => {
+        Alert.alert("참석 실패", "잠시 후 다시 시도해주세요.");
+      },
+    });
+  };
 
   return (
     <View style={styles.homeContent}>
@@ -427,53 +498,108 @@ function ClubHomeTab({
               hitSlop={8}
             >
               <Ionicons name="add" size={16} color={PINK} />
-              <Text style={styles.meetingCreateButtonText}>정기모임 만들기</Text>
+              <Text style={styles.meetingCreateButtonText}>
+                정기모임 만들기
+              </Text>
             </Pressable>
           ) : null}
         </View>
 
-        {firstMeeting ? (
-          <View style={styles.meetingCard}>
-            <View style={styles.meetingTitleRow}>
-              <View style={styles.dDayBadge}>
-                <Text style={styles.dDayText}>{formatDday(firstMeeting.date)}</Text>
+        {firstMeetingSummary ? (
+          <Pressable
+            style={styles.meetingCard}
+            onPress={() => setMeetingSheetVisible(true)}
+          >
+            <View style={styles.meetingCardHeader}>
+              <View style={styles.meetingBadgeRow}>
+                {ddaySource ? (
+                  <View style={styles.dDayBadge}>
+                    <Text style={styles.dDayText}>{formatDday(ddaySource)}</Text>
+                  </View>
+                ) : null}
+                {firstMeeting ? (
+                  <View style={styles.repeatBadge}>
+                    <Text style={styles.repeatBadgeText}>
+                      {getRecurrenceText(firstMeeting.recurrence.type)}
+                    </Text>
+                  </View>
+                ) : null}
               </View>
-              <Text style={styles.meetingTitle}>{firstMeeting.name}</Text>
+              <Pressable
+                style={styles.meetingMenuButton}
+                hitSlop={8}
+                onPress={() => {
+                  if ((isJoined || isHost) && meetingId) {
+                    onPressMeetingManage(meetingId);
+                    return;
+                  }
+                  setMeetingSheetVisible(true);
+                }}
+              >
+                <Ionicons name="ellipsis-vertical" size={18} color="#8E9AA3" />
+              </Pressable>
             </View>
+
+            <Text style={styles.meetingTitle}>{meetingTitle}</Text>
 
             <View style={styles.meetingInfoList}>
-              <MeetingInfo
-                label="일시"
-                value={formatDateTime(firstMeeting.date) ?? "-"}
-              />
-              <MeetingInfo label="위치" value={firstMeeting.spot} />
-              <MeetingInfo label="비용" value={firstMeeting.cost ?? "없음"} />
+              <MeetingInfo label="일시" value={meetingDateText || "-"} />
+              {firstMeeting ? (
+                <>
+                  <MeetingInfo label="위치" value={firstMeeting.spot} />
+                  <MeetingInfo label="비용" value={firstMeeting.cost ?? "없음"} />
+                </>
+              ) : null}
             </View>
 
-            <View style={styles.attendeeRow}>
-              {Array.from({
-                length: Math.min(firstMeeting.attendeeCount, 3),
-              }).map((_, index) => (
-                <View
-                  key={index}
-                  style={[
-                    styles.attendeeAvatar,
-                    index > 0 && styles.attendeeOverlap,
-                  ]}
-                />
-              ))}
-              <Text style={styles.attendeeText}>
-                {firstMeeting.attendeeCount}명 참석중 (
-                {firstMeeting.attendeeCount}/{firstMeeting.capacity ?? "-"})
-              </Text>
-            </View>
-
-            {isJoined ? (
-              <Pressable style={styles.attendanceButton}>
-                <Text style={styles.attendanceButtonText}>참석 현황 확인</Text>
-              </Pressable>
+            {firstMeeting ? (
+              <View style={styles.attendeeRow}>
+                {firstMeeting.attendeesPreview.slice(0, 3).map((attendee, index) => (
+                  <Image
+                    key={attendee.userId}
+                    source={{ uri: attendee.profileImageUrl ?? undefined }}
+                    style={[
+                      styles.attendeeAvatar,
+                      index > 0 && styles.attendeeOverlap,
+                    ]}
+                    contentFit="cover"
+                  />
+                ))}
+                <Text style={styles.attendeeText}>
+                  {firstMeeting.attendeeCount}명 참석중 (
+                  {firstMeeting.attendeeCount}/{firstMeeting.capacity})
+                </Text>
+              </View>
             ) : null}
-          </View>
+
+            <Pressable
+              style={[
+                styles.attendanceButton,
+                (firstMeeting?.isAttending || !meetingId) &&
+                  styles.attendanceButtonDisabled,
+              ]}
+              onPress={handleAttendMeeting}
+              disabled={
+                firstMeeting?.isAttending ||
+                !meetingId ||
+                attendMeetingMutation.isPending
+              }
+            >
+              <Text
+                style={[
+                  styles.attendanceButtonText,
+                  (firstMeeting?.isAttending || !meetingId) &&
+                    styles.attendanceButtonTextDisabled,
+                ]}
+              >
+                {firstMeeting?.isAttending
+                  ? "참석 중"
+                  : attendMeetingMutation.isPending
+                    ? "처리 중..."
+                    : "참석하기"}
+              </Text>
+            </Pressable>
+          </Pressable>
         ) : (
           <View style={[styles.meetingCard, styles.meetingEmptyCard]}>
             <Text style={styles.meetingEmptyText}>
@@ -492,34 +618,246 @@ function ClubHomeTab({
           </View>
         )}
       </View>
+
+      <MeetingDetailSheet
+        visible={isMeetingSheetVisible}
+        meeting={firstMeeting}
+        fallbackTitle={meetingTitle}
+        ddayText={ddaySource ? formatDday(ddaySource) : ""}
+        onClose={() => setMeetingSheetVisible(false)}
+        onAttend={handleAttendMeeting}
+        isSubmitting={attendMeetingMutation.isPending}
+      />
     </View>
   );
 }
 
-function formatDday(value: string) {
-  const target = new Date(value);
-  const now = new Date();
+function MeetingDetailSheet({
+  visible,
+  meeting,
+  fallbackTitle,
+  ddayText,
+  isSubmitting,
+  onClose,
+  onAttend,
+}: {
+  visible: boolean;
+  meeting?: IMeetingDetailResponse;
+  fallbackTitle?: string;
+  ddayText: string;
+  isSubmitting: boolean;
+  onClose: () => void;
+  onAttend: () => void;
+}) {
+  const { height: screenHeight } = useWindowDimensions();
+  const translateY = useRef(new Animated.Value(screenHeight)).current;
+  const backdropOpacity = useRef(new Animated.Value(0)).current;
+  const [isMounted, setIsMounted] = useState(visible);
 
-  if (Number.isNaN(target.getTime())) {
-    return "D-?";
-  }
+  useEffect(() => {
+    if (visible) {
+      setIsMounted(true);
+      Animated.parallel([
+        Animated.timing(backdropOpacity, {
+          toValue: 1,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+        Animated.spring(translateY, {
+          toValue: 0,
+          damping: 24,
+          stiffness: 240,
+          mass: 0.9,
+          useNativeDriver: true,
+        }),
+      ]).start();
+      return;
+    }
 
-  const diffDays = Math.ceil(
-    (target.setHours(0, 0, 0, 0) - now.setHours(0, 0, 0, 0)) /
-      (1000 * 60 * 60 * 24),
+    Animated.parallel([
+      Animated.timing(backdropOpacity, {
+        toValue: 0,
+        duration: 180,
+        useNativeDriver: true,
+      }),
+      Animated.timing(translateY, {
+        toValue: screenHeight,
+        duration: 220,
+        easing: Easing.in(Easing.cubic),
+        useNativeDriver: true,
+      }),
+    ]).start(({ finished }) => {
+      if (finished) setIsMounted(false);
+    });
+  }, [visible, screenHeight, translateY, backdropOpacity]);
+
+  if (!isMounted || !meeting) return null;
+
+  const nextDate = new Date(meeting.nextOccurrenceAt);
+  const nextDateText = Number.isNaN(nextDate.getTime())
+    ? ""
+    : formatOccurrenceDate(nextDate);
+  const recurrenceText = getRecurrenceText(meeting.recurrence.type);
+  const attendeeCountText = `${meeting.attendeeCount}/${meeting.capacity}`;
+  const attendDisabled = meeting.isAttending || isSubmitting;
+
+  return (
+    <Modal
+      visible
+      transparent
+      animationType="none"
+      statusBarTranslucent
+      onRequestClose={onClose}
+    >
+      <View style={styles.meetingSheetBackdrop}>
+        <Animated.View
+          style={[
+            StyleSheet.absoluteFill,
+            styles.meetingSheetDim,
+            { opacity: backdropOpacity },
+          ]}
+          pointerEvents="none"
+        />
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+        <Animated.View
+          style={[styles.meetingSheet, { transform: [{ translateY }] }]}
+        >
+          <View style={styles.meetingSheetHandle} />
+
+          <View style={styles.meetingSheetTop}>
+            <View style={styles.meetingSheetChipRow}>
+              {ddayText ? (
+                <View style={styles.dDayBadge}>
+                  <Text style={styles.dDayText}>{ddayText}</Text>
+                </View>
+              ) : null}
+              <View style={styles.repeatBadge}>
+                <Text style={styles.repeatBadgeText}>{recurrenceText}</Text>
+              </View>
+            </View>
+            <Text style={styles.meetingSheetTitle}>
+              {meeting.name || fallbackTitle}
+            </Text>
+          </View>
+
+          <View style={styles.meetingSheetBar} />
+
+          <View style={styles.meetingSheetInfoList}>
+            <MeetingIconInfo
+              icon={IconCalendar}
+              title={meeting.dateLabel}
+              subtitle={
+                nextDateText ? `다음 모임 · ${nextDateText} · ${ddayText}` : ""
+              }
+              subtitleEmphasis={ddayText}
+            />
+            <MeetingIconInfo icon={IconLocation} title={meeting.spot} />
+            <MeetingIconInfo icon={IconWallet} title={meeting.cost ?? "없음"} />
+          </View>
+
+          <View style={styles.meetingSheetDivider} />
+
+          <Text style={styles.meetingSheetSectionTitle}>안내사항</Text>
+          <View style={styles.meetingNoticeBox}>
+            <Text style={styles.meetingNoticeText}>{meeting.introText}</Text>
+          </View>
+
+          <View style={styles.meetingAttendeeHeader}>
+            <Text style={styles.meetingSheetSectionTitle}>참석자</Text>
+            <Text style={styles.meetingAttendeeCount}>{attendeeCountText}</Text>
+          </View>
+          <View style={styles.meetingAttendeeList}>
+            {meeting.attendeesPreview.slice(0, 4).map((attendee) => (
+              <MeetingSheetAttendee key={attendee.userId} attendee={attendee} />
+            ))}
+          </View>
+
+          <Pressable
+            style={[
+              styles.meetingAttendButton,
+              attendDisabled && styles.meetingAttendButtonDisabled,
+            ]}
+            onPress={onAttend}
+            disabled={attendDisabled}
+          >
+            <Text style={styles.meetingAttendButtonText}>
+              {meeting.isAttending
+                ? "참석 중"
+                : isSubmitting
+                  ? "처리 중..."
+                  : "참석하기"}
+            </Text>
+          </Pressable>
+        </Animated.View>
+      </View>
+    </Modal>
   );
-
-  if (diffDays === 0) return "D-Day";
-  return diffDays > 0 ? `D-${diffDays}` : `D+${Math.abs(diffDays)}`;
 }
 
-function formatDateTime(value?: string) {
-  if (!value) return undefined;
+function MeetingIconInfo({
+  icon: Icon,
+  title,
+  subtitle,
+  subtitleEmphasis,
+}: {
+  icon: React.ComponentType<SvgProps>;
+  title: string;
+  subtitle?: string;
+  subtitleEmphasis?: string;
+}) {
+  return (
+    <View style={styles.meetingIconInfoRow}>
+      <Icon width={24} height={24} color={PINK} />
+      <View style={styles.meetingIconInfoText}>
+        <Text style={styles.meetingIconInfoTitle}>{title}</Text>
+        {subtitle ? (
+          <Text style={styles.meetingIconInfoSubtitle}>
+            {subtitleEmphasis
+              ? subtitle.replace(` · ${subtitleEmphasis}`, "")
+              : subtitle}
+            {subtitleEmphasis ? (
+              <Text style={styles.meetingIconInfoEmphasis}>
+                {" · "}
+                {subtitleEmphasis}
+              </Text>
+            ) : null}
+          </Text>
+        ) : null}
+      </View>
+    </View>
+  );
+}
 
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return undefined;
+function MeetingSheetAttendee({ attendee }: { attendee: IClubUserSummary }) {
+  return (
+    <View style={styles.meetingSheetAttendee}>
+      {attendee.profileImageUrl ? (
+        <Image
+          source={{ uri: attendee.profileImageUrl }}
+          style={styles.meetingSheetAvatar}
+          contentFit="cover"
+        />
+      ) : (
+        <View style={styles.meetingSheetAvatar} />
+      )}
+      <Text style={styles.meetingSheetAttendeeName} numberOfLines={1}>
+        {attendee.nickname}
+      </Text>
+    </View>
+  );
+}
 
-  return `${date.getMonth() + 1}/${date.getDate()} ${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
+// 요약 응답의 "HH:mm:ss" 시간에서 초를 잘라 카드용으로 다듬는다.
+function formatSummaryTime(time?: string) {
+  if (!time) return undefined;
+  const match = time.match(/^(\d{1,2}:\d{2})/);
+  return match ? match[1] : time;
+}
+
+function getRecurrenceText(type: IMeetingDetailResponse["recurrence"]["type"]) {
+  if (type === "DAILY") return "매일 반복";
+  if (type === "MONTHLY") return "매달 반복";
+  return "매주 반복";
 }
 
 function MeetingInfo({ label, value }: { label: string; value: string }) {
@@ -538,8 +876,9 @@ function BoardTab({
   clubId: number;
   onPostPress: (postId: number) => void;
 }) {
-  const [activeCategory, setActiveCategory] =
-    useState<ClubPostCategory | "ALL">("ALL");
+  const [activeCategory, setActiveCategory] = useState<
+    ClubPostCategory | "ALL"
+  >("ALL");
   const articlesQuery = useArticlesInfiniteQuery(clubId, {
     category: activeCategory === "ALL" ? undefined : activeCategory,
   });
@@ -563,7 +902,10 @@ function BoardTab({
           return (
             <Pressable
               key={category.value}
-              style={[styles.boardCategoryChip, isActive && styles.boardCategoryChipActive]}
+              style={[
+                styles.boardCategoryChip,
+                isActive && styles.boardCategoryChipActive,
+              ]}
               onPress={() => setActiveCategory(category.value)}
             >
               <Text
@@ -676,7 +1018,10 @@ function BoardPostItem({
 
       <View style={styles.boardPostBody}>
         <Text
-          style={[styles.boardPostText, hasImage && styles.boardPostTextWithImage]}
+          style={[
+            styles.boardPostText,
+            hasImage && styles.boardPostTextWithImage,
+          ]}
           numberOfLines={hasImage ? 3 : 4}
         >
           {article.preview}
@@ -860,11 +1205,7 @@ function ChatTab({ bottomPadding }: { bottomPadding: number }) {
           onPress={handleSend}
           hitSlop={8}
         >
-          <Ionicons
-            name="send"
-            size={24}
-            color={canSend ? PINK : "#A6AFB6"}
-          />
+          <Ionicons name="send" size={24} color={canSend ? PINK : "#A6AFB6"} />
         </Pressable>
       </View>
 
@@ -913,8 +1254,15 @@ function ChatBubble({
         {!mine && name ? <Text style={styles.chatName}>{name}</Text> : null}
         <View style={styles.chatMessageLine}>
           {mine && time ? <Text style={styles.chatTime}>{time}</Text> : null}
-          <View style={[styles.chatBubble, mine ? styles.myChatBubble : styles.otherChatBubble]}>
-            <Text style={[styles.chatBubbleText, mine && styles.myChatBubbleText]}>
+          <View
+            style={[
+              styles.chatBubble,
+              mine ? styles.myChatBubble : styles.otherChatBubble,
+            ]}
+          >
+            <Text
+              style={[styles.chatBubbleText, mine && styles.myChatBubbleText]}
+            >
               {text}
             </Text>
           </View>
@@ -1357,10 +1705,19 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     backgroundColor: "#FFFFFF",
   },
-  meetingTitleRow: {
+  meetingCardHeader: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    justifyContent: "space-between",
+  },
+  meetingBadgeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  meetingMenuButton: {
+    padding: 4,
+    marginRight: -4,
   },
   dDayBadge: {
     height: 24,
@@ -1375,8 +1732,24 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "800",
   },
+  repeatBadge: {
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: BORDER,
+    backgroundColor: "#E9ECED",
+    paddingHorizontal: 8,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  repeatBadgeText: {
+    color: "#636970",
+    fontSize: 12,
+    fontWeight: "500",
+    lineHeight: 20,
+  },
   meetingTitle: {
-    flex: 1,
+    marginTop: 14,
     color: BLACK,
     fontSize: 18,
     fontWeight: "800",
@@ -1435,6 +1808,163 @@ const styles = StyleSheet.create({
     color: PINK,
     fontSize: 15,
     fontWeight: "800",
+  },
+  attendanceButtonDisabled: {
+    borderColor: "#E5E7EB",
+    backgroundColor: "#F4F5F6",
+  },
+  attendanceButtonTextDisabled: {
+    color: "#B0B8BF",
+  },
+  meetingSheetBackdrop: {
+    flex: 1,
+    justifyContent: "flex-end",
+  },
+  meetingSheetDim: {
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+  },
+  meetingSheet: {
+    width: "100%",
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 20,
+    paddingTop: 24,
+    paddingBottom: 48,
+  },
+  meetingSheetHandle: {
+    alignSelf: "center",
+    width: 46,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: "#DEE3E5",
+    marginBottom: 12,
+  },
+  meetingSheetTop: {
+    gap: 12,
+    paddingBottom: 16,
+  },
+  meetingSheetChipRow: {
+    flexDirection: "row",
+    gap: 6,
+  },
+  meetingSheetTitle: {
+    color: BLACK,
+    fontSize: 24,
+    fontWeight: "600",
+    lineHeight: 30,
+  },
+  meetingSheetDivider: {
+    height: 1,
+    backgroundColor: "#DEE3E5",
+  },
+  meetingSheetBar: {
+    alignSelf: "stretch",
+    height: 8,
+    backgroundColor: "#F8FAFB",
+  },
+  meetingSheetInfoList: {
+    gap: 16,
+    paddingVertical: 12,
+  },
+  meetingIconInfoRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  meetingIconInfoText: {
+    flex: 1,
+    minWidth: 0,
+  },
+  meetingIconInfoTitle: {
+    color: BLACK,
+    fontSize: 18,
+    fontWeight: "500",
+    lineHeight: 23,
+  },
+  meetingIconInfoSubtitle: {
+    color: "#636970",
+    fontSize: 14,
+    fontWeight: "500",
+    lineHeight: 20,
+  },
+  meetingIconInfoEmphasis: {
+    color: PINK,
+  },
+  meetingSheetSectionTitle: {
+    color: BLACK,
+    fontSize: 18,
+    fontWeight: "600",
+    lineHeight: 23,
+  },
+  meetingNoticeBox: {
+    minHeight: 48,
+    marginTop: 16,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#FFCBD6",
+    backgroundColor: "#FFF0F2",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  meetingNoticeText: {
+    color: BLACK,
+    fontSize: 16,
+    fontWeight: "500",
+    lineHeight: 24,
+  },
+  meetingAttendeeHeader: {
+    marginTop: 32,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  meetingAttendeeCount: {
+    color: GRAY,
+    fontSize: 18,
+    fontWeight: "500",
+    lineHeight: 23,
+  },
+  meetingAttendeeList: {
+    marginTop: 16,
+    flexDirection: "row",
+    gap: 16,
+  },
+  meetingSheetAttendee: {
+    width: 65,
+    alignItems: "center",
+    gap: 4,
+  },
+  meetingSheetAvatar: {
+    width: 65,
+    height: 65,
+    borderRadius: 32.5,
+    backgroundColor: "#D9D9D9",
+  },
+  meetingSheetAttendeeName: {
+    width: "100%",
+    color: "#636970",
+    fontSize: 14,
+    fontWeight: "600",
+    lineHeight: 20,
+    textAlign: "center",
+  },
+  meetingAttendButton: {
+    height: 54,
+    marginTop: 32,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: PINK,
+  },
+  meetingAttendButtonDisabled: {
+    opacity: 0.55,
+  },
+  meetingAttendButtonText: {
+    color: "#FFFFFF",
+    fontSize: 18,
+    fontWeight: "600",
+    lineHeight: 23,
   },
   boardContent: {
     backgroundColor: "#FFFFFF",

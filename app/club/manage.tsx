@@ -81,6 +81,7 @@ export default function ClubManageScreen() {
     () => myClubs.find((item) => item.id === params.clubId) ?? myClubs[0],
     [myClubs, params.clubId],
   );
+  const clubId = parseClubId(params.clubId ?? club.id);
   const showFab = activeTab === "home" || activeTab === "board";
   const bottomPadding = insets.bottom + (showFab ? 112 : 32);
 
@@ -125,7 +126,11 @@ export default function ClubManageScreen() {
       renderIcon: () => <IconCalendar width={28} height={28} />,
       title: "정기모임 생성",
       description: "매주/매월 반복되는 모임을 만들 수 있어요",
-      onPress: () => router.push("/club/meeting-create" as never),
+      onPress: () =>
+        router.push({
+          pathname: "/meeting-create",
+          params: { clubId: String(clubId) },
+        } as never),
     },
   ];
 
@@ -353,6 +358,16 @@ function ChatTab() {
       ))}
     </View>
   );
+}
+
+function parseClubId(value?: string) {
+  if (!value) return 1;
+
+  const numericValue = Number(value);
+  if (Number.isFinite(numericValue)) return numericValue;
+
+  const match = value.match(/\d+/);
+  return match ? Number(match[0]) : 1;
 }
 
 const styles = StyleSheet.create({

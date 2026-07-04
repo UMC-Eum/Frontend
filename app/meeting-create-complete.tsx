@@ -1,8 +1,8 @@
 import * as Linking from "expo-linking";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import React from "react";
-import { Share, StyleSheet, Text, View } from "react-native";
+import React, { useCallback, useEffect } from "react";
+import { BackHandler, Share, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import Cta from "@/components/Cta";
@@ -12,14 +12,14 @@ import {
   MeetingSummaryCard,
   ShareAction,
 } from "@/components/meeting/MeetingCreateParts";
+import { formatDday } from "@/components/meeting/meetingSchedule";
 
 type CompleteParams = {
   clubId?: string;
   meetingId?: string;
   title?: string;
   dateText?: string;
-  nextDateLabel?: string;
-  ddayText?: string;
+  ddaySource?: string;
   location?: string;
   cost?: string;
 };
@@ -29,26 +29,50 @@ export default function MeetingCreateCompleteScreen() {
   const params = useLocalSearchParams<CompleteParams>();
   const clubId = getParamString(params.clubId);
   const meetingId = getParamString(params.meetingId);
-  const title = getParamString(params.title) || "생성된 정기모임";
-  const dateText = getParamString(params.dateText) || "일정 정보 없음";
-  const nextDateLabel = getParamString(params.nextDateLabel);
-  const ddayText = getParamString(params.ddayText) || "D-?";
-  const location = getParamString(params.location) || "위치 정보 없음";
-  const cost = getParamString(params.cost) || "없음";
+  const title = getParamString(params.title);
+  const dateText = getParamString(params.dateText);
+  const ddaySource = getParamString(params.ddaySource);
+  const ddayText = ddaySource ? formatDday(ddaySource) : "D-?";
+  const location = getParamString(params.location);
+  const cost = getParamString(params.cost);
   const canOpenMeeting = !!clubId && !!meetingId;
+  const hasMeetingResponse = !!title && !!dateText && !!location;
   const meetingUrl = Linking.createURL("/meeting-manage", {
     queryParams: { clubId, meetingId },
   });
 
   const handleShare = async () => {
+    if (!hasMeetingResponse) return;
+
     await Share.share({
-      message: `${title}\n${dateText}${nextDateLabel ? ` · ${nextDateLabel}` : ""}\n${meetingUrl}`,
+      message: `${title}\n${dateText}\n${meetingUrl}`,
     });
   };
 
+  const handleClose = useCallback(() => {
+    if (!clubId) {
+      router.back();
+      return;
+    }
+
+    router.replace({
+      pathname: "/club/detail",
+      params: { clubId },
+    } as never);
+  }, [clubId, router]);
+
+  useEffect(() => {
+    const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
+      handleClose();
+      return true;
+    });
+
+    return () => subscription.remove();
+  }, [handleClose]);
+
   const handleOpenMeeting = () => {
     if (!canOpenMeeting) {
-      router.back();
+      handleClose();
       return;
     }
 
@@ -62,7 +86,7 @@ export default function MeetingCreateCompleteScreen() {
     <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
       <StatusBar style="dark" />
 
-      <MeetingScreenHeader icon="close" onPressIcon={() => router.back()} />
+      <MeetingScreenHeader icon="close" onPressIcon={handleClose} />
 
       <View style={styles.content}>
         <View style={styles.heroBlock}>
@@ -77,42 +101,52 @@ export default function MeetingCreateCompleteScreen() {
           </View>
         </View>
 
-        <MeetingSummaryCard
-          title={title}
-          dateText={dateText}
-          location={location}
-          cost={cost}
-          ddayText={ddayText}
-        />
+        {hasMeetingResponse ? (
+          <>
+            <MeetingSummaryCard
+              title={title}
+              dateText={dateText}
+              location={location}
+              cost={cost || "없음"}
+              ddayText={ddayText}
+            />
 
-        <View style={styles.shareBlock}>
-          <View style={styles.shareTitleBlock}>
-            <Text style={styles.shareTitle}>공유하고 멤버를 모아보세요</Text>
-            <Text style={styles.shareSubtitle}>
-              지인에게 링크를 공유하면 바로 가입할 수 있어요
+            <View style={styles.shareBlock}>
+              <View style={styles.shareTitleBlock}>
+                <Text style={styles.shareTitle}>공유하고 멤버를 모아보세요</Text>
+                <Text style={styles.shareSubtitle}>
+                  지인에게 링크를 공유하면 바로 가입할 수 있어요
+                </Text>
+              </View>
+              <View style={styles.shareRow}>
+                <ShareAction
+                  label="카카오톡"
+                  icon="chatbubble"
+                  variant="kakao"
+                  onPress={handleShare}
+                />
+                <ShareAction
+                  label="링크 복사"
+                  icon="copy"
+                  variant="copy"
+                  onPress={handleShare}
+                />
+                <ShareAction
+                  label="외부 공유"
+                  icon="share-outline"
+                  variant="share"
+                  onPress={handleShare}
+                />
+              </View>
+            </View>
+          </>
+        ) : (
+          <View style={styles.responseEmpty}>
+            <Text style={styles.responseEmptyText}>
+              정기모임 정보를 불러오지 못했어요.
             </Text>
           </View>
-          <View style={styles.shareRow}>
-            <ShareAction
-              label="카카오톡"
-              icon="chatbubble"
-              variant="kakao"
-              onPress={handleShare}
-            />
-            <ShareAction
-              label="링크 복사"
-              icon="copy"
-              variant="copy"
-              onPress={handleShare}
-            />
-            <ShareAction
-              label="외부 공유"
-              icon="share-outline"
-              variant="share"
-              onPress={handleShare}
-            />
-          </View>
-        </View>
+        )}
       </View>
 
       <Cta
@@ -211,6 +245,20 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 42,
+  },
+  responseEmpty: {
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: MEETING_COLORS.gray150,
+    paddingHorizontal: 20,
+    paddingVertical: 24,
+  },
+  responseEmptyText: {
+    color: MEETING_COLORS.gray500,
+    fontSize: 15,
+    fontWeight: "500",
+    lineHeight: 22,
+    textAlign: "center",
   },
   ctaContainer: {
     paddingTop: 12,

@@ -6,23 +6,31 @@ import { useUiStore } from "@/stores/uiStore";
 export default function GlobalUiOverlay() {
   const globalLoadingCount = useUiStore((state) => state.globalLoadingCount);
   const toast = useUiStore((state) => state.toast);
+  // 로딩/토스트가 없을 때는 전체 화면을 덮는 View 자체를 렌더링하지 않는다.
+  // 새 아키텍처(Fabric)에서 absoluteFill View가 상시 떠 있으면 pointerEvents가
+  // 제대로 통과되지 않아 하단 냅바 등 전역 터치를 삼키는 문제가 있어서다.
+  const hasFloatingUi = globalLoadingCount > 0 || toast != null;
 
   return (
-    <View style={styles.pointerBox} pointerEvents="box-none">
+    <>
       <ChatNotificationBanner />
 
-      {globalLoadingCount > 0 ? (
-        <View style={styles.loadingBackdrop}>
-          <ActivityIndicator color="#FF3E70" />
-        </View>
-      ) : null}
+      {hasFloatingUi ? (
+        <View style={styles.pointerBox}>
+          {globalLoadingCount > 0 ? (
+            <View style={styles.loadingBackdrop}>
+              <ActivityIndicator color="#FF3E70" />
+            </View>
+          ) : null}
 
-      {toast ? (
-        <View style={[styles.toast, styles[`toast_${toast.type}`]]}>
-          <Text style={styles.toastText}>{toast.message}</Text>
+          {toast ? (
+            <View style={[styles.toast, styles[`toast_${toast.type}`]]}>
+              <Text style={styles.toastText}>{toast.message}</Text>
+            </View>
+          ) : null}
         </View>
       ) : null}
-    </View>
+    </>
   );
 }
 
@@ -31,6 +39,8 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     justifyContent: "flex-end",
     alignItems: "center",
+    // Fabric에서 prop 대신 style로 지정해야 터치 통과가 안정적으로 동작한다.
+    pointerEvents: "box-none",
   },
   loadingBackdrop: {
     ...StyleSheet.absoluteFillObject,

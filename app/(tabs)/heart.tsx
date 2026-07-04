@@ -5,6 +5,7 @@ import {
   ActivityIndicator,
   FlatList,
   ImageBackground,
+  InteractionManager,
   Pressable,
   RefreshControl,
   StyleSheet,
@@ -125,7 +126,11 @@ export default function HeartScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      markHeartsSeen(latestReceivedHeartId);
+      const task = InteractionManager.runAfterInteractions(() => {
+        markHeartsSeen(latestReceivedHeartId);
+      });
+
+      return () => task.cancel();
     }, [latestReceivedHeartId, markHeartsSeen]),
   );
 

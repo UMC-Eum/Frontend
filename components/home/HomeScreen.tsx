@@ -1,12 +1,11 @@
 import { Ionicons } from "@expo/vector-icons";
-import { Image } from "expo-image";
+import { Image, ImageBackground } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Animated,
   FlatList,
-  ImageBackground,
   NativeScrollEvent,
   NativeSyntheticEvent,
   Pressable,
@@ -37,6 +36,7 @@ import {
   useMyClubsQuery,
   useRecommendedClubsQuery,
 } from "@/hooks/api/useClub";
+import { useAuthStore } from "@/stores/authStore";
 import { useClubLocationStore } from "@/stores/clubLocationStore";
 import { uniqueBy } from "@/utils/array";
 
@@ -137,6 +137,8 @@ export default function HomePage() {
     getCountdownText(countdownEndAt.current),
   );
   const [, setLikedCount] = useState(0);
+  const isAuthInitialized = useAuthStore((state) => state.isAuthInitialized);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const myProfileQuery = useMyProfileQuery();
   const visitorsQuery = useMyProfileVisitorsQuery({ limit: 12 });
   const recommendationsQuery = useRecommendationsInfiniteQuery();
@@ -165,6 +167,9 @@ export default function HomePage() {
       ? profiles[Math.min(profileIndex, profiles.length - 1)]
       : null;
   const nickname = myProfileQuery.data?.nickname ?? USER_NICKNAME;
+  const isWaitingForMyProfile =
+    !isAuthInitialized ||
+    (isAuthenticated && !myProfileQuery.data && !myProfileQuery.isError);
   const cardWidth = width - 40;
   const hasNotificationBadge = heartUnreadCount + chatUnreadCount > 0;
 
@@ -290,6 +295,17 @@ export default function HomePage() {
       },
     } as never);
   };
+
+  if (isWaitingForMyProfile) {
+    return (
+      <SafeAreaView style={styles.safeArea} edges={["top"]}>
+        <View style={[styles.screen, styles.initialLoading]}>
+          <ActivityIndicator color={PINK} />
+          <Text style={styles.initialLoadingText}>내 정보를 불러오는 중이에요</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safeArea} edges={["top"]}>
@@ -438,6 +454,9 @@ export default function HomePage() {
                           }}
                           style={styles.viewerImage}
                           imageStyle={styles.viewerImageRadius}
+                          contentFit="cover"
+                          cachePolicy="memory-disk"
+                          transition={150}
                         />
                         <View style={styles.viewerMetaRow}>
                           <Text style={styles.viewerName} numberOfLines={1}>
@@ -873,6 +892,9 @@ function ProfileCard({
           source={{ uri: profile.images[0] ?? DEFAULT_PROFILE_IMAGE_URI }}
           style={[styles.profileImage, { width: cardWidth }]}
           imageStyle={styles.profileImageRadius}
+          contentFit="cover"
+          cachePolicy="memory-disk"
+          transition={150}
         >
           <ProfileCardGradient />
         </ImageBackground>
@@ -935,6 +957,16 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingBottom: TAB_SCREEN_BOTTOM_PADDING,
+  },
+  initialLoading: {
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 12,
+  },
+  initialLoadingText: {
+    color: GRAY,
+    fontSize: 15,
+    fontWeight: "700",
   },
   header: {
     height: 56,

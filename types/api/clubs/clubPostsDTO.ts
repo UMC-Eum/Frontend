@@ -1,4 +1,4 @@
-export type ClubPostCategory = "NOTICE" | "GREETING" | "REVIEW" | "FREE";
+export type ClubPostCategory = "NOTICE" | "CHECKIN" | "REVIEW" | "FREE";
 
 export interface IClubPostAuthor {
   userId: number;

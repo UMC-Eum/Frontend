@@ -1,5 +1,6 @@
 import api from "../axiosInstance";
 import { ApiSuccessResponse } from "../../types/api/api";
+import type { IArticleResponse } from "../../types/api/articles/articlesDTO";
 import * as DTO from "../../types/api/clubs/clubPostsDTO";
 
 export const getClubPosts = async (
@@ -24,10 +25,10 @@ export const createClubPost = async (
 
 export const getClubPostDetail = async (postId: number, clubId?: number) => {
   if (clubId) {
-    const { data } = await api.get<
-      ApiSuccessResponse<DTO.IClubPostDetailResponse>
-    >(`/v1/clubs/${clubId}/articles/${postId}`);
-    return data.success.data;
+    const { data } = await api.get<ApiSuccessResponse<IArticleResponse>>(
+      `/v1/clubs/${clubId}/articles/${postId}`,
+    );
+    return mapArticleToClubPostDetail(data.success.data);
   }
 
   const { data } = await api.get<
@@ -35,6 +36,27 @@ export const getClubPostDetail = async (postId: number, clubId?: number) => {
   >(`/v1/club-posts/${postId}`);
   return data.success.data;
 };
+
+function mapArticleToClubPostDetail(
+  article: IArticleResponse,
+): DTO.IClubPostDetailResponse {
+  return {
+    postId: article.articleId,
+    clubId: article.clubId,
+    category: article.category as DTO.ClubPostCategory,
+    title: article.title,
+    content: article.contents,
+    author: article.author,
+    images: (article.photos ?? []).map((photo) => ({
+      imageId: photo.photoId,
+      imageUrl: photo.photoUrl,
+    })),
+    likeCount: article.likeCount,
+    commentCount: article.commentCount,
+    createdAt: article.createdAt,
+    isMine: article.isMine,
+  };
+}
 
 export const updateClubPost = async (
   clubId: number,

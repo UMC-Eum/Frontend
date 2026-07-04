@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import {
+  InfiniteData,
   useInfiniteQuery,
   useMutation,
   useQuery,
@@ -39,12 +40,13 @@ import {
   getClubPostDetail,
 } from "@/api/clubs/clubPostsApi";
 import { queryKeys } from "@/hooks/api/queryKeys";
+import type { IArticlesGetResponse } from "@/types/api/articles/articlesDTO";
 import { ClubPostCategory } from "@/types/api/clubs/clubPostsDTO";
 import { uniqueBy } from "@/utils/array";
 
 const CATEGORY_LABELS: Record<ClubPostCategory, string> = {
   NOTICE: "공지",
-  GREETING: "가입인사",
+  CHECKIN: "가입인사",
   REVIEW: "후기",
   FREE: "자유게시판",
 };
@@ -58,30 +60,40 @@ export default function ClubPostDetailScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
-  const params = useLocalSearchParams<{ mode?: ClubActionSheetMode; postId?: string }>();
+  const params = useLocalSearchParams<{
+    mode?: ClubActionSheetMode;
+    postId?: string;
+    clubId?: string;
+  }>();
   const [isActionSheetVisible, setActionSheetVisible] = useState(false);
   const [comment, setComment] = useState("");
 
   const postId = Number(params.postId);
+  const clubId = Number(params.clubId);
   const hasPostId = Number.isFinite(postId);
+  const activeClubId = Number.isFinite(clubId) ? clubId : undefined;
   const postQuery = useQuery({
     queryKey: queryKeys.clubs.post(postId),
-    queryFn: () => getClubPostDetail(postId),
+    queryFn: () => getClubPostDetail(postId, activeClubId),
     enabled: hasPostId,
   });
   const commentsQuery = useInfiniteQuery({
     queryKey: queryKeys.clubs.comments(postId),
     queryFn: ({ pageParam }) =>
-      getClubPostComments(postId, { cursor: pageParam, size: 20 }),
+      getClubPostComments(postId, { cursor: pageParam, size: 20 }, activeClubId),
     initialPageParam: null as string | null,
     getNextPageParam: (lastPage) => lastPage.nextCursor,
     enabled: hasPostId,
   });
   const createCommentMutation = useMutation({
     mutationFn: () =>
-      createClubPostComment(postId, {
-        content: comment.trim(),
-      }),
+      createClubPostComment(
+        postId,
+        {
+          content: comment.trim(),
+        },
+        activeClubId,
+      ),
     onSuccess: () => {
       setComment("");
       queryClient.invalidateQueries({ queryKey: queryKeys.clubs.post(postId) });
@@ -92,10 +104,17 @@ export default function ClubPostDetailScreen() {
     },
   });
   const deletePostMutation = useMutation({
-    mutationFn: () => deleteClubPost(postId),
+    mutationFn: () => deleteClubPost(postId, activeClubId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.clubs.posts() });
+      if (activeClubId) {
+        removeDeletedArticleFromLists(queryClient, activeClubId, postId);
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.articles.all(activeClubId),
+        });
+      }
+      queryClient.removeQueries({ queryKey: queryKeys.clubs.post(postId) });
       router.back();
+      Alert.alert("삭제 완료", "게시글이 삭제되었습니다.");
     },
     onError: () => {
       Alert.alert("삭제 실패", "게시글을 삭제하는 중 문제가 발생했습니다.");
@@ -264,6 +283,40 @@ export default function ClubPostDetailScreen() {
         />
       </KeyboardAvoidingView>
     </SafeAreaView>
+  );
+}
+
+function removeDeletedArticleFromLists(
+  queryClient: ReturnType<typeof useQueryClient>,
+  clubId: number,
+  articleId: number,
+) {
+  queryClient.setQueriesData<InfiniteData<IArticlesGetResponse>>(
+    {
+      predicate: (query) => {
+        const key = query.queryKey;
+        return (
+          Array.isArray(key) &&
+          key[0] === "club" &&
+          key[1] === "detail" &&
+          key[2] === clubId &&
+          key[3] === "articles" &&
+          key[4] === "list"
+        );
+      },
+    },
+    (current) =>
+      current
+        ? {
+            ...current,
+            pages: current.pages.map((page) => ({
+              ...page,
+              articles: page.articles.filter(
+                (article) => article.articleId !== articleId,
+              ),
+            })),
+          }
+        : current,
   );
 }
 

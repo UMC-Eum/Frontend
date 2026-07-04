@@ -39,13 +39,8 @@ export function useNotificationsInfiniteQuery(
 }
 
 export function useReadNotificationMutation() {
-  const queryClient = useQueryClient();
-
   return useMutation({
     mutationFn: (notificationId: number) => readNotification(notificationId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.notifications.all });
-    },
   });
 }
 

@@ -88,6 +88,7 @@ export function useCreateMeetingMutation(clubId: number) {
   return useMutation({
     mutationFn: (body: DTO.IMeetingCreateRequest) => createMeeting(clubId, body),
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.club.detail(clubId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.meetings.all(clubId) });
     },
   });
@@ -122,7 +123,11 @@ export function useAttendMeetingMutation(clubId: number, meetingId: number) {
   return useMutation({
     mutationFn: () => attendMeeting(clubId, meetingId),
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.club.detail(clubId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.meetings.all(clubId) });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.meetings.detail(clubId, meetingId),
+      });
     },
   });
 }
