@@ -21,7 +21,7 @@ import {
   useRecommendedClubsQuery,
 } from "@/hooks/api/useClub";
 import { useMyProfileQuery } from "@/hooks/api/useUsers";
-import type { ClubCategory } from "@/types/api/club/clubDTO";
+import type { ClubAuthority, ClubCategory } from "@/types/api/club/clubDTO";
 import { uniqueBy } from "@/utils/array";
 
 const CATEGORIES = [
@@ -102,6 +102,17 @@ export default function ClubHomeScreen() {
     } as never);
   };
 
+  const openMyClub = (clubId: string | number, authority?: ClubAuthority | null) => {
+    if (authority === "HOST") {
+      router.push({
+        pathname: "/club/manage",
+        params: { clubId: String(clubId) },
+      } as never);
+      return;
+    }
+    openClubDetail(String(clubId));
+  };
+
   return (
     <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
       <StatusBar style="dark" />
@@ -170,6 +181,7 @@ export default function ClubHomeScreen() {
               key={club.clubId}
               title={club.name}
               image={club.thumbnailUrl}
+              onPress={() => openMyClub(club.clubId, club.authority)}
             />
           ))}
         </ScrollView>
@@ -250,13 +262,15 @@ function MyClubCard({
   title,
   image,
   status,
+  onPress,
 }: {
   title: string;
   image?: string | null;
   status?: string;
+  onPress?: () => void;
 }) {
   return (
-    <TouchableOpacity style={styles.myClubCard} activeOpacity={0.85}>
+    <TouchableOpacity style={styles.myClubCard} activeOpacity={0.85} onPress={onPress}>
       <View style={styles.myClubImageWrap}>
         {image ? (
           <Image source={{ uri: image }} style={styles.myClubImage} contentFit="cover" />
