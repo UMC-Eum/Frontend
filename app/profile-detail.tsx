@@ -655,12 +655,15 @@ function ProfileClubSection({
               {club.title}
             </Text>
             <Text style={styles.clubMeta} numberOfLines={1}>
-              {club.location} · {club.category}
+              {club.location ? `${club.location} · ${club.category}` : club.category}
             </Text>
-            <View style={styles.memberRow}>
-              <Ionicons name="person" size={18} color="#A6AFB6" />
-              <Text style={styles.memberText}>{club.memberLabel}</Text>
-            </View>
+            {/* 위치·인원은 프로필 응답에 없어 값이 있을 때만 표시 */}
+            {club.memberLabel ? (
+              <View style={styles.memberRow}>
+                <Ionicons name="person" size={18} color="#A6AFB6" />
+                <Text style={styles.memberText}>{club.memberLabel}</Text>
+              </View>
+            ) : null}
           </View>
         </View>
       ))}
