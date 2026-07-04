@@ -1,7 +1,9 @@
 export type ClubCategory =
   | "SPORTS"
   | "HOBBY"
+  | "CULTURE_ART"
   | "VOLUNTEER"
+  | "FOOD"
   | "STUDY"
   | "OTHERS"
   | (string & {});
@@ -84,6 +86,7 @@ export interface IClubDetailResponse {
   clubId: number;
   name: string;
   category: ClubCategory;
+  thumbnailUrl: string | null;
   introVoice: string | null;
   introText: string;
   capacity: number;
@@ -200,4 +203,19 @@ export interface IRecommendedClubsResponse {
     hasNext: boolean;
     nextCursor?: string | null;
   };
+}
+
+// v1/clubs/search/recent (GET)
+export interface IRecentClubSearchesResponse {
+  keywords: string[];
+}
+
+// v1/clubs/search/recent (DELETE)
+export interface IClearRecentClubSearchesResponse {
+  deleted: boolean;
+}
+
+// v1/clubs/search/recent/items (DELETE)
+export interface IDeleteRecentClubSearchResponse {
+  deletedKeyword: string;
 }

@@ -14,3 +14,11 @@ export const useClubLocationStore = create<ClubLocationState>((set) => ({
   setArea: (areaCode, areaName) => set({ areaCode, areaName }),
   clear: () => set({ areaCode: null, areaName: null }),
 }));
+
+// 동호회 생성 화면에서 고른 "활동 지역". 조회용 지역과 별개로 관리한다.
+export const useClubCreateAreaStore = create<ClubLocationState>((set) => ({
+  areaCode: null,
+  areaName: null,
+  setArea: (areaCode, areaName) => set({ areaCode, areaName }),
+  clear: () => set({ areaCode: null, areaName: null }),
+}));

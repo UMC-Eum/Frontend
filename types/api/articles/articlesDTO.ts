@@ -3,7 +3,7 @@ import type { ICommentItem } from "../comments/commentsDTO";
 
 export type ArticleCategory =
   | "NOTICE"
-  | "GREETING"
+  | "CHECKIN"
   | "REVIEW"
   | "FREE"
   | "FAQ"

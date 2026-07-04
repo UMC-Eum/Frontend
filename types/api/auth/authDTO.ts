@@ -3,12 +3,28 @@ export interface IKakaoLoginRequest {
   redirectUri: string;
 }
 
+export interface IAppleLoginRequest {
+  identityToken: string;
+  authorizationCode: string | null;
+  email: string | null;
+  fullName: {
+    familyName: string | null;
+    givenName: string | null;
+    middleName: string | null;
+    namePrefix: string | null;
+    nameSuffix: string | null;
+    nickname: string | null;
+  } | null;
+}
+
 export interface IKakaoLoginResponse {
   accessToken: string;
   isNewUser: boolean;
   onboardingRequired: boolean;
   user: { userId: number; nickname: string | null };
 }
+
+export type IAppleLoginResponse = IKakaoLoginResponse;
 
 export interface ITokenRefreshResponse {
   accessToken: string;

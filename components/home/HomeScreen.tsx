@@ -1,12 +1,11 @@
 import { Ionicons } from "@expo/vector-icons";
-import { Image } from "expo-image";
+import { Image, ImageBackground } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Animated,
   FlatList,
-  ImageBackground,
   NativeScrollEvent,
   NativeSyntheticEvent,
   Pressable,
@@ -37,6 +36,7 @@ import {
   useMyClubsQuery,
   useRecommendedClubsQuery,
 } from "@/hooks/api/useClub";
+import { useAuthStore } from "@/stores/authStore";
 import { useClubLocationStore } from "@/stores/clubLocationStore";
 import { uniqueBy } from "@/utils/array";
 
@@ -63,34 +63,46 @@ const USER_NICKNAME = "루씨";
 const RECOMMENDATION_COUNTDOWN_MS = 60 * 60 * 1000;
 const CLUB_CATEGORIES = [
   {
-    label: "운동, 스포츠",
+    label: "운동 / 스포츠",
     searchLabel: "운동 / 스포츠",
     value: "SPORTS",
-    image: require("../../assets/images/club-categories/sports.png"),
+    image: require("../../assets/images/club-categories/figma-sports.png"),
   },
   {
     label: "봉사활동",
     searchLabel: "봉사활동",
     value: "VOLUNTEER",
-    image: require("../../assets/images/club-categories/volunteer.png"),
+    image: require("../../assets/images/club-categories/figma-volunteer.png"),
   },
   {
-    label: "자기개발",
-    searchLabel: "자기개발",
+    label: "독서 / 공부",
+    searchLabel: "독서 / 공부",
     value: "STUDY",
-    image: require("../../assets/images/club-categories/self-development.png"),
+    image: require("../../assets/images/club-categories/figma-study.png"),
   },
   {
-    label: "취미생활",
-    searchLabel: "취미생활",
+    label: "취미 / 여가",
+    searchLabel: "취미 / 여가",
     value: "HOBBY",
-    image: require("../../assets/images/club-categories/hobby.png"),
+    image: require("../../assets/images/club-categories/figma-hobby.png"),
   },
   {
-    label: "사교",
-    searchLabel: "사교",
+    label: "음식 / 맛집",
+    searchLabel: "음식 / 맛집",
+    value: "FOOD",
+    image: require("../../assets/images/club-categories/figma-food.png"),
+  },
+  {
+    label: "문화/예술",
+    searchLabel: "문화/예술",
+    value: "CULTURE_ART",
+    image: require("../../assets/images/club-categories/figma-culture-art.png"),
+  },
+  {
+    label: "기타",
+    searchLabel: "기타",
     value: "OTHERS",
-    image: require("../../assets/images/club-categories/social.png"),
+    image: require("../../assets/images/club-categories/figma-others.png"),
   },
 ] as const;
 
@@ -125,6 +137,8 @@ export default function HomePage() {
     getCountdownText(countdownEndAt.current),
   );
   const [, setLikedCount] = useState(0);
+  const isAuthInitialized = useAuthStore((state) => state.isAuthInitialized);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const myProfileQuery = useMyProfileQuery();
   const visitorsQuery = useMyProfileVisitorsQuery({ limit: 12 });
   const recommendationsQuery = useRecommendationsInfiniteQuery();
@@ -153,6 +167,9 @@ export default function HomePage() {
       ? profiles[Math.min(profileIndex, profiles.length - 1)]
       : null;
   const nickname = myProfileQuery.data?.nickname ?? USER_NICKNAME;
+  const isWaitingForMyProfile =
+    !isAuthInitialized ||
+    (isAuthenticated && !myProfileQuery.data && !myProfileQuery.isError);
   const cardWidth = width - 40;
   const hasNotificationBadge = heartUnreadCount + chatUnreadCount > 0;
 
@@ -278,6 +295,17 @@ export default function HomePage() {
       },
     } as never);
   };
+
+  if (isWaitingForMyProfile) {
+    return (
+      <SafeAreaView style={styles.safeArea} edges={["top"]}>
+        <View style={[styles.screen, styles.initialLoading]}>
+          <ActivityIndicator color={PINK} />
+          <Text style={styles.initialLoadingText}>내 정보를 불러오는 중이에요</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safeArea} edges={["top"]}>
@@ -426,6 +454,9 @@ export default function HomePage() {
                           }}
                           style={styles.viewerImage}
                           imageStyle={styles.viewerImageRadius}
+                          contentFit="cover"
+                          cachePolicy="memory-disk"
+                          transition={150}
                         />
                         <View style={styles.viewerMetaRow}>
                           <Text style={styles.viewerName} numberOfLines={1}>
@@ -689,7 +720,11 @@ function ClubHomeContent({
 
       <View style={styles.clubCategorySection}>
         <Text style={styles.clubSectionTitle}>추천 카테고리</Text>
-        <View style={styles.clubCategoryRow}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.clubCategoryRow}
+        >
           {CLUB_CATEGORIES.map((category) => (
             <ClubCategoryButton
               key={category.label}
@@ -706,7 +741,7 @@ function ClubHomeContent({
               }
             />
           ))}
-        </View>
+        </ScrollView>
       </View>
 
       <View style={styles.clubDivider} />
@@ -857,6 +892,9 @@ function ProfileCard({
           source={{ uri: profile.images[0] ?? DEFAULT_PROFILE_IMAGE_URI }}
           style={[styles.profileImage, { width: cardWidth }]}
           imageStyle={styles.profileImageRadius}
+          contentFit="cover"
+          cachePolicy="memory-disk"
+          transition={150}
         >
           <ProfileCardGradient />
         </ImageBackground>
@@ -919,6 +957,16 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingBottom: TAB_SCREEN_BOTTOM_PADDING,
+  },
+  initialLoading: {
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 12,
+  },
+  initialLoadingText: {
+    color: GRAY,
+    fontSize: 15,
+    fontWeight: "700",
   },
   header: {
     height: 56,
@@ -1347,9 +1395,10 @@ const styles = StyleSheet.create({
   },
   clubCategoryRow: {
     flexDirection: "row",
-    justifyContent: "space-between",
+    gap: 12,
   },
   clubCategoryItem: {
+    width: 64,
     alignItems: "center",
     gap: 4,
   },
@@ -1362,10 +1411,11 @@ const styles = StyleSheet.create({
     backgroundColor: "#F7F7F8",
   },
   clubCategoryIcon: {
-    width: 52,
-    height: 52,
+    width: 62,
+    height: 62,
   },
   clubCategoryLabel: {
+    width: 76,
     fontSize: 14,
     lineHeight: 20,
     fontWeight: "500",

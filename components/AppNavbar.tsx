@@ -7,7 +7,9 @@ type AppNavbarProps = {
 };
 
 export function AppNavbar({ activeTabId, onTabPress }: AppNavbarProps) {
-  const { hasHeartBadge, unreadChatCount } = useNavbarBadges();
+  const { hasHeartBadge, unreadChatCount } = useNavbarBadges({
+    suppressHeartBadge: activeTabId === "heart",
+  });
 
   return (
     <Navbar

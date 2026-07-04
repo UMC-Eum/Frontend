@@ -242,7 +242,7 @@ const NotificationTabButton = ({
         <Text style={[styles.tabText, isActive && styles.activeTabText]}>
           {label}
         </Text>
-        {hasDot ? <View style={styles.newDot} /> : null}
+        <View style={[styles.newDot, !hasDot && styles.newDotHidden]} />
       </View>
       {isActive ? <View style={styles.activeIndicator} /> : null}
     </Pressable>
@@ -314,6 +314,9 @@ const styles = StyleSheet.create({
     backgroundColor: "#FF4F7E",
     marginLeft: 3,
     marginTop: -14,
+  },
+  newDotHidden: {
+    opacity: 0,
   },
   activeIndicator: {
     position: "absolute",

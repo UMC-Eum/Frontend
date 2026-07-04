@@ -10,6 +10,7 @@ interface AuthState {
   isAuthenticated: boolean;
   isAuthInitialized: boolean;
   setAccessToken: (accessToken: string | null) => void;
+  setUser: (user: AuthState["user"]) => void;
   setAuth: (payload: IKakaoLoginResponse) => void;
   setAuthInitialized: (isAuthInitialized: boolean) => void;
   completeOnboarding: () => void;
@@ -28,6 +29,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       accessToken,
       isAuthenticated: !!accessToken,
     }),
+  setUser: (user) => set({ user }),
   setAuth: (payload) =>
     set({
       accessToken: payload.accessToken,

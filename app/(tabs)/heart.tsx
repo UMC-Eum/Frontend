@@ -1,10 +1,11 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
   ImageBackground,
+  InteractionManager,
   Pressable,
   RefreshControl,
   StyleSheet,
@@ -23,6 +24,7 @@ import {
 } from "@/hooks/api/useSocials";
 import { DEFAULT_PROFILE_IMAGE_URI } from "@/constants/defaultProfileImage";
 import { TAB_SCREEN_BOTTOM_PADDING } from "@/constants/layout";
+import { useHeartBadgeStore } from "@/stores/heartBadgeStore";
 import { getAgeFromBirthdate } from "@/utils/age";
 import type {
   IHeartreceivedResponse,
@@ -110,6 +112,27 @@ export default function HeartScreen() {
   const activeQuery = activeTab === "received" ? receivedQuery : sentQuery;
   const isInitialLoading = activeQuery.isLoading && profiles.length === 0;
   const receivedCount = receivedProfiles.length;
+
+  // 마음함이 포커스되면 현재까지 받은 마음을 읽음 처리해 navbar dot을 끈다.
+  const markHeartsSeen = useHeartBadgeStore((state) => state.markHeartsSeen);
+  const latestReceivedHeartId = useMemo(
+    () =>
+      receivedProfiles.reduce(
+        (max, profile) => Math.max(max, profile.receivedHeartId ?? 0),
+        0,
+      ),
+    [receivedProfiles],
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      const task = InteractionManager.runAfterInteractions(() => {
+        markHeartsSeen(latestReceivedHeartId);
+      });
+
+      return () => task.cancel();
+    }, [latestReceivedHeartId, markHeartsSeen]),
+  );
 
   const handleRefresh = useCallback(() => {
     setIsPullRefreshing(true);

@@ -7,10 +7,7 @@ import type { ClubJoinPolicy } from "@/types/api/club/clubDTO";
 
 import type { MeetingJoinType } from "@/components/meeting/MeetingCreateParts";
 import type { MeetingScheduleForm } from "@/components/meeting/meetingSchedule";
-import {
-  buildMeetingRecurrence,
-  getScheduleSummary,
-} from "@/components/meeting/meetingSchedule";
+import { buildMeetingRecurrence } from "@/components/meeting/meetingSchedule";
 import type { IMeetingCreateRequest } from "@/types/api/meetings/meetingsDTO";
 
 type RequiredMeetingField = "title" | "intro" | "schedule" | "location";
@@ -122,7 +119,6 @@ export function useMeetingCreateForm(clubId: number) {
       return;
     }
 
-    const scheduleSummary = getScheduleSummary(schedule);
     const trimmedCost = cost.trim();
     const joinPolicy: ClubJoinPolicy =
       joinType === "free" ? "AUTO" : "APPROVAL";
@@ -141,17 +137,16 @@ export function useMeetingCreateForm(clubId: number) {
       const createdMeeting =
         await createMeetingMutation.mutateAsync(meetingCreateBody);
 
-      router.push({
+      router.replace({
         pathname: "/meeting-create-complete",
         params: {
           clubId: String(createdMeeting.clubId),
           meetingId: String(createdMeeting.meetingId),
           title: createdMeeting.name,
-          dateText: scheduleSummary.label,
-          nextDateLabel: scheduleSummary.nextDateLabel,
-          ddayText: scheduleSummary.ddayText,
+          dateText: createdMeeting.dateLabel ?? createdMeeting.date,
+          ddaySource: createdMeeting.nextOccurrenceAt ?? createdMeeting.date,
           location: createdMeeting.spot,
-          cost: createdMeeting.cost ?? trimmedCost,
+          cost: createdMeeting.cost ?? "",
         },
       } as never);
     } catch {

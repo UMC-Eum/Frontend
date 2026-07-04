@@ -64,11 +64,18 @@ export default function MeetingManageScreen() {
 
   const pendingMembers = useMemo(
     () =>
-      pendingMembersQuery.data?.pages.flatMap((page) => page.members) ?? [],
+      (
+        pendingMembersQuery.data?.pages.flatMap((page) => page.members ?? []) ??
+        []
+      ).filter(isClubMemberItem),
     [pendingMembersQuery.data],
   );
   const activeMembers = useMemo(
-    () => activeMembersQuery.data?.pages.flatMap((page) => page.members) ?? [],
+    () =>
+      (
+        activeMembersQuery.data?.pages.flatMap((page) => page.members ?? []) ??
+        []
+      ).filter(isClubMemberItem),
     [activeMembersQuery.data],
   );
 
@@ -151,13 +158,15 @@ export default function MeetingManageScreen() {
               <ActivityIndicator color={MEETING_COLORS.pink} />
             </View>
           ) : meeting ? (
-            <MeetingSummaryCard
-              title={meeting.name}
-              dateText={dateText}
-              location={meeting.spot}
-              cost={meeting.cost ?? "없음"}
-              ddayText={ddayText}
-            />
+            <View style={styles.summaryWrap}>
+              <MeetingSummaryCard
+                title={meeting.name}
+                dateText={dateText}
+                location={meeting.spot}
+                cost={meeting.cost ?? "없음"}
+                ddayText={ddayText}
+              />
+            </View>
           ) : (
             <MeetingEmptyState label="정기모임 상세 정보를 불러오지 못했어요." />
           )}
@@ -176,7 +185,7 @@ export default function MeetingManageScreen() {
               <View style={styles.requestList}>
                 {pendingMembers.map((member) => (
                   <MeetingRequestCard
-                    key={member.clubUserId}
+                    key={member.clubUserId || member.userId}
                     member={member}
                     disabled={isMutating}
                     onApprove={approveMember}
@@ -218,7 +227,7 @@ export default function MeetingManageScreen() {
               <View style={styles.memberList}>
                 {activeMembers.map((member) => (
                   <MeetingMemberRow
-                    key={member.clubUserId}
+                    key={member.clubUserId || member.userId}
                     member={member}
                     disabled={isMutating}
                     onKick={(nextMember) =>
@@ -266,6 +275,14 @@ export default function MeetingManageScreen() {
   );
 }
 
+function isClubMemberItem(member: unknown): member is IClubMemberItem {
+  return (
+    !!member &&
+    typeof member === "object" &&
+    typeof (member as IClubMemberItem).userId === "number"
+  );
+}
+
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
@@ -278,6 +295,9 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingTop: 12,
     paddingBottom: 40,
+  },
+  summaryWrap: {
+    paddingHorizontal: 20,
   },
   loadingCard: {
     marginHorizontal: 20,
@@ -303,6 +323,7 @@ const styles = StyleSheet.create({
     backgroundColor: MEETING_COLORS.gray100,
   },
   memberSection: {
+    paddingHorizontal: 20,
     paddingTop: 12,
     gap: 12,
   },

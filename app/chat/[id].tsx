@@ -18,13 +18,13 @@ import {
   ActivityIndicator,
   FlatList,
   Image,
-  KeyboardAvoidingView,
   Platform,
   Pressable,
   StyleSheet,
   Text,
   View,
 } from "react-native";
+import { KeyboardAvoidingView } from "@/components/KeyboardCompat";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import {

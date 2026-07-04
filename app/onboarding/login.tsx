@@ -1,9 +1,12 @@
+import { FontAwesome } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import * as AppleAuthentication from "expo-apple-authentication";
 import * as Linking from "expo-linking";
 import * as WebBrowser from "expo-web-browser";
 import React, { useEffect, useState } from "react";
 import {
   Image,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -12,6 +15,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { getAgreementStatus } from "@/api/agreements/agreementsApi";
 import AgeRestrictionModal from "@/components/onboarding/AgeRestrictionModal";
 import TermsBottomSheet from "@/components/onboarding/TermsBottomSheet";
 import {
@@ -19,12 +23,15 @@ import {
   KAKAO_REDIRECT_URI,
   KAKAO_REST_API_KEY,
 } from "@/constants/auth";
+import { useAppleLoginMutation } from "@/hooks/api/useAuth";
+
+const isIphone = Platform.OS === "ios" && !Platform.isPad;
 
 /**
  * 로그인 화면
  * - 상단: 온보딩 일러스트 이미지
  * - 중앙: 타이틀 + 서브타이틀
- * - 하단: 카카오 로그인 이미지 버튼
+ * - 하단: 소셜 로그인 버튼
  * - 모달: 나이 제한 / 이용약관
  */
 export default function LoginScreen() {
@@ -32,11 +39,13 @@ export default function LoginScreen() {
   const params = useLocalSearchParams<{ showTerms?: string }>();
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
+  const appleLoginMutation = useAppleLoginMutation();
 
   const [showAgeModal, setShowAgeModal] = useState(false);
   const [showTermsSheet, setShowTermsSheet] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isOpeningBrowser, setIsOpeningBrowser] = useState(false);
+  const [isAppleAuthAvailable, setIsAppleAuthAvailable] = useState(false);
 
   useEffect(() => {
     if (params.showTerms === "1") {
@@ -44,14 +53,54 @@ export default function LoginScreen() {
     }
   }, [params.showTerms]);
 
+  useEffect(() => {
+    if (!isIphone) return;
+
+    let isMounted = true;
+
+    AppleAuthentication.isAvailableAsync()
+      .then((isAvailable) => {
+        if (isMounted) setIsAppleAuthAvailable(isAvailable);
+      })
+      .catch(() => {
+        if (isMounted) setIsAppleAuthAvailable(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   // Figma 기준 프레임(412x892)을 작은 화면에서도 자연스럽게 줄여 적용한다.
   const layoutScale = Math.min(width / 412, height / 892, 1);
   const illustrationWidth = 280 * layoutScale;
   const illustrationHeight = 326 * layoutScale;
+  const bottomMarginTop = (isAppleAuthAvailable ? 48 : 112) * layoutScale;
+
+  const finishLogin = async (auth: {
+    isNewUser: boolean;
+    onboardingRequired: boolean;
+  }) => {
+    const needsOnboarding = auth.onboardingRequired || auth.isNewUser;
+
+    if (needsOnboarding) {
+      const hasPassedAgreements = await getAgreementStatus();
+
+      if (hasPassedAgreements) {
+        router.replace("/onboarding/permissions" as any);
+        return;
+      }
+
+      setShowTermsSheet(true);
+      return;
+    }
+
+    router.replace("/(tabs)" as any);
+  };
 
   // 카카오 로그인 버튼 클릭 시
   const handleKakaoLogin = async () => {
-    if (isOpeningBrowser) return;
+    if (isLoginPending) return;
 
     setErrorMessage(null);
 
@@ -88,13 +137,51 @@ export default function LoginScreen() {
     }
   };
 
+  const handleAppleLogin = async () => {
+    if (isLoginPending) return;
+
+    setErrorMessage(null);
+
+    try {
+      const credential = await AppleAuthentication.signInAsync({
+        requestedScopes: [
+          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+          AppleAuthentication.AppleAuthenticationScope.EMAIL,
+        ],
+      });
+
+      if (!credential.identityToken) {
+        setErrorMessage("Apple 로그인 정보를 가져오지 못했어요.");
+        return;
+      }
+
+      const auth = await appleLoginMutation.mutateAsync({
+        identityToken: credential.identityToken,
+        authorizationCode: credential.authorizationCode,
+        email: credential.email,
+        fullName: credential.fullName,
+      });
+
+      await finishLogin(auth);
+    } catch (error) {
+      if ((error as { code?: string }).code === "ERR_REQUEST_CANCELED") {
+        return;
+      }
+
+      if (__DEV__) {
+        console.log("[Apple Login] failed:", error);
+      }
+      setErrorMessage("Apple 로그인에 실패했어요. 다시 시도해주세요.");
+    }
+  };
+
   // 이용약관 확인 후 → 앱 접근 권한 안내로 이동
   const handleTermsConfirm = () => {
     setShowTermsSheet(false);
     router.replace("/onboarding/permissions" as any);
   };
 
-  const isLoginPending = isOpeningBrowser;
+  const isLoginPending = isOpeningBrowser || appleLoginMutation.isPending;
 
   return (
     <View style={[styles.container, { paddingBottom: insets.bottom + 24 }]}>
@@ -121,24 +208,57 @@ export default function LoginScreen() {
         </Text>
       </View>
 
-      {/* 하단: 카카오 로그인 버튼 */}
-      <View style={[styles.bottomArea, { marginTop: 112 * layoutScale }]}>
+      {/* 하단: 소셜 로그인 버튼 */}
+      <View style={[styles.bottomArea, { marginTop: bottomMarginTop }]}>
         <Pressable
           style={({ pressed }) => [
-            styles.kakaoButton,
-            isLoginPending && styles.kakaoButtonDisabled,
-            pressed && !isLoginPending && styles.kakaoButtonPressed,
+            styles.socialButton,
+            styles.kakaoLoginButton,
+            isLoginPending && styles.socialButtonDisabled,
+            pressed && !isLoginPending && styles.socialButtonPressed,
           ]}
           onPress={handleKakaoLogin}
           disabled={isLoginPending}
+          accessibilityRole="button"
+          accessibilityLabel="카카오 로그인"
         >
-          {/* Figma에서 추출한 카카오 로그인 버튼 이미지 */}
-          <Image
-            source={require("@/assets/images/kakao-login-button.png")}
-            style={styles.kakaoButtonImage}
-            resizeMode="contain"
-          />
+          <View style={styles.socialButtonContent}>
+            <View style={styles.socialButtonIconBox}>
+              <Image
+                source={require("@/assets/images/kakao-login-symbol.png")}
+                style={styles.kakaoSymbol}
+                resizeMode="contain"
+              />
+            </View>
+            <Text style={[styles.socialButtonText, styles.kakaoButtonText]}>
+              카카오 로그인
+            </Text>
+          </View>
         </Pressable>
+        {isAppleAuthAvailable ? (
+          <Pressable
+            style={({ pressed }) => [
+              styles.socialButton,
+              styles.appleButton,
+              styles.appleLoginButton,
+              isLoginPending && styles.socialButtonDisabled,
+              pressed && !isLoginPending && styles.socialButtonPressed,
+            ]}
+            onPress={handleAppleLogin}
+            disabled={isLoginPending}
+            accessibilityRole="button"
+            accessibilityLabel="Apple로 로그인"
+          >
+            <View style={styles.socialButtonContent}>
+              <View style={styles.socialButtonIconBox}>
+                <FontAwesome name="apple" size={30} color="#FFFFFF" />
+              </View>
+              <Text style={[styles.socialButtonText, styles.appleButtonText]}>
+                Apple로 로그인
+              </Text>
+            </View>
+          </Pressable>
+        ) : null}
         {errorMessage ? (
           <Text style={styles.errorText}>{errorMessage}</Text>
         ) : null}
@@ -197,22 +317,60 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     alignItems: "center",
   },
-  kakaoButton: {
+  socialButton: {
     width: "100%",
     maxWidth: 367,
     height: 55,
     justifyContent: "center",
     alignItems: "center",
+    borderRadius: 16,
+    overflow: "hidden",
+    position: "relative",
   },
-  kakaoButtonPressed: {
+  socialButtonPressed: {
     opacity: 0.85,
   },
-  kakaoButtonDisabled: {
+  socialButtonDisabled: {
     opacity: 0.6,
   },
-  kakaoButtonImage: {
+  kakaoLoginButton: {
+    backgroundColor: "#FEE500",
+  },
+  appleButton: {
+    marginTop: 12,
+  },
+  appleLoginButton: {
+    backgroundColor: "#000000",
+  },
+  socialButtonContent: {
     width: "100%",
-    height: 55,
+    height: "100%",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  socialButtonIconBox: {
+    position: "absolute",
+    left: 7,
+    width: 44,
+    height: "100%",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  socialButtonText: {
+    fontSize: 18,
+    fontWeight: "700",
+    textAlign: "center",
+    includeFontPadding: false,
+  },
+  kakaoSymbol: {
+    width: 40,
+    height: 40,
+  },
+  kakaoButtonText: {
+    color: "rgba(0, 0, 0, 0.85)",
+  },
+  appleButtonText: {
+    color: "#FFFFFF",
   },
   errorText: {
     marginTop: 12,

@@ -1,12 +1,12 @@
+import { KeyboardAvoidingView } from "@/components/KeyboardCompat";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
-  KeyboardAvoidingView,
   LayoutChangeEvent,
   Pressable,
   ScrollView,
@@ -16,16 +16,21 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import Cta from "@/components/Cta";
+import { postPresign } from "@/api/onboarding/onboardingApi";
 import { Chip } from "@/components/Chip";
-import { KEYBOARD_AVOIDING_BEHAVIOR } from "@/constants/keyboard";
+import Cta from "@/components/Cta";
 import TextBox from "@/components/TextBox";
 import { CLUB_CREATE_CATEGORIES } from "@/constants/club";
-import { postPresign, uploadFileToS3 } from "@/api/onboarding/onboardingApi";
+import { KEYBOARD_AVOIDING_BEHAVIOR } from "@/constants/keyboard";
 import { useCreateClubMutation } from "@/hooks/api/useClub";
 import { useFastInputScroll } from "@/hooks/useFastInputScroll";
-import { useClubLocationStore } from "@/stores/clubLocationStore";
+import { useClubCreateAreaStore, useClubLocationStore } from "@/stores/clubLocationStore";
 import type { ApiFailResponse } from "@/types/api/api";
+import {
+  contentTypeToImageExtension,
+  resolveImageContentType,
+  uploadImageUriToS3,
+} from "@/utils/s3ImageUpload";
 
 const categories = CLUB_CREATE_CATEGORIES;
 
@@ -45,6 +50,7 @@ export default function ClubCreateScreen() {
     intro: 0,
   });
   const createClubMutation = useCreateClubMutation();
+  const clearArea = useClubCreateAreaStore((state) => state.clear);
   const [name, setName] = useState("");
   const [intro, setIntro] = useState("");
   const [category, setCategory] = useState(categories[0]);
@@ -56,6 +62,11 @@ export default function ClubCreateScreen() {
   const areaCode = useClubLocationStore((state) => state.areaCode);
   const areaName = useClubLocationStore((state) => state.areaName);
 
+  // 이전 생성 시도에서 고른 지역이 남지 않도록 화면 진입 시 초기화한다.
+  useEffect(() => {
+    clearArea();
+  }, [clearArea]);
+
   const canSubmit = useMemo(
     () =>
       name.trim().length > 0 &&
@@ -66,8 +77,7 @@ export default function ClubCreateScreen() {
   );
 
   const handleInputLayout =
-    (field: InputField) =>
-    (event: LayoutChangeEvent) => {
+    (field: InputField) => (event: LayoutChangeEvent) => {
       inputOffsets.current[field] = event.nativeEvent.layout.y;
     };
 
@@ -81,7 +91,10 @@ export default function ClubCreateScreen() {
         await ImagePicker.requestMediaLibraryPermissionsAsync();
 
       if (permissionResult.status !== "granted") {
-        Alert.alert("권한 필요", "커버 사진을 선택하려면 앨범 접근 권한이 필요합니다.");
+        Alert.alert(
+          "권한 필요",
+          "커버 사진을 선택하려면 앨범 접근 권한이 필요합니다.",
+        );
         return;
       }
 
@@ -108,10 +121,13 @@ export default function ClubCreateScreen() {
 
   const handleSubmit = async () => {
     if (!canSubmit || createClubMutation.isPending || isUploadingCover) return;
+    if (!areaCode) return;
 
     try {
       setUploadingCover(true);
-      const imageUrls = await Promise.all(coverImages.map(uploadClubCoverImage));
+      const imageUrls = await Promise.all(
+        coverImages.map(uploadClubCoverImage),
+      );
       const thumbnailUrl = imageUrls[0] ?? null;
       const createdClub = await createClubMutation.mutateAsync({
         name: name.trim(),
@@ -125,6 +141,7 @@ export default function ClubCreateScreen() {
         imageUrls,
       });
 
+      clearArea();
       router.push({
         pathname: "/club/create-complete",
         params: {
@@ -137,10 +154,13 @@ export default function ClubCreateScreen() {
         },
       } as never);
     } catch (error) {
+      console.error("[ClubCreate] 생성 실패", error);
       Alert.alert(
         "동호회 생성 실패",
         getApiErrorMessage(error) ??
-          "동호회를 생성하지 못했어요. 잠시 후 다시 시도해주세요.",
+          (error instanceof Error && error.message
+            ? error.message
+            : "동호회를 생성하지 못했어요. 잠시 후 다시 시도해주세요."),
       );
     } finally {
       setUploadingCover(false);
@@ -176,10 +196,7 @@ export default function ClubCreateScreen() {
           onScroll={inputScroll.onScroll}
         >
           {/* 커버 사진 업로드 진입 영역입니다. */}
-          <Pressable
-            style={styles.coverBox}
-            onPress={handlePickCoverImages}
-          >
+          <Pressable style={styles.coverBox} onPress={handlePickCoverImages}>
             {coverImages[0] ? (
               <>
                 <Image
@@ -225,7 +242,9 @@ export default function ClubCreateScreen() {
             <TextBox
               value={intro}
               onChangeText={setIntro}
-              placeholder={"동호회를 소개해주세요.\n(활동 내용, 분위기, 참여 방법 등)"}
+              placeholder={
+                "동호회를 소개해주세요.\n(활동 내용, 분위기, 참여 방법 등)"
+              }
               maxLength={200}
               onFocus={() => scrollToInput("intro")}
             />
@@ -241,7 +260,9 @@ export default function ClubCreateScreen() {
                 <Chip
                   key={item.label}
                   label={item.label}
-                  variant={category.label === item.label ? "outlineActive" : "outline"}
+                  variant={
+                    category.label === item.label ? "outlineActive" : "outline"
+                  }
                   size="small"
                   onPress={() => setCategory(item)}
                   style={[
@@ -268,7 +289,9 @@ export default function ClubCreateScreen() {
                 } as never)
               }
             >
-              <Text style={[styles.selectText, areaName && styles.selectTextActive]}>
+              <Text
+                style={[styles.selectText, areaName && styles.selectTextActive]}
+              >
                 {areaName || "지역을 선택해주세요"}
               </Text>
               <Ionicons name="chevron-forward" size={22} color="#A6AFB6" />
@@ -291,7 +314,9 @@ export default function ClubCreateScreen() {
                 <View style={styles.stepperDivider} />
                 <RoundIconButton
                   icon="add"
-                  onPress={() => setMaxMembers((prev) => Math.min(99, prev + 1))}
+                  onPress={() =>
+                    setMaxMembers((prev) => Math.min(99, prev + 1))
+                  }
                 />
               </View>
             </View>
@@ -342,7 +367,9 @@ export default function ClubCreateScreen() {
                 ? "동호회 만들기"
                 : "다음"
           }
-          disabled={!canSubmit || createClubMutation.isPending || isUploadingCover}
+          disabled={
+            !canSubmit || createClubMutation.isPending || isUploadingCover
+          }
           onPress={handleSubmit}
           buttonStyle={styles.ctaButton}
           labelStyle={styles.ctaLabel}
@@ -362,38 +389,11 @@ async function uploadClubCoverImage(image: CoverImage) {
   const { uploadUrl, fileUrl } = await postPresign({
     fileName: `club-cover-${Date.now()}.${extension}`,
     contentType: image.contentType,
-    purpose: "PROFILE_IMAGE",
+    purpose: "CLUB",
   });
-  const fileResponse = await fetch(image.uri);
-  const blob = await fileResponse.blob();
-  const uploadBlob = blob.type
-    ? blob
-    : new Blob([blob], { type: image.contentType });
-
-  await uploadFileToS3(uploadUrl, uploadBlob, image.contentType);
+  await uploadImageUriToS3(uploadUrl, image.uri, image.contentType);
 
   return fileUrl;
-}
-
-function resolveImageContentType(uri: string) {
-  const lowerUri = uri.toLowerCase();
-
-  if (lowerUri.startsWith("data:image/png") || lowerUri.endsWith(".png")) {
-    return "image/png";
-  }
-
-  if (lowerUri.startsWith("data:image/webp") || lowerUri.endsWith(".webp")) {
-    return "image/webp";
-  }
-
-  return "image/jpeg";
-}
-
-function contentTypeToImageExtension(contentType: string) {
-  if (contentType === "image/png") return "png";
-  if (contentType === "image/webp") return "webp";
-
-  return "jpg";
 }
 
 function FormSection({
@@ -471,7 +471,9 @@ function OptionCard({
       style={[styles.optionCard, selected && styles.optionCardSelected]}
       onPress={onPress}
     >
-      <Text style={[styles.optionTitle, selected && styles.optionTitleSelected]}>
+      <Text
+        style={[styles.optionTitle, selected && styles.optionTitleSelected]}
+      >
         {title}
       </Text>
       <Text style={styles.optionDescription}>{description}</Text>
