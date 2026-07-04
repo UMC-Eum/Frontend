@@ -22,12 +22,12 @@ import {
   useSentHeartsInfiniteQuery,
 } from "@/hooks/api/useSocials";
 import { TAB_SCREEN_BOTTOM_PADDING } from "@/constants/layout";
+import { getAgeFromBirthdate } from "@/utils/age";
 import type {
   IHeartreceivedResponse,
   IHeartsentResponse,
   IProfileSummary,
 } from "@/types/api/socials/socialsDTO";
-import { getAgeFromBirthdate } from "@/utils/age";
 import { uniqueBy } from "@/utils/array";
 
 const PINK = "#FF3E70";
@@ -342,6 +342,7 @@ function applyOptimisticHeartState<T extends ScreenHeartProfile>(
   });
 }
 
+// 받은 마음 응답엔 좋아요 여부가 없어, 보낸 마음 목록과 대조해 맞하트를 판단
 function mapReceivedHeartProfiles(
   data: { pages: IHeartreceivedResponse[] } | undefined,
   sentHeartIdsByTargetUserId: Map<number, number>,
@@ -393,7 +394,7 @@ function mapSentHeartProfiles(
   );
 }
 
-function getProfileAge(profile: IProfileSummary) {
+function getProfileAge(profile: IProfileSummary): number | null {
   if (
     typeof profile.age === "number" &&
     Number.isFinite(profile.age) &&

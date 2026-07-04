@@ -1,7 +1,7 @@
 import api from "../axiosInstance";
 import { ApiSuccessResponse } from "../../types/api/api";
 
-import { IUserProfile } from "../../types/user";
+import { IUserProfile, IUserPublicProfile } from "../../types/user";
 import {
   IKeywordsRequest,
   ILikedClubsParams,
@@ -20,10 +20,10 @@ export const getMyProfile = async () => {
   return data.success.data;
 };
 
-//v1/users/{userId}
+//v1/users/{userId}/profile
 export const getUserProfile = async (userId: number) => {
-  const { data } = await api.get<ApiSuccessResponse<IUserProfile>>(
-    `/v1/users/${userId}`,
+  const { data } = await api.get<ApiSuccessResponse<IUserPublicProfile>>(
+    `/v1/users/${userId}/profile`,
   );
 
   return data.success.data;
