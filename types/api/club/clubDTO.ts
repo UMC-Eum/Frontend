@@ -1,17 +1,21 @@
 export type ClubCategory =
-  | "HOBBY"
   | "SPORTS"
-  | "STUDY"
+  | "LANGUAGE"
+  | "VOLUNTEER"
+  | "OUTDOOR"
   | "CULTURE"
-  | "SOCIAL"
-  | "ETC"
+  | "OTHERS"
   | (string & {});
 
-export type ClubAuthority = "HOST" | "MANAGER" | "GENERAL";
-export type ClubMemberStatus = "ACTIVE" | "PENDING" | "REJECTED";
+export type ClubAuthority = "HOST" | "GENERAL";
+export type ClubMemberStatus =
+  | "ACTIVE"
+  | "PENDING"
+  | "REJECTED"
+  | "KICKED"
+  | "LEFT";
 export type ClubJoinPolicy = "AUTO" | "APPROVAL";
 export type ClubListSort = "POPULAR" | "RECENT" | "LIKES";
-export type MyClubRole = "ALL" | "HOST" | "MEMBER";
 
 export interface IClubUserSummary {
   userId: number;
@@ -45,20 +49,13 @@ export interface IClubListItem {
   category: ClubCategory;
   introText: string;
   thumbnailUrl: string | null;
-  capacity?: number;
+  likes: number;
   memberCount: number;
-  likeCount: number;
-  isLiked: boolean;
-  isJoined: boolean;
-  host: IClubUserSummary;
-  keywords: string[];
-  createdAt?: string;
 }
 
 export interface IClubsGetResponse {
-  clubs: IClubListItem[];
+  items: IClubListItem[];
   nextCursor: string | null;
-  hasMore: boolean;
 }
 
 export interface IClubCreateRequest {
@@ -116,7 +113,7 @@ export interface IClubTopHostsResponse {
 }
 
 export interface IClubJoinRequest {
-  message?: string;
+  message: string;
 }
 
 export interface IClubMemberRelationResponse {
@@ -125,8 +122,9 @@ export interface IClubMemberRelationResponse {
   userId: number;
   authority: ClubAuthority;
   status: ClubMemberStatus;
-  joinedAt?: string;
-  permittedAt?: string;
+  message: string;
+  requestedAt: string;
+  joinedAt: string | null;
 }
 
 export interface IClubLeaveResponse {
@@ -136,28 +134,19 @@ export interface IClubLeaveResponse {
   clubDeleted?: boolean;
 }
 
-export interface IMyClubsParams {
-  role?: MyClubRole;
-  cursor?: string | null;
-  limit?: number;
-}
-
 export interface IMyClubItem {
   clubId: number;
   name: string;
   category: ClubCategory;
-  introText: string;
+  introText: string | null;
   thumbnailUrl: string | null;
-  capacity: number;
   memberCount: number;
-  likes: number;
-  myAuthority: ClubAuthority;
+  authority: ClubAuthority;
   joinedAt: string;
 }
 
 export interface IMyClubsResponse {
-  clubs: IMyClubItem[];
-  nextCursor: string | null;
+  items: IMyClubItem[];
 }
 
 export interface IClubLikeResponse {
@@ -187,12 +176,26 @@ export interface IClubArchivesResponse {
   nextCursor: string | null;
 }
 
-export interface IRecommendedClubItem extends IClubListItem {
-  introVoiceUrl?: string | null;
-  matchScore: number;
-  matchedKeywords: string[];
+export interface IRecommendedClubItem {
+  clubId: string;
+  name: string;
+  category: ClubCategory;
+  addressCode: string;
+  addressName: string;
+  sidoCode: string;
+  sigunguCode: string;
+  introText: string | null;
+  thumbnailUrl: string | null;
+  capacity: number;
+  likes: number;
+  similarityScore: number;
 }
 
 export interface IRecommendedClubsResponse {
-  clubs: IRecommendedClubItem[];
+  items: IRecommendedClubItem[];
+  page: {
+    size: number;
+    hasNext: boolean;
+    nextCursor?: string | null;
+  };
 }

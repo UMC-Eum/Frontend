@@ -1,9 +1,11 @@
 import { Ionicons } from "@expo/vector-icons";
+import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Animated,
+  FlatList,
   ImageBackground,
   NativeScrollEvent,
   NativeSyntheticEvent,
@@ -15,6 +17,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
 
 import {
   useRecommendationsInfiniteQuery,
@@ -27,6 +30,8 @@ import {
   useMyProfileVisitorsQuery,
 } from "@/hooks/api/useUsers";
 import { TAB_SCREEN_BOTTOM_PADDING } from "@/constants/layout";
+import { CLUBS, RECOMMENDED_CLUBS } from "@/constants/search";
+import ClubRow from "@/components/search/ClubRow";
 
 const PINK = "#FF1B4D";
 const BLACK = "#202020";
@@ -50,19 +55,73 @@ type Profile = {
 const USER_NICKNAME = "루씨";
 const FALLBACK_PROFILE_IMAGE =
   "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=85&w=1200&auto=format&fit=crop";
+const RECOMMENDATION_COUNTDOWN_MS = 60 * 60 * 1000;
+const MY_CLUBS = [
+  {
+    id: "my-club-1",
+    title: "우리집 강아지 산책 동호회",
+    image:
+      "https://images.unsplash.com/photo-1517849845537-4d257902454a?w=400&q=80&auto=format&fit=crop",
+    status: "가입 대기",
+  },
+  {
+    id: "my-club-2",
+    title: "압백 등반 동호회",
+    image:
+      "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?w=400&q=80&auto=format&fit=crop",
+  },
+  {
+    id: "my-club-3",
+    title: "새벽 등산 동호회",
+    image:
+      "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=400&q=80&auto=format&fit=crop",
+  },
+  {
+    id: "my-club-4",
+    title: "한강 러닝 크루",
+    image:
+      "https://images.unsplash.com/photo-1476480862126-209bfaa8edc8?w=400&q=80&auto=format&fit=crop",
+  },
+  {
+    id: "my-club-5",
+    title: "동작구 요가 모임",
+    image:
+      "https://images.unsplash.com/photo-1506126613408-eca07ce68773?w=400&q=80&auto=format&fit=crop",
+  },
+  {
+    id: "my-club-6",
+    title: "주말 독서 모임",
+    image:
+      "https://images.unsplash.com/photo-1513475382585-d06e58bcb0e0?w=400&q=80&auto=format&fit=crop",
+  },
+] as const;
+const CLUB_CATEGORIES = [
+  {
+    label: "운동, 스포츠",
+    image: require("../../assets/images/club-categories/sports.png"),
+  },
+  {
+    label: "봉사활동",
+    image: require("../../assets/images/club-categories/volunteer.png"),
+  },
+  {
+    label: "자기개발",
+    image: require("../../assets/images/club-categories/self-development.png"),
+  },
+  {
+    label: "취미생활",
+    image: require("../../assets/images/club-categories/hobby.png"),
+  },
+  {
+    label: "사교",
+    image: require("../../assets/images/club-categories/social.png"),
+  },
+] as const;
 
-const getCountdownText = () => {
-  const now = new Date();
-  const nextNoon = new Date(now);
-  nextNoon.setHours(12, 0, 0, 0);
-
-  if (now.getTime() >= nextNoon.getTime()) {
-    nextNoon.setDate(nextNoon.getDate() + 1);
-  }
-
+const getCountdownText = (endAt: number) => {
   const remainingSeconds = Math.max(
     0,
-    Math.floor((nextNoon.getTime() - now.getTime()) / 1000),
+    Math.ceil((endAt - Date.now()) / 1000),
   );
   const hours = String(Math.floor(remainingSeconds / 3600)).padStart(2, "0");
   const minutes = String(Math.floor((remainingSeconds % 3600) / 60)).padStart(
@@ -79,15 +138,18 @@ export default function HomePage() {
   const { width } = useWindowDimensions();
   const fabAnimation = useRef(new Animated.Value(1)).current;
   const lastScrollY = useRef(0);
-  const profileImageScrollRef = useRef<ScrollView>(null);
+  const profileListRef = useRef<FlatList<Profile>>(null);
+  const countdownEndAt = useRef(Date.now() + RECOMMENDATION_COUNTDOWN_MS);
   const [activeHomeTab, setActiveHomeTab] = useState<HomeTab>("home");
   const [profileIndex, setProfileIndex] = useState(0);
-  const [imageIndex, setImageIndex] = useState(0);
-  const [countdown, setCountdown] = useState(getCountdownText);
+  const [countdown, setCountdown] = useState(() =>
+    getCountdownText(countdownEndAt.current),
+  );
   const [, setLikedCount] = useState(0);
   const myProfileQuery = useMyProfileQuery();
   const visitorsQuery = useMyProfileVisitorsQuery({ limit: 12 });
   const recommendationsQuery = useRecommendationsInfiniteQuery();
+  const refetchRecommendations = recommendationsQuery.refetch;
   const heartNotificationsQuery = useNotificationsInfiniteQuery("heart");
   const chatNotificationsQuery = useNotificationsInfiniteQuery("chat");
   const sendHeartMutation = useSendRecommendationHeartMutation();
@@ -115,17 +177,25 @@ export default function HomePage() {
   const cardWidth = width - 40;
   const hasNotificationBadge = heartUnreadCount + chatUnreadCount > 0;
 
-  // 실시간 추천 마감 카운트다운을 1초마다 갱신합니다.
+  // 추천 마감 카운트다운이 끝나면 추천 목록을 새로 받아옵니다.
   useEffect(() => {
-    const timer = setInterval(() => setCountdown(getCountdownText()), 1000);
-    return () => clearInterval(timer);
-  }, []);
+    const tick = () => {
+      const now = Date.now();
 
-  // 프로필이 바뀌면 사진 슬라이더를 첫 장으로 초기화합니다.
-  useEffect(() => {
-    setImageIndex(0);
-    profileImageScrollRef.current?.scrollTo({ x: 0, animated: false });
-  }, [profileIndex]);
+      if (now >= countdownEndAt.current) {
+        countdownEndAt.current = now + RECOMMENDATION_COUNTDOWN_MS;
+        setProfileIndex(0);
+        profileListRef.current?.scrollToOffset({ offset: 0, animated: false });
+        void refetchRecommendations();
+      }
+
+      setCountdown(getCountdownText(countdownEndAt.current));
+    };
+
+    tick();
+    const timer = setInterval(tick, 1000);
+    return () => clearInterval(timer);
+  }, [refetchRecommendations]);
 
   // 추천 목록 길이가 변해도 현재 인덱스가 유효한 카드만 가리키도록 보정합니다.
   useEffect(() => {
@@ -152,43 +222,48 @@ export default function HomePage() {
     lastScrollY.current = Math.max(0, currentY);
   };
 
-  // 사진 슬라이더의 현재 페이지를 점 인디케이터와 동기화합니다.
-  const handleImageScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    if (!profile) return;
+  const fetchMoreRecommendationsIfNeeded = (nextIndex: number) => {
+    if (
+      nextIndex >= profiles.length - 2 &&
+      recommendationsQuery.hasNextPage &&
+      !recommendationsQuery.isFetchingNextPage
+    ) {
+      recommendationsQuery.fetchNextPage();
+    }
+  };
+
+  // 추천 카드를 좌우 스와이프할 때 현재 프로필 인덱스를 맞춥니다.
+  const handleProfileListScroll = (
+    event: NativeSyntheticEvent<NativeScrollEvent>,
+  ) => {
+    if (profiles.length === 0) return;
 
     const nextIndex = Math.min(
-      profile.images.length - 1,
-      Math.max(0, Math.round(event.nativeEvent.contentOffset.x / cardWidth)),
+      profiles.length - 1,
+      Math.max(0, Math.round(event.nativeEvent.contentOffset.x / width)),
     );
-    setImageIndex(nextIndex);
+    setProfileIndex(nextIndex);
+    fetchMoreRecommendationsIfNeeded(nextIndex);
   };
 
   // 별로예요를 누르면 다음 추천 프로필로 넘깁니다.
   const handleDislike = () => {
     if (profiles.length === 0) return;
 
-    setProfileIndex((prev) => {
-      const nextIndex = (prev + 1) % profiles.length;
-
-      if (
-        nextIndex >= profiles.length - 2 &&
-        recommendationsQuery.hasNextPage &&
-        !recommendationsQuery.isFetchingNextPage
-      ) {
-        recommendationsQuery.fetchNextPage();
-      }
-
-      return nextIndex;
+    const nextIndex = (profileIndex + 1) % profiles.length;
+    setProfileIndex(nextIndex);
+    fetchMoreRecommendationsIfNeeded(nextIndex);
+    profileListRef.current?.scrollToOffset({
+      offset: width * nextIndex,
+      animated: true,
     });
   };
 
   // 마음이들어요를 누르면 내부 카운트를 올리고 마음 탭으로 이동합니다.
-  const handleLike = () => {
-    if (!profile) return;
-
+  const handleLike = (selectedProfile: Profile) => {
     setLikedCount((prev) => prev + 1);
-    if (profile.targetUserId && !profile.isLiked) {
-      sendHeartMutation.mutate(profile.targetUserId);
+    if (selectedProfile.targetUserId && !selectedProfile.isLiked) {
+      sendHeartMutation.mutate(selectedProfile.targetUserId);
     }
     router.replace("/(tabs)/heart" as never);
   };
@@ -233,14 +308,25 @@ export default function HomePage() {
           {/* 홈 상단 헤더: 닉네임과 알림 진입 버튼을 노출합니다. */}
           <View style={styles.header}>
             <Text style={styles.headerTitle}>환영합니다 {nickname}님!</Text>
-            <Pressable
-              style={styles.headerIconButton}
-              onPress={() => router.push("/notifications" as never)}
-              hitSlop={10}
-            >
-              <Ionicons name="notifications-outline" size={23} color={BLACK} />
-              {hasNotificationBadge ? <View style={styles.headerBadgeDot} /> : null}
-            </Pressable>
+            <View style={styles.headerActions}>
+              {activeHomeTab === "club" ? (
+                <Pressable
+                  style={styles.headerIconButton}
+                  onPress={() => router.push("/search" as never)}
+                  hitSlop={10}
+                >
+                  <Ionicons name="search" size={25} color={BLACK} />
+                </Pressable>
+              ) : null}
+              <Pressable
+                style={styles.headerIconButton}
+                onPress={() => router.push("/notifications" as never)}
+                hitSlop={10}
+              >
+                <Ionicons name="notifications-outline" size={23} color={BLACK} />
+                {hasNotificationBadge ? <View style={styles.headerBadgeDot} /> : null}
+              </Pressable>
+            </View>
           </View>
 
           {/* 홈/동호회 전환 탭입니다. */}
@@ -253,144 +339,189 @@ export default function HomePage() {
             <HomeTabButton
               label="동호회"
               isActive={activeHomeTab === "club"}
-              onPress={() => {
-                setActiveHomeTab("club");
-                router.push("/club/home" as never);
-              }}
+              onPress={() => setActiveHomeTab("club")}
             />
           </View>
 
-          {/* 오늘 추천 영역: 제목과 실시간 카운트다운을 한 줄에 배치합니다. */}
-          <View style={styles.recommendHeader}>
-            <View style={styles.sectionTitleRow}>
-              <Ionicons name="sparkles" size={16} color={PINK} />
-              <Text style={styles.sectionTitle}>오늘의 이상형 추천</Text>
-            </View>
-            <View style={styles.countdownRow}>
-              <Text style={styles.countdown}>{countdown}</Text>
-              <Ionicons name="help-circle-outline" size={14} color={GRAY} />
-            </View>
-          </View>
-
-          {recommendationsQuery.isLoading && profiles.length === 0 ? (
-            <View style={styles.recommendEmptyCard}>
-              <Ionicons name="sparkles-outline" size={34} color="#CBD5E1" />
-              <Text style={styles.recommendEmptyTitle}>
-                추천 인연을 불러오는 중이에요
-              </Text>
-            </View>
-          ) : profile ? (
+          {activeHomeTab === "home" ? (
             <>
-              {recommendationsQuery.isError ? (
-                <View style={styles.recommendWarning}>
-                  <Text style={styles.recommendWarningText}>
-                    최신 추천을 불러오지 못해 이전 추천을 표시하고 있어요.
+              {/* 오늘 추천 영역: 제목과 실시간 카운트다운을 한 줄에 배치합니다. */}
+              <View style={styles.recommendHeader}>
+                <View style={styles.sectionTitleRow}>
+                  <Ionicons name="sparkles" size={24} color={PINK} />
+                  <Text style={styles.sectionTitle}>오늘의 이상형 추천</Text>
+                </View>
+                <View style={styles.countdownRow}>
+                  <Text style={styles.countdown}>{countdown}</Text>
+                  <Ionicons name="help-circle-outline" size={14} color={GRAY} />
+                </View>
+              </View>
+
+              {recommendationsQuery.isLoading && profiles.length === 0 ? (
+                <View style={styles.recommendEmptyCard}>
+                  <Ionicons name="sparkles-outline" size={34} color="#CBD5E1" />
+                  <Text style={styles.recommendEmptyTitle}>
+                    추천 인연을 불러오는 중이에요
                   </Text>
                 </View>
-              ) : null}
-              <ProfileCard
-                profile={profile}
-                cardWidth={cardWidth}
-                imageIndex={imageIndex}
-                scrollRef={profileImageScrollRef}
-                onImageScroll={handleImageScroll}
-                onPress={() =>
-                  handleOpenProfileDetail(profile.targetUserId, profile)
-                }
-                onDislike={handleDislike}
-                onLike={handleLike}
-              />
+              ) : profile ? (
+                <>
+                  {recommendationsQuery.isError ? (
+                    <View style={styles.recommendWarning}>
+                      <Text style={styles.recommendWarningText}>
+                        최신 추천을 불러오지 못해 이전 추천을 표시하고 있어요.
+                      </Text>
+                    </View>
+                  ) : null}
+                  <FlatList
+                    ref={profileListRef}
+                    data={profiles}
+                    keyExtractor={(item) => item.id}
+                    horizontal
+                    pagingEnabled
+                    showsHorizontalScrollIndicator={false}
+                    onMomentumScrollEnd={handleProfileListScroll}
+                    getItemLayout={(_, index) => ({
+                      length: width,
+                      offset: width * index,
+                      index,
+                    })}
+                    renderItem={({ item }) => (
+                      <ProfileCard
+                        profile={item}
+                        screenWidth={width}
+                        cardWidth={cardWidth}
+                        onPress={() =>
+                          handleOpenProfileDetail(item.targetUserId, item)
+                        }
+                        onDislike={handleDislike}
+                        onLike={() => handleLike(item)}
+                      />
+                    )}
+                  />
+                </>
+              ) : (
+                <View style={styles.recommendEmptyCard}>
+                  <Ionicons name="heart-outline" size={34} color="#CBD5E1" />
+                  <Text style={styles.recommendEmptyTitle}>
+                    오늘 추천할 인연이 없어요
+                  </Text>
+                  <Text style={styles.recommendEmptyDescription}>
+                    {recommendationsQuery.isError
+                      ? "추천 목록을 불러오지 못했습니다. 잠시 후 다시 시도해주세요."
+                      : "새로운 추천이 준비되면 이곳에서 확인할 수 있어요."}
+                  </Text>
+                </View>
+              )}
+
+              {/* 내 프로필 조회자 목록입니다. */}
+              <View style={styles.viewerSection}>
+                <Text style={styles.viewerTitle}>내 프로필을 본 인연들</Text>
+                {visitorsQuery.isLoading ? (
+                  <View style={styles.viewerEmptyBox}>
+                    <ActivityIndicator color={PINK} />
+                    <Text style={styles.viewerEmptyText}>
+                      방문한 인연을 불러오는 중이에요
+                    </Text>
+                  </View>
+                ) : visitors.length > 0 ? (
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.viewerList}
+                  >
+                    {visitors.map((visitor) => (
+                      <Pressable
+                        key={`${visitor.userId}-${visitor.visitedAt}`}
+                        style={styles.viewerItem}
+                        onPress={() => handleOpenProfileDetail(visitor.userId)}
+                      >
+                        <ImageBackground
+                          source={{
+                            uri: visitor.profileImageUrl || FALLBACK_PROFILE_IMAGE,
+                          }}
+                          style={styles.viewerImage}
+                          imageStyle={styles.viewerImageRadius}
+                        />
+                        <View style={styles.viewerMetaRow}>
+                          <Text style={styles.viewerName} numberOfLines={1}>
+                            {visitor.nickname}
+                          </Text>
+                          <Text style={styles.viewerDot}>·</Text>
+                          <Text style={styles.viewerAge}>{visitor.age}</Text>
+                        </View>
+                      </Pressable>
+                    ))}
+                  </ScrollView>
+                ) : (
+                  <View style={styles.viewerEmptyBox}>
+                    <Ionicons name="eye-outline" size={28} color="#CBD5E1" />
+                    <Text style={styles.viewerEmptyText}>
+                      {visitorsQuery.isError
+                        ? "방문자 목록을 불러오지 못했어요"
+                        : "아직 내 프로필을 본 인연이 없어요"}
+                    </Text>
+                  </View>
+                )}
+              </View>
             </>
           ) : (
-            <View style={styles.recommendEmptyCard}>
-              <Ionicons name="heart-outline" size={34} color="#CBD5E1" />
-              <Text style={styles.recommendEmptyTitle}>
-                오늘 추천할 인연이 없어요
-              </Text>
-              <Text style={styles.recommendEmptyDescription}>
-                {recommendationsQuery.isError
-                  ? "추천 목록을 불러오지 못했습니다. 잠시 후 다시 시도해주세요."
-                  : "새로운 추천이 준비되면 이곳에서 확인할 수 있어요."}
-              </Text>
-            </View>
+            <ClubHomeContent
+              onOpenClub={(clubId) =>
+                router.push({
+                  pathname: "/club/detail",
+                  params: { clubId: parseClubId(clubId) },
+                } as never)
+              }
+            />
           )}
-
-          {/* 내 프로필 조회자 목록입니다. */}
-          <View style={styles.viewerSection}>
-            <Text style={styles.viewerTitle}>내 프로필을 본 인연들</Text>
-            {visitorsQuery.isLoading ? (
-              <View style={styles.viewerEmptyBox}>
-                <ActivityIndicator color={PINK} />
-                <Text style={styles.viewerEmptyText}>
-                  방문한 인연을 불러오는 중이에요
-                </Text>
-              </View>
-            ) : visitors.length > 0 ? (
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.viewerList}
-              >
-                {visitors.map((visitor) => (
-                  <Pressable
-                    key={`${visitor.userId}-${visitor.visitedAt}`}
-                    style={styles.viewerItem}
-                    onPress={() => handleOpenProfileDetail(visitor.userId)}
-                  >
-                    <ImageBackground
-                      source={{
-                        uri: visitor.profileImageUrl || FALLBACK_PROFILE_IMAGE,
-                      }}
-                      style={styles.viewerImage}
-                      imageStyle={styles.viewerImageRadius}
-                    />
-                    <Text style={styles.viewerName} numberOfLines={1}>
-                      {visitor.nickname}
-                    </Text>
-                  </Pressable>
-                ))}
-              </ScrollView>
-            ) : (
-              <View style={styles.viewerEmptyBox}>
-                <Ionicons name="eye-outline" size={28} color="#CBD5E1" />
-                <Text style={styles.viewerEmptyText}>
-                  {visitorsQuery.isError
-                    ? "방문자 목록을 불러오지 못했어요"
-                    : "아직 내 프로필을 본 인연이 없어요"}
-                </Text>
-              </View>
-            )}
-          </View>
         </ScrollView>
 
         {/* 음성 입력 FAB: 스크롤 방향에 따라 opacity/translateY가 바뀝니다. */}
-        <Animated.View
-          style={[
-            styles.fabWrap,
-            {
-              opacity: fabAnimation,
-              transform: [
-                {
-                  translateY: fabAnimation.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [28, 0],
-                  }),
-                },
-              ],
-            },
-          ]}
-        >
-          <Pressable
-            style={styles.fab}
-            onPress={() => router.push("/ideal-recording" as never)}
+        {activeHomeTab === "home" ? (
+          <Animated.View
+            style={[
+              styles.fabWrap,
+              {
+                opacity: fabAnimation,
+                transform: [
+                  {
+                    translateY: fabAnimation.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [28, 0],
+                    }),
+                  },
+                ],
+              },
+            ]}
           >
-            <Ionicons name="mic-outline" size={36} color="#FFFFFF" />
+            <Pressable
+              style={styles.fab}
+              onPress={() => router.push("/ideal-recording" as never)}
+            >
+              <Ionicons name="mic-outline" size={36} color="#FFFFFF" />
+            </Pressable>
+          </Animated.View>
+        ) : null}
+
+        {activeHomeTab === "club" ? (
+          <Pressable
+            style={styles.clubCreateFab}
+            onPress={() => router.push("/club/create" as never)}
+            hitSlop={10}
+          >
+            <Ionicons name="add" size={38} color="#FFFFFF" />
           </Pressable>
-        </Animated.View>
+        ) : null}
       </View>
 
     </SafeAreaView>
   );
+}
+
+function parseClubId(value: string) {
+  const match = value.match(/\d+/);
+  return match?.[0] ?? value;
 }
 
 function countUnreadNotifications(data?: {
@@ -464,17 +595,195 @@ function HomeTabButton({ label, isActive, onPress }: HomeTabButtonProps) {
       <Text style={[styles.homeTabText, isActive && styles.homeTabTextActive]}>
         {label}
       </Text>
-      {isActive ? <View style={styles.homeTabUnderline} /> : null}
+      {isActive ? (
+        <View
+          style={[
+            styles.homeTabUnderline,
+            label === "동호회" && styles.homeTabUnderlineWide,
+          ]}
+        />
+      ) : null}
     </Pressable>
+  );
+}
+
+function ClubHomeContent({
+  onOpenClub,
+}: {
+  onOpenClub: (clubId: string) => void;
+}) {
+  const [showAllMyClubs, setShowAllMyClubs] = useState(false);
+  const localClubs = CLUBS.slice(0, 3);
+  const todayClubs = RECOMMENDED_CLUBS.slice(0, 3);
+
+  return (
+    <View style={styles.clubHomeContent}>
+      <View style={styles.clubSectionHeader}>
+        <Text style={styles.clubSectionTitle}>내 동호회</Text>
+        <Pressable onPress={() => setShowAllMyClubs((current) => !current)}>
+          <Text style={styles.clubSectionLink}>
+            {showAllMyClubs ? "접기" : "전체보기"}
+          </Text>
+        </Pressable>
+      </View>
+
+      {showAllMyClubs ? (
+        <View style={styles.myClubGrid}>
+          {MY_CLUBS.map((club) => (
+            <MyClubCard
+              key={club.id}
+              title={club.title}
+              image={club.image}
+              status={club.status}
+            />
+          ))}
+        </View>
+      ) : (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.myClubList}
+        >
+          {MY_CLUBS.map((club) => (
+            <MyClubCard
+              key={club.id}
+              title={club.title}
+              image={club.image}
+              status={club.status}
+            />
+          ))}
+        </ScrollView>
+      )}
+
+      <View style={styles.clubDivider} />
+
+      <View style={styles.clubCategorySection}>
+        <Text style={styles.clubSectionTitle}>추천 카테고리</Text>
+        <View style={styles.clubCategoryRow}>
+          {CLUB_CATEGORIES.map((category) => (
+            <ClubCategoryButton
+              key={category.label}
+              label={category.label}
+              image={category.image}
+            />
+          ))}
+        </View>
+      </View>
+
+      <View style={styles.clubDivider} />
+
+      <ClubSection
+        title="루씨 님을 위한 동호회"
+        accent="루씨"
+        icon="sparkles"
+        clubs={localClubs}
+        showMore
+        onClubPress={onOpenClub}
+      />
+
+      <ClubSection
+        title="오늘의 추천 동호회"
+        icon="sparkles"
+        clubs={todayClubs}
+        onClubPress={onOpenClub}
+      />
+    </View>
+  );
+}
+
+function MyClubCard({
+  title,
+  image,
+  status,
+}: {
+  title: string;
+  image: string;
+  status?: string;
+}) {
+  return (
+    <Pressable style={styles.myClubCard}>
+      <View style={styles.myClubImageWrap}>
+        <Image source={{ uri: image }} style={styles.myClubImage} contentFit="cover" />
+        {status ? (
+          <View style={styles.myClubStatusOverlay}>
+            <Text style={styles.myClubStatus}>{status}</Text>
+          </View>
+        ) : null}
+      </View>
+      <Text style={styles.myClubTitle} numberOfLines={2}>
+        {title}
+      </Text>
+    </Pressable>
+  );
+}
+
+function ClubCategoryButton({
+  label,
+  image,
+}: {
+  label: string;
+  image: (typeof CLUB_CATEGORIES)[number]["image"];
+}) {
+  return (
+    <View style={styles.clubCategoryItem}>
+      <View style={styles.clubCategoryIconBox}>
+        <Image source={image} style={styles.clubCategoryIcon} contentFit="contain" />
+      </View>
+      <Text style={styles.clubCategoryLabel} numberOfLines={1}>
+        {label}
+      </Text>
+    </View>
+  );
+}
+
+function ClubSection({
+  title,
+  accent,
+  icon,
+  clubs,
+  showMore = false,
+  onClubPress,
+}: {
+  title: string;
+  accent?: string;
+  icon?: "sparkles";
+  clubs: typeof CLUBS;
+  showMore?: boolean;
+  onClubPress: (clubId: string) => void;
+}) {
+  return (
+    <View style={styles.clubListSection}>
+      <View style={styles.clubListTitleRow}>
+        {icon ? <Ionicons name={icon} size={15} color={PINK} /> : null}
+        <Text style={styles.clubSectionTitle}>
+          {accent ? <Text style={styles.clubAccentText}>{accent}</Text> : null}
+          {accent ? title.replace(accent, "") : title}
+        </Text>
+      </View>
+
+      <View style={styles.clubList}>
+        {clubs.map((club) => (
+          <ClubRow
+            key={club.id}
+            club={club}
+            onPress={() => onClubPress(club.id)}
+          />
+        ))}
+      </View>
+
+      {showMore ? (
+        <Pressable style={styles.clubMoreButton}>
+          <Text style={styles.clubMoreButtonText}>더보기</Text>
+        </Pressable>
+      ) : null}
+    </View>
   );
 }
 
 type ProfileCardProps = {
   profile: Profile;
+  screenWidth: number;
   cardWidth: number;
-  imageIndex: number;
-  scrollRef: React.RefObject<ScrollView | null>;
-  onImageScroll: (event: NativeSyntheticEvent<NativeScrollEvent>) => void;
   onPress: () => void;
   onDislike: () => void;
   onLike: () => void;
@@ -482,50 +791,23 @@ type ProfileCardProps = {
 
 function ProfileCard({
   profile,
+  screenWidth,
   cardWidth,
-  imageIndex,
-  scrollRef,
-  onImageScroll,
   onPress,
   onDislike,
   onLike,
 }: ProfileCardProps) {
   return (
-    <View style={styles.profileCard}>
-      {/* 프로필 카드는 사진 스와이프와 상세 진입을 함께 제공합니다. */}
+    <View style={[styles.profileCard, { width: screenWidth }]}>
+      {/* 추천 프로필 카드는 좌우 스와이프로 목록을 넘길 수 있습니다. */}
       <View style={styles.profilePressable}>
-        <ScrollView
-          ref={scrollRef}
-          horizontal
-          pagingEnabled
-          directionalLockEnabled
-          bounces={false}
-          showsHorizontalScrollIndicator={false}
-          onScroll={onImageScroll}
-          onMomentumScrollEnd={onImageScroll}
-          scrollEventThrottle={16}
-          nestedScrollEnabled
+        <ImageBackground
+          source={{ uri: profile.images[0] ?? FALLBACK_PROFILE_IMAGE }}
+          style={[styles.profileImage, { width: cardWidth }]}
+          imageStyle={styles.profileImageRadius}
         >
-          {profile.images.map((image) => (
-            <ImageBackground
-              key={image}
-              source={{ uri: image }}
-              style={[styles.profileImage, { width: cardWidth }]}
-              imageStyle={styles.profileImageRadius}
-            >
-              <View style={styles.imageScrim} />
-            </ImageBackground>
-          ))}
-        </ScrollView>
-
-        <View style={styles.imageDots}>
-          {profile.images.map((image, index) => (
-            <View
-              key={`${image}-dot`}
-              style={[styles.imageDot, index === imageIndex && styles.imageDotActive]}
-            />
-          ))}
-        </View>
+          <ProfileCardGradient />
+        </ImageBackground>
 
         <Pressable style={styles.profileInfo} onPress={onPress}>
           <View style={styles.nameRow}>
@@ -545,13 +827,29 @@ function ProfileCard({
       {/* 추천 프로필에 대한 즉시 액션 버튼입니다. */}
       <View style={styles.actionRow}>
         <Pressable style={[styles.actionButton, styles.dislikeButton]} onPress={onDislike}>
-          <Text style={styles.dislikeText}>별로예요</Text>
+          <Text style={styles.dislikeText}>별로에요</Text>
         </Pressable>
         <Pressable style={[styles.actionButton, styles.likeButton]} onPress={onLike}>
-          <Text style={styles.likeText}>마음이들어요</Text>
+          <Text style={styles.likeText}>마음에들어요</Text>
         </Pressable>
       </View>
     </View>
+  );
+}
+
+function ProfileCardGradient() {
+  return (
+    <Svg pointerEvents="none" style={styles.imageScrim}>
+      <Defs>
+        <LinearGradient id="homeProfileGradient" x1="0" y1="0" x2="0" y2="1">
+          <Stop offset="0" stopColor="#000000" stopOpacity="0" />
+          <Stop offset="0.62" stopColor="#000000" stopOpacity="0" />
+          <Stop offset="0.79" stopColor="#000000" stopOpacity="0.9" />
+          <Stop offset="1" stopColor="#000000" stopOpacity="0.9" />
+        </LinearGradient>
+      </Defs>
+      <Rect width="100%" height="100%" fill="url(#homeProfileGradient)" />
+    </Svg>
   );
 }
 
@@ -589,6 +887,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  headerActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
   headerBadgeDot: {
     position: "absolute",
     top: 10,
@@ -614,11 +917,13 @@ const styles = StyleSheet.create({
     marginRight: 16,
   },
   homeTabText: {
-    fontSize: 16,
-    fontWeight: "700",
+    fontSize: 18,
+    lineHeight: 23,
+    fontWeight: "600",
     color: "#737780",
   },
   homeTabTextActive: {
+    fontWeight: "700",
     color: PINK,
   },
   homeTabUnderline: {
@@ -629,10 +934,13 @@ const styles = StyleSheet.create({
     borderRadius: 2,
     backgroundColor: PINK,
   },
+  homeTabUnderlineWide: {
+    width: 58,
+  },
   recommendHeader: {
-    paddingTop: 24,
+    paddingTop: 28,
     paddingHorizontal: 20,
-    paddingBottom: 12,
+    paddingBottom: 16,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
@@ -642,10 +950,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   sectionTitle: {
-    marginLeft: 8,
-    fontSize: 16,
-    lineHeight: 22,
-    fontWeight: "700",
+    marginLeft: 4,
+    fontSize: 20,
+    lineHeight: 25,
+    fontWeight: "600",
     color: BLACK,
   },
   countdownRow: {
@@ -654,8 +962,9 @@ const styles = StyleSheet.create({
   },
   countdown: {
     marginRight: 4,
-    fontSize: 12,
-    lineHeight: 18,
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: "500",
     color: GRAY,
   },
   recommendationState: {
@@ -680,7 +989,7 @@ const styles = StyleSheet.create({
   },
   profilePressable: {
     height: 492,
-    borderRadius: 12,
+    borderRadius: 14,
     overflow: "hidden",
     backgroundColor: LIGHT_GRAY,
   },
@@ -729,29 +1038,10 @@ const styles = StyleSheet.create({
     justifyContent: "flex-end",
   },
   profileImageRadius: {
-    borderRadius: 12,
+    borderRadius: 14,
   },
   imageScrim: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,0,0,0.22)",
-  },
-  imageDots: {
-    position: "absolute",
-    top: 17,
-    left: 0,
-    right: 0,
-    flexDirection: "row",
-    justifyContent: "center",
-  },
-  imageDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginHorizontal: 3,
-    backgroundColor: "#E0E0E0",
-  },
-  imageDotActive: {
-    backgroundColor: PINK,
   },
   profileInfo: {
     position: "absolute",
@@ -765,9 +1055,9 @@ const styles = StyleSheet.create({
   },
   profileName: {
     marginRight: 6,
-    fontSize: 23,
+    fontSize: 24,
     lineHeight: 30,
-    fontWeight: "800",
+    fontWeight: "600",
     color: "#FFFFFF",
   },
   locationRow: {
@@ -777,15 +1067,16 @@ const styles = StyleSheet.create({
   },
   locationText: {
     marginLeft: 4,
-    fontSize: 14,
-    lineHeight: 20,
-    fontWeight: "600",
+    fontSize: 16,
+    lineHeight: 24,
+    fontWeight: "500",
     color: "#FFFFFF",
   },
   introText: {
     marginTop: 4,
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: 16,
+    lineHeight: 24,
+    fontWeight: "500",
     color: "#FFFFFF",
   },
   actionRow: {
@@ -799,7 +1090,7 @@ const styles = StyleSheet.create({
   actionButton: {
     flex: 1,
     height: 48,
-    borderRadius: 12,
+    borderRadius: 14,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -810,13 +1101,15 @@ const styles = StyleSheet.create({
     backgroundColor: PINK,
   },
   dislikeText: {
-    fontSize: 15,
-    fontWeight: "700",
+    fontSize: 18,
+    lineHeight: 23,
+    fontWeight: "600",
     color: "#6F7780",
   },
   likeText: {
-    fontSize: 15,
-    fontWeight: "700",
+    fontSize: 18,
+    lineHeight: 23,
+    fontWeight: "600",
     color: "#FFFFFF",
   },
   viewerSection: {
@@ -825,9 +1118,9 @@ const styles = StyleSheet.create({
   viewerTitle: {
     paddingHorizontal: 20,
     marginBottom: 16,
-    fontSize: 18,
-    lineHeight: 24,
-    fontWeight: "800",
+    fontSize: 20,
+    lineHeight: 25,
+    fontWeight: "600",
     color: BLACK,
   },
   viewerEmptyBox: {
@@ -852,25 +1145,43 @@ const styles = StyleSheet.create({
     paddingBottom: 4,
   },
   viewerItem: {
-    width: 76,
+    width: 84,
     marginRight: 12,
   },
   viewerImage: {
-    width: 76,
-    height: 76,
+    width: 84,
+    height: 84,
     overflow: "hidden",
     backgroundColor: LIGHT_GRAY,
   },
   viewerImageRadius: {
-    borderRadius: 38,
+    borderRadius: 14,
+  },
+  viewerMetaRow: {
+    marginTop: 4,
+    flexDirection: "row",
+    alignItems: "center",
   },
   viewerName: {
-    marginTop: 8,
-    fontSize: 13,
-    lineHeight: 18,
-    fontWeight: "700",
+    maxWidth: 49,
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: "600",
     color: BLACK,
+  },
+  viewerDot: {
+    width: 16,
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: "500",
+    color: "#636970",
     textAlign: "center",
+  },
+  viewerAge: {
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: "500",
+    color: "#636970",
   },
   fabWrap: {
     position: "absolute",
@@ -887,6 +1198,161 @@ const styles = StyleSheet.create({
     shadowColor: PINK,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.28,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  clubHomeContent: {
+    paddingTop: 28,
+  },
+  clubSectionHeader: {
+    paddingHorizontal: 20,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  clubSectionTitle: {
+    fontSize: 20,
+    lineHeight: 25,
+    fontWeight: "600",
+    color: BLACK,
+  },
+  clubSectionLink: {
+    fontSize: 16,
+    lineHeight: 24,
+    fontWeight: "500",
+    color: "#A6AFB6",
+  },
+  myClubList: {
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    gap: 20,
+  },
+  myClubGrid: {
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+    rowGap: 18,
+  },
+  myClubCard: {
+    width: 108,
+  },
+  myClubImageWrap: {
+    width: 108,
+    height: 108,
+    borderRadius: 14,
+    overflow: "hidden",
+    backgroundColor: "#FFFFFF",
+  },
+  myClubImage: {
+    width: "100%",
+    height: "100%",
+  },
+  myClubStatusOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(2, 2, 2, 0.6)",
+  },
+  myClubStatus: {
+    fontSize: 16,
+    lineHeight: 24,
+    fontWeight: "500",
+    color: "#FFFFFF",
+    textAlign: "center",
+  },
+  myClubTitle: {
+    marginTop: 4,
+    fontSize: 16,
+    lineHeight: 24,
+    fontWeight: "500",
+    color: BLACK,
+    textAlign: "center",
+  },
+  clubDivider: {
+    height: 8,
+    marginTop: 16,
+    marginBottom: 16,
+    backgroundColor: "#F8FAFB",
+  },
+  clubCategorySection: {
+    paddingHorizontal: 20,
+    gap: 16,
+  },
+  clubCategoryRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  clubCategoryItem: {
+    alignItems: "center",
+    gap: 4,
+  },
+  clubCategoryIconBox: {
+    width: 64,
+    height: 64,
+    borderRadius: 24,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#F7F7F8",
+  },
+  clubCategoryIcon: {
+    width: 52,
+    height: 52,
+  },
+  clubCategoryLabel: {
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: "500",
+    color: BLACK,
+    textAlign: "center",
+  },
+  clubListSection: {
+    marginBottom: 32,
+  },
+  clubListTitleRow: {
+    paddingHorizontal: 20,
+    marginBottom: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  clubAccentText: {
+    color: PINK,
+  },
+  clubList: {
+    gap: 4,
+  },
+  clubMoreButton: {
+    height: 42,
+    marginHorizontal: 20,
+    marginTop: 12,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#E9EEF1",
+  },
+  clubMoreButtonText: {
+    fontSize: 16,
+    lineHeight: 24,
+    fontWeight: "600",
+    color: "#A6AFB6",
+  },
+  clubCreateFab: {
+    position: "absolute",
+    right: 20,
+    bottom: 20,
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    borderWidth: 1,
+    borderColor: "#FFA0B4",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: PINK,
+    shadowColor: PINK,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.22,
     shadowRadius: 12,
     elevation: 8,
   },

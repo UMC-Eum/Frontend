@@ -34,7 +34,7 @@ export const getTopHosts = async (params: DTO.IClubTopHostsParams = {}) => {
 
 export const joinClub = async (
   clubId: number,
-  body: DTO.IClubJoinRequest = {},
+  body: DTO.IClubJoinRequest,
 ) => {
   const { data } = await api.post<
     ApiSuccessResponse<DTO.IClubMemberRelationResponse>
@@ -49,10 +49,9 @@ export const leaveClub = async (clubId: number) => {
   return data.success.data;
 };
 
-export const getMyClubs = async (params: DTO.IMyClubsParams = {}) => {
+export const getMyClubs = async () => {
   const { data } = await api.get<ApiSuccessResponse<DTO.IMyClubsResponse>>(
     "/v1/users/me/clubs",
-    { params },
   );
   return data.success.data;
 };
@@ -82,9 +81,10 @@ export const unlikeClub = async (clubId: number) => {
   return data.success.data;
 };
 
+// ponytail: cursor/size 생략 — 홈은 3개만 노출, 전체 목록 화면 생기면 페이지네이션 추가
 export const getRecommendedClubs = async () => {
   const { data } = await api.get<
     ApiSuccessResponse<DTO.IRecommendedClubsResponse>
-  >("/v1/clubs/recommended");
+  >("/v1/matches/club/recommended");
   return data.success.data;
 };
