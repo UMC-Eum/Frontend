@@ -16,6 +16,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { useMyClubsQuery } from "@/hooks/api/useClub";
 import { useLogoutMutation } from "@/hooks/api/useAuth";
+import { useRecommendationsInfiniteQuery } from "@/hooks/api/useRecommendations";
 import { useReceivedHeartsInfiniteQuery } from "@/hooks/api/useSocials";
 import {
   useDeactivateUserMutation,
@@ -35,6 +36,7 @@ export default function MyTabScreen() {
   const [notificationEnabled, setNotificationEnabled] = useState(true);
   const myProfileQuery = useMyProfileQuery();
   const receivedHeartsQuery = useReceivedHeartsInfiniteQuery();
+  const recommendationsQuery = useRecommendationsInfiniteQuery();
   const myClubsQuery = useMyClubsQuery();
   const logoutMutation = useLogoutMutation();
   const deactivateUserMutation = useDeactivateUserMutation();
@@ -44,6 +46,13 @@ export default function MyTabScreen() {
       (total, page) => total + page.items.length,
       0,
     ) ?? (receivedHeartsQuery.isSuccess ? 0 : undefined);
+
+  // 현재 매칭 = 나에게 추천된 이상형 수
+  const matchCount =
+    recommendationsQuery.data?.pages.reduce(
+      (total, page) => total + page.items.length,
+      0,
+    ) ?? (recommendationsQuery.isSuccess ? 0 : undefined);
   // ponytail: 엔드포인트에 페이지네이션이 없어 slice로 기존 5개 노출 유지
   const myClubs = uniqueBy(
     myClubsQuery.data?.items ?? [],
@@ -92,28 +101,6 @@ export default function MyTabScreen() {
         contentContainerStyle={styles.content}
       >
         <Text style={styles.screenTitle}>마이페이지</Text>
-
-        {__DEV__ ? (
-          <TouchableOpacity
-            style={styles.devMeetingButton}
-            activeOpacity={0.75}
-            onPress={() =>
-              router.push({
-                pathname: "/meeting-create",
-                params: { clubId: "1" },
-              } as any)
-            }
-          >
-            <View style={styles.devMeetingIcon}>
-              <Ionicons name="calendar" size={20} color="#FFFFFF" />
-            </View>
-            <View style={styles.devMeetingTextBlock}>
-              <Text style={styles.devMeetingTitle}>정기모임 생성 테스트</Text>
-              <Text style={styles.devMeetingSubtitle}>clubId 1로 생성 API 호출</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color={ACCENT} />
-          </TouchableOpacity>
-        ) : null}
 
         <View style={[styles.card, styles.profileCard]}>
           <View style={styles.profileTop}>
@@ -189,7 +176,7 @@ export default function MyTabScreen() {
           <View style={styles.matchPanel}>
             <View style={styles.matchItem}>
               <Text style={styles.matchNumber}>
-                -
+                {matchCount ?? "-"}
               </Text>
               <Text style={styles.matchLabel}>현재 매칭</Text>
             </View>
@@ -222,17 +209,6 @@ export default function MyTabScreen() {
             </View>
             <Text style={styles.reRecordText}>녹음</Text>
             <Ionicons name="chevron-forward" size={20} color={ACCENT} />
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.settingRow} activeOpacity={0.7}>
-            <View style={styles.settingIcon}>
-              <Ionicons name="pencil" size={24} color={MUTED} />
-            </View>
-            <View style={styles.settingTextBlock}>
-              <Text style={styles.settingTitle}>조건 선택</Text>
-              <Text style={styles.settingSubtitle}>취미, 스타일 등 설정</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color={MUTED} />
           </TouchableOpacity>
         </View>
 
@@ -359,43 +335,6 @@ const styles = StyleSheet.create({
     fontSize: 25,
     fontWeight: "800",
     lineHeight: 32,
-  },
-  devMeetingButton: {
-    minHeight: 64,
-    marginBottom: 12,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "#FFC1D0",
-    backgroundColor: "#FFF1F4",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
-  devMeetingIcon: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: ACCENT,
-  },
-  devMeetingTextBlock: {
-    flex: 1,
-    gap: 2,
-  },
-  devMeetingTitle: {
-    color: TEXT,
-    fontSize: 16,
-    fontWeight: "800",
-    lineHeight: 22,
-  },
-  devMeetingSubtitle: {
-    color: SUB_TEXT,
-    fontSize: 13,
-    fontWeight: "500",
-    lineHeight: 18,
   },
   card: {
     marginBottom: 12,
