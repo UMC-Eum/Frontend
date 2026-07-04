@@ -19,6 +19,7 @@ import {
   useReadNotificationMutation,
 } from "@/hooks/api/useNotifications";
 import type { INotification } from "@/types/api/notifications/notificationsDTO";
+import { uniqueBy } from "@/utils/array";
 
 const PINK = "#FF4F7E";
 
@@ -138,7 +139,7 @@ export default function NotificationsScreen() {
       ) : (
         <FlatList
           data={notifications}
-          keyExtractor={(item) => item.id}
+          keyExtractor={(item, index) => `${item.id}-${index}`}
           renderItem={renderNotification}
           showsVerticalScrollIndicator={false}
           onEndReached={() => {
@@ -197,18 +198,21 @@ export default function NotificationsScreen() {
 
 function mapNotificationPages(data?: { pages: { items: INotification[] }[] }) {
   return (
-    data?.pages.flatMap((page) =>
-      page.items.map((item) => ({
-        id: String(item.notificationId),
-        apiId: item.notificationId,
-        isRead: item.isRead,
-        userId: String(item.sender?.id ?? item.notificationId),
-        userName: item.sender?.nickname ?? "EUM",
-        userProfileImage: item.sender?.profileImageUrl ?? undefined,
-        notificationContent: item.body || item.title,
-        timestamp: new Date(item.createdAt),
-      })),
-    ) ?? []
+    uniqueBy(
+      data?.pages.flatMap((page) =>
+        page.items.map((item) => ({
+          id: String(item.notificationId),
+          apiId: item.notificationId,
+          isRead: item.isRead,
+          userId: String(item.sender?.id ?? item.notificationId),
+          userName: item.sender?.nickname ?? "EUM",
+          userProfileImage: item.sender?.profileImageUrl ?? undefined,
+          notificationContent: item.body || item.title,
+          timestamp: new Date(item.createdAt),
+        })),
+      ) ?? [],
+      (item) => item.id,
+    )
   );
 }
 

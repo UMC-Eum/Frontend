@@ -32,6 +32,7 @@ import {
 import { TAB_SCREEN_BOTTOM_PADDING } from "@/constants/layout";
 import { CLUBS, RECOMMENDED_CLUBS } from "@/constants/search";
 import ClubRow from "@/components/search/ClubRow";
+import { uniqueBy } from "@/utils/array";
 
 const PINK = "#FF1B4D";
 const BLACK = "#202020";
@@ -383,7 +384,7 @@ export default function HomePage() {
                   <FlatList
                     ref={profileListRef}
                     data={profiles}
-                    keyExtractor={(item) => item.id}
+                    keyExtractor={(item, index) => `${item.id}-${index}`}
                     horizontal
                     pagingEnabled
                     showsHorizontalScrollIndicator={false}
@@ -569,19 +570,22 @@ function mapRecommendationProfiles(data?: {
   }[];
 }): Profile[] {
   return (
-    data?.pages.flatMap((page) =>
-      page.items.map((item) => ({
-        id: `recommendation-${item.userId}`,
-        targetUserId: item.userId,
-        name: item.nickname,
-        age: item.age,
-        location: item.areaName,
-        intro: item.introText,
-        isLiked: item.isLiked,
-        likedHeartId: item.likedHeartId,
-        images: item.profileImageUrl ? [item.profileImageUrl] : [FALLBACK_PROFILE_IMAGE],
-      })),
-    ) ?? []
+    uniqueBy(
+      data?.pages.flatMap((page) =>
+        page.items.map((item) => ({
+          id: `recommendation-${item.userId}`,
+          targetUserId: item.userId,
+          name: item.nickname,
+          age: item.age,
+          location: item.areaName,
+          intro: item.introText,
+          isLiked: item.isLiked,
+          likedHeartId: item.likedHeartId,
+          images: item.profileImageUrl ? [item.profileImageUrl] : [FALLBACK_PROFILE_IMAGE],
+        })),
+      ) ?? [],
+      (item) => item.id,
+    )
   );
 }
 

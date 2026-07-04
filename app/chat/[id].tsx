@@ -40,6 +40,10 @@ import ChatMessage, { ChatMessageData } from "@/components/chat/ChatMessage";
 import ConfirmModal from "@/components/chat/ConfirmModal";
 import MicRecorder from "@/components/MicRecorder";
 import {
+  KEYBOARD_AVOIDING_BEHAVIOR,
+  KEYBOARD_VERTICAL_OFFSET,
+} from "@/constants/keyboard";
+import {
   connectChatSocket,
   disconnectChatSocket,
   getChatSocketDebugConfig,
@@ -62,6 +66,7 @@ import {
   usePatchBlockMutation,
 } from "@/hooks/api/useSocials";
 import { useAuthStore } from "@/stores/authStore";
+import { uniqueBy } from "@/utils/array";
 import type {
   MessageDeletedData,
   MessageNewData,
@@ -899,8 +904,8 @@ export default function ChatRoom() {
 
       <KeyboardAvoidingView
         style={styles.container}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-        keyboardVerticalOffset={0}
+        behavior={KEYBOARD_AVOIDING_BEHAVIOR}
+        keyboardVerticalOffset={KEYBOARD_VERTICAL_OFFSET}
       >
         <View style={styles.messageListFrame}>
           <FlatList
@@ -1101,8 +1106,10 @@ function mapChatMessages(
   peerAvatar?: string,
 ): ChatMessageData[] {
   return (
-    data?.pages
-      .flatMap((page) => page.items)
+    uniqueBy(
+      data?.pages.flatMap((page) => page.items) ?? [],
+      (item) => item.messageId,
+    )
       .sort(
         (left, right) =>
           new Date(left.sentAt).getTime() - new Date(right.sentAt).getTime(),
@@ -1137,7 +1144,7 @@ function mapChatMessages(
                 ? item.text ?? "[동영상]"
                 : item.text ?? "",
         };
-      }) ?? []
+      })
   );
 }
 

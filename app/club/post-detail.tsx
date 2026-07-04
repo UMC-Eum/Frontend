@@ -13,7 +13,6 @@ import {
   ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -32,6 +31,7 @@ import {
   ClubReactionSummary,
   CLUB_COLORS,
 } from "@/components/club/ClubPostParts";
+import { KEYBOARD_AVOIDING_BEHAVIOR } from "@/constants/keyboard";
 import {
   createClubPostComment,
   deleteClubPost,
@@ -40,6 +40,7 @@ import {
 } from "@/api/clubs/clubPostsApi";
 import { queryKeys } from "@/hooks/api/queryKeys";
 import { ClubPostCategory } from "@/types/api/clubs/clubPostsDTO";
+import { uniqueBy } from "@/utils/array";
 
 const CATEGORY_LABELS: Record<ClubPostCategory, string> = {
   NOTICE: "공지",
@@ -102,7 +103,10 @@ export default function ClubPostDetailScreen() {
   });
 
   const post = postQuery.data;
-  const comments = commentsQuery.data?.pages.flatMap((page) => page.items) ?? [];
+  const comments = uniqueBy(
+    commentsQuery.data?.pages.flatMap((page) => page.items) ?? [],
+    (item) => item.commentId,
+  );
   const actionSheetMode: ClubActionSheetMode =
     post?.isMine === true
       ? "owner"
@@ -150,7 +154,7 @@ export default function ClubPostDetailScreen() {
       <StatusBar style="dark" />
       <KeyboardAvoidingView
         style={styles.keyboardView}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        behavior={KEYBOARD_AVOIDING_BEHAVIOR}
       >
         <ClubHeader
           onBack={() => router.back()}

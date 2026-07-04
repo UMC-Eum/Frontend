@@ -9,6 +9,7 @@ import {
   Alert,
   ImageBackground,
   Keyboard,
+  KeyboardAvoidingView,
   Modal,
   Pressable,
   ScrollView,
@@ -26,6 +27,7 @@ import Svg, { ClipPath, Defs, G, Path, Rect } from "react-native-svg";
 import { Chip } from "@/components/Chip";
 import Cta from "@/components/Cta";
 import { HeaderBackOnly } from "@/components/header";
+import { KEYBOARD_AVOIDING_BEHAVIOR } from "@/constants/keyboard";
 import { useCreateChatRoomMutation } from "@/hooks/api/useChats";
 import {
   useBlockUserMutation,
@@ -954,7 +956,10 @@ function ReportModal({
             />
           </View>
         ) : (
-          <View style={styles.reportScreen}>
+          <KeyboardAvoidingView
+            style={styles.reportScreen}
+            behavior={KEYBOARD_AVOIDING_BEHAVIOR}
+          >
             <HeaderBackOnly
               onPressBack={onClose}
               containerStyle={styles.reportHeader}
@@ -1038,7 +1043,7 @@ function ReportModal({
               buttonStyle={styles.reportCtaButton}
               labelStyle={styles.reportCtaLabel}
             />
-          </View>
+          </KeyboardAvoidingView>
         )}
       </SafeAreaView>
     </Modal>

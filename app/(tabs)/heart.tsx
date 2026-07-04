@@ -22,6 +22,7 @@ import {
   useSentHeartsInfiniteQuery,
 } from "@/hooks/api/useSocials";
 import { TAB_SCREEN_BOTTOM_PADDING } from "@/constants/layout";
+import { uniqueBy } from "@/utils/array";
 
 const PINK = "#FF3E70";
 const BLACK = "#202020";
@@ -230,7 +231,7 @@ export default function HeartScreen() {
 
       <FlatList
         data={isInitialLoading ? [] : profiles}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item, index) => `${item.id}-${index}`}
         numColumns={2}
         renderItem={({ item }) => (
           <HeartProfileCard
@@ -356,24 +357,27 @@ function mapReceivedHeartProfiles(
   sentHeartIdsByTargetUserId: Map<number, number>,
 ): ScreenHeartProfile[] {
   return (
-    data?.pages.flatMap((page) =>
-      page.items.map((item) => {
-        const likedHeartId =
-          item.likedHeartId ?? sentHeartIdsByTargetUserId.get(item.fromUserId);
+    uniqueBy(
+      data?.pages.flatMap((page) =>
+        page.items.map((item) => {
+          const likedHeartId =
+            item.likedHeartId ?? sentHeartIdsByTargetUserId.get(item.fromUserId);
 
-        return {
-          id: `received-${item.heartId}`,
-          receivedHeartId: item.heartId,
-          likedHeartId,
-          targetUserId: item.fromUserId,
-          name: item.fromUser.nickname,
-          age: item.fromUser.age,
-          location: getProfileLocation(item.fromUser),
-          image: item.fromUser.profileImageUrl,
-          isLiked: item.isLiked ?? likedHeartId != null,
-        };
-      }),
-    ) ?? []
+          return {
+            id: `received-${item.heartId}`,
+            receivedHeartId: item.heartId,
+            likedHeartId,
+            targetUserId: item.fromUserId,
+            name: item.fromUser.nickname,
+            age: item.fromUser.age,
+            location: getProfileLocation(item.fromUser),
+            image: item.fromUser.profileImageUrl,
+            isLiked: item.isLiked ?? likedHeartId != null,
+          };
+        }),
+      ) ?? [],
+      (item) => item.id,
+    )
   );
 }
 
@@ -393,18 +397,21 @@ function mapSentHeartProfiles(data?: {
   }[];
 }): ScreenHeartProfile[] {
   return (
-    data?.pages.flatMap((page) =>
-      page.items.map((item) => ({
-        id: `sent-${item.heartId}`,
-        likedHeartId: item.heartId,
-        targetUserId: item.targetUserId,
-        name: item.targetUser.nickname,
-        age: item.targetUser.age,
-        location: getProfileLocation(item.targetUser),
-        image: item.targetUser.profileImageUrl,
-        isLiked: true,
-      })),
-    ) ?? []
+    uniqueBy(
+      data?.pages.flatMap((page) =>
+        page.items.map((item) => ({
+          id: `sent-${item.heartId}`,
+          likedHeartId: item.heartId,
+          targetUserId: item.targetUserId,
+          name: item.targetUser.nickname,
+          age: item.targetUser.age,
+          location: getProfileLocation(item.targetUser),
+          image: item.targetUser.profileImageUrl,
+          isLiked: true,
+        })),
+      ) ?? [],
+      (item) => item.id,
+    )
   );
 }
 

@@ -22,6 +22,7 @@ import {
 } from "@/hooks/api/useClub";
 import { useMyProfileQuery } from "@/hooks/api/useUsers";
 import type { ClubCategory } from "@/types/api/club/clubDTO";
+import { uniqueBy } from "@/utils/array";
 
 const CATEGORIES = [
   {
@@ -70,7 +71,10 @@ export default function ClubHomeScreen() {
   const profileQuery = useMyProfileQuery();
 
   const nickname = profileQuery.data?.nickname || "회원";
-  const myClubs = myClubsQuery.data?.items ?? [];
+  const myClubs = uniqueBy(
+    myClubsQuery.data?.items ?? [],
+    (item) => item.clubId,
+  );
   const localClubs: ClubRowItem[] = (
     clubsQuery.data?.pages[0]?.items ?? []
   )

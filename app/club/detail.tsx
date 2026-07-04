@@ -8,6 +8,7 @@ import {
   Alert,
   Animated,
   Easing,
+  KeyboardAvoidingView,
   Modal,
   Pressable,
   ScrollView,
@@ -19,6 +20,7 @@ import {
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { KEYBOARD_AVOIDING_BEHAVIOR } from "@/constants/keyboard";
 import { CLUB_CATEGORY_LABELS } from "@/constants/club";
 import {
   useClubDetailQuery,
@@ -256,153 +258,158 @@ export default function ClubDetailScreen() {
     <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
       <StatusBar style="dark" />
 
-      <View style={styles.header}>
-        <Pressable
-          style={styles.headerIconButton}
-          onPress={() => router.back()}
-          hitSlop={12}
-        >
-          <Ionicons name="chevron-back" size={28} color={BLACK} />
-        </Pressable>
-
-        <View style={styles.headerActions}>
-          <Pressable style={styles.headerIconButton} hitSlop={12}>
-            <Ionicons name="share-outline" size={24} color={BLACK} />
-          </Pressable>
+      <KeyboardAvoidingView
+        style={styles.keyboardView}
+        behavior={KEYBOARD_AVOIDING_BEHAVIOR}
+      >
+        <View style={styles.header}>
           <Pressable
             style={styles.headerIconButton}
-            onPress={() => {
-              if (isJoined) {
-                setLeaveSheetVisible(true);
-              }
-            }}
+            onPress={() => router.back()}
             hitSlop={12}
           >
-            <Ionicons name="ellipsis-vertical" size={23} color={BLACK} />
+            <Ionicons name="chevron-back" size={28} color={BLACK} />
           </Pressable>
-        </View>
-      </View>
 
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={{ paddingBottom: bottomBarHeight }}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-      >
-        <Image source={{ uri: heroImage }} style={styles.heroImage} contentFit="cover" />
-
-        <View style={styles.summary}>
-          <View style={styles.categoryChip}>
-            <Text style={styles.categoryText}>{categoryText}</Text>
-          </View>
-          <Text style={styles.clubTitle}>{clubTitle}</Text>
-          <View style={styles.metaRow}>
-            <Text style={styles.metaText}>{hostName}</Text>
-            <Text style={styles.metaDot}>·</Text>
-            <Ionicons name="person" size={16} color={GRAY} />
-            <Text style={styles.memberText}>
-              {memberCount}명 참석중 ({memberCount}/{maxMemberCount})
-            </Text>
-          </View>
-        </View>
-
-        <View style={styles.dividerBand} />
-
-        <View style={styles.tabBar}>
-          {CLUB_TABS.map((tab) => (
-            <Pressable
-              key={tab.id}
-              style={styles.tabButton}
-              onPress={() => setActiveTab(tab.id)}
-            >
-              <Text
-                style={[
-                  styles.tabText,
-                  activeTab === tab.id && styles.tabTextActive,
-                ]}
-              >
-                {tab.label}
-              </Text>
-              {isJoined && tab.id === "chat" ? <View style={styles.chatDot} /> : null}
-              {activeTab === tab.id ? <View style={styles.tabUnderline} /> : null}
+          <View style={styles.headerActions}>
+            <Pressable style={styles.headerIconButton} hitSlop={12}>
+              <Ionicons name="share-outline" size={24} color={BLACK} />
             </Pressable>
-          ))}
+            <Pressable
+              style={styles.headerIconButton}
+              onPress={() => {
+                if (isJoined) {
+                  setLeaveSheetVisible(true);
+                }
+              }}
+              hitSlop={12}
+            >
+              <Ionicons name="ellipsis-vertical" size={23} color={BLACK} />
+            </Pressable>
+          </View>
         </View>
 
-        {activeTab === "home" ? (
-          <ClubHomeTab
-            description={description}
-            isJoined={isJoined}
-            meetings={meetings}
-          />
-        ) : null}
-        {activeTab === "board" ? (
-          <BoardTab
-            onPostPress={(postId) =>
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={{ paddingBottom: bottomBarHeight }}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <Image source={{ uri: heroImage }} style={styles.heroImage} contentFit="cover" />
+
+          <View style={styles.summary}>
+            <View style={styles.categoryChip}>
+              <Text style={styles.categoryText}>{categoryText}</Text>
+            </View>
+            <Text style={styles.clubTitle}>{clubTitle}</Text>
+            <View style={styles.metaRow}>
+              <Text style={styles.metaText}>{hostName}</Text>
+              <Text style={styles.metaDot}>·</Text>
+              <Ionicons name="person" size={16} color={GRAY} />
+              <Text style={styles.memberText}>
+                {memberCount}명 참석중 ({memberCount}/{maxMemberCount})
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.dividerBand} />
+
+          <View style={styles.tabBar}>
+            {CLUB_TABS.map((tab) => (
+              <Pressable
+                key={tab.id}
+                style={styles.tabButton}
+                onPress={() => setActiveTab(tab.id)}
+              >
+                <Text
+                  style={[
+                    styles.tabText,
+                    activeTab === tab.id && styles.tabTextActive,
+                  ]}
+                >
+                  {tab.label}
+                </Text>
+                {isJoined && tab.id === "chat" ? <View style={styles.chatDot} /> : null}
+                {activeTab === tab.id ? <View style={styles.tabUnderline} /> : null}
+              </Pressable>
+            ))}
+          </View>
+
+          {activeTab === "home" ? (
+            <ClubHomeTab
+              description={description}
+              isJoined={isJoined}
+              meetings={meetings}
+            />
+          ) : null}
+          {activeTab === "board" ? (
+            <BoardTab
+              onPostPress={(postId) =>
+                router.push({
+                  pathname: "/club/post-detail",
+                  params: { postId: String(postId), clubId: String(clubId) },
+                } as never)
+              }
+            />
+          ) : null}
+          {activeTab === "album" ? (
+            <AlbumTab
+              archives={archives}
+              isLoading={false}
+              itemSize={albumItemSize}
+            />
+          ) : null}
+          {activeTab === "chat" ? (
+            isJoined ? (
+              <ChatTab bottomPadding={0} />
+            ) : (
+              <View style={styles.preJoinChatPlaceholder} />
+            )
+          ) : null}
+        </ScrollView>
+
+        {isJoined && activeTab === "board" ? (
+          <Pressable
+            style={[styles.boardFab, { bottom: insets.bottom + 24 }]}
+            onPress={() =>
               router.push({
-                pathname: "/club/post-detail",
-                params: { postId: String(postId), clubId: String(clubId) },
+                pathname: "/club/post-create",
+                params: { clubId: String(clubId) },
               } as never)
             }
-          />
-        ) : null}
-        {activeTab === "album" ? (
-          <AlbumTab
-            archives={archives}
-            isLoading={false}
-            itemSize={albumItemSize}
-          />
-        ) : null}
-        {activeTab === "chat" ? (
-          isJoined ? (
-            <ChatTab bottomPadding={0} />
-          ) : (
-            <View style={styles.preJoinChatPlaceholder} />
-          )
-        ) : null}
-      </ScrollView>
-
-      {isJoined && activeTab === "board" ? (
-        <Pressable
-          style={[styles.boardFab, { bottom: insets.bottom + 24 }]}
-          onPress={() =>
-            router.push({
-              pathname: "/club/post-create",
-              params: { clubId: String(clubId) },
-            } as never)
-          }
-        >
-          <Ionicons name="add" size={38} color="#FFFFFF" />
-        </Pressable>
-      ) : null}
-
-      {!isJoined ? (
-        <View style={[styles.bottomBar, { paddingBottom: insets.bottom + 16 }]}>
-          <Pressable
-            style={styles.favoriteButton}
-            onPress={handleFavoritePress}
-            hitSlop={10}
           >
-            <Ionicons
-              name={isFavorite ? "heart" : "heart-outline"}
-              size={32}
-              color={isFavorite ? PINK : "#111111"}
-            />
+            <Ionicons name="add" size={38} color="#FFFFFF" />
           </Pressable>
-          <Pressable
-            style={[styles.joinButton, isJoinPending && styles.joinButtonDisabled]}
-            disabled={isJoinPending}
-            onPress={() => {
-              setTriedJoinSubmit(false);
-              setJoinModalVisible(true);
-            }}
-          >
-            <Text style={styles.joinButtonText}>
-              {isJoinPending ? "가입 대기중" : "가입"}
-            </Text>
-          </Pressable>
-        </View>
-      ) : null}
+        ) : null}
+
+        {!isJoined ? (
+          <View style={[styles.bottomBar, { paddingBottom: insets.bottom + 16 }]}>
+            <Pressable
+              style={styles.favoriteButton}
+              onPress={handleFavoritePress}
+              hitSlop={10}
+            >
+              <Ionicons
+                name={isFavorite ? "heart" : "heart-outline"}
+                size={32}
+                color={isFavorite ? PINK : "#111111"}
+              />
+            </Pressable>
+            <Pressable
+              style={[styles.joinButton, isJoinPending && styles.joinButtonDisabled]}
+              disabled={isJoinPending}
+              onPress={() => {
+                setTriedJoinSubmit(false);
+                setJoinModalVisible(true);
+              }}
+            >
+              <Text style={styles.joinButtonText}>
+                {isJoinPending ? "가입 대기중" : "가입"}
+              </Text>
+            </Pressable>
+          </View>
+        ) : null}
+      </KeyboardAvoidingView>
 
       <JoinRequestModal
         visible={isJoinModalVisible}
@@ -984,61 +991,67 @@ function JoinRequestModal({
       onRequestClose={onClose}
     >
       <Pressable style={styles.modalBackdrop} onPress={onClose}>
-        <Animated.View
-          style={[
-            styles.sheetAnimation,
-            { transform: [{ translateY: sheetTranslateY }] },
-          ]}
+        <KeyboardAvoidingView
+          style={styles.modalKeyboardView}
+          behavior={KEYBOARD_AVOIDING_BEHAVIOR}
+          pointerEvents="box-none"
         >
-          <Pressable
-            style={[styles.joinSheet, { paddingBottom: bottomPadding }]}
-            onPress={(event) => event.stopPropagation()}
+          <Animated.View
+            style={[
+              styles.sheetAnimation,
+              { transform: [{ translateY: sheetTranslateY }] },
+            ]}
           >
-            <View style={styles.sheetHandle} />
+            <Pressable
+              style={[styles.joinSheet, { paddingBottom: bottomPadding }]}
+              onPress={(event) => event.stopPropagation()}
+            >
+              <View style={styles.sheetHandle} />
 
-            <View style={styles.modalClubCard}>
-              <View style={styles.modalClubImage} />
-              <View style={styles.modalClubInfo}>
-                <Text style={styles.modalClubTitle}>{clubTitle}</Text>
-                <Text style={styles.modalClubMeta}>{clubMeta}</Text>
+              <View style={styles.modalClubCard}>
+                <View style={styles.modalClubImage} />
+                <View style={styles.modalClubInfo}>
+                  <Text style={styles.modalClubTitle}>{clubTitle}</Text>
+                  <Text style={styles.modalClubMeta}>{clubMeta}</Text>
+                </View>
               </View>
-            </View>
 
-            <View style={styles.messageHeaderRow}>
-              <Text style={styles.messageLabel}>가입 메세지</Text>
-              <Text style={styles.requiredMark}>*</Text>
-            </View>
-            <Text style={styles.messageDescription}>
-              운영자에게 전달 되는 메시지예요.
-            </Text>
-
-            <View style={styles.messageInputBox}>
-              <TextInput
-                style={styles.messageInput}
-                value={message}
-                onChangeText={(value) => onChangeMessage(value.slice(0, 30))}
-                placeholder="가입하고 싶은 이유나 간단한 자기소개를 작성해주세요 :)"
-                placeholderTextColor="#A6AFB6"
-                multiline
-                textAlignVertical="top"
-                maxLength={30}
-              />
-              <Text style={styles.messageCount}>{message.length}/30</Text>
-            </View>
-
-            {showMessageRequired ? (
-              <View style={styles.requiredNotice}>
-                <Text style={styles.requiredNoticeText}>
-                  가입 메시지를 입력해주세요.
-                </Text>
+              <View style={styles.messageHeaderRow}>
+                <Text style={styles.messageLabel}>가입 메세지</Text>
+                <Text style={styles.requiredMark}>*</Text>
               </View>
-            ) : null}
+              <Text style={styles.messageDescription}>
+                운영자에게 전달 되는 메시지예요.
+              </Text>
 
-            <Pressable style={styles.requestButton} onPress={onSubmit}>
-              <Text style={styles.requestButtonText}>가입 신청하기</Text>
+              <View style={styles.messageInputBox}>
+                <TextInput
+                  style={styles.messageInput}
+                  value={message}
+                  onChangeText={(value) => onChangeMessage(value.slice(0, 30))}
+                  placeholder="가입하고 싶은 이유나 간단한 자기소개를 작성해주세요 :)"
+                  placeholderTextColor="#A6AFB6"
+                  multiline
+                  textAlignVertical="top"
+                  maxLength={30}
+                />
+                <Text style={styles.messageCount}>{message.length}/30</Text>
+              </View>
+
+              {showMessageRequired ? (
+                <View style={styles.requiredNotice}>
+                  <Text style={styles.requiredNoticeText}>
+                    가입 메시지를 입력해주세요.
+                  </Text>
+                </View>
+              ) : null}
+
+              <Pressable style={styles.requestButton} onPress={onSubmit}>
+                <Text style={styles.requestButtonText}>가입 신청하기</Text>
+              </Pressable>
             </Pressable>
-          </Pressable>
-        </Animated.View>
+          </Animated.View>
+        </KeyboardAvoidingView>
       </Pressable>
     </Modal>
   );
@@ -1163,6 +1176,9 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: "#FFFFFF",
+  },
+  keyboardView: {
+    flex: 1,
   },
   header: {
     height: 48,
@@ -1732,6 +1748,11 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "flex-end",
     backgroundColor: "rgba(0, 0, 0, 0.45)",
+  },
+  modalKeyboardView: {
+    flex: 1,
+    width: "100%",
+    justifyContent: "flex-end",
   },
   sheetAnimation: {
     width: "100%",
