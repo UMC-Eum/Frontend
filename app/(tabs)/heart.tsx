@@ -22,6 +22,7 @@ import {
   useSentHeartsInfiniteQuery,
 } from "@/hooks/api/useSocials";
 import { TAB_SCREEN_BOTTOM_PADDING } from "@/constants/layout";
+import { getAgeFromBirthdate } from "@/utils/age";
 import type {
   IHeartreceivedResponse,
   IHeartsentResponse,
@@ -42,7 +43,7 @@ type HeartProfile = {
   id: string;
   targetUserId: number;
   name: string;
-  age: number;
+  age: number | null;
   location: string;
   image: string;
   isLiked: boolean;
@@ -356,7 +357,7 @@ function mapReceivedHeartProfiles(
           likedHeartId,
           targetUserId: item.fromUserId,
           name: item.fromUser.nickname,
-          age: item.fromUser.age,
+          age: getAgeFromBirthdate(item.fromUser.birthdate),
           location: getProfileLocation(item.fromUser),
           image: item.fromUser.profileImageUrl || FALLBACK_PROFILE_IMAGE,
           isLiked: likedHeartId != null,
@@ -376,7 +377,7 @@ function mapSentHeartProfiles(
         likedHeartId: item.heartId,
         targetUserId: item.targetUserId,
         name: item.targetUser.nickname,
-        age: item.targetUser.age,
+        age: getAgeFromBirthdate(item.targetUser.birthdate),
         location: getProfileLocation(item.targetUser),
         image: item.targetUser.profileImageUrl || FALLBACK_PROFILE_IMAGE,
         isLiked: true,
@@ -385,20 +386,23 @@ function mapSentHeartProfiles(
   );
 }
 
-// 마음 응답의 상대 정보엔 지역이 없을 수 있음 — 서버가 주면 표시, 없으면 빈 값
+// 마음 응답의 지역은 address.fullName로 내려옴 — 없으면 빈 값
 function getProfileLocation(profile: IProfileSummary) {
-  return profile.areaName?.trim() || profile.area?.name?.trim() || "";
+  return profile.address?.fullName?.trim() || "";
 }
 
 function buildProfileDetailParams(profile: ScreenHeartProfile) {
   const params: Record<string, string> = {
     userId: String(profile.targetUserId),
     name: profile.name,
-    age: String(profile.age),
     image: profile.image,
     location: profile.location,
     isLiked: String(profile.isLiked),
   };
+
+  if (profile.age != null) {
+    params.age = String(profile.age);
+  }
 
   if (profile.likedHeartId) {
     params.heartId = String(profile.likedHeartId);
@@ -466,8 +470,12 @@ function HeartProfileCard({
             <Text style={styles.cardName} numberOfLines={1}>
               {profile.name}
             </Text>
-            <View style={styles.nameDot} />
-            <Text style={styles.cardName}>{profile.age}세</Text>
+            {profile.age != null ? (
+              <>
+                <View style={styles.nameDot} />
+                <Text style={styles.cardName}>{profile.age}세</Text>
+              </>
+            ) : null}
           </View>
           {profile.location ? (
             <Text style={styles.cardLocation} numberOfLines={1}>
