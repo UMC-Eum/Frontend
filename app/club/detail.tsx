@@ -30,6 +30,7 @@ import {
 import { ClubMemberStatus } from "@/types/api/club/clubDTO";
 import { ClubPostCategory } from "@/types/api/clubs/clubPostsDTO";
 import { IMeetingListItem } from "@/types/api/meetings/meetingsDTO";
+import type { ApiFailResponse } from "@/types/api/api";
 
 const PINK = "#FF3E70";
 const BLACK = "#202020";
@@ -234,8 +235,11 @@ export default function ClubDetailScreen() {
             setActiveTab("home");
           }
         },
-        onError: () => {
-          Alert.alert("가입 신청 실패", "잠시 후 다시 시도해주세요.");
+        onError: (error) => {
+          Alert.alert(
+            "가입 신청 실패",
+            getApiErrorMessage(error) ?? "잠시 후 다시 시도해주세요.",
+          );
         },
       },
     );
@@ -455,6 +459,11 @@ function parseClubId(value?: string) {
 
   const match = value.match(/\d+/);
   return match ? Number(match[0]) : 1;
+}
+
+function getApiErrorMessage(error: unknown) {
+  const apiError = error as { response?: { data?: ApiFailResponse } };
+  return apiError.response?.data?.error?.message;
 }
 
 function ClubHomeTab({
