@@ -21,6 +21,7 @@ import {
   useSendHeartMutation,
   useSentHeartsInfiniteQuery,
 } from "@/hooks/api/useSocials";
+import { DEFAULT_PROFILE_IMAGE_URI } from "@/constants/defaultProfileImage";
 import { TAB_SCREEN_BOTTOM_PADDING } from "@/constants/layout";
 import { getAgeFromBirthdate } from "@/utils/age";
 import type {
@@ -35,8 +36,6 @@ const BLACK = "#202020";
 const GRAY_100 = "#F8FAFB";
 const GRAY_150 = "#E9ECED";
 const GRAY_700 = "#636970";
-const FALLBACK_PROFILE_IMAGE =
-  "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=85&w=1200&auto=format&fit=crop";
 
 type HeartTab = "received" | "sent";
 
@@ -362,7 +361,7 @@ function mapReceivedHeartProfiles(
             name: item.fromUser.nickname,
             age: getProfileAge(item.fromUser),
             location: getProfileLocation(item.fromUser),
-            image: item.fromUser.profileImageUrl || FALLBACK_PROFILE_IMAGE,
+            image: item.fromUser.profileImageUrl || DEFAULT_PROFILE_IMAGE_URI,
             isLiked: item.isLiked ?? likedHeartId != null,
           };
         }),
@@ -385,7 +384,7 @@ function mapSentHeartProfiles(
           name: item.targetUser.nickname,
           age: getProfileAge(item.targetUser),
           location: getProfileLocation(item.targetUser),
-          image: item.targetUser.profileImageUrl || FALLBACK_PROFILE_IMAGE,
+          image: item.targetUser.profileImageUrl || DEFAULT_PROFILE_IMAGE_URI,
           isLiked: true,
         })),
       ) ?? [],
@@ -398,7 +397,7 @@ function getProfileAge(profile: IProfileSummary): number | null {
   if (
     typeof profile.age === "number" &&
     Number.isFinite(profile.age) &&
-    profile.age > 0
+    profile.age >= 0
   ) {
     return Math.floor(profile.age);
   }

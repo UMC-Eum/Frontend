@@ -3,6 +3,7 @@ export interface IProfileSummary {
   profileImageUrl?: string | null;
   nickname: string;
   age?: number | null;
+  // 신규 서버 응답은 birthdate를 사용하고, birthDate는 기존 응답 호환용입니다.
   birthdate?: string | null;
   birthDate?: string | null;
   areaName?: string | null;

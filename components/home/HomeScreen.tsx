@@ -29,6 +29,7 @@ import {
   useMyProfileQuery,
   useMyProfileVisitorsQuery,
 } from "@/hooks/api/useUsers";
+import { DEFAULT_PROFILE_IMAGE_URI } from "@/constants/defaultProfileImage";
 import { TAB_SCREEN_BOTTOM_PADDING } from "@/constants/layout";
 import { CLUBS, RECOMMENDED_CLUBS } from "@/constants/search";
 import ClubRow from "@/components/search/ClubRow";
@@ -54,8 +55,6 @@ type Profile = {
 };
 
 const USER_NICKNAME = "루씨";
-const FALLBACK_PROFILE_IMAGE =
-  "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=85&w=1200&auto=format&fit=crop";
 const RECOMMENDATION_COUNTDOWN_MS = 60 * 60 * 1000;
 type HomeMockClub = {
   id: string;
@@ -446,7 +445,7 @@ export default function HomePage() {
                       >
                         <ImageBackground
                           source={{
-                            uri: visitor.profileImageUrl || FALLBACK_PROFILE_IMAGE,
+                            uri: visitor.profileImageUrl || DEFAULT_PROFILE_IMAGE_URI,
                           }}
                           style={styles.viewerImage}
                           imageStyle={styles.viewerImageRadius}
@@ -581,7 +580,7 @@ function mapRecommendationProfiles(data?: {
           intro: item.introText,
           isLiked: item.isLiked,
           likedHeartId: item.likedHeartId,
-          images: item.profileImageUrl ? [item.profileImageUrl] : [FALLBACK_PROFILE_IMAGE],
+          images: item.profileImageUrl ? [item.profileImageUrl] : [DEFAULT_PROFILE_IMAGE_URI],
         })),
       ) ?? [],
       (item) => item.id,
@@ -818,7 +817,7 @@ function ProfileCard({
       {/* 추천 프로필 카드는 좌우 스와이프와 상세 진입을 함께 제공합니다. */}
       <View style={styles.profilePressable}>
         <ImageBackground
-          source={{ uri: profile.images[0] ?? FALLBACK_PROFILE_IMAGE }}
+          source={{ uri: profile.images[0] ?? DEFAULT_PROFILE_IMAGE_URI }}
           style={[styles.profileImage, { width: cardWidth }]}
           imageStyle={styles.profileImageRadius}
         >
