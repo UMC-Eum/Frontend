@@ -7,6 +7,7 @@ import {
   Alert,
   Image,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -15,9 +16,16 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 
 import { postPresign, uploadFileToS3 } from "@/api/onboarding/onboardingApi";
+import CircleImageCropper, {
+  CircleCropAsset,
+  CircleCropResult,
+} from "@/components/profile/CircleImageCropper";
 import {
   useMyProfileQuery,
   useUpdateMyProfileMutation,
@@ -30,16 +38,28 @@ const PROFILE_IMAGE_PURPOSE = "PROFILE_IMAGE";
 const DEFAULT_PROFILE_IMAGE =
   "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=240&h=240&fit=crop&crop=faces";
 
+type PickedProfileImage = {
+  uri: string;
+  mimeType: string;
+};
+
 export default function ProfileEditScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const myProfileQuery = useMyProfileQuery();
   const updateMyProfileMutation = useUpdateMyProfileMutation();
   const profile = myProfileQuery.data;
   const [nickname, setNickname] = useState("");
   const [introText, setIntroText] = useState("");
   const [imageUri, setImageUri] = useState<string | null>(null);
-  const [pickedImage, setPickedImage] =
-    useState<ImagePicker.ImagePickerAsset | null>(null);
+  const [pickedImage, setPickedImage] = useState<PickedProfileImage | null>(
+    null,
+  );
+  const [previewAsset, setPreviewAsset] = useState<CircleCropAsset | null>(
+    null,
+  );
+  const [showActionSheet, setShowActionSheet] = useState(false);
+  const [pendingAction, setPendingAction] = useState<"gallery" | null>(null);
 
   useEffect(() => {
     if (!profile) return;
@@ -64,34 +84,82 @@ export default function ProfileEditScreen() {
     router.replace("/(tabs)/my" as never);
   };
 
-  const handlePickImage = async () => {
+  const handlePhotoPick = () => {
     if (isSubmitting) return;
 
-    try {
-      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (permission.status !== "granted") {
-        Alert.alert("권한 필요", "프로필 사진 변경을 위해 갤러리 권한이 필요해요.");
-        return;
-      }
+    setShowActionSheet(true);
+  };
 
+  const handlePickFromGallery = () => {
+    setShowActionSheet(false);
+
+    if (Platform.OS === "ios") {
+      setPendingAction("gallery");
+      return;
+    }
+
+    void runGalleryPicker();
+  };
+
+  const onModalDismiss = async () => {
+    if (pendingAction !== "gallery") return;
+
+    setPendingAction(null);
+    await runGalleryPicker();
+  };
+
+  const runGalleryPicker = async () => {
+    try {
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [1, 1],
+        mediaTypes: ["images"],
+        allowsEditing: false,
         quality: 0.85,
       });
 
       if (result.canceled || result.assets.length === 0) return;
 
       const asset = result.assets[0];
-      setPickedImage(asset);
-      setImageUri(asset.uri);
+      setPreviewAsset({
+        uri: asset.uri,
+        width: asset.width,
+        height: asset.height,
+      });
     } catch (error) {
       if (__DEV__) {
         console.log("Profile edit image pick error:", error);
       }
       Alert.alert("사진 선택 실패", "사진을 다시 선택해주세요.");
     }
+  };
+
+  const handleDefaultProfile = () => {
+    setPickedImage(null);
+    setImageUri(DEFAULT_PROFILE_IMAGE);
+    setShowActionSheet(false);
+  };
+
+  const handleCancelAction = () => {
+    setShowActionSheet(false);
+  };
+
+  const handleCropConfirm = (croppedImage: CircleCropResult) => {
+    setPickedImage({
+      uri: croppedImage.uri,
+      mimeType: "image/jpeg",
+    });
+    setImageUri(croppedImage.uri);
+    setPreviewAsset(null);
+  };
+
+  const handleCropCancel = () => {
+    setPreviewAsset(null);
+  };
+
+  const handleCropError = (error: unknown) => {
+    if (__DEV__) {
+      console.log("Profile edit crop error:", error);
+    }
+    Alert.alert("사진 설정 실패", "사진을 다시 선택해주세요.");
   };
 
   const handleSubmit = async () => {
@@ -136,6 +204,17 @@ export default function ProfileEditScreen() {
     );
   }
 
+  if (previewAsset) {
+    return (
+      <CircleImageCropper
+        asset={previewAsset}
+        onCancel={handleCropCancel}
+        onConfirm={handleCropConfirm}
+        onError={handleCropError}
+      />
+    );
+  }
+
   return (
     <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
       <KeyboardAvoidingView
@@ -164,7 +243,7 @@ export default function ProfileEditScreen() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.content}
         >
-          <Pressable style={styles.photoButton} onPress={handlePickImage}>
+          <Pressable style={styles.photoButton} onPress={handlePhotoPick}>
             <View style={styles.avatar}>
               <Image
                 source={{ uri: imageUri || DEFAULT_PROFILE_IMAGE }}
@@ -208,12 +287,60 @@ export default function ProfileEditScreen() {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      <Modal
+        visible={showActionSheet}
+        transparent
+        animationType="slide"
+        onRequestClose={handleCancelAction}
+        onDismiss={onModalDismiss}
+      >
+        <Pressable style={styles.modalOverlay} onPress={handleCancelAction}>
+          <View
+            style={[styles.modalSheet, { paddingBottom: insets.bottom + 16 }]}
+          >
+            <View style={styles.modalGroup}>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.modalOption,
+                  pressed && styles.modalOptionPressed,
+                ]}
+                onPress={handlePickFromGallery}
+              >
+                <Text style={styles.modalOptionText}>
+                  촬영 또는 앨범에서 선택
+                </Text>
+              </Pressable>
+              <View style={styles.modalDivider} />
+              <Pressable
+                style={({ pressed }) => [
+                  styles.modalOption,
+                  pressed && styles.modalOptionPressed,
+                ]}
+                onPress={handleDefaultProfile}
+              >
+                <Text style={styles.modalOptionText}>기본 프로필 선택</Text>
+              </Pressable>
+            </View>
+
+            <Pressable
+              style={({ pressed }) => [
+                styles.modalCancel,
+                pressed && styles.modalOptionPressed,
+              ]}
+              onPress={handleCancelAction}
+            >
+              <Text style={styles.modalCancelText}>취소</Text>
+            </Pressable>
+          </View>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
 
-async function uploadProfileImage(asset: ImagePicker.ImagePickerAsset) {
-  const contentType = asset.mimeType || "image/jpeg";
+async function uploadProfileImage(asset: PickedProfileImage) {
+  const contentType = asset.mimeType;
   const extension = contentTypeToImageExtension(contentType);
   const { uploadUrl, fileUrl } = await postPresign({
     fileName: `profile-${Date.now()}.${extension}`,
@@ -344,5 +471,49 @@ const styles = StyleSheet.create({
   },
   introInput: {
     minHeight: 104,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.4)",
+    justifyContent: "flex-end",
+  },
+  modalSheet: {
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    gap: 10,
+  },
+  modalGroup: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 14,
+    overflow: "hidden",
+  },
+  modalOption: {
+    height: 56,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalOptionPressed: {
+    backgroundColor: "#F3F4F6",
+  },
+  modalOptionText: {
+    color: "#1F2937",
+    fontSize: 17,
+    fontWeight: "500",
+  },
+  modalDivider: {
+    height: 1,
+    backgroundColor: "#E5E7EB",
+  },
+  modalCancel: {
+    height: 56,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 14,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalCancelText: {
+    color: "#1F2937",
+    fontSize: 17,
+    fontWeight: "600",
   },
 });

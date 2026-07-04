@@ -1,10 +1,9 @@
 export type ClubCategory =
-  | "HOBBY"
   | "SPORTS"
+  | "HOBBY"
+  | "VOLUNTEER"
   | "STUDY"
-  | "CULTURE"
-  | "SOCIAL"
-  | "ETC"
+  | "OTHERS"
   | (string & {});
 
 export type ClubAuthority = "HOST" | "MANAGER" | "GENERAL";

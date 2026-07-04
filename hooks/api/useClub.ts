@@ -34,6 +34,7 @@ type InfiniteParams<T extends { cursor?: string | null; limit?: number }> = Omit
 
 export function useClubsInfiniteQuery(
   params: InfiniteParams<DTO.IClubListParams> = {},
+  enabled = true,
 ) {
   const { limit = DEFAULT_PAGE_LIMIT, ...restParams } = params;
 
@@ -43,6 +44,7 @@ export function useClubsInfiniteQuery(
       getClubs({ ...restParams, cursor: pageParam, limit }),
     initialPageParam: null as string | null,
     getNextPageParam: (lastPage) => lastPage.nextCursor,
+    enabled,
   });
 }
 

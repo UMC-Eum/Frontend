@@ -9,6 +9,8 @@ export default function ProfileLayout() {
       }}
     >
       <Stack.Screen name="name" />
+      <Stack.Screen name="age" />
+      <Stack.Screen name="gender" />
       <Stack.Screen name="photo" />
       <Stack.Screen name="edit" />
       <Stack.Screen name="location" />

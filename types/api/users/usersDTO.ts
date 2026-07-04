@@ -8,7 +8,7 @@ export interface IPatchUserProfileRequest {
   keywords?: string[];
   personalities?: string[];
   idealPersonalities?: string[];
-  introAudioUrl?: string;
+  introAudioUrl?: string | null;
   profileImageUrl?: string;
 }
 

@@ -27,6 +27,11 @@ import {
   VoiceTitle,
   VoiceKeyword,
 } from "@/components/profile/ProfileVoiceParts";
+import { DEFAULT_PROFILE_IMAGE_URI } from "@/constants/defaultProfileImage";
+import {
+  PROFILE_INTEREST_KEYWORDS,
+  PROFILE_PERSONALITY_KEYWORDS,
+} from "@/constants/profileKeywords";
 import { usePostVoiceAnalyzeMutation } from "@/hooks/api/useOnboarding";
 import { useUpdateMyProfileMutation } from "@/hooks/api/useUsers";
 import { useAuthStore } from "@/stores/authStore";
@@ -35,6 +40,7 @@ import type {
   IAnalyzeResponse,
   PresignPurpose,
 } from "@/types/api/onboarding/onboardingDTO";
+import { resolveBirthDate } from "@/utils/profileVoice";
 
 type VoiceStep =
   | "idle"
@@ -45,7 +51,6 @@ type VoiceStep =
   | "complete";
 
 const MIN_RECORDING_SECONDS = 10;
-const DEFAULT_LOCATION_NAME = "서울 광진구";
 const DEFAULT_AREA_CODE = "1121500000";
 const DEFAULT_GENDER = "M";
 const INTRO_AUDIO_PURPOSE: PresignPurpose = "PROFILE_INTRO_AUDIO";
@@ -53,17 +58,29 @@ const PROFILE_IMAGE_PURPOSE: PresignPurpose = "PROFILE_IMAGE";
 const VOICE_ANALYZE_TIMEOUT_MS = 60000;
 
 const MOCK_KEYWORDS: VoiceKeyword[] = [
-  { id: "culture", label: "문화생활" },
-  { id: "music", label: "음악감상" },
-  { id: "hiking", label: "등산" },
-  { id: "walk", label: "산책" },
-  { id: "cooking", label: "요리" },
-  { id: "knitting", label: "뜨개질" },
-  { id: "game", label: "게임" },
-  { id: "drawing", label: "그림" },
-  { id: "health", label: "헬스" },
-  { id: "movie", label: "영화" },
+  { id: "culture", label: "문화생활", category: "interest" },
+  { id: "music", label: "음악감상", category: "interest" },
+  { id: "hiking", label: "등산", category: "interest" },
+  { id: "walk", label: "산책", category: "interest" },
+  { id: "cooking", label: "요리", category: "interest" },
+  { id: "knitting", label: "뜨개질", category: "interest" },
+  { id: "game", label: "게임", category: "interest" },
+  { id: "drawing", label: "그림", category: "interest" },
+  { id: "health", label: "헬스", category: "interest" },
+  { id: "movie", label: "영화", category: "interest" },
   { id: "more", label: "...더보기" },
+];
+const MORE_INTEREST_KEYWORDS: VoiceKeyword[] = [
+  ...PROFILE_INTEREST_KEYWORDS.map((label, index) => ({
+    id: `interest-${index}-${label}`,
+    label,
+    category: "interest" as const,
+  })),
+  ...PROFILE_PERSONALITY_KEYWORDS.map((label, index) => ({
+    id: `personality-${index}-${label}`,
+    label,
+    category: "personality" as const,
+  })),
 ];
 
 export default function WelcomeScreen() {
@@ -73,6 +90,8 @@ export default function WelcomeScreen() {
   const draftNickname = useOnboardingDraftStore((state) => state.nickname);
   const draftAge = useOnboardingDraftStore((state) => state.age);
   const draftGender = useOnboardingDraftStore((state) => state.gender);
+  const draftAreaCode = useOnboardingDraftStore((state) => state.areaCode);
+  const draftAreaName = useOnboardingDraftStore((state) => state.areaName);
   const draftBirthDate = useOnboardingDraftStore((state) => state.birthDate);
   const profileImageUri = useOnboardingDraftStore(
     (state) => state.profileImageUri,
@@ -115,15 +134,36 @@ export default function WelcomeScreen() {
   const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
   const recorderState = useAudioRecorderState(recorder, 250);
   const [selectedKeywordIds, setSelectedKeywordIds] = useState<string[]>(() =>
-    idsFromLabels(draftSelectedKeywords),
+    idsFromLabels(
+      draftSelectedKeywords,
+      mergeKeywordOptions(MOCK_KEYWORDS, MORE_INTEREST_KEYWORDS),
+    ),
+  );
+  const allKeywordOptions = useMemo(
+    () => mergeKeywordOptions(keywordOptions, MORE_INTEREST_KEYWORDS),
+    [keywordOptions],
   );
 
   const selectedKeywords = useMemo(
     () =>
-      keywordOptions.filter((keyword) =>
+      allKeywordOptions.filter((keyword) =>
         selectedKeywordIds.includes(keyword.id),
       ).map((keyword) => keyword.label),
-    [keywordOptions, selectedKeywordIds],
+    [allKeywordOptions, selectedKeywordIds],
+  );
+  const selectedInterestKeywords = useMemo(
+    () =>
+      labelsFromIds(selectedKeywordIds, allKeywordOptions, {
+        category: "interest",
+      }),
+    [allKeywordOptions, selectedKeywordIds],
+  );
+  const selectedPersonalityKeywords = useMemo(
+    () =>
+      labelsFromIds(selectedKeywordIds, allKeywordOptions, {
+        category: "personality",
+      }),
+    [allKeywordOptions, selectedKeywordIds],
   );
   const userName = useMemo(
     () => draftNickname.trim() || authNickname?.trim() || "사용자",
@@ -131,13 +171,13 @@ export default function WelcomeScreen() {
   );
   const displayKeywords = useMemo(
     () =>
-      draftSelectedKeywords.length > 0
-        ? draftSelectedKeywords
-        : selectedKeywords,
+      selectedKeywords.length > 0
+        ? selectedKeywords
+        : draftSelectedKeywords,
     [draftSelectedKeywords, selectedKeywords],
   );
   const profileAge = useMemo(
-    () => draftAge ?? calculateAge(draftBirthDate) ?? 53,
+    () => draftAge ?? calculateAge(draftBirthDate) ?? 0,
     [draftAge, draftBirthDate],
   );
 
@@ -192,6 +232,7 @@ export default function WelcomeScreen() {
 
     setSelectedKeywordIds(fallbackSelectedIds);
     setSelectedKeywords(labelsFromIds(fallbackSelectedIds, MOCK_KEYWORDS));
+    setPersonalities([]);
   };
 
   const handleBack = async () => {
@@ -317,15 +358,19 @@ export default function WelcomeScreen() {
             audioUrl: uploadedAudioUrl,
             language: "ko-KR",
             analysisType: "profile",
+            nickname: userName,
+            gender: draftGender ?? DEFAULT_GENDER,
+            birthDate: resolveBirthDate(draftBirthDate, draftAge),
+            areaCode: draftAreaCode ?? DEFAULT_AREA_CODE,
           }),
           VOICE_ANALYZE_TIMEOUT_MS,
         );
         const matchedKeywords = getAnalyzeMatchedKeywords(analyzeResult);
         const nextKeywords = keywordsFromAnalyze(analyzeResult);
-        const nextPersonalities = labelsFromMatchedKeywords(
-          matchedKeywords.filter(
-            (keyword) => keyword.category === "PERSONALITY",
-          ),
+        const nextPersonalities = labelsFromIds(
+          nextKeywords.map((keyword) => keyword.id),
+          nextKeywords,
+          { category: "personality" },
         );
         const nextSelectedIds = nextKeywords
           .filter((keyword) => keyword.id !== "more")
@@ -334,7 +379,12 @@ export default function WelcomeScreen() {
 
         setKeywordOptions(nextKeywords);
         setSelectedKeywordIds(nextSelectedIds);
-        setSelectedKeywords(labelsFromIds(nextSelectedIds, nextKeywords));
+        setSelectedKeywords(
+          labelsFromIds(
+            nextSelectedIds,
+            mergeKeywordOptions(nextKeywords, MORE_INTEREST_KEYWORDS),
+          ),
+        );
         setPersonalities(nextPersonalities);
         setVibeVector(getAnalyzeVibeVector(analyzeResult));
         if (__DEV__) {
@@ -422,6 +472,9 @@ export default function WelcomeScreen() {
     if (id === "more") return;
 
     setSelectedKeywordIds((current) => {
+      const targetLabel = allKeywordOptions.find(
+        (keyword) => keyword.id === id,
+      )?.label;
       let nextIds: string[];
 
       if (current.includes(id)) {
@@ -429,33 +482,50 @@ export default function WelcomeScreen() {
       } else if (current.length >= 5) {
         nextIds = current;
       } else {
-        nextIds = [...current, id];
+        const idsWithoutSameLabel = targetLabel
+          ? current.filter(
+              (keywordId) =>
+                allKeywordOptions.find((keyword) => keyword.id === keywordId)
+                  ?.label !== targetLabel,
+            )
+          : current;
+        nextIds = [...idsWithoutSameLabel, id];
       }
 
-      setSelectedKeywords(labelsFromIds(nextIds, keywordOptions));
+      setSelectedKeywords(labelsFromIds(nextIds, allKeywordOptions));
 
       return nextIds;
     });
   };
 
   const handleKeywordNext = () => {
-    setSelectedKeywords(selectedKeywords);
+    setSelectedKeywords(selectedInterestKeywords);
+    setPersonalities(selectedPersonalityKeywords);
     setStep("complete");
   };
 
   const handleStartApp = async () => {
     const keywords =
-      displayKeywords.length > 0
-        ? displayKeywords
-        : MOCK_KEYWORDS.slice(0, 3).map((keyword) => keyword.label);
+      selectedInterestKeywords.length > 0
+        ? selectedInterestKeywords
+        : draftSelectedKeywords;
+    const personalities =
+      selectedPersonalityKeywords.length > 0
+        ? selectedPersonalityKeywords
+        : draftPersonalities;
+    const introKeywords = selectedKeywords.length > 0 ? selectedKeywords : keywords;
     const generatedIntro =
-      keywords.length > 0
-        ? `${userName}님은 ${keywords.join(", ")}에 관심이 있어요.`
+      introKeywords.length > 0
+        ? `${userName}님은 ${introKeywords.join(", ")}에 관심이 있어요.`
         : `${userName}님의 이야기를 들려주세요.`;
     const safeIntroAudioUrl = isRemoteUrl(introAudioUrl) ? introAudioUrl : "";
 
     const resolveProfileImageUrl = async () => {
-      if (!profileImageUri || profileImageUri === "default") {
+      if (
+        !profileImageUri ||
+        profileImageUri === "default" ||
+        profileImageUri === DEFAULT_PROFILE_IMAGE_URI
+      ) {
         return null;
       }
 
@@ -486,12 +556,12 @@ export default function WelcomeScreen() {
     const profileImageUrl = await resolveProfileImageUrl();
     const profileUpdatePayload = {
       nickname: userName,
-      gender: draftGender ?? DEFAULT_GENDER,
-      ...(profileAge >= 50 && profileAge <= 150 ? { age: profileAge } : {}),
-      areaCode: DEFAULT_AREA_CODE,
+      ...(draftGender ? { gender: draftGender } : {}),
+      ...(profileAge >= 50 && profileAge <= 120 ? { age: profileAge } : {}),
+      ...(draftAreaCode ? { areaCode: draftAreaCode } : {}),
       introText: introText || generatedIntro,
       keywords,
-      personalities: draftPersonalities,
+      personalities,
       idealPersonalities: draftIdealPersonalities,
       ...(safeIntroAudioUrl ? { introAudioUrl: safeIntroAudioUrl } : {}),
       ...(profileImageUrl ? { profileImageUrl } : {}),
@@ -558,7 +628,9 @@ export default function WelcomeScreen() {
         <KeywordSelectView
           userName={userName}
           keywords={keywordOptions}
+          moreKeywords={MORE_INTEREST_KEYWORDS}
           selectedIds={selectedKeywordIds}
+          selectedLabels={selectedKeywords}
           onToggleKeyword={handleToggleKeyword}
           onRerecord={handleStartRecording}
           onNext={handleKeywordNext}
@@ -574,7 +646,7 @@ export default function WelcomeScreen() {
         <CompletePreviewView
           userName={userName}
           age={profileAge}
-          locationName={DEFAULT_LOCATION_NAME}
+          locationName={draftAreaName ?? "거주지 미선택"}
           profileImageUri={profileImageUri}
           selectedKeywords={displayKeywords}
           isSubmitting={updateMyProfileMutation.isPending}
@@ -650,10 +722,19 @@ function calculateAge(birthDate?: string | null) {
   return age > 0 ? age : null;
 }
 
-function labelsFromIds(ids: string[], keywords = MOCK_KEYWORDS) {
-  return keywords.filter(
-    (keyword) => keyword.id !== "more" && ids.includes(keyword.id),
-  ).map((keyword) => keyword.label);
+function labelsFromIds(
+  ids: string[],
+  keywords = MOCK_KEYWORDS,
+  options?: { category?: VoiceKeyword["category"] },
+) {
+  const labels = keywords.filter((keyword) => {
+    if (keyword.id === "more" || !ids.includes(keyword.id)) return false;
+    if (!options?.category) return true;
+
+    return keyword.category === options.category;
+  }).map((keyword) => keyword.label);
+
+  return Array.from(new Set(labels));
 }
 
 function idsFromLabels(labels: string[], keywords = MOCK_KEYWORDS) {
@@ -704,8 +785,8 @@ async function uploadRecordedAudio(uri: string) {
 }
 
 async function uploadProfileImage(uri: string) {
-  const contentType = "image/jpeg";
-  const fileName = `profile-image-${Date.now()}.jpg`;
+  const contentType = resolveImageContentType(uri);
+  const fileName = `profile-image-${Date.now()}.${contentTypeToImageExtension(contentType)}`;
   const { uploadUrl, fileUrl } = await postPresign({
     fileName,
     contentType,
@@ -721,6 +802,27 @@ async function uploadProfileImage(uri: string) {
   );
 
   return fileUrl;
+}
+
+function resolveImageContentType(uri: string) {
+  const lowerUri = uri.toLowerCase();
+
+  if (lowerUri.startsWith("data:image/png") || lowerUri.endsWith(".png")) {
+    return "image/png";
+  }
+
+  if (lowerUri.startsWith("data:image/webp") || lowerUri.endsWith(".webp")) {
+    return "image/webp";
+  }
+
+  return "image/jpeg";
+}
+
+function contentTypeToImageExtension(contentType: string) {
+  if (contentType === "image/png") return "png";
+  if (contentType === "image/webp") return "webp";
+
+  return "jpg";
 }
 
 function resolveAudioContentType(uri: string) {
@@ -802,61 +904,107 @@ function wait(ms: number) {
   });
 }
 
-function labelsFromScoredCandidates(
-  candidates: { text?: string | null; score?: number | null }[],
-) {
-  return [...candidates]
-    .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
-    .map((candidate) => candidate.text?.trim() ?? "")
-    .filter(Boolean);
-}
-
-function labelsFromMatchedKeywords(
-  candidates: { keyword?: string | null; score?: number | null }[],
-) {
-  return [...candidates]
-    .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
-    .map((candidate) => candidate.keyword?.trim() ?? "")
-    .filter(Boolean);
-}
-
 function keywordsFromAnalyze(result: IAnalyzeResponse) {
   const matchedKeywords = getAnalyzeMatchedKeywords(result);
-  const matchedLabels = labelsFromMatchedKeywords(matchedKeywords);
-  const uniqueMatchedLabels = Array.from(new Set(matchedLabels)).slice(0, 10);
+  const matchedOptions = keywordOptionsFromMatchedKeywords(matchedKeywords);
+  const uniqueMatchedOptions = dedupeVoiceKeywords(matchedOptions).slice(0, 10);
 
-  if (uniqueMatchedLabels.length > 0) {
+  if (uniqueMatchedOptions.length > 0) {
     return [
-      ...uniqueMatchedLabels.map((label, index) => ({
-        id: `analyzed-${index}-${label}`,
-        label,
-      })),
+      ...uniqueMatchedOptions,
       { id: "more", label: "...더보기" },
     ];
   }
 
   const keywordCandidates = getAnalyzeKeywordCandidates(result);
-  const candidates = labelsFromScoredCandidates([
-    ...keywordCandidates.interests,
-    ...keywordCandidates.personalities,
-  ]);
-  const uniqueLabels = Array.from(new Set(candidates)).slice(0, 10);
+  const candidates = dedupeVoiceKeywords([
+    ...keywordCandidates.interests.map((candidate, index) => ({
+      id: `candidate-interest-${index}-${candidate.text}`,
+      label: candidate.text?.trim() ?? "",
+      category: "interest" as const,
+      score: candidate.score,
+    })),
+    ...keywordCandidates.personalities.map((candidate, index) => ({
+      id: `candidate-personality-${index}-${candidate.text}`,
+      label: candidate.text?.trim() ?? "",
+      category: "personality" as const,
+      score: candidate.score,
+    })),
+  ])
+    .sort((a, b) => ((b as VoiceKeyword & { score?: number }).score ?? 0) - ((a as VoiceKeyword & { score?: number }).score ?? 0))
+    .slice(0, 10);
 
-  if (uniqueLabels.length === 0) {
+  if (candidates.length === 0) {
     return MOCK_KEYWORDS;
   }
 
   return [
-    ...uniqueLabels.map((label, index) => ({
-      id: `analyzed-${index}-${label}`,
-      label,
-    })),
+    ...candidates.map(({ id, label, category }) => ({ id, label, category })),
     { id: "more", label: "...더보기" },
   ];
 }
 
 function getAnalyzeMatchedKeywords(result: IAnalyzeResponse) {
   return Array.isArray(result.matchedKeywords) ? result.matchedKeywords : [];
+}
+
+function keywordOptionsFromMatchedKeywords(
+  matchedKeywords: {
+    category?: string | null;
+    keyword?: string | null;
+    score?: number | null;
+  }[],
+) {
+  return [...matchedKeywords]
+    .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
+    .reduce<VoiceKeyword[]>((options, keyword, index) => {
+      const label = keyword.keyword?.trim() ?? "";
+
+      if (!label) return options;
+
+      options.push({
+        id: `analyzed-${index}-${label}`,
+        label,
+        category: resolveVoiceKeywordCategory(keyword),
+      });
+
+      return options;
+    }, []);
+}
+
+function dedupeVoiceKeywords<T extends VoiceKeyword>(keywords: T[]) {
+  const keywordMap = new Map<string, T>();
+
+  keywords.forEach((keyword) => {
+    if (!keyword.label || keywordMap.has(keyword.label)) return;
+    keywordMap.set(keyword.label, keyword);
+  });
+
+  return Array.from(keywordMap.values());
+}
+
+function resolveVoiceKeywordCategory(
+  keyword: { category?: string | null },
+): VoiceKeyword["category"] {
+  if (isPersonalityCategory(keyword)) return "personality";
+
+  return "interest";
+}
+
+function isPersonalityCategory(keyword: { category?: string | null }) {
+  const category = normalizeKeywordCategory(keyword.category);
+
+  return (
+    category === "PERSONALITY" ||
+    category === "PERSONALITIES" ||
+    category === "성향" ||
+    category === "퍼스널리티" ||
+    category === "퍼스날리티"
+  );
+}
+
+function normalizeKeywordCategory(category?: string | null) {
+  return category?.trim().toUpperCase() ?? "";
 }
 
 function getAnalyzeKeywordCandidates(result: IAnalyzeResponse) {
@@ -872,6 +1020,21 @@ function getAnalyzeKeywordCandidates(result: IAnalyzeResponse) {
 
 function getAnalyzeVibeVector(result: IAnalyzeResponse) {
   return Array.isArray(result.vibeVector) ? result.vibeVector : [];
+}
+
+function mergeKeywordOptions(
+  primaryOptions: VoiceKeyword[],
+  extraOptions: VoiceKeyword[],
+) {
+  const optionMap = new Map<string, VoiceKeyword>();
+
+  [...primaryOptions, ...extraOptions].forEach((option) => {
+    if (!optionMap.has(option.id)) {
+      optionMap.set(option.id, option);
+    }
+  });
+
+  return Array.from(optionMap.values());
 }
 
 function withTimeout<T>(promise: Promise<T>, ms: number) {

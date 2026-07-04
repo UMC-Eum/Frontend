@@ -13,6 +13,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
 
 import {
   usePatchHeartMutation,
@@ -344,6 +345,8 @@ function mapReceivedHeartProfiles(
             fromUser: {
               nickname: string;
               age: number;
+              areaName?: string | null;
+              area?: { name?: string | null } | null;
               profileImageUrl: string;
             };
           }[];
@@ -365,7 +368,7 @@ function mapReceivedHeartProfiles(
           targetUserId: item.fromUserId,
           name: item.fromUser.nickname,
           age: item.fromUser.age,
-          location: "",
+          location: getProfileLocation(item.fromUser),
           image: item.fromUser.profileImageUrl,
           isLiked: item.isLiked ?? likedHeartId != null,
         };
@@ -382,6 +385,8 @@ function mapSentHeartProfiles(data?: {
       targetUser: {
         nickname: string;
         age: number;
+        areaName?: string | null;
+        area?: { name?: string | null } | null;
         profileImageUrl: string;
       };
     }[];
@@ -395,12 +400,19 @@ function mapSentHeartProfiles(data?: {
         targetUserId: item.targetUserId,
         name: item.targetUser.nickname,
         age: item.targetUser.age,
-        location: "",
+        location: getProfileLocation(item.targetUser),
         image: item.targetUser.profileImageUrl,
         isLiked: true,
       })),
     ) ?? []
   );
+}
+
+function getProfileLocation(profile: {
+  areaName?: string | null;
+  area?: { name?: string | null } | null;
+}) {
+  return profile.areaName?.trim() || profile.area?.name?.trim() || "";
 }
 
 function buildProfileDetailParams(profile: ScreenHeartProfile) {
@@ -458,7 +470,7 @@ function HeartProfileCard({
   return (
     <Pressable style={[styles.card, { width, height: width * 1.38 }]} onPress={onPress}>
       <ImageBackground source={{ uri: profile.image }} style={styles.cardImage} imageStyle={styles.cardRadius}>
-        <View style={styles.cardBottomOverlay} />
+        <CardBottomGradient />
         <Pressable
           style={[styles.heartButton, isPending ? styles.heartButtonPending : null]}
           onPress={(event) => {
@@ -488,6 +500,21 @@ function HeartProfileCard({
         </View>
       </ImageBackground>
     </Pressable>
+  );
+}
+
+function CardBottomGradient() {
+  return (
+    <Svg pointerEvents="none" style={styles.cardBottomOverlay}>
+      <Defs>
+        <LinearGradient id="heartCardGradient" x1="0" y1="0" x2="0" y2="1">
+          <Stop offset="0" stopColor="#000000" stopOpacity="0" />
+          <Stop offset="0.62" stopColor="#000000" stopOpacity="0.36" />
+          <Stop offset="1" stopColor="#000000" stopOpacity="0.7" />
+        </LinearGradient>
+      </Defs>
+      <Rect width="100%" height="100%" fill="url(#heartCardGradient)" />
+    </Svg>
   );
 }
 
@@ -613,10 +640,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    height: "42%",
-    borderBottomLeftRadius: 14,
-    borderBottomRightRadius: 14,
-    backgroundColor: "rgba(0,0,0,0.58)",
+    height: 96,
   },
   heartButton: {
     position: "absolute",

@@ -4,9 +4,24 @@
   },
   "build": {
     "preview": {
+      "environment": "preview",
       "distribution": "internal",
       "ios": {
         "simulator": false
+      }
+    },
+    "production": {
+      "environment": "production",
+      "distribution": "store",
+      "ios": {
+        "simulator": false
+      }
+    }
+  },
+  "submit": {
+    "production": {
+      "ios": {
+        "ascAppId": "6785847778"
       }
     }
   }

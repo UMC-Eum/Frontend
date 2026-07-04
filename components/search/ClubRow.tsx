@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import { Image } from "expo-image";
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
@@ -16,7 +17,15 @@ export default function ClubRow({ club, featured = false, onPress }: ClubRowProp
       style={[styles.clubRow, featured && styles.featuredClubRow]}
       onPress={onPress}
     >
-      <View style={styles.clubThumbnail} />
+      {club.thumbnailUrl ? (
+        <Image
+          source={{ uri: club.thumbnailUrl }}
+          style={styles.clubThumbnail}
+          contentFit="cover"
+        />
+      ) : (
+        <View style={styles.clubThumbnail} />
+      )}
       <View style={styles.clubInfo}>
         <Text style={styles.clubTitle} numberOfLines={1}>
           {club.title}

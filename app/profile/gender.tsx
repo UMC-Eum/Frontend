@@ -36,14 +36,18 @@ export default function GenderScreen() {
     if (selected) {
       setDraftGender(selected === "male" ? "M" : "F");
     }
-    router.push("/profile/photo" as any);
+    router.push({
+      pathname: "/profile/location",
+      params: { mode: "onboarding" },
+    } as any);
   };
 
   return (
     <ProfileStepLayout
       title="성별을 선택해주세요."
-      subtitle="추후에 수정이 불가능해요!"
+      subtitle="추후에 변경이 불가능해요."
       step={3}
+      totalSteps={5}
       buttonEnabled={selected !== null}
       onNext={handleNext}
     >
@@ -62,7 +66,7 @@ export default function GenderScreen() {
               <Ionicons
                 name={gender.icon}
                 size={48}
-                color={isActive ? "#FF3E70" : "#D1D5DB"}
+                color={isActive ? "#FC3367" : "#111111"}
               />
               <Text
                 style={[
@@ -85,29 +89,30 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    gap: 20,
+    gap: 48,
   },
   genderCircle: {
-    width: 160,
-    height: 160,
-    borderRadius: 80,
+    width: 150,
+    height: 150,
+    borderRadius: 75,
     borderWidth: 2,
     borderColor: "#DEE3E5",
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#F8FAFB",
     justifyContent: "center",
     alignItems: "center",
     gap: 8,
   },
   genderCircleActive: {
-    borderColor: "#FF3E70",
-    backgroundColor: "#FFFFFF",
+    borderColor: "#FC3367",
+    backgroundColor: "#FFE2E9",
   },
   genderLabel: {
     fontSize: 18,
-    fontWeight: "600",
-    color: "#A6AFB6",
+    fontWeight: "500",
+    color: "#111111",
   },
   genderLabelActive: {
-    color: "#FF3E70",
+    color: "#FC3367",
+    fontWeight: "700",
   },
 });

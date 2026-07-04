@@ -8,8 +8,11 @@ import {
   Alert,
   Animated,
   Dimensions,
+  Image as RNImage,
+  Linking,
   Modal,
   PanResponder,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -25,8 +28,12 @@ const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 const PROFILE_IMAGE_SIZE = 200;
 const CROP_CIRCLE_SIZE = Math.min(SCREEN_WIDTH - 40, 372);
 const CROP_CIRCLE_TOP = SCREEN_HEIGHT * 0.306;
-const DEFAULT_PROFILE_IMAGE_URL =
-  "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=85&w=1200&auto=format&fit=crop";
+const DEFAULT_PROFILE_IMAGE_ASSET = require("@/assets/images/default-profile.png");
+const DEFAULT_PROFILE_IMAGE_URI = RNImage.resolveAssetSource(
+  DEFAULT_PROFILE_IMAGE_ASSET,
+).uri;
+const MIN_CROP_ZOOM = 1;
+const MAX_CROP_ZOOM = 3;
 
 type PreviewAsset = {
   uri: string;
@@ -54,57 +61,118 @@ export default function PhotoScreen() {
   const [showActionSheet, setShowActionSheet] = useState(false);
   const [previewAsset, setPreviewAsset] = useState<PreviewAsset | null>(null);
   const cropTranslate = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current;
+  const cropScale = useRef(new Animated.Value(1)).current;
   const cropOffsetRef = useRef({ x: 0, y: 0 });
   const cropStartOffsetRef = useRef({ x: 0, y: 0 });
+  const cropZoomRef = useRef(1);
+  const cropStartZoomRef = useRef(1);
+  const cropPinchDistanceRef = useRef<number | null>(null);
 
   const handlePhotoPick = () => {
     setShowActionSheet(true);
   };
 
-  const [pendingAction, setPendingAction] = useState<"gallery" | null>(null);
+  const [pendingAction, setPendingAction] = useState<"camera" | "gallery" | null>(
+    null,
+  );
 
   const handlePickFromGallery = () => {
-    setPendingAction("gallery");
+    handleImageAction("gallery");
+  };
+
+  const handleTakePhoto = () => {
+    handleImageAction("camera");
+  };
+
+  const handleImageAction = (action: "camera" | "gallery") => {
     setShowActionSheet(false);
+
+    if (Platform.OS === "ios") {
+      setPendingAction(action);
+      return;
+    }
+
+    void runImageAction(action);
   };
 
   const onModalDismiss = async () => {
-    if (pendingAction === "gallery") {
-      setPendingAction(null);
+    const action = pendingAction;
+    if (!action) return;
 
-      try {
-        const permissionResult =
-          await ImagePicker.requestMediaLibraryPermissionsAsync();
-        if (permissionResult.status !== "granted") {
-          alert("갤러리 접근 권한이 필요합니다.");
-          return;
-        }
+    setPendingAction(null);
+    await runImageAction(action);
+  };
 
-        const result = await ImagePicker.launchImageLibraryAsync({
-          mediaTypes: ImagePicker.MediaTypeOptions.Images,
-          allowsEditing: false,
-          quality: 0.8,
+  const runImageAction = async (action: "camera" | "gallery") => {
+    try {
+      const result =
+        action === "gallery"
+          ? await pickImageFromGallery()
+          : await takePhotoWithCamera();
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const asset = result.assets[0];
+        resetCropOffset();
+        setPreviewAsset({
+          uri: asset.uri,
+          width: asset.width,
+          height: asset.height,
         });
-
-        if (!result.canceled && result.assets && result.assets.length > 0) {
-          const asset = result.assets[0];
-          resetCropOffset();
-          setPreviewAsset({
-            uri: asset.uri,
-            width: asset.width,
-            height: asset.height,
-          });
-        }
-      } catch (error) {
-        console.error("Gallery Error:", error);
       }
+    } catch (error) {
+      console.error("Profile Image Pick Error:", error);
     }
+  };
+
+  const pickImageFromGallery = async () => {
+    let permissionResult = await ImagePicker.getMediaLibraryPermissionsAsync();
+
+    if (!permissionResult.granted && permissionResult.canAskAgain) {
+      permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    }
+
+    if (!permissionResult.granted) {
+      Alert.alert(
+        "갤러리 접근 권한 필요",
+        "설정에서 사진 접근 권한을 허용해주세요.",
+        [
+          { text: "취소", style: "cancel" },
+          {
+            text: "설정 열기",
+            onPress: () => {
+              void Linking.openSettings();
+            },
+          },
+        ],
+      );
+      throw new Error("Media library permission denied.");
+    }
+
+    return ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      allowsEditing: false,
+      quality: 0.8,
+    });
+  };
+
+  const takePhotoWithCamera = async () => {
+    const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
+    if (permissionResult.status !== "granted") {
+      alert("카메라 권한이 필요합니다.");
+      throw new Error("Camera permission denied.");
+    }
+
+    return ImagePicker.launchCameraAsync({
+      mediaTypes: ["images"],
+      allowsEditing: false,
+      quality: 0.85,
+    });
   };
 
   const handleDefaultProfile = () => {
     setShowActionSheet(false);
-    setPhotoUri(DEFAULT_PROFILE_IMAGE_URL);
-    setDraftProfileImageUri(DEFAULT_PROFILE_IMAGE_URL);
+    setPhotoUri(DEFAULT_PROFILE_IMAGE_URI);
+    setDraftProfileImageUri(DEFAULT_PROFILE_IMAGE_URI);
   };
 
   const handleCancelAction = () => {
@@ -132,15 +200,19 @@ export default function PhotoScreen() {
     };
   }, [previewAsset]);
 
-  const clampCropOffset = useCallback((x: number, y: number) => {
+  const clampCropOffset = useCallback((x: number, y: number, zoom = cropZoomRef.current) => {
     if (!cropMetrics) return { x: 0, y: 0 };
 
     const circleRight = cropMetrics.circleLeft + CROP_CIRCLE_SIZE;
     const circleBottom = cropMetrics.circleTop + CROP_CIRCLE_SIZE;
-    const minX = circleRight - cropMetrics.imageLeft - cropMetrics.displayWidth;
-    const maxX = cropMetrics.circleLeft - cropMetrics.imageLeft;
-    const minY = circleBottom - cropMetrics.imageTop - cropMetrics.displayHeight;
-    const maxY = cropMetrics.circleTop - cropMetrics.imageTop;
+    const scaledWidth = cropMetrics.displayWidth * zoom;
+    const scaledHeight = cropMetrics.displayHeight * zoom;
+    const scaleInsetX = (scaledWidth - cropMetrics.displayWidth) / 2;
+    const scaleInsetY = (scaledHeight - cropMetrics.displayHeight) / 2;
+    const minX = circleRight - cropMetrics.imageLeft - scaledWidth + scaleInsetX;
+    const maxX = cropMetrics.circleLeft - cropMetrics.imageLeft + scaleInsetX;
+    const minY = circleBottom - cropMetrics.imageTop - scaledHeight + scaleInsetY;
+    const maxY = cropMetrics.circleTop - cropMetrics.imageTop + scaleInsetY;
 
     return {
       x: clamp(x, minX, maxX),
@@ -153,30 +225,69 @@ export default function PhotoScreen() {
       PanResponder.create({
         onStartShouldSetPanResponder: () => true,
         onMoveShouldSetPanResponder: () => true,
-        onPanResponderGrant: () => {
+        onPanResponderTerminationRequest: () => false,
+        onPanResponderGrant: (event) => {
           cropStartOffsetRef.current = cropOffsetRef.current;
+          cropStartZoomRef.current = cropZoomRef.current;
+          cropPinchDistanceRef.current = getTouchDistance(
+            event.nativeEvent.touches,
+          );
         },
         onPanResponderMove: (_, gestureState) => {
+          let nextZoom = cropZoomRef.current;
+          const pinchDistance = getTouchDistance(_.nativeEvent.touches);
+
+          if (pinchDistance && !cropPinchDistanceRef.current) {
+            cropPinchDistanceRef.current = pinchDistance;
+            cropStartZoomRef.current = cropZoomRef.current;
+          }
+
+          if (pinchDistance && cropPinchDistanceRef.current) {
+            nextZoom = clamp(
+              cropStartZoomRef.current *
+                (pinchDistance / cropPinchDistanceRef.current),
+              MIN_CROP_ZOOM,
+              MAX_CROP_ZOOM,
+            );
+            cropZoomRef.current = nextZoom;
+            cropScale.setValue(nextZoom);
+          }
+
           const nextOffset = clampCropOffset(
             cropStartOffsetRef.current.x + gestureState.dx,
             cropStartOffsetRef.current.y + gestureState.dy,
+            nextZoom,
           );
 
           cropOffsetRef.current = nextOffset;
           cropTranslate.setValue(nextOffset);
         },
         onPanResponderRelease: () => {
-          cropStartOffsetRef.current = cropOffsetRef.current;
+          const nextOffset = clampCropOffset(
+            cropOffsetRef.current.x,
+            cropOffsetRef.current.y,
+            cropZoomRef.current,
+          );
+
+          cropOffsetRef.current = nextOffset;
+          cropStartOffsetRef.current = nextOffset;
+          cropStartZoomRef.current = cropZoomRef.current;
+          cropPinchDistanceRef.current = null;
+          cropTranslate.setValue(nextOffset);
         },
       }),
-    [clampCropOffset, cropTranslate],
+    [clampCropOffset, cropScale, cropTranslate],
   );
 
   const resetCropOffset = () => {
     const offset = { x: 0, y: 0 };
     cropOffsetRef.current = offset;
     cropStartOffsetRef.current = offset;
+    cropZoomRef.current = 1;
+    cropStartZoomRef.current = 1;
+    cropPinchDistanceRef.current = null;
     cropTranslate.setValue(offset);
+    cropScale.setValue(1);
   };
 
   // 원형 크롭 프리뷰: 확정
@@ -184,13 +295,30 @@ export default function PhotoScreen() {
     if (!previewAsset || !cropMetrics) return;
 
     const cropOffset = cropOffsetRef.current;
-    const imageScreenLeft = cropMetrics.imageLeft + cropOffset.x;
-    const imageScreenTop = cropMetrics.imageTop + cropOffset.y;
+    const cropZoom = cropZoomRef.current;
+    const scaledWidth = cropMetrics.displayWidth * cropZoom;
+    const scaledHeight = cropMetrics.displayHeight * cropZoom;
+    const imageScreenLeft =
+      cropMetrics.imageLeft + cropOffset.x - (scaledWidth - cropMetrics.displayWidth) / 2;
+    const imageScreenTop =
+      cropMetrics.imageTop + cropOffset.y - (scaledHeight - cropMetrics.displayHeight) / 2;
     const originX =
-      (cropMetrics.circleLeft - imageScreenLeft) / cropMetrics.imageScale;
+      (cropMetrics.circleLeft - imageScreenLeft) / (cropMetrics.imageScale * cropZoom);
     const originY =
-      (cropMetrics.circleTop - imageScreenTop) / cropMetrics.imageScale;
-    const cropSize = CROP_CIRCLE_SIZE / cropMetrics.imageScale;
+      (cropMetrics.circleTop - imageScreenTop) / (cropMetrics.imageScale * cropZoom);
+    const cropSize = CROP_CIRCLE_SIZE / (cropMetrics.imageScale * cropZoom);
+    const roundedOriginX = Math.round(
+      clamp(originX, 0, Math.max(previewAsset.width - cropSize, 0)),
+    );
+    const roundedOriginY = Math.round(
+      clamp(originY, 0, Math.max(previewAsset.height - cropSize, 0)),
+    );
+    const roundedWidth = Math.round(
+      Math.min(cropSize, previewAsset.width - roundedOriginX),
+    );
+    const roundedHeight = Math.round(
+      Math.min(cropSize, previewAsset.height - roundedOriginY),
+    );
 
     try {
       const croppedImage = await ImageManipulator.manipulateAsync(
@@ -198,14 +326,10 @@ export default function PhotoScreen() {
         [
           {
             crop: {
-              originX: Math.round(
-                clamp(originX, 0, previewAsset.width - cropSize),
-              ),
-              originY: Math.round(
-                clamp(originY, 0, previewAsset.height - cropSize),
-              ),
-              width: Math.round(Math.min(cropSize, previewAsset.width)),
-              height: Math.round(Math.min(cropSize, previewAsset.height)),
+              originX: roundedOriginX,
+              originY: roundedOriginY,
+              width: roundedWidth,
+              height: roundedHeight,
             },
           },
         ],
@@ -229,7 +353,7 @@ export default function PhotoScreen() {
   };
 
   const handleNext = () => {
-    setDraftProfileImageUri(photoUri);
+    setDraftProfileImageUri(photoUri ?? DEFAULT_PROFILE_IMAGE_URI);
     router.push("/profile/welcome" as any);
   };
 
@@ -250,6 +374,7 @@ export default function PhotoScreen() {
                 transform: [
                   { translateX: cropTranslate.x },
                   { translateY: cropTranslate.y },
+                  { scale: cropScale },
                 ],
               },
             ]}
@@ -281,8 +406,9 @@ export default function PhotoScreen() {
     <ProfileStepLayout
       title="사진을 등록해주세요."
       subtitle="따뜻한 미소가 담긴 사진은 매칭에 큰 도움이 됩니다."
-      step={2}
-      buttonEnabled={photoUri !== null}
+      step={5}
+      totalSteps={5}
+      buttonEnabled
       onNext={handleNext}
     >
       <View style={styles.photoArea}>
@@ -291,7 +417,7 @@ export default function PhotoScreen() {
           <Pressable style={styles.photoCircle} onPress={handlePhotoPick}>
             {photoUri && photoUri !== "default" ? (
               <Image
-                source={{ uri: photoUri }}
+                source={getProfileImageSource(photoUri)}
                 style={styles.photoImage}
                 contentFit="cover"
               />
@@ -324,11 +450,19 @@ export default function PhotoScreen() {
                   styles.modalOption,
                   pressed && styles.modalOptionPressed,
                 ]}
+                onPress={handleTakePhoto}
+              >
+                <Text style={styles.modalOptionText}>카메라로 촬영</Text>
+              </Pressable>
+              <View style={styles.modalDivider} />
+              <Pressable
+                style={({ pressed }) => [
+                  styles.modalOption,
+                  pressed && styles.modalOptionPressed,
+                ]}
                 onPress={handlePickFromGallery}
               >
-                <Text style={styles.modalOptionText}>
-                  촬영 또는 앨범에서 선택
-                </Text>
+                <Text style={styles.modalOptionText}>앨범에서 선택</Text>
               </Pressable>
               <View style={styles.modalDivider} />
               <Pressable
@@ -417,6 +551,22 @@ function ProfilePlaceholder() {
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
+}
+
+function getTouchDistance(touches: { pageX: number; pageY: number }[]) {
+  if (touches.length < 2) return null;
+
+  const [first, second] = touches;
+  const dx = first.pageX - second.pageX;
+  const dy = first.pageY - second.pageY;
+
+  return Math.hypot(dx, dy);
+}
+
+function getProfileImageSource(uri: string) {
+  return uri === DEFAULT_PROFILE_IMAGE_URI
+    ? DEFAULT_PROFILE_IMAGE_ASSET
+    : { uri };
 }
 
 const styles = StyleSheet.create({

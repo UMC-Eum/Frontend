@@ -21,6 +21,34 @@ export default function Index() {
       </Pressable>
 
       <Pressable
+        style={[styles.button, styles.termsButton]}
+        onPress={() =>
+          router.push({
+            pathname: "/onboarding/login",
+            params: { showTerms: "1" },
+          } as any)
+        }
+      >
+        <Text style={[styles.buttonText, styles.termsButtonText]}>
+          📄 약관 바텀시트 확인하기
+        </Text>
+      </Pressable>
+
+      <Pressable
+        style={[styles.button, styles.termsDetailButton]}
+        onPress={() =>
+          router.push({
+            pathname: "/onboarding/terms-detail",
+            params: { type: "service" },
+          } as any)
+        }
+      >
+        <Text style={[styles.buttonText, styles.termsDetailButtonText]}>
+          📃 서비스 약관 상세 확인하기
+        </Text>
+      </Pressable>
+
+      <Pressable
         style={[styles.button, styles.testButton]}
         onPress={() => router.push("/test")}
       >
@@ -267,6 +295,22 @@ const styles = StyleSheet.create({
   },
   tabButtonText: {
     color: "#4338CA",
+  },
+  termsButton: {
+    backgroundColor: "#F8FAFC",
+    borderWidth: 1,
+    borderColor: "#CBD5E1",
+  },
+  termsButtonText: {
+    color: "#334155",
+  },
+  termsDetailButton: {
+    backgroundColor: "#F5F3FF",
+    borderWidth: 1,
+    borderColor: "#DDD6FE",
+  },
+  termsDetailButtonText: {
+    color: "#6D28D9",
   },
   homeButton: {
     backgroundColor: "#EEF2FF",
