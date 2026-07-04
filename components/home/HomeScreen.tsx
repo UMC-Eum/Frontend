@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -31,8 +31,13 @@ import {
 } from "@/hooks/api/useUsers";
 import { DEFAULT_PROFILE_IMAGE_URI } from "@/constants/defaultProfileImage";
 import { TAB_SCREEN_BOTTOM_PADDING } from "@/constants/layout";
-import { CLUBS, RECOMMENDED_CLUBS } from "@/constants/search";
-import ClubRow from "@/components/search/ClubRow";
+import ClubRow, { ClubRowItem } from "@/components/search/ClubRow";
+import {
+  useClubsInfiniteQuery,
+  useMyClubsQuery,
+  useRecommendedClubsQuery,
+} from "@/hooks/api/useClub";
+import { useClubLocationStore } from "@/stores/clubLocationStore";
 import { uniqueBy } from "@/utils/array";
 
 const PINK = "#FF1B4D";
@@ -56,71 +61,35 @@ type Profile = {
 
 const USER_NICKNAME = "루씨";
 const RECOMMENDATION_COUNTDOWN_MS = 60 * 60 * 1000;
-type HomeMockClub = {
-  id: string;
-  title: string;
-  image: string;
-  status?: string;
-};
-
-const MY_CLUBS: HomeMockClub[] = [
-  {
-    id: "my-club-1",
-    title: "우리집 강아지 산책 동호회",
-    image:
-      "https://images.unsplash.com/photo-1517849845537-4d257902454a?w=400&q=80&auto=format&fit=crop",
-    status: "가입 대기",
-  },
-  {
-    id: "my-club-2",
-    title: "압백 등반 동호회",
-    image:
-      "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?w=400&q=80&auto=format&fit=crop",
-  },
-  {
-    id: "my-club-3",
-    title: "새벽 등산 동호회",
-    image:
-      "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=400&q=80&auto=format&fit=crop",
-  },
-  {
-    id: "my-club-4",
-    title: "한강 러닝 크루",
-    image:
-      "https://images.unsplash.com/photo-1476480862126-209bfaa8edc8?w=400&q=80&auto=format&fit=crop",
-  },
-  {
-    id: "my-club-5",
-    title: "동작구 요가 모임",
-    image:
-      "https://images.unsplash.com/photo-1506126613408-eca07ce68773?w=400&q=80&auto=format&fit=crop",
-  },
-  {
-    id: "my-club-6",
-    title: "주말 독서 모임",
-    image:
-      "https://images.unsplash.com/photo-1513475382585-d06e58bcb0e0?w=400&q=80&auto=format&fit=crop",
-  },
-] as const;
 const CLUB_CATEGORIES = [
   {
     label: "운동, 스포츠",
+    searchLabel: "운동 / 스포츠",
+    value: "SPORTS",
     image: require("../../assets/images/club-categories/sports.png"),
   },
   {
     label: "봉사활동",
+    searchLabel: "봉사활동",
+    value: "VOLUNTEER",
     image: require("../../assets/images/club-categories/volunteer.png"),
   },
   {
     label: "자기개발",
+    searchLabel: "자기개발",
+    value: "STUDY",
     image: require("../../assets/images/club-categories/self-development.png"),
   },
   {
     label: "취미생활",
+    searchLabel: "취미생활",
+    value: "HOBBY",
     image: require("../../assets/images/club-categories/hobby.png"),
   },
   {
     label: "사교",
+    searchLabel: "사교",
+    value: "OTHERS",
     image: require("../../assets/images/club-categories/social.png"),
   },
 ] as const;
@@ -147,7 +116,10 @@ export default function HomePage() {
   const lastScrollY = useRef(0);
   const profileListRef = useRef<FlatList<Profile>>(null);
   const countdownEndAt = useRef(Date.now() + RECOMMENDATION_COUNTDOWN_MS);
-  const [activeHomeTab, setActiveHomeTab] = useState<HomeTab>("home");
+  const { tab: tabParam } = useLocalSearchParams<{ tab?: string }>();
+  const [activeHomeTab, setActiveHomeTab] = useState<HomeTab>(
+    tabParam === "club" ? "club" : "home",
+  );
   const [profileIndex, setProfileIndex] = useState(0);
   const [countdown, setCountdown] = useState(() =>
     getCountdownText(countdownEndAt.current),
@@ -183,6 +155,11 @@ export default function HomePage() {
   const nickname = myProfileQuery.data?.nickname ?? USER_NICKNAME;
   const cardWidth = width - 40;
   const hasNotificationBadge = heartUnreadCount + chatUnreadCount > 0;
+
+  // 마이페이지 등에서 ?tab=club 으로 진입하면 동호회 탭을 엽니다.
+  useEffect(() => {
+    if (tabParam === "club") setActiveHomeTab("club");
+  }, [tabParam]);
 
   // 추천 마감 카운트다운이 끝나면 추천 목록을 새로 받아옵니다.
   useEffect(() => {
@@ -474,6 +451,8 @@ export default function HomePage() {
             </>
           ) : (
             <ClubHomeContent
+              nickname={nickname}
+              defaultAreaName={myProfileQuery.data?.area?.name ?? undefined}
               onOpenClub={(clubId) =>
                 router.push({
                   pathname: "/club/detail",
@@ -618,16 +597,58 @@ function HomeTabButton({ label, isActive, onPress }: HomeTabButtonProps) {
 }
 
 function ClubHomeContent({
+  nickname,
+  defaultAreaName,
   onOpenClub,
 }: {
+  nickname: string;
+  defaultAreaName?: string;
   onOpenClub: (clubId: string) => void;
 }) {
+  const router = useRouter();
+  const clubAreaName = useClubLocationStore((state) => state.areaName);
+  const locationLabel = clubAreaName || defaultAreaName || "지역 선택";
   const [showAllMyClubs, setShowAllMyClubs] = useState(false);
-  const localClubs = CLUBS.slice(0, 3);
-  const todayClubs = RECOMMENDED_CLUBS.slice(0, 3);
+  const myClubsQuery = useMyClubsQuery();
+  const clubsQuery = useClubsInfiniteQuery({ limit: 3 });
+  const recommendedQuery = useRecommendedClubsQuery();
+
+  const myClubs = uniqueBy(
+    myClubsQuery.data?.items ?? [],
+    (item) => item.clubId,
+  );
+  const localClubs: ClubRowItem[] = (clubsQuery.data?.pages[0]?.items ?? [])
+    .slice(0, 3)
+    .map((club) => ({
+      id: String(club.clubId),
+      title: club.name,
+      description: club.introText,
+      members: club.memberCount,
+      thumbnailUrl: club.thumbnailUrl,
+    }));
+  const todayClubs: ClubRowItem[] = (recommendedQuery.data?.items ?? [])
+    .slice(0, 3)
+    .map((club) => ({
+      id: String(club.clubId),
+      title: club.name,
+      description: club.introText ?? undefined,
+      district: club.addressName,
+      thumbnailUrl: club.thumbnailUrl,
+    }));
 
   return (
     <View style={styles.clubHomeContent}>
+      {/* 지역 선택 — 온보딩식 picker로 조회 지역을 고릅니다. ponytail: 표시만, 실제 지역 필터는 /v1/clubs에 areaCode 파라미터 생기면 clubsQuery에 연결 */}
+      <Pressable
+        style={styles.clubLocationButton}
+        onPress={() => router.push("/profile/location?mode=club" as never)}
+        hitSlop={8}
+      >
+        <Ionicons name="location-sharp" size={20} color={BLACK} />
+        <Text style={styles.clubLocationText}>{locationLabel}</Text>
+        <Ionicons name="chevron-down" size={16} color={BLACK} />
+      </Pressable>
+
       <View style={styles.clubSectionHeader}>
         <Text style={styles.clubSectionTitle}>내 동호회</Text>
         <Pressable onPress={() => setShowAllMyClubs((current) => !current)}>
@@ -637,14 +658,14 @@ function ClubHomeContent({
         </Pressable>
       </View>
 
+      {/* ponytail: my-clubs API에 가입대기(PENDING) 정보가 없어 status 배지 미표시 — 서버 추가 시 복원 */}
       {showAllMyClubs ? (
         <View style={styles.myClubGrid}>
-          {MY_CLUBS.map((club) => (
+          {myClubs.map((club) => (
             <MyClubCard
-              key={club.id}
-              title={club.title}
-              image={club.image}
-              status={club.status}
+              key={club.clubId}
+              title={club.name}
+              image={club.thumbnailUrl}
             />
           ))}
         </View>
@@ -654,12 +675,11 @@ function ClubHomeContent({
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.myClubList}
         >
-          {MY_CLUBS.map((club) => (
+          {myClubs.map((club) => (
             <MyClubCard
-              key={club.id}
-              title={club.title}
-              image={club.image}
-              status={club.status}
+              key={club.clubId}
+              title={club.name}
+              image={club.thumbnailUrl}
             />
           ))}
         </ScrollView>
@@ -675,6 +695,15 @@ function ClubHomeContent({
               key={category.label}
               label={category.label}
               image={category.image}
+              onPress={() =>
+                router.push({
+                  pathname: "/search",
+                  params: {
+                    category: category.value,
+                    categoryLabel: category.searchLabel,
+                  },
+                } as never)
+              }
             />
           ))}
         </View>
@@ -683,8 +712,8 @@ function ClubHomeContent({
       <View style={styles.clubDivider} />
 
       <ClubSection
-        title="루씨 님을 위한 동호회"
-        accent="루씨"
+        title={`${nickname} 님을 위한 동호회`}
+        accent={nickname}
         icon="sparkles"
         clubs={localClubs}
         showMore
@@ -707,13 +736,15 @@ function MyClubCard({
   status,
 }: {
   title: string;
-  image: string;
+  image?: string | null;
   status?: string;
 }) {
   return (
     <Pressable style={styles.myClubCard}>
       <View style={styles.myClubImageWrap}>
-        <Image source={{ uri: image }} style={styles.myClubImage} contentFit="cover" />
+        {image ? (
+          <Image source={{ uri: image }} style={styles.myClubImage} contentFit="cover" />
+        ) : null}
         {status ? (
           <View style={styles.myClubStatusOverlay}>
             <Text style={styles.myClubStatus}>{status}</Text>
@@ -730,19 +761,25 @@ function MyClubCard({
 function ClubCategoryButton({
   label,
   image,
+  onPress,
 }: {
   label: string;
   image: (typeof CLUB_CATEGORIES)[number]["image"];
+  onPress: () => void;
 }) {
   return (
-    <View style={styles.clubCategoryItem}>
+    <Pressable
+      style={styles.clubCategoryItem}
+      onPress={onPress}
+      accessibilityRole="button"
+    >
       <View style={styles.clubCategoryIconBox}>
         <Image source={image} style={styles.clubCategoryIcon} contentFit="contain" />
       </View>
       <Text style={styles.clubCategoryLabel} numberOfLines={1}>
         {label}
       </Text>
-    </View>
+    </Pressable>
   );
 }
 
@@ -757,7 +794,7 @@ function ClubSection({
   title: string;
   accent?: string;
   icon?: "sparkles";
-  clubs: typeof CLUBS;
+  clubs: ClubRowItem[];
   showMore?: boolean;
   onClubPress: (clubId: string) => void;
 }) {
@@ -1218,6 +1255,19 @@ const styles = StyleSheet.create({
   },
   clubHomeContent: {
     paddingTop: 28,
+  },
+  clubLocationButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    paddingHorizontal: 20,
+    marginBottom: 20,
+  },
+  clubLocationText: {
+    fontSize: 20,
+    lineHeight: 25,
+    fontWeight: "700",
+    color: BLACK,
   },
   clubSectionHeader: {
     paddingHorizontal: 20,

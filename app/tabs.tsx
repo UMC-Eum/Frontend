@@ -189,7 +189,7 @@ export default function Index() {
       {/* 동호회 홈 화면 확인 버튼입니다. */}
       <Pressable
         style={[styles.button, styles.clubHomeButton]}
-        onPress={() => router.push("/club/home" as any)}
+        onPress={() => router.push("/(tabs)?tab=club" as any)}
       >
         <Text style={[styles.buttonText, styles.clubHomeButtonText]}>
           🏠 동호회 홈 테스트

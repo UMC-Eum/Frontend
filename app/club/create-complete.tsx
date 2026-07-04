@@ -100,7 +100,7 @@ export default function ClubCreateCompleteScreen() {
 
       <Cta
         label="동호회 바로가기"
-        onPress={() => router.replace("/club/home" as never)}
+        onPress={() => router.replace("/(tabs)?tab=club" as never)}
         containerStyle={styles.ctaContainer}
         buttonStyle={styles.ctaButton}
         labelStyle={styles.ctaLabel}
