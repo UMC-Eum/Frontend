@@ -1,8 +1,8 @@
 import { useRouter } from "expo-router";
 import { useRef, useState } from "react";
-import { ScrollView } from "react-native";
 
 import { useCreateMeetingMutation } from "@/hooks/api/useMeetings";
+import { useFastInputScroll } from "@/hooks/useFastInputScroll";
 import type { ClubJoinPolicy } from "@/types/api/club/clubDTO";
 
 import type { MeetingJoinType } from "@/components/meeting/MeetingCreateParts";
@@ -14,6 +14,7 @@ import {
 import type { IMeetingCreateRequest } from "@/types/api/meetings/meetingsDTO";
 
 type RequiredMeetingField = "title" | "intro" | "schedule" | "location";
+type MeetingField = RequiredMeetingField | "cost";
 
 const REQUIRED_FIELD_MESSAGES: Record<RequiredMeetingField, string> = {
   title: "모임 제목을 입력해주세요.",
@@ -24,12 +25,13 @@ const REQUIRED_FIELD_MESSAGES: Record<RequiredMeetingField, string> = {
 
 export function useMeetingCreateForm(clubId: number) {
   const router = useRouter();
-  const scrollViewRef = useRef<ScrollView>(null);
-  const sectionOffsets = useRef<Record<RequiredMeetingField, number>>({
+  const inputScroll = useFastInputScroll();
+  const sectionOffsets = useRef<Record<MeetingField, number>>({
     title: 0,
     intro: 0,
     schedule: 0,
     location: 0,
+    cost: 0,
   });
   const createMeetingMutation = useCreateMeetingMutation(clubId);
 
@@ -70,10 +72,14 @@ export function useMeetingCreateForm(clubId: number) {
     : formError;
 
   const handleSectionLayout =
-    (field: RequiredMeetingField) =>
+    (field: MeetingField) =>
     (event: { nativeEvent: { layout: { y: number } } }) => {
       sectionOffsets.current[field] = event.nativeEvent.layout.y;
     };
+
+  const scrollToField = (field: MeetingField) => {
+    inputScroll.scrollTo(sectionOffsets.current[field] - 8);
+  };
 
   const decreaseMembers = () => {
     setMaxMembers((current) => Math.max(2, current - 1));
@@ -103,10 +109,7 @@ export function useMeetingCreateForm(clubId: number) {
     const nextInvalidField = getFirstInvalidField();
 
     if (nextInvalidField) {
-      scrollViewRef.current?.scrollTo({
-        y: Math.max(sectionOffsets.current[nextInvalidField] - 8, 0),
-        animated: true,
-      });
+      scrollToField(nextInvalidField);
       return;
     }
 
@@ -157,7 +160,9 @@ export function useMeetingCreateForm(clubId: number) {
   };
 
   return {
-    scrollViewRef,
+    scrollViewRef: inputScroll.scrollViewRef,
+    scrollEventThrottle: inputScroll.scrollEventThrottle,
+    onScroll: inputScroll.onScroll,
     title,
     setTitle,
     intro,
@@ -179,6 +184,7 @@ export function useMeetingCreateForm(clubId: number) {
     getFieldError,
     validationWarning,
     handleSectionLayout,
+    scrollToField,
     handleSubmit,
     isSubmitting: createMeetingMutation.isPending,
   };

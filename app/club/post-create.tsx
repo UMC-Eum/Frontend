@@ -2,10 +2,11 @@ import * as ImagePicker from "expo-image-picker";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import {
   Alert,
   KeyboardAvoidingView,
+  LayoutChangeEvent,
   ScrollView,
   StyleSheet,
   TextInput,
@@ -24,6 +25,7 @@ import {
 import { KEYBOARD_AVOIDING_BEHAVIOR } from "@/constants/keyboard";
 import { createClubPost } from "@/api/clubs/clubPostsApi";
 import { queryKeys } from "@/hooks/api/queryKeys";
+import { useFastInputScroll } from "@/hooks/useFastInputScroll";
 import { ClubPostCategory } from "@/types/api/clubs/clubPostsDTO";
 
 const CATEGORY_OPTIONS: { label: string; value: ClubPostCategory }[] = [
@@ -33,6 +35,7 @@ const CATEGORY_OPTIONS: { label: string; value: ClubPostCategory }[] = [
   { label: "자유게시판", value: "FREE" },
 ];
 const CATEGORY_LABELS = CATEGORY_OPTIONS.map((category) => category.label);
+type InputField = "title" | "content";
 
 /**
  * 동호회 게시글 작성 화면
@@ -44,6 +47,11 @@ export default function ClubPostCreateScreen() {
   const queryClient = useQueryClient();
   const params = useLocalSearchParams<{ clubId?: string }>();
   const insets = useSafeAreaInsets();
+  const inputScroll = useFastInputScroll();
+  const inputOffsets = useRef<Record<InputField, number>>({
+    title: 0,
+    content: 0,
+  });
   const [categoryLabel, setCategoryLabel] = useState(CATEGORY_OPTIONS[0].label);
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
@@ -81,6 +89,16 @@ export default function ClubPostCreateScreen() {
       Alert.alert("등록 실패", message);
     },
   });
+
+  const handleInputLayout =
+    (field: InputField) =>
+    (event: LayoutChangeEvent) => {
+      inputOffsets.current[field] = event.nativeEvent.layout.y;
+    };
+
+  const scrollToInput = (field: InputField) => {
+    inputScroll.scrollTo(inputOffsets.current[field] - 8);
+  };
 
   const handlePickImages = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -137,6 +155,7 @@ export default function ClubPostCreateScreen() {
         />
 
         <ScrollView
+          ref={inputScroll.scrollViewRef}
           style={styles.scrollView}
           contentContainerStyle={[
             styles.scrollContent,
@@ -144,6 +163,8 @@ export default function ClubPostCreateScreen() {
           ]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
+          scrollEventThrottle={inputScroll.scrollEventThrottle}
+          onScroll={inputScroll.onScroll}
         >
           {/* 게시판 분류 선택 영역입니다. */}
           <View style={styles.categorySection}>
@@ -158,7 +179,10 @@ export default function ClubPostCreateScreen() {
           <View style={styles.dividerBand} />
 
           {/* 제목 입력 영역입니다. 제목은 선택값이므로 내용만 입력해도 등록할 수 있습니다. */}
-          <View style={styles.titleFieldWrap}>
+          <View
+            style={styles.titleFieldWrap}
+            onLayout={handleInputLayout("title")}
+          >
             <TextInput
               style={[styles.titleInput, !title && styles.titleInputEmpty]}
               placeholder="제목 (선택)"
@@ -166,10 +190,14 @@ export default function ClubPostCreateScreen() {
               value={title}
               onChangeText={setTitle}
               returnKeyType="next"
+              onFocus={() => scrollToInput("title")}
             />
           </View>
 
-          <View style={styles.contentSection}>
+          <View
+            style={styles.contentSection}
+            onLayout={handleInputLayout("content")}
+          >
             <RequiredLabel label="내용" />
             <TextInput
               style={styles.contentInput}
@@ -179,6 +207,7 @@ export default function ClubPostCreateScreen() {
               onChangeText={setContent}
               multiline
               textAlignVertical="top"
+              onFocus={() => scrollToInput("content")}
             />
           </View>
 

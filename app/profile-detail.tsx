@@ -3,13 +3,14 @@ import { isAxiosError } from "axios";
 import Constants from "expo-constants";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
   ImageBackground,
   Keyboard,
   KeyboardAvoidingView,
+  LayoutChangeEvent,
   Modal,
   Pressable,
   ScrollView,
@@ -30,6 +31,7 @@ import { HeaderBackOnly } from "@/components/header";
 import { DEFAULT_PROFILE_IMAGE_URI } from "@/constants/defaultProfileImage";
 import { KEYBOARD_AVOIDING_BEHAVIOR } from "@/constants/keyboard";
 import { useCreateChatRoomMutation } from "@/hooks/api/useChats";
+import { useFastInputScroll } from "@/hooks/useFastInputScroll";
 import {
   useBlockUserMutation,
   useBlocksInfiniteQuery,
@@ -921,6 +923,8 @@ function ReportModal({
 }) {
   const canSubmit = !!selectedReason && !isSubmitting;
   const [isDetailFocused, setIsDetailFocused] = useState(false);
+  const inputScroll = useFastInputScroll();
+  const detailInputYRef = useRef(0);
   const handleReasonPress = (reason: ReportReason) => {
     if (isDetailFocused) {
       Keyboard.dismiss();
@@ -928,6 +932,9 @@ function ReportModal({
     }
 
     onSelectReason(reason);
+  };
+  const handleDetailInputLayout = (event: LayoutChangeEvent) => {
+    detailInputYRef.current = event.nativeEvent.layout.y;
   };
 
   return (
@@ -975,10 +982,13 @@ function ReportModal({
             />
 
             <ScrollView
+              ref={inputScroll.scrollViewRef}
               style={styles.reportScroll}
               contentContainerStyle={styles.reportContent}
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
+              scrollEventThrottle={inputScroll.scrollEventThrottle}
+              onScroll={inputScroll.onScroll}
             >
               <Text style={styles.reportTitle}>
                 사용자를 신고하려는{"\n"}이유를 선택해주세요.
@@ -1018,7 +1028,10 @@ function ReportModal({
                 })}
               </View>
 
-              <View style={styles.reportInputBox}>
+              <View
+                style={styles.reportInputBox}
+                onLayout={handleDetailInputLayout}
+              >
                 <TextInput
                   style={styles.reportInput}
                   value={detail}
@@ -1030,7 +1043,10 @@ function ReportModal({
                   placeholder="신고 내용을 입력해주세요."
                   placeholderTextColor="#A6AFB6"
                   textAlignVertical="top"
-                  onFocus={() => setIsDetailFocused(true)}
+                  onFocus={() => {
+                    setIsDetailFocused(true);
+                    inputScroll.scrollTo(detailInputYRef.current - 8);
+                  }}
                   onBlur={() => setIsDetailFocused(false)}
                 />
                 <Text
