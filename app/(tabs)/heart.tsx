@@ -21,6 +21,7 @@ import {
   useSendHeartMutation,
   useSentHeartsInfiniteQuery,
 } from "@/hooks/api/useSocials";
+import { DEFAULT_PROFILE_IMAGE_URI } from "@/constants/defaultProfileImage";
 import { TAB_SCREEN_BOTTOM_PADDING } from "@/constants/layout";
 import { getAgeFromBirthdate } from "@/utils/age";
 import type {
@@ -28,14 +29,13 @@ import type {
   IHeartsentResponse,
   IProfileSummary,
 } from "@/types/api/socials/socialsDTO";
+import { uniqueBy } from "@/utils/array";
 
 const PINK = "#FF3E70";
 const BLACK = "#202020";
 const GRAY_100 = "#F8FAFB";
 const GRAY_150 = "#E9ECED";
 const GRAY_700 = "#636970";
-const FALLBACK_PROFILE_IMAGE =
-  "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=85&w=1200&auto=format&fit=crop";
 
 type HeartTab = "received" | "sent";
 
@@ -347,23 +347,27 @@ function mapReceivedHeartProfiles(
   sentHeartIdsByTargetUserId: Map<number, number>,
 ): ScreenHeartProfile[] {
   return (
-    data?.pages.flatMap((page) =>
-      page.items.map((item) => {
-        const likedHeartId = sentHeartIdsByTargetUserId.get(item.fromUserId);
+    uniqueBy(
+      data?.pages.flatMap((page) =>
+        page.items.map((item) => {
+          const likedHeartId =
+            item.likedHeartId ?? sentHeartIdsByTargetUserId.get(item.fromUserId);
 
-        return {
-          id: `received-${item.heartId}`,
-          receivedHeartId: item.heartId,
-          likedHeartId,
-          targetUserId: item.fromUserId,
-          name: item.fromUser.nickname,
-          age: getAgeFromBirthdate(item.fromUser.birthdate),
-          location: getProfileLocation(item.fromUser),
-          image: item.fromUser.profileImageUrl || FALLBACK_PROFILE_IMAGE,
-          isLiked: likedHeartId != null,
-        };
-      }),
-    ) ?? []
+          return {
+            id: `received-${item.heartId}`,
+            receivedHeartId: item.heartId,
+            likedHeartId,
+            targetUserId: item.fromUserId,
+            name: item.fromUser.nickname,
+            age: getProfileAge(item.fromUser),
+            location: getProfileLocation(item.fromUser),
+            image: item.fromUser.profileImageUrl || DEFAULT_PROFILE_IMAGE_URI,
+            isLiked: item.isLiked ?? likedHeartId != null,
+          };
+        }),
+      ) ?? [],
+      (item) => item.id,
+    )
   );
 }
 
@@ -371,24 +375,43 @@ function mapSentHeartProfiles(
   data: { pages: IHeartsentResponse[] } | undefined,
 ): ScreenHeartProfile[] {
   return (
-    data?.pages.flatMap((page) =>
-      page.items.map((item) => ({
-        id: `sent-${item.heartId}`,
-        likedHeartId: item.heartId,
-        targetUserId: item.targetUserId,
-        name: item.targetUser.nickname,
-        age: getAgeFromBirthdate(item.targetUser.birthdate),
-        location: getProfileLocation(item.targetUser),
-        image: item.targetUser.profileImageUrl || FALLBACK_PROFILE_IMAGE,
-        isLiked: true,
-      })),
-    ) ?? []
+    uniqueBy(
+      data?.pages.flatMap((page) =>
+        page.items.map((item) => ({
+          id: `sent-${item.heartId}`,
+          likedHeartId: item.heartId,
+          targetUserId: item.targetUserId,
+          name: item.targetUser.nickname,
+          age: getProfileAge(item.targetUser),
+          location: getProfileLocation(item.targetUser),
+          image: item.targetUser.profileImageUrl || DEFAULT_PROFILE_IMAGE_URI,
+          isLiked: true,
+        })),
+      ) ?? [],
+      (item) => item.id,
+    )
   );
 }
 
-// 마음 응답의 지역은 address.fullName로 내려옴 — 없으면 빈 값
+function getProfileAge(profile: IProfileSummary): number | null {
+  if (
+    typeof profile.age === "number" &&
+    Number.isFinite(profile.age) &&
+    profile.age >= 0
+  ) {
+    return Math.floor(profile.age);
+  }
+
+  return getAgeFromBirthdate(profile.birthdate ?? profile.birthDate);
+}
+
 function getProfileLocation(profile: IProfileSummary) {
-  return profile.address?.fullName?.trim() || "";
+  return (
+    profile.address?.fullName?.trim() ||
+    profile.areaName?.trim() ||
+    profile.area?.name?.trim() ||
+    ""
+  );
 }
 
 function buildProfileDetailParams(profile: ScreenHeartProfile) {

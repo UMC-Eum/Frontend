@@ -9,6 +9,7 @@ import {
   Alert,
   ImageBackground,
   Keyboard,
+  KeyboardAvoidingView,
   Modal,
   Pressable,
   ScrollView,
@@ -26,6 +27,8 @@ import Svg, { ClipPath, Defs, G, Path, Rect } from "react-native-svg";
 import { Chip } from "@/components/Chip";
 import Cta from "@/components/Cta";
 import { HeaderBackOnly } from "@/components/header";
+import { DEFAULT_PROFILE_IMAGE_URI } from "@/constants/defaultProfileImage";
+import { KEYBOARD_AVOIDING_BEHAVIOR } from "@/constants/keyboard";
 import { useCreateChatRoomMutation } from "@/hooks/api/useChats";
 import {
   useBlockUserMutation,
@@ -39,8 +42,6 @@ import { useUserProfileQuery } from "@/hooks/api/useUsers";
 import type { ReportCategory } from "@/types/api/socials/socialsDTO";
 import type { IProfileClubSummary, IUserPublicProfile } from "@/types/user";
 
-const FALLBACK_PROFILE_IMAGE =
-  "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=85&w=1200&auto=format&fit=crop";
 const expoScheme = Constants.expoConfig?.scheme;
 const APP_SCHEME = Array.isArray(expoScheme)
   ? expoScheme[0]
@@ -696,7 +697,7 @@ function mapParamsToProfile(params: ProfileDetailParams): ProfileViewData | null
     location: firstParam(params.location) ?? "",
     distance: "",
     intro: firstParam(params.intro) ?? "",
-    image: image || FALLBACK_PROFILE_IMAGE,
+    image: image || DEFAULT_PROFILE_IMAGE_URI,
     interests: [],
     preferences: [],
     joinedClubs: [],
@@ -716,7 +717,7 @@ function mapProfileToViewData(
     location: profile.area?.name || fallback?.location || "",
     distance: fallback?.distance || "",
     intro: profile.introText || fallback?.intro || "",
-    image: profile.profileImageUrl || fallback?.image || FALLBACK_PROFILE_IMAGE,
+    image: profile.profileImageUrl || fallback?.image || DEFAULT_PROFILE_IMAGE_URI,
     interests: profile.interests ?? [],
     preferences: profile.idealPersonalities ?? [],
     joinedClubs: mapProfileClubs(profile.participatingClubs),
@@ -964,7 +965,10 @@ function ReportModal({
             />
           </View>
         ) : (
-          <View style={styles.reportScreen}>
+          <KeyboardAvoidingView
+            style={styles.reportScreen}
+            behavior={KEYBOARD_AVOIDING_BEHAVIOR}
+          >
             <HeaderBackOnly
               onPressBack={onClose}
               containerStyle={styles.reportHeader}
@@ -1048,7 +1052,7 @@ function ReportModal({
               buttonStyle={styles.reportCtaButton}
               labelStyle={styles.reportCtaLabel}
             />
-          </View>
+          </KeyboardAvoidingView>
         )}
       </SafeAreaView>
     </Modal>

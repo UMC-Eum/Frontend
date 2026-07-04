@@ -8,6 +8,7 @@ import {
   Alert,
   Animated,
   Easing,
+  KeyboardAvoidingView,
   Modal,
   Pressable,
   ScrollView,
@@ -19,6 +20,7 @@ import {
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { KEYBOARD_AVOIDING_BEHAVIOR } from "@/constants/keyboard";
 import { CLUB_CATEGORY_LABELS } from "@/constants/club";
 import {
   useClubDetailQuery,
@@ -984,61 +986,67 @@ function JoinRequestModal({
       onRequestClose={onClose}
     >
       <Pressable style={styles.modalBackdrop} onPress={onClose}>
-        <Animated.View
-          style={[
-            styles.sheetAnimation,
-            { transform: [{ translateY: sheetTranslateY }] },
-          ]}
+        <KeyboardAvoidingView
+          style={styles.modalKeyboardView}
+          behavior={KEYBOARD_AVOIDING_BEHAVIOR}
+          pointerEvents="box-none"
         >
-          <Pressable
-            style={[styles.joinSheet, { paddingBottom: bottomPadding }]}
-            onPress={(event) => event.stopPropagation()}
+          <Animated.View
+            style={[
+              styles.sheetAnimation,
+              { transform: [{ translateY: sheetTranslateY }] },
+            ]}
           >
-            <View style={styles.sheetHandle} />
+            <Pressable
+              style={[styles.joinSheet, { paddingBottom: bottomPadding }]}
+              onPress={(event) => event.stopPropagation()}
+            >
+              <View style={styles.sheetHandle} />
 
-            <View style={styles.modalClubCard}>
-              <View style={styles.modalClubImage} />
-              <View style={styles.modalClubInfo}>
-                <Text style={styles.modalClubTitle}>{clubTitle}</Text>
-                <Text style={styles.modalClubMeta}>{clubMeta}</Text>
+              <View style={styles.modalClubCard}>
+                <View style={styles.modalClubImage} />
+                <View style={styles.modalClubInfo}>
+                  <Text style={styles.modalClubTitle}>{clubTitle}</Text>
+                  <Text style={styles.modalClubMeta}>{clubMeta}</Text>
+                </View>
               </View>
-            </View>
 
-            <View style={styles.messageHeaderRow}>
-              <Text style={styles.messageLabel}>가입 메세지</Text>
-              <Text style={styles.requiredMark}>*</Text>
-            </View>
-            <Text style={styles.messageDescription}>
-              운영자에게 전달 되는 메시지예요.
-            </Text>
-
-            <View style={styles.messageInputBox}>
-              <TextInput
-                style={styles.messageInput}
-                value={message}
-                onChangeText={(value) => onChangeMessage(value.slice(0, 30))}
-                placeholder="가입하고 싶은 이유나 간단한 자기소개를 작성해주세요 :)"
-                placeholderTextColor="#A6AFB6"
-                multiline
-                textAlignVertical="top"
-                maxLength={30}
-              />
-              <Text style={styles.messageCount}>{message.length}/30</Text>
-            </View>
-
-            {showMessageRequired ? (
-              <View style={styles.requiredNotice}>
-                <Text style={styles.requiredNoticeText}>
-                  가입 메시지를 입력해주세요.
-                </Text>
+              <View style={styles.messageHeaderRow}>
+                <Text style={styles.messageLabel}>가입 메세지</Text>
+                <Text style={styles.requiredMark}>*</Text>
               </View>
-            ) : null}
+              <Text style={styles.messageDescription}>
+                운영자에게 전달 되는 메시지예요.
+              </Text>
 
-            <Pressable style={styles.requestButton} onPress={onSubmit}>
-              <Text style={styles.requestButtonText}>가입 신청하기</Text>
+              <View style={styles.messageInputBox}>
+                <TextInput
+                  style={styles.messageInput}
+                  value={message}
+                  onChangeText={(value) => onChangeMessage(value.slice(0, 30))}
+                  placeholder="가입하고 싶은 이유나 간단한 자기소개를 작성해주세요 :)"
+                  placeholderTextColor="#A6AFB6"
+                  multiline
+                  textAlignVertical="top"
+                  maxLength={30}
+                />
+                <Text style={styles.messageCount}>{message.length}/30</Text>
+              </View>
+
+              {showMessageRequired ? (
+                <View style={styles.requiredNotice}>
+                  <Text style={styles.requiredNoticeText}>
+                    가입 메시지를 입력해주세요.
+                  </Text>
+                </View>
+              ) : null}
+
+              <Pressable style={styles.requestButton} onPress={onSubmit}>
+                <Text style={styles.requestButtonText}>가입 신청하기</Text>
+              </Pressable>
             </Pressable>
-          </Pressable>
-        </Animated.View>
+          </Animated.View>
+        </KeyboardAvoidingView>
       </Pressable>
     </Modal>
   );
@@ -1732,6 +1740,11 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "flex-end",
     backgroundColor: "rgba(0, 0, 0, 0.45)",
+  },
+  modalKeyboardView: {
+    flex: 1,
+    width: "100%",
+    justifyContent: "flex-end",
   },
   sheetAnimation: {
     width: "100%",

@@ -15,6 +15,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { TAB_SCREEN_BOTTOM_PADDING } from "@/constants/layout";
 import { useChatRoomsInfiniteQuery } from "@/hooks/api/useChats";
+import { uniqueBy } from "@/utils/array";
 
 type ChatPreview = {
   id: string;
@@ -220,23 +221,26 @@ function mapChatRooms(data?: {
   }[];
 }): ChatPreview[] {
   return (
-    data?.pages.flatMap((page) =>
-      (page.items ?? []).flatMap((room) => {
-        if (!room?.chatRoomId) return [];
+    uniqueBy(
+      data?.pages.flatMap((page) =>
+        (page.items ?? []).flatMap((room) => {
+          if (!room?.chatRoomId) return [];
 
-        return {
-          id: String(room.chatRoomId),
-          name: room.peer?.nickname?.trim() || "이름 없는 사용자",
-          location: room.peer?.areaName?.trim() || "지역 정보 없음",
-          lastMessage:
-            room.lastMessage?.textPreview?.trim() ||
-            "새로운 대화를 시작해보세요.",
-          timeLabel: formatRelativeTime(room.lastMessage?.sentAt),
-          unreadCount: room.unreadCount ?? 0,
-          image: room.peer?.profileImageUrl ?? undefined,
-        };
-      }),
-    ) ?? []
+          return {
+            id: String(room.chatRoomId),
+            name: room.peer?.nickname?.trim() || "이름 없는 사용자",
+            location: room.peer?.areaName?.trim() || "지역 정보 없음",
+            lastMessage:
+              room.lastMessage?.textPreview?.trim() ||
+              "새로운 대화를 시작해보세요.",
+            timeLabel: formatRelativeTime(room.lastMessage?.sentAt),
+            unreadCount: room.unreadCount ?? 0,
+            image: room.peer?.profileImageUrl ?? undefined,
+          };
+        }),
+      ) ?? [],
+      (item) => item.id,
+    )
   );
 }
 

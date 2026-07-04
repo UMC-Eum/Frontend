@@ -21,6 +21,7 @@ import {
   useDeactivateUserMutation,
   useMyProfileQuery,
 } from "@/hooks/api/useUsers";
+import { uniqueBy } from "@/utils/array";
 
 const ACCENT = "#FC3367";
 const TEXT = "#202020";
@@ -44,7 +45,10 @@ export default function MyTabScreen() {
       0,
     ) ?? (receivedHeartsQuery.isSuccess ? 0 : undefined);
   // ponytail: 엔드포인트에 페이지네이션이 없어 slice로 기존 5개 노출 유지
-  const myClubs = (myClubsQuery.data?.items ?? []).slice(0, 5);
+  const myClubs = uniqueBy(
+    myClubsQuery.data?.items ?? [],
+    (item) => item.clubId,
+  ).slice(0, 5);
 
   const handleNotificationToggle = (enabled: boolean) => {
     setNotificationEnabled(enabled);

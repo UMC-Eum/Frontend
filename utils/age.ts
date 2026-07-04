@@ -14,5 +14,5 @@ export function getAgeFromBirthdate(birthdate?: string | null): number | null {
   );
   if (today < birthdayThisYear) age -= 1;
 
-  return age > 0 ? age : null;
+  return age >= 0 ? age : null;
 }

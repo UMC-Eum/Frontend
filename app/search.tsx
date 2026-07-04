@@ -3,7 +3,6 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Keyboard,
   KeyboardAvoidingView,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -18,6 +17,7 @@ import SearchHeader from "@/components/search/SearchHeader";
 import SearchResults from "@/components/search/SearchResults";
 import SortSheet from "@/components/search/SortSheet";
 import SuggestionList from "@/components/search/SuggestionList";
+import { KEYBOARD_AVOIDING_BEHAVIOR } from "@/constants/keyboard";
 import { RECENT_SEARCHES, SUGGESTIONS } from "@/constants/search";
 import { useClubsInfiniteQuery } from "@/hooks/api/useClub";
 import type {
@@ -26,6 +26,7 @@ import type {
   IClubListItem,
 } from "@/types/api/club/clubDTO";
 import { Club, SortOption } from "@/types/search";
+import { uniqueBy } from "@/utils/array";
 
 const CATEGORY_TABS = [
   { label: "운동 / 스포츠", value: "SPORTS" },
@@ -93,9 +94,12 @@ export default function SearchScreen() {
 
   const results = useMemo(
     () =>
-      clubsQuery.data?.pages.flatMap((page) =>
-        getClubItemsFromPage(page).map(mapClubListItemToSearchClub),
-      ) ?? [],
+      uniqueBy(
+        clubsQuery.data?.pages.flatMap((page) =>
+          getClubItemsFromPage(page).map(mapClubListItemToSearchClub),
+        ) ?? [],
+        (item) => item.id,
+      ),
     [clubsQuery.data],
   );
   const selectedCategoryChips =
@@ -206,7 +210,7 @@ export default function SearchScreen() {
   return (
     <SafeAreaView style={styles.safeArea} edges={["top", "bottom"]}>
       <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        behavior={KEYBOARD_AVOIDING_BEHAVIOR}
         style={styles.keyboardView}
       >
         <SearchHeader

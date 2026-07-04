@@ -6,7 +6,6 @@ import React, { useMemo, useState } from "react";
 import {
   Alert,
   KeyboardAvoidingView,
-  Platform,
   ScrollView,
   StyleSheet,
   TextInput,
@@ -22,6 +21,7 @@ import {
   CLUB_COLORS,
   RequiredLabel,
 } from "@/components/club/ClubPostParts";
+import { KEYBOARD_AVOIDING_BEHAVIOR } from "@/constants/keyboard";
 import { createClubPost } from "@/api/clubs/clubPostsApi";
 import { queryKeys } from "@/hooks/api/queryKeys";
 import { ClubPostCategory } from "@/types/api/clubs/clubPostsDTO";
@@ -126,7 +126,7 @@ export default function ClubPostCreateScreen() {
       <StatusBar style="dark" />
       <KeyboardAvoidingView
         style={styles.keyboardView}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        behavior={KEYBOARD_AVOIDING_BEHAVIOR}
       >
         <ClubHeader
           title="글쓰기"

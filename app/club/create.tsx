@@ -6,6 +6,7 @@ import { StatusBar } from "expo-status-bar";
 import React, { useMemo, useState } from "react";
 import {
   Alert,
+  KeyboardAvoidingView,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -16,6 +17,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import Cta from "@/components/Cta";
 import { Chip } from "@/components/Chip";
+import { KEYBOARD_AVOIDING_BEHAVIOR } from "@/constants/keyboard";
 import TextBox from "@/components/TextBox";
 import { CLUB_CREATE_CATEGORIES } from "@/constants/club";
 import { postPresign, uploadFileToS3 } from "@/api/onboarding/onboardingApi";
@@ -121,188 +123,194 @@ export default function ClubCreateScreen() {
   return (
     <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
       <StatusBar style="dark" />
-      <View style={styles.header}>
-        <Pressable
-          style={styles.headerIconButton}
-          onPress={() => router.back()}
-          hitSlop={12}
-        >
-          <Ionicons name="chevron-back" size={26} color="#A6AFB6" />
-        </Pressable>
-        <Text style={styles.headerTitle}>동호회 만들기</Text>
-        <View style={styles.headerIconButton} />
-      </View>
-
-      <ScrollView
-        style={styles.scrollView}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
+      <KeyboardAvoidingView
+        style={styles.keyboardView}
+        behavior={KEYBOARD_AVOIDING_BEHAVIOR}
       >
-        {/* 커버 사진 업로드 진입 영역입니다. */}
-        <Pressable
-          style={styles.coverBox}
-          onPress={handlePickCoverImages}
-        >
-          {coverImages[0] ? (
-            <>
-              <Image
-                source={{ uri: coverImages[0].uri }}
-                style={styles.coverImage}
-                contentFit="cover"
-              />
-              <View style={styles.coverDim} />
-              <View style={styles.coverEditBadge}>
-                <Ionicons name="camera" size={17} color="#FFFFFF" />
-                <Text style={styles.coverEditText}>
-                  {coverImages.length}/5
-                </Text>
-              </View>
-            </>
-          ) : (
-            <>
-              <View style={styles.cameraCircle}>
-                {/* ponytail: Figma MCP 미연결로 아이콘 크기 36 적용, 실제 값 다르면 수치만 조정 */}
-                <Ionicons name="camera" size={36} color="#9EA8AF" />
-              </View>
-              <Text style={styles.coverText}>커버 사진 추가</Text>
-              <Text style={styles.coverSubText}>(최대 5장까지 가능)</Text>
-            </>
-          )}
-        </Pressable>
-
-        <FormSection>
-          <RequiredLabel label="동호회 이름" />
-          <TextBox
-            value={name}
-            onChangeText={setName}
-            placeholder="동호회 이름을 입력해주세요"
-            multiline={false}
-            inputBoxStyle={styles.nameInputBox}
-            style={styles.nameInput}
-          />
-        </FormSection>
-
-        <FormSection>
-          <RequiredLabel label="동호회 소개" />
-          <TextBox
-            value={intro}
-            onChangeText={setIntro}
-            placeholder={"동호회를 소개해주세요.\n(활동 내용, 분위기, 참여 방법 등)"}
-            maxLength={200}
-          />
-        </FormSection>
-
-        <FormSection>
-          <View style={styles.labelRow}>
-            <RequiredLabel label="카테고리" />
-            <Text style={styles.hint}>최소 1개 선택</Text>
-          </View>
-          <View style={styles.chipList}>
-            {categories.map((item) => (
-              <Chip
-                key={item.label}
-                label={item.label}
-                variant={category.label === item.label ? "outlineActive" : "outline"}
-                size="small"
-                onPress={() => setCategory(item)}
-                style={[
-                  styles.categoryChip,
-                  category === item ? styles.categoryChipActive : null,
-                ]}
-                textStyle={[
-                  styles.categoryChipText,
-                  category === item ? styles.categoryChipTextActive : null,
-                ]}
-              />
-            ))}
-          </View>
-        </FormSection>
-
-        <FormSection>
-          <RequiredLabel label="활동 지역" />
+        <View style={styles.header}>
           <Pressable
-            style={styles.selectBox}
-            onPress={() => setRegion("서울시 서대문구")}
+            style={styles.headerIconButton}
+            onPress={() => router.back()}
+            hitSlop={12}
           >
-            <Text style={[styles.selectText, region && styles.selectTextActive]}>
-              {region || "지역을 선택해주세요"}
-            </Text>
-            <Ionicons name="chevron-forward" size={22} color="#A6AFB6" />
+            <Ionicons name="chevron-back" size={26} color="#A6AFB6" />
           </Pressable>
-        </FormSection>
+          <Text style={styles.headerTitle}>동호회 만들기</Text>
+          <View style={styles.headerIconButton} />
+        </View>
 
-        <FormSection>
-          <RequiredLabel label="최대인원" />
-          <View style={styles.counterBox}>
-            <View style={styles.memberCountBox}>
-              <Text style={styles.memberCount}>{maxMembers}</Text>
-              <Text style={styles.memberUnit}>명</Text>
+        <ScrollView
+          style={styles.scrollView}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+        >
+          {/* 커버 사진 업로드 진입 영역입니다. */}
+          <Pressable
+            style={styles.coverBox}
+            onPress={handlePickCoverImages}
+          >
+            {coverImages[0] ? (
+              <>
+                <Image
+                  source={{ uri: coverImages[0].uri }}
+                  style={styles.coverImage}
+                  contentFit="cover"
+                />
+                <View style={styles.coverDim} />
+                <View style={styles.coverEditBadge}>
+                  <Ionicons name="camera" size={17} color="#FFFFFF" />
+                  <Text style={styles.coverEditText}>
+                    {coverImages.length}/5
+                  </Text>
+                </View>
+              </>
+            ) : (
+              <>
+                <View style={styles.cameraCircle}>
+                  {/* ponytail: Figma MCP 미연결로 아이콘 크기 36 적용, 실제 값 다르면 수치만 조정 */}
+                  <Ionicons name="camera" size={36} color="#9EA8AF" />
+                </View>
+                <Text style={styles.coverText}>커버 사진 추가</Text>
+                <Text style={styles.coverSubText}>(최대 5장까지 가능)</Text>
+              </>
+            )}
+          </Pressable>
+
+          <FormSection>
+            <RequiredLabel label="동호회 이름" />
+            <TextBox
+              value={name}
+              onChangeText={setName}
+              placeholder="동호회 이름을 입력해주세요"
+              multiline={false}
+              inputBoxStyle={styles.nameInputBox}
+              style={styles.nameInput}
+            />
+          </FormSection>
+
+          <FormSection>
+            <RequiredLabel label="동호회 소개" />
+            <TextBox
+              value={intro}
+              onChangeText={setIntro}
+              placeholder={"동호회를 소개해주세요.\n(활동 내용, 분위기, 참여 방법 등)"}
+              maxLength={200}
+            />
+          </FormSection>
+
+          <FormSection>
+            <View style={styles.labelRow}>
+              <RequiredLabel label="카테고리" />
+              <Text style={styles.hint}>최소 1개 선택</Text>
             </View>
-            <View style={styles.stepperGroup}>
-              <RoundIconButton
-                icon="remove"
-                disabled={maxMembers <= 2}
-                onPress={() => setMaxMembers((prev) => Math.max(2, prev - 1))}
+            <View style={styles.chipList}>
+              {categories.map((item) => (
+                <Chip
+                  key={item.label}
+                  label={item.label}
+                  variant={category.label === item.label ? "outlineActive" : "outline"}
+                  size="small"
+                  onPress={() => setCategory(item)}
+                  style={[
+                    styles.categoryChip,
+                    category === item ? styles.categoryChipActive : null,
+                  ]}
+                  textStyle={[
+                    styles.categoryChipText,
+                    category === item ? styles.categoryChipTextActive : null,
+                  ]}
+                />
+              ))}
+            </View>
+          </FormSection>
+
+          <FormSection>
+            <RequiredLabel label="활동 지역" />
+            <Pressable
+              style={styles.selectBox}
+              onPress={() => setRegion("서울시 서대문구")}
+            >
+              <Text style={[styles.selectText, region && styles.selectTextActive]}>
+                {region || "지역을 선택해주세요"}
+              </Text>
+              <Ionicons name="chevron-forward" size={22} color="#A6AFB6" />
+            </Pressable>
+          </FormSection>
+
+          <FormSection>
+            <RequiredLabel label="최대인원" />
+            <View style={styles.counterBox}>
+              <View style={styles.memberCountBox}>
+                <Text style={styles.memberCount}>{maxMembers}</Text>
+                <Text style={styles.memberUnit}>명</Text>
+              </View>
+              <View style={styles.stepperGroup}>
+                <RoundIconButton
+                  icon="remove"
+                  disabled={maxMembers <= 2}
+                  onPress={() => setMaxMembers((prev) => Math.max(2, prev - 1))}
+                />
+                <View style={styles.stepperDivider} />
+                <RoundIconButton
+                  icon="add"
+                  onPress={() => setMaxMembers((prev) => Math.min(99, prev + 1))}
+                />
+              </View>
+            </View>
+          </FormSection>
+
+          <FormSection>
+            <RequiredLabel label="가입 방식" />
+            <View style={styles.optionRow}>
+              <OptionCard
+                title="자유 가입"
+                description="누구나 바로 가입"
+                selected={joinType === "free"}
+                onPress={() => setJoinType("free")}
               />
-              <View style={styles.stepperDivider} />
-              <RoundIconButton
-                icon="add"
-                onPress={() => setMaxMembers((prev) => Math.min(99, prev + 1))}
+              <OptionCard
+                title="승인 필요"
+                description="운영자 확인 후 가입"
+                selected={joinType === "approval"}
+                onPress={() => setJoinType("approval")}
               />
             </View>
-          </View>
-        </FormSection>
+          </FormSection>
 
-        <FormSection>
-          <RequiredLabel label="가입 방식" />
-          <View style={styles.optionRow}>
-            <OptionCard
-              title="자유 가입"
-              description="누구나 바로 가입"
-              selected={joinType === "free"}
-              onPress={() => setJoinType("free")}
-            />
-            <OptionCard
-              title="승인 필요"
-              description="운영자 확인 후 가입"
-              selected={joinType === "approval"}
-              onPress={() => setJoinType("approval")}
-            />
-          </View>
-        </FormSection>
+          <FormSection>
+            <RequiredLabel label="게시판 공개 범위" />
+            <View style={styles.optionRow}>
+              <OptionCard
+                title="전체 공개"
+                description="누구나 게시판 열람"
+                selected={boardScope === "all"}
+                onPress={() => setBoardScope("all")}
+              />
+              <OptionCard
+                title="회원 공개"
+                description="가입 회원만 열람 가능"
+                selected={boardScope === "member"}
+                onPress={() => setBoardScope("member")}
+              />
+            </View>
+          </FormSection>
+        </ScrollView>
 
-        <FormSection>
-          <RequiredLabel label="게시판 공개 범위" />
-          <View style={styles.optionRow}>
-            <OptionCard
-              title="전체 공개"
-              description="누구나 게시판 열람"
-              selected={boardScope === "all"}
-              onPress={() => setBoardScope("all")}
-            />
-            <OptionCard
-              title="회원 공개"
-              description="가입 회원만 열람 가능"
-              selected={boardScope === "member"}
-              onPress={() => setBoardScope("member")}
-            />
-          </View>
-        </FormSection>
-      </ScrollView>
-
-      <Cta
-        label={
-          createClubMutation.isPending || isUploadingCover
-            ? "생성 중..."
-            : canSubmit
-              ? "동호회 만들기"
-              : "다음"
-        }
-        disabled={!canSubmit || createClubMutation.isPending || isUploadingCover}
-        onPress={handleSubmit}
-        buttonStyle={styles.ctaButton}
-        labelStyle={styles.ctaLabel}
-      />
+        <Cta
+          label={
+            createClubMutation.isPending || isUploadingCover
+              ? "생성 중..."
+              : canSubmit
+                ? "동호회 만들기"
+                : "다음"
+          }
+          disabled={!canSubmit || createClubMutation.isPending || isUploadingCover}
+          onPress={handleSubmit}
+          buttonStyle={styles.ctaButton}
+          labelStyle={styles.ctaLabel}
+        />
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -428,6 +436,9 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: "#FFFFFF",
+  },
+  keyboardView: {
+    flex: 1,
   },
   header: {
     height: 56,

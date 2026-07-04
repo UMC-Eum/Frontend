@@ -4,7 +4,6 @@ import { StatusBar } from "expo-status-bar";
 import React from "react";
 import {
   KeyboardAvoidingView,
-  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -13,6 +12,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import Cta from "@/components/Cta";
+import { KEYBOARD_AVOIDING_BEHAVIOR } from "@/constants/keyboard";
 import {
   MEETING_COLORS,
   MeetingFieldSection,
@@ -38,7 +38,7 @@ export default function MeetingCreateScreen() {
       <StatusBar style="dark" />
       <KeyboardAvoidingView
         style={styles.keyboardView}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        behavior={KEYBOARD_AVOIDING_BEHAVIOR}
       >
         <MeetingScreenHeader
           title="정기모임 만들기"

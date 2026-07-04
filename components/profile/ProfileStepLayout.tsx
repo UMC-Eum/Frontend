@@ -3,13 +3,13 @@ import { useRouter } from "expo-router";
 import React from "react";
 import {
   KeyboardAvoidingView,
-  Platform,
   Pressable,
   StyleSheet,
   Text,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { KEYBOARD_AVOIDING_BEHAVIOR } from "@/constants/keyboard";
 import ProgressBar from "../progress-bar";
 
 interface ProfileStepLayoutProps {
@@ -64,7 +64,7 @@ const ProfileStepLayout = ({
   return (
     <KeyboardAvoidingView
       style={[styles.container, { paddingTop: insets.top }]}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      behavior={KEYBOARD_AVOIDING_BEHAVIOR}
     >
       {/* 헤더: 뒤로가기 + 진행 상태 */}
       <View style={styles.header}>

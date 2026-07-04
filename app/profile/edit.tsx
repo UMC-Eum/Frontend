@@ -30,6 +30,7 @@ import {
   useMyProfileQuery,
   useUpdateMyProfileMutation,
 } from "@/hooks/api/useUsers";
+import { KEYBOARD_AVOIDING_BEHAVIOR } from "@/constants/keyboard";
 
 const ACCENT = "#FC3367";
 const TEXT = "#202020";
@@ -219,7 +220,7 @@ export default function ProfileEditScreen() {
     <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
       <KeyboardAvoidingView
         style={styles.keyboardAvoiding}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        behavior={KEYBOARD_AVOIDING_BEHAVIOR}
       >
         <View style={styles.header}>
           <Pressable style={styles.headerButton} onPress={handleBack} hitSlop={12}>

@@ -1,9 +1,15 @@
 export interface IProfileSummary {
   id?: number;
-  profileImageUrl: string | null;
+  profileImageUrl?: string | null;
   nickname: string;
-  // 서버는 나이/지역을 birthdate·address로 내려줌 (age/areaName 아님)
+  age?: number | null;
+  // 신규 서버 응답은 birthdate를 사용하고, birthDate는 기존 응답 호환용입니다.
   birthdate?: string | null;
+  birthDate?: string | null;
+  areaName?: string | null;
+  area?: {
+    name?: string | null;
+  } | null;
   address?: {
     fullName?: string | null;
   } | null;
@@ -36,6 +42,8 @@ export interface IHeartreceivedItem {
   heartId: number;
   fromUserId: number;
   createdAt: string;
+  isLiked?: boolean;
+  likedHeartId?: number | null;
   fromUser: IProfileSummary;
 }
 export interface IHeartreceivedResponse {
