@@ -264,7 +264,7 @@ export default function MyTabScreen() {
           <TouchableOpacity
             style={styles.viewAllButton}
             activeOpacity={0.75}
-            onPress={() => router.push("/club/home" as any)}
+            onPress={() => router.push("/(tabs)?tab=club" as any)}
           >
             <Text style={styles.viewAllText}>전체 보기</Text>
           </TouchableOpacity>

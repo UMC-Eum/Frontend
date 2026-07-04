@@ -18,6 +18,7 @@ import {
   useMyProfileQuery,
   useUpdateMyProfileMutation,
 } from "@/hooks/api/useUsers";
+import { useClubLocationStore } from "@/stores/clubLocationStore";
 import { useOnboardingDraftStore } from "@/stores/onboardingDraftStore";
 
 const ACCENT = "#FC3367";
@@ -30,9 +31,12 @@ export default function LocationEditScreen() {
   const router = useRouter();
   const { mode } = useLocalSearchParams<{ mode?: string }>();
   const isOnboardingMode = mode === "onboarding";
+  const isClubMode = mode === "club";
   const draftAreaCode = useOnboardingDraftStore((state) => state.areaCode);
   const setDraftArea = useOnboardingDraftStore((state) => state.setArea);
-  const myProfileQuery = useMyProfileQuery(!isOnboardingMode);
+  const clubAreaCode = useClubLocationStore((state) => state.areaCode);
+  const setClubArea = useClubLocationStore((state) => state.setArea);
+  const myProfileQuery = useMyProfileQuery(!isOnboardingMode && !isClubMode);
   const updateMyProfileMutation = useUpdateMyProfileMutation();
   const [step, setStep] = useState<1 | 2>(1);
   const [selectedRegionCode, setSelectedRegionCode] = useState<string | null>(
@@ -45,7 +49,9 @@ export default function LocationEditScreen() {
   useEffect(() => {
     const areaCode = isOnboardingMode
       ? draftAreaCode
-      : myProfileQuery.data?.area?.code;
+      : isClubMode
+        ? clubAreaCode
+        : myProfileQuery.data?.area?.code;
     if (!areaCode) return;
 
     const currentRegion = findRegionByDistrictCode(areaCode);
@@ -60,7 +66,13 @@ export default function LocationEditScreen() {
         ? areaCode
         : null,
     );
-  }, [draftAreaCode, isOnboardingMode, myProfileQuery.data?.area?.code]);
+  }, [
+    clubAreaCode,
+    draftAreaCode,
+    isClubMode,
+    isOnboardingMode,
+    myProfileQuery.data?.area?.code,
+  ]);
 
   const currentDistricts = useMemo(() => {
     if (!selectedRegionCode) return [];
@@ -70,7 +82,8 @@ export default function LocationEditScreen() {
     );
   }, [selectedRegionCode]);
 
-  const isSubmitting = !isOnboardingMode && updateMyProfileMutation.isPending;
+  const isSubmitting =
+    !isOnboardingMode && !isClubMode && updateMyProfileMutation.isPending;
   const canSubmit =
     !isSubmitting && (step === 1 ? !!selectedRegionCode : !!selectedDistrictCode);
 
@@ -115,6 +128,20 @@ export default function LocationEditScreen() {
       return;
     }
 
+    // 동호회 홈 지역 선택: 프로필은 그대로 두고 조회용 지역만 저장 후 복귀
+    if (isClubMode) {
+      setClubArea(
+        selectedDistrictCode,
+        getLocationName(selectedRegionCode, selectedDistrict),
+      );
+      if (router.canGoBack()) {
+        router.back();
+      } else {
+        router.replace("/(tabs)?tab=club" as never);
+      }
+      return;
+    }
+
     try {
       await updateMyProfileMutation.mutateAsync({
         areaCode: selectedDistrictCode,
@@ -143,7 +170,7 @@ export default function LocationEditScreen() {
   const displayedLocations = step === 1 ? REGIONS : currentDistricts;
   const selectedCode = step === 1 ? selectedRegionCode : selectedDistrictCode;
 
-  if (!isOnboardingMode && myProfileQuery.isLoading) {
+  if (!isOnboardingMode && !isClubMode && myProfileQuery.isLoading) {
     return (
       <SafeAreaView style={styles.loadingContainer}>
         <ActivityIndicator color={ACCENT} />
@@ -181,18 +208,23 @@ export default function LocationEditScreen() {
         <Pressable style={styles.headerButton} onPress={handleBack} hitSlop={12}>
           <Ionicons name="chevron-back" size={28} color={MUTED} />
         </Pressable>
-        <Text style={styles.headerTitle}>거주지 수정</Text>
+        <Text style={styles.headerTitle}>
+          {isClubMode ? "지역 선택" : "거주지 수정"}
+        </Text>
         <View style={styles.headerButton} />
       </View>
 
       <View style={styles.content}>
         <View style={styles.titleBlock}>
           <Text style={styles.title}>
-            현재 거주하는{"\n"}
-            지역이 어디인가요?
+            {isClubMode
+              ? "어떤 지역의\n동호회를 볼까요?"
+              : "현재 거주하는\n지역이 어디인가요?"}
           </Text>
           <Text style={styles.subtitle}>
-            내 거주지와 가까운 분들과 더 잘 이어져요.
+            {isClubMode
+              ? "선택한 지역의 동호회를 보여드려요."
+              : "내 거주지와 가까운 분들과 더 잘 이어져요."}
           </Text>
         </View>
 
