@@ -1,10 +1,15 @@
 export interface IProfileSummary {
-  profileImageUrl: string;
+  profileImageUrl?: string | null;
   nickname: string;
-  age: number;
+  age?: number | null;
+  birthdate?: string | null;
+  birthDate?: string | null;
   areaName?: string | null;
   area?: {
     name?: string | null;
+  } | null;
+  address?: {
+    fullName?: string | null;
   } | null;
 }
 
@@ -35,6 +40,8 @@ export interface IHeartreceivedItem {
   heartId: number;
   fromUserId: number;
   createdAt: string;
+  isLiked?: boolean;
+  likedHeartId?: number | null;
   fromUser: IProfileSummary;
 }
 export interface IHeartreceivedResponse {

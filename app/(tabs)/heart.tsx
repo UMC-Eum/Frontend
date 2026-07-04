@@ -22,6 +22,12 @@ import {
   useSentHeartsInfiniteQuery,
 } from "@/hooks/api/useSocials";
 import { TAB_SCREEN_BOTTOM_PADDING } from "@/constants/layout";
+import type {
+  IHeartreceivedResponse,
+  IHeartsentResponse,
+  IProfileSummary,
+} from "@/types/api/socials/socialsDTO";
+import { getAgeFromBirthdate } from "@/utils/age";
 import { uniqueBy } from "@/utils/array";
 
 const PINK = "#FF3E70";
@@ -29,6 +35,8 @@ const BLACK = "#202020";
 const GRAY_100 = "#F8FAFB";
 const GRAY_150 = "#E9ECED";
 const GRAY_700 = "#636970";
+const FALLBACK_PROFILE_IMAGE =
+  "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=85&w=1200&auto=format&fit=crop";
 
 type HeartTab = "received" | "sent";
 
@@ -36,7 +44,7 @@ type HeartProfile = {
   id: string;
   targetUserId: number;
   name: string;
-  age: number;
+  age: number | null;
   location: string;
   image: string;
   isLiked: boolean;
@@ -335,25 +343,7 @@ function applyOptimisticHeartState<T extends ScreenHeartProfile>(
 }
 
 function mapReceivedHeartProfiles(
-  data:
-    | {
-        pages: {
-          items: {
-            heartId: number;
-            fromUserId: number;
-            isLiked?: boolean;
-            likedHeartId?: number | null;
-            fromUser: {
-              nickname: string;
-              age: number;
-              areaName?: string | null;
-              area?: { name?: string | null } | null;
-              profileImageUrl: string;
-            };
-          }[];
-        }[];
-      }
-    | undefined,
+  data: { pages: IHeartreceivedResponse[] } | undefined,
   sentHeartIdsByTargetUserId: Map<number, number>,
 ): ScreenHeartProfile[] {
   return (
@@ -369,9 +359,9 @@ function mapReceivedHeartProfiles(
             likedHeartId,
             targetUserId: item.fromUserId,
             name: item.fromUser.nickname,
-            age: item.fromUser.age,
+            age: getProfileAge(item.fromUser),
             location: getProfileLocation(item.fromUser),
-            image: item.fromUser.profileImageUrl,
+            image: item.fromUser.profileImageUrl || FALLBACK_PROFILE_IMAGE,
             isLiked: item.isLiked ?? likedHeartId != null,
           };
         }),
@@ -381,21 +371,9 @@ function mapReceivedHeartProfiles(
   );
 }
 
-function mapSentHeartProfiles(data?: {
-  pages: {
-    items: {
-      heartId: number;
-      targetUserId: number;
-      targetUser: {
-        nickname: string;
-        age: number;
-        areaName?: string | null;
-        area?: { name?: string | null } | null;
-        profileImageUrl: string;
-      };
-    }[];
-  }[];
-}): ScreenHeartProfile[] {
+function mapSentHeartProfiles(
+  data: { pages: IHeartsentResponse[] } | undefined,
+): ScreenHeartProfile[] {
   return (
     uniqueBy(
       data?.pages.flatMap((page) =>
@@ -404,9 +382,9 @@ function mapSentHeartProfiles(data?: {
           likedHeartId: item.heartId,
           targetUserId: item.targetUserId,
           name: item.targetUser.nickname,
-          age: item.targetUser.age,
+          age: getProfileAge(item.targetUser),
           location: getProfileLocation(item.targetUser),
-          image: item.targetUser.profileImageUrl,
+          image: item.targetUser.profileImageUrl || FALLBACK_PROFILE_IMAGE,
           isLiked: true,
         })),
       ) ?? [],
@@ -415,22 +393,39 @@ function mapSentHeartProfiles(data?: {
   );
 }
 
-function getProfileLocation(profile: {
-  areaName?: string | null;
-  area?: { name?: string | null } | null;
-}) {
-  return profile.areaName?.trim() || profile.area?.name?.trim() || "";
+function getProfileAge(profile: IProfileSummary) {
+  if (
+    typeof profile.age === "number" &&
+    Number.isFinite(profile.age) &&
+    profile.age > 0
+  ) {
+    return Math.floor(profile.age);
+  }
+
+  return getAgeFromBirthdate(profile.birthdate ?? profile.birthDate);
+}
+
+function getProfileLocation(profile: IProfileSummary) {
+  return (
+    profile.address?.fullName?.trim() ||
+    profile.areaName?.trim() ||
+    profile.area?.name?.trim() ||
+    ""
+  );
 }
 
 function buildProfileDetailParams(profile: ScreenHeartProfile) {
   const params: Record<string, string> = {
     userId: String(profile.targetUserId),
     name: profile.name,
-    age: String(profile.age),
     image: profile.image,
     location: profile.location,
     isLiked: String(profile.isLiked),
   };
+
+  if (profile.age != null) {
+    params.age = String(profile.age);
+  }
 
   if (profile.likedHeartId) {
     params.heartId = String(profile.likedHeartId);
@@ -498,12 +493,18 @@ function HeartProfileCard({
             <Text style={styles.cardName} numberOfLines={1}>
               {profile.name}
             </Text>
-            <View style={styles.nameDot} />
-            <Text style={styles.cardName}>{profile.age}세</Text>
+            {profile.age != null ? (
+              <>
+                <View style={styles.nameDot} />
+                <Text style={styles.cardName}>{profile.age}세</Text>
+              </>
+            ) : null}
           </View>
-          <Text style={styles.cardLocation} numberOfLines={1}>
-            {profile.location}
-          </Text>
+          {profile.location ? (
+            <Text style={styles.cardLocation} numberOfLines={1}>
+              {profile.location}
+            </Text>
+          ) : null}
         </View>
       </ImageBackground>
     </Pressable>
