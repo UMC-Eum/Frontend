@@ -15,7 +15,9 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
   Animated,
+  Modal,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -23,6 +25,7 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { postPresign } from "@/api/onboarding/onboardingApi";
+import { PROFILE_PERSONALITY_KEYWORDS } from "@/constants/profileKeywords";
 import { getMyProfile } from "@/api/users/usersApi";
 import { AnalyzingView, VoiceKeyword } from "@/components/profile/ProfileVoiceParts";
 import { usePostVoiceAnalyzeMutation } from "@/hooks/api/useOnboarding";
@@ -70,6 +73,15 @@ const DEFAULT_KEYWORD_OPTIONS: VoiceKeyword[] = [
   { id: "more", label: "... 더보기" },
 ];
 
+// 온보딩과 동일하게 "더보기"로 펼치는 추가 성격 키워드 목록입니다.
+const MORE_KEYWORDS: VoiceKeyword[] = PROFILE_PERSONALITY_KEYWORDS.map(
+  (label, index) => ({
+    id: `personality-${index}-${label}`,
+    label,
+    category: "personality" as const,
+  }),
+);
+
 type IdealRecordingStep = "recording" | "analyzing" | "keywords";
 
 export default function IdealRecordingPage() {
@@ -109,12 +121,20 @@ export default function IdealRecordingPage() {
   }, [recorderState.durationMillis, recorderState.isRecording, recordingTime]);
   const hasRecording = !recorderState.isRecording && recordingUri !== null;
   const userName = myProfileQuery.data?.nickname?.trim() || "사용자";
+  // base 키워드 + 더보기 키워드를 합쳐, 어느 쪽에서 고르든 선택/저장에 반영합니다.
+  const allKeywordOptions = useMemo(() => {
+    const baseLabels = new Set(keywordOptions.map((keyword) => keyword.label));
+    const extraKeywords = MORE_KEYWORDS.filter(
+      (keyword) => !baseLabels.has(keyword.label),
+    );
+    return [...keywordOptions, ...extraKeywords];
+  }, [keywordOptions]);
   const selectedKeywords = useMemo(
     () =>
-      keywordOptions
+      allKeywordOptions
         .filter((keyword) => selectedKeywordIds.includes(keyword.id))
         .map((keyword) => keyword.label),
-    [keywordOptions, selectedKeywordIds],
+    [allKeywordOptions, selectedKeywordIds],
   );
 
   useEffect(() => {
@@ -466,7 +486,9 @@ export default function IdealRecordingPage() {
         <KeywordResultView
           userName={userName}
           keywords={keywordOptions}
+          moreKeywords={MORE_KEYWORDS}
           selectedIds={selectedKeywordIds}
+          selectedLabels={selectedKeywords}
           onToggleKeyword={handleToggleKeyword}
           onRerecord={handleRerecord}
           onSave={handleSave}
@@ -592,7 +614,9 @@ function IdealHeader({ onBack }: { onBack: () => void }) {
 type KeywordResultProps = {
   userName: string;
   keywords: VoiceKeyword[];
+  moreKeywords?: VoiceKeyword[];
   selectedIds: string[];
+  selectedLabels?: string[];
   onToggleKeyword: (id: string) => void;
   onRerecord: () => void;
   onSave: () => void;
@@ -602,13 +626,31 @@ type KeywordResultProps = {
 function KeywordResultView({
   userName,
   keywords,
+  moreKeywords = [],
   selectedIds,
+  selectedLabels = [],
   onToggleKeyword,
   onRerecord,
   onSave,
   isSaving,
 }: KeywordResultProps) {
   const insets = useSafeAreaInsets();
+  const [isMoreOpen, setIsMoreOpen] = useState(false);
+
+  // 온보딩과 동일: base 키워드 + (더보기에서 고른 키워드) + 더보기 칩 순으로 노출
+  const baseKeywords = keywords.filter((keyword) => keyword.id !== "more");
+  const moreChip = keywords.find((keyword) => keyword.id === "more");
+  const baseKeywordLabels = new Set(baseKeywords.map((keyword) => keyword.label));
+  // base와 라벨이 겹치는 더보기 키워드는 중복이므로 모달·선택 목록에서 제외합니다.
+  const modalKeywords = moreKeywords.filter(
+    (keyword) => !baseKeywordLabels.has(keyword.label),
+  );
+  const selectedMoreKeywords = modalKeywords.filter((keyword) =>
+    selectedIds.includes(keyword.id),
+  );
+  const visibleKeywords = moreChip
+    ? [...baseKeywords, ...selectedMoreKeywords, moreChip]
+    : [...baseKeywords, ...selectedMoreKeywords];
 
   return (
     <View style={styles.keywordScreen}>
@@ -620,9 +662,11 @@ function KeywordResultView({
       </View>
 
       <View style={styles.keywordWrap}>
-        {keywords.map((keyword) => {
+        {visibleKeywords.map((keyword) => {
           const isMore = keyword.id === "more";
-          const selected = selectedIds.includes(keyword.id);
+          const selected =
+            selectedIds.includes(keyword.id) ||
+            selectedLabels.includes(keyword.label);
 
           return (
             <Pressable
@@ -632,8 +676,11 @@ function KeywordResultView({
                 selected && styles.chipActive,
                 isMore && styles.chipMore,
               ]}
-              onPress={isMore ? undefined : () => onToggleKeyword(keyword.id)}
-              disabled={isMore}
+              onPress={
+                isMore
+                  ? () => setIsMoreOpen(true)
+                  : () => onToggleKeyword(keyword.id)
+              }
             >
               <Text
                 style={[styles.chipText, selected && styles.chipTextActive]}
@@ -644,6 +691,62 @@ function KeywordResultView({
           );
         })}
       </View>
+
+      <Modal
+        visible={isMoreOpen}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setIsMoreOpen(false)}
+      >
+        <View style={styles.moreOverlay}>
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            onPress={() => setIsMoreOpen(false)}
+          />
+          <View style={[styles.moreSheet, { paddingBottom: insets.bottom + 24 }]}>
+            <View style={styles.moreHeader}>
+              <Text style={styles.moreTitle}>성격 더보기</Text>
+              <Pressable
+                style={styles.moreClose}
+                onPress={() => setIsMoreOpen(false)}
+                hitSlop={10}
+              >
+                <Ionicons name="close" size={24} color={TEXT_900} />
+              </Pressable>
+            </View>
+            <Text style={styles.moreDescription}>
+              최대 5개까지 자유롭게 고를 수 있어요.
+            </Text>
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.moreContent}
+            >
+              {modalKeywords.map((keyword) => {
+                const selected =
+                  selectedIds.includes(keyword.id) ||
+                  selectedLabels.includes(keyword.label);
+
+                return (
+                  <Pressable
+                    key={keyword.id}
+                    style={[styles.chip, selected && styles.chipActive]}
+                    onPress={() => onToggleKeyword(keyword.id)}
+                  >
+                    <Text
+                      style={[
+                        styles.chipText,
+                        selected && styles.chipTextActive,
+                      ]}
+                    >
+                      {keyword.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
 
       <View style={[styles.keywordFooter, { paddingBottom: insets.bottom + 24 }]}>
         <Text style={styles.footerHint}>
@@ -1248,6 +1351,50 @@ const styles = StyleSheet.create({
   },
   chipTextActive: {
     color: PRIMARY,
+  },
+  moreOverlay: {
+    flex: 1,
+    justifyContent: "flex-end",
+    backgroundColor: "rgba(0, 0, 0, 0.36)",
+  },
+  moreSheet: {
+    maxHeight: "72%",
+    borderTopLeftRadius: 18,
+    borderTopRightRadius: 18,
+    backgroundColor: WHITE,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+  },
+  moreHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  moreTitle: {
+    color: TEXT_900,
+    fontSize: 20,
+    fontWeight: "700",
+    lineHeight: 28,
+  },
+  moreClose: {
+    width: 36,
+    height: 36,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  moreDescription: {
+    marginTop: 4,
+    color: GRAY_700,
+    fontSize: 14,
+    fontWeight: "500",
+    lineHeight: 20,
+  },
+  moreContent: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 9,
+    paddingTop: 18,
+    paddingBottom: 8,
   },
   keywordFooter: {
     position: "absolute",
