@@ -9,6 +9,7 @@ import {
   Animated,
   Dimensions,
   Image as RNImage,
+  Linking,
   Modal,
   PanResponder,
   Platform,
@@ -124,10 +125,26 @@ export default function PhotoScreen() {
   };
 
   const pickImageFromGallery = async () => {
-    const permissionResult =
-      await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (permissionResult.status !== "granted") {
-      alert("갤러리 접근 권한이 필요합니다.");
+    let permissionResult = await ImagePicker.getMediaLibraryPermissionsAsync();
+
+    if (!permissionResult.granted && permissionResult.canAskAgain) {
+      permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    }
+
+    if (!permissionResult.granted) {
+      Alert.alert(
+        "갤러리 접근 권한 필요",
+        "설정에서 사진 접근 권한을 허용해주세요.",
+        [
+          { text: "취소", style: "cancel" },
+          {
+            text: "설정 열기",
+            onPress: () => {
+              void Linking.openSettings();
+            },
+          },
+        ],
+      );
       throw new Error("Media library permission denied.");
     }
 
