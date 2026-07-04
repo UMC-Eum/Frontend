@@ -18,6 +18,7 @@ import {
   useNotificationsInfiniteQuery,
   useReadNotificationMutation,
 } from "@/hooks/api/useNotifications";
+import type { INotification } from "@/types/api/notifications/notificationsDTO";
 
 const PINK = "#FF4F7E";
 
@@ -29,7 +30,7 @@ type NotificationData = {
   isRead: boolean;
   userId: string;
   userName: string;
-  userProfileImage: string;
+  userProfileImage?: string;
   notificationContent: string;
   timeLabel?: string;
   timestamp: Date;
@@ -194,31 +195,16 @@ export default function NotificationsScreen() {
   );
 }
 
-function mapNotificationPages(data?: {
-  pages: {
-    items: {
-      notificationId: number;
-      isRead: boolean;
-      body: string;
-      title: string;
-      createdAt: string;
-      sender: {
-        id: number;
-        nickname: string;
-        profileImageUrl: string;
-      };
-    }[];
-  }[];
-}): NotificationData[] {
+function mapNotificationPages(data?: { pages: { items: INotification[] }[] }) {
   return (
     data?.pages.flatMap((page) =>
       page.items.map((item) => ({
         id: String(item.notificationId),
         apiId: item.notificationId,
         isRead: item.isRead,
-        userId: String(item.sender.id),
-        userName: item.sender.nickname,
-        userProfileImage: item.sender.profileImageUrl,
+        userId: String(item.sender?.id ?? item.notificationId),
+        userName: item.sender?.nickname ?? "EUM",
+        userProfileImage: item.sender?.profileImageUrl ?? undefined,
         notificationContent: item.body || item.title,
         timestamp: new Date(item.createdAt),
       })),

@@ -1,9 +1,8 @@
 export type ClubCategory =
   | "SPORTS"
-  | "LANGUAGE"
+  | "HOBBY"
   | "VOLUNTEER"
-  | "OUTDOOR"
-  | "CULTURE"
+  | "STUDY"
   | "OTHERS"
   | (string & {});
 

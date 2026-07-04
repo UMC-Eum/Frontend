@@ -20,8 +20,9 @@ import TextBox from "@/components/TextBox";
 import { CLUB_CREATE_CATEGORIES } from "@/constants/club";
 import { postPresign, uploadFileToS3 } from "@/api/onboarding/onboardingApi";
 import { useCreateClubMutation } from "@/hooks/api/useClub";
+import type { ApiFailResponse } from "@/types/api/api";
 
-const categories = CLUB_CREATE_CATEGORIES.map((item) => item.label);
+const categories = CLUB_CREATE_CATEGORIES;
 
 type JoinType = "free" | "approval";
 type BoardScope = "all" | "member";
@@ -32,6 +33,7 @@ type CoverImage = {
 
 export default function ClubCreateScreen() {
   const router = useRouter();
+  const createClubMutation = useCreateClubMutation();
   const [name, setName] = useState("");
   const [intro, setIntro] = useState("");
   const [category, setCategory] = useState(categories[0]);
@@ -78,21 +80,17 @@ export default function ClubCreateScreen() {
     }
   };
 
-  const createClubMutation = useCreateClubMutation();
-
   const handleSubmit = async () => {
-    const categoryValue =
-      CLUB_CREATE_CATEGORIES.find((item) => item.label === category)?.value ??
-      "OTHERS";
+    if (!canSubmit || createClubMutation.isPending || isUploadingCover) return;
 
     try {
       setUploadingCover(true);
       const thumbnailUrl = coverImages[0]
         ? await uploadClubCoverImage(coverImages[0])
         : null;
-      const club = await createClubMutation.mutateAsync({
+      const createdClub = await createClubMutation.mutateAsync({
         name: name.trim(),
-        category: categoryValue,
+        category: category.value,
         introText: intro.trim(),
         thumbnailUrl,
         capacity: maxMembers,
@@ -101,16 +99,20 @@ export default function ClubCreateScreen() {
       router.push({
         pathname: "/club/create-complete",
         params: {
-          clubId: String(club.clubId),
-          name: club.name,
+          clubId: String(createdClub.clubId),
+          name: createdClub.name,
           intro: intro.trim(),
           location: region,
-          host: club.host?.nickname ?? "",
+          host: createdClub.host?.nickname ?? "",
           image: thumbnailUrl ?? coverImages[0]?.uri ?? "",
         },
       } as never);
-    } catch {
-      Alert.alert("동호회 생성 실패", "잠시 후 다시 시도해주세요.");
+    } catch (error) {
+      Alert.alert(
+        "동호회 생성 실패",
+        getApiErrorMessage(error) ??
+          "동호회를 생성하지 못했어요. 잠시 후 다시 시도해주세요.",
+      );
     } finally {
       setUploadingCover(false);
     }
@@ -198,9 +200,9 @@ export default function ClubCreateScreen() {
           <View style={styles.chipList}>
             {categories.map((item) => (
               <Chip
-                key={item}
-                label={item}
-                variant={category === item ? "outlineActive" : "outline"}
+                key={item.label}
+                label={item.label}
+                variant={category.label === item.label ? "outlineActive" : "outline"}
                 size="small"
                 onPress={() => setCategory(item)}
                 style={[
@@ -289,7 +291,13 @@ export default function ClubCreateScreen() {
       </ScrollView>
 
       <Cta
-        label={canSubmit ? "동호회 만들기" : "다음"}
+        label={
+          createClubMutation.isPending || isUploadingCover
+            ? "생성 중..."
+            : canSubmit
+              ? "동호회 만들기"
+              : "다음"
+        }
         disabled={!canSubmit || createClubMutation.isPending || isUploadingCover}
         onPress={handleSubmit}
         buttonStyle={styles.ctaButton}
@@ -297,6 +305,11 @@ export default function ClubCreateScreen() {
       />
     </SafeAreaView>
   );
+}
+
+function getApiErrorMessage(error: unknown) {
+  const apiError = error as { response?: { data?: ApiFailResponse } };
+  return apiError.response?.data?.error?.message;
 }
 
 async function uploadClubCoverImage(image: CoverImage) {

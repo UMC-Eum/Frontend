@@ -56,7 +56,14 @@ const USER_NICKNAME = "루씨";
 const FALLBACK_PROFILE_IMAGE =
   "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=85&w=1200&auto=format&fit=crop";
 const RECOMMENDATION_COUNTDOWN_MS = 60 * 60 * 1000;
-const MY_CLUBS = [
+type HomeMockClub = {
+  id: string;
+  title: string;
+  image: string;
+  status?: string;
+};
+
+const MY_CLUBS: HomeMockClub[] = [
   {
     id: "my-club-1",
     title: "우리집 강아지 산책 동호회",

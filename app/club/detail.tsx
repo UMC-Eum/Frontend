@@ -188,7 +188,8 @@ export default function ClubDetailScreen() {
   const leaveMutation = useLeaveClubMutation();
   const detail = detailQuery.data;
 
-  const isJoined = joinStatus === "ACTIVE" || (detail?.isJoined && joinStatus !== "LEFT");
+  const isJoined =
+    joinStatus === "ACTIVE" || Boolean(detail?.isJoined && joinStatus !== "LEFT");
   const isJoinPending = joinStatus === "PENDING";
   const bottomBarHeight = isJoined
     ? insets.bottom + (activeTab === "board" ? 110 : 24)
@@ -499,9 +500,7 @@ function ClubHomeTab({
             />
             <MeetingInfo
               label="비용"
-              value={
-                "n만원"
-              }
+              value={firstMeeting?.cost ?? "n만원"}
             />
           </View>
 
@@ -510,10 +509,8 @@ function ClubHomeTab({
             <View style={[styles.attendeeAvatar, styles.attendeeOverlap]} />
             <View style={[styles.attendeeAvatar, styles.attendeeOverlap]} />
             <Text style={styles.attendeeText}>
-              {firstMeeting?.attendeeCount ?? firstMeeting?.currentAttendeeCount ?? 4}
-              명 참석중 (
-              {firstMeeting?.attendeeCount ?? firstMeeting?.currentAttendeeCount ?? 4}/
-              {firstMeeting?.maxAttendeeCount ?? 8})
+              {firstMeeting?.attendeeCount ?? 4}명 참석중 (
+              {firstMeeting?.attendeeCount ?? 4}/{firstMeeting?.capacity ?? 8})
             </Text>
           </View>
 

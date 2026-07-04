@@ -1,45 +1,73 @@
-import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import * as Linking from "expo-linking";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import React from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Share, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import Cta from "@/components/Cta";
 import {
   MEETING_COLORS,
+  MeetingScreenHeader,
   MeetingSummaryCard,
   ShareAction,
 } from "@/components/meeting/MeetingCreateParts";
 
-const MOCK_MEETING = {
-  title: "매주하는 새벽등산🔥",
-  dateText: "매주 목요일 저녁 19시",
-  location: "종로역 1번 출구 앞",
-  cost: "n만원",
+type CompleteParams = {
+  clubId?: string;
+  meetingId?: string;
+  title?: string;
+  dateText?: string;
+  nextDateLabel?: string;
+  ddayText?: string;
+  location?: string;
+  cost?: string;
 };
 
 export default function MeetingCreateCompleteScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<CompleteParams>();
+  const clubId = getParamString(params.clubId);
+  const meetingId = getParamString(params.meetingId);
+  const title = getParamString(params.title) || "생성된 정기모임";
+  const dateText = getParamString(params.dateText) || "일정 정보 없음";
+  const nextDateLabel = getParamString(params.nextDateLabel);
+  const ddayText = getParamString(params.ddayText) || "D-?";
+  const location = getParamString(params.location) || "위치 정보 없음";
+  const cost = getParamString(params.cost) || "없음";
+  const canOpenMeeting = !!clubId && !!meetingId;
+  const meetingUrl = Linking.createURL("/meeting-manage", {
+    queryParams: { clubId, meetingId },
+  });
+
+  const handleShare = async () => {
+    await Share.share({
+      message: `${title}\n${dateText}${nextDateLabel ? ` · ${nextDateLabel}` : ""}\n${meetingUrl}`,
+    });
+  };
+
+  const handleOpenMeeting = () => {
+    if (!canOpenMeeting) {
+      router.back();
+      return;
+    }
+
+    router.replace({
+      pathname: "/meeting-manage",
+      params: { clubId, meetingId },
+    } as never);
+  };
 
   return (
     <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
       <StatusBar style="dark" />
 
-      <View style={styles.header}>
-        <Pressable
-          style={styles.closeButton}
-          onPress={() => router.back()}
-          hitSlop={12}
-        >
-          <Ionicons name="close" size={30} color={MEETING_COLORS.gray500} />
-        </Pressable>
-      </View>
+      <MeetingScreenHeader icon="close" onPressIcon={() => router.back()} />
 
       <View style={styles.content}>
         <View style={styles.heroBlock}>
           <View style={styles.successCircle}>
-            <Ionicons name="checkmark" size={54} color={MEETING_COLORS.white} />
+            <Text style={styles.successCheck}>✓</Text>
           </View>
           <View style={styles.titleBlock}>
             <Text style={styles.title}>정기모임이 생성되었어요!🎉</Text>
@@ -49,12 +77,12 @@ export default function MeetingCreateCompleteScreen() {
           </View>
         </View>
 
-        {/* 생성 직후 공유할 핵심 모임 정보를 한 번 더 확인하는 카드입니다. */}
         <MeetingSummaryCard
-          title={MOCK_MEETING.title}
-          dateText={MOCK_MEETING.dateText}
-          location={MOCK_MEETING.location}
-          cost={MOCK_MEETING.cost}
+          title={title}
+          dateText={dateText}
+          location={location}
+          cost={cost}
+          ddayText={ddayText}
         />
 
         <View style={styles.shareBlock}>
@@ -65,12 +93,23 @@ export default function MeetingCreateCompleteScreen() {
             </Text>
           </View>
           <View style={styles.shareRow}>
-            <ShareAction label="카카오톡" icon="chatbubble" variant="kakao" />
-            <ShareAction label="링크 복사" icon="copy" variant="copy" />
+            <ShareAction
+              label="카카오톡"
+              icon="chatbubble"
+              variant="kakao"
+              onPress={handleShare}
+            />
+            <ShareAction
+              label="링크 복사"
+              icon="copy"
+              variant="copy"
+              onPress={handleShare}
+            />
             <ShareAction
               label="외부 공유"
               icon="share-outline"
               variant="share"
+              onPress={handleShare}
             />
           </View>
         </View>
@@ -78,28 +117,27 @@ export default function MeetingCreateCompleteScreen() {
 
       <Cta
         label="정기모임 바로가기"
-        onPress={() => router.push("/club/home" as never)}
+        onPress={handleOpenMeeting}
         containerStyle={styles.ctaContainer}
+        buttonStyle={styles.ctaButton}
+        labelStyle={styles.ctaLabel}
       />
     </SafeAreaView>
   );
+}
+
+function getParamString(value?: string | string[]) {
+  if (Array.isArray(value)) {
+    return value[0] ?? "";
+  }
+
+  return value ?? "";
 }
 
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: MEETING_COLORS.white,
-  },
-  header: {
-    height: 56,
-    backgroundColor: MEETING_COLORS.white,
-    justifyContent: "center",
-  },
-  closeButton: {
-    width: 48,
-    height: 48,
-    alignItems: "center",
-    justifyContent: "center",
   },
   content: {
     flex: 1,
@@ -117,6 +155,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: MEETING_COLORS.pink,
+  },
+  successCheck: {
+    color: MEETING_COLORS.white,
+    fontSize: 54,
+    fontWeight: "600",
+    lineHeight: 60,
   },
   titleBlock: {
     width: "100%",
@@ -170,5 +214,15 @@ const styles = StyleSheet.create({
   },
   ctaContainer: {
     paddingTop: 12,
+  },
+  ctaButton: {
+    height: 54,
+    borderRadius: 14,
+    backgroundColor: MEETING_COLORS.pink,
+  },
+  ctaLabel: {
+    fontSize: 18,
+    fontWeight: "600",
+    lineHeight: 23,
   },
 });

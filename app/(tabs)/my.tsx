@@ -89,6 +89,28 @@ export default function MyTabScreen() {
       >
         <Text style={styles.screenTitle}>마이페이지</Text>
 
+        {__DEV__ ? (
+          <TouchableOpacity
+            style={styles.devMeetingButton}
+            activeOpacity={0.75}
+            onPress={() =>
+              router.push({
+                pathname: "/meeting-create",
+                params: { clubId: "1" },
+              } as any)
+            }
+          >
+            <View style={styles.devMeetingIcon}>
+              <Ionicons name="calendar" size={20} color="#FFFFFF" />
+            </View>
+            <View style={styles.devMeetingTextBlock}>
+              <Text style={styles.devMeetingTitle}>정기모임 생성 테스트</Text>
+              <Text style={styles.devMeetingSubtitle}>clubId 1로 생성 API 호출</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={ACCENT} />
+          </TouchableOpacity>
+        ) : null}
+
         <View style={[styles.card, styles.profileCard]}>
           <View style={styles.profileTop}>
             <TouchableOpacity
@@ -333,6 +355,43 @@ const styles = StyleSheet.create({
     fontSize: 25,
     fontWeight: "800",
     lineHeight: 32,
+  },
+  devMeetingButton: {
+    minHeight: 64,
+    marginBottom: 12,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#FFC1D0",
+    backgroundColor: "#FFF1F4",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  devMeetingIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: ACCENT,
+  },
+  devMeetingTextBlock: {
+    flex: 1,
+    gap: 2,
+  },
+  devMeetingTitle: {
+    color: TEXT,
+    fontSize: 16,
+    fontWeight: "800",
+    lineHeight: 22,
+  },
+  devMeetingSubtitle: {
+    color: SUB_TEXT,
+    fontSize: 13,
+    fontWeight: "500",
+    lineHeight: 18,
   },
   card: {
     marginBottom: 12,

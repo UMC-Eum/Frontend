@@ -1,9 +1,15 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React from "react";
-import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  FlatList,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 
-import { RECOMMENDED_CLUBS } from "@/constants/search";
 import { Club, SortOption } from "@/types/search";
 
 import ClubRow from "./ClubRow";
@@ -12,12 +18,24 @@ type SearchResultsProps = {
   results: Club[];
   sortOption: SortOption;
   onPressSort: () => void;
+  showSort?: boolean;
+  isLoading?: boolean;
+  isFetchingNextPage?: boolean;
+  hasNextPage?: boolean;
+  emptyKeyword?: string;
+  onPressMore?: () => void;
 };
 
 export default function SearchResults({
   results,
   sortOption,
   onPressSort,
+  showSort = true,
+  isLoading = false,
+  isFetchingNextPage = false,
+  hasNextPage = false,
+  emptyKeyword,
+  onPressMore,
 }: SearchResultsProps) {
   const router = useRouter();
   const hasResults = results.length > 0;
@@ -30,19 +48,23 @@ export default function SearchResults({
 
   return (
     <FlatList
+      style={styles.resultList}
       data={results}
       keyExtractor={(item) => item.id}
       showsVerticalScrollIndicator={false}
       contentContainerStyle={styles.resultListContent}
       ListHeaderComponent={
         <>
-          <Pressable onPress={onPressSort} style={styles.sortChip}>
-            <Text style={styles.sortText}>
-              {sortOption === "recommended" ? "추천순" : "최신순"}
-            </Text>
-            <Ionicons name="chevron-down" size={14} color="#202020" />
-          </Pressable>
-          {!hasResults && <EmptyState />}
+          {showSort ? (
+            <Pressable onPress={onPressSort} style={styles.sortChip}>
+              <Text style={styles.sortText}>
+                {sortOption === "recommended" ? "추천순" : "최신순"}
+              </Text>
+              <Ionicons name="chevron-down" size={14} color="#202020" />
+            </Pressable>
+          ) : null}
+          {isLoading ? <LoadingState /> : null}
+          {!isLoading && !hasResults ? <EmptyState keyword={emptyKeyword} /> : null}
         </>
       }
       renderItem={({ item }) => (
@@ -52,13 +74,27 @@ export default function SearchResults({
           onPress={() => openClubDetail(item.id)}
         />
       )}
+      onEndReachedThreshold={0.6}
+      onEndReached={() => {
+        if (hasNextPage && !isFetchingNextPage) {
+          onPressMore?.();
+        }
+      }}
       ListFooterComponent={
-        <>
-          <RecommendedSection />
-          <Pressable style={styles.moreButton}>
-            <Text style={styles.moreButtonText}>더보기</Text>
-          </Pressable>
-        </>
+        hasResults ? (
+          <>
+            {isFetchingNextPage ? (
+              <View style={styles.footerLoading}>
+                <ActivityIndicator size="small" color="#FC3367" />
+              </View>
+            ) : null}
+            {hasNextPage && !isFetchingNextPage ? (
+              <Pressable style={styles.moreButton} onPress={onPressMore}>
+                <Text style={styles.moreButtonText}>더보기</Text>
+              </Pressable>
+            ) : null}
+          </>
+        ) : null
       }
     />
   );
@@ -69,10 +105,21 @@ function parseClubId(value: string) {
   return match?.[0] ?? value;
 }
 
-function EmptyState() {
+function LoadingState() {
+  return (
+    <View style={styles.loadingState}>
+      <ActivityIndicator size="small" color="#FC3367" />
+      <Text style={styles.loadingText}>동호회를 불러오는 중이에요.</Text>
+    </View>
+  );
+}
+
+function EmptyState({ keyword }: { keyword?: string }) {
   return (
     <View style={styles.emptyState}>
-      <Text style={styles.emptyTitle}>동산 동호회에 대한 검색 결과가 없어요</Text>
+      <Text style={styles.emptyTitle}>
+        {keyword ? `${keyword}에 대한 검색 결과가 없어요` : "검색 결과가 없어요"}
+      </Text>
       <Text style={styles.emptyDescription}>
         모임 검색 결과가 없어요. 다른 키워드로 다시 검색해 보세요.
       </Text>
@@ -80,30 +127,10 @@ function EmptyState() {
   );
 }
 
-function RecommendedSection() {
-  const router = useRouter();
-  const openClubDetail = (clubId: string) => {
-    router.push({
-      pathname: "/club/detail",
-      params: { clubId: parseClubId(clubId) },
-    } as never);
-  };
-
-  return (
-    <View style={styles.recommendedSection}>
-      <Text style={styles.recommendedTitle}>✦ 이런 동호회도 있어요!</Text>
-      {RECOMMENDED_CLUBS.map((club) => (
-        <ClubRow
-          key={club.id}
-          club={club}
-          onPress={() => openClubDetail(club.id)}
-        />
-      ))}
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
+  resultList: {
+    flex: 1,
+  },
   resultListContent: {
     paddingTop: 12,
     paddingBottom: 20,
@@ -125,19 +152,6 @@ const styles = StyleSheet.create({
   sortText: {
     fontSize: 12,
     fontWeight: "600",
-    color: "#202020",
-  },
-  recommendedSection: {
-    marginTop: 18,
-    paddingTop: 18,
-    borderTopWidth: 8,
-    borderTopColor: "#F4F5F6",
-  },
-  recommendedTitle: {
-    marginBottom: 10,
-    paddingHorizontal: 20,
-    fontSize: 15,
-    fontWeight: "800",
     color: "#202020",
   },
   moreButton: {
@@ -172,5 +186,20 @@ const styles = StyleSheet.create({
     lineHeight: 17,
     color: "#A6AFB6",
     textAlign: "center",
+  },
+  loadingState: {
+    height: 176,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+  },
+  loadingText: {
+    fontSize: 12,
+    color: "#A6AFB6",
+  },
+  footerLoading: {
+    height: 42,
+    alignItems: "center",
+    justifyContent: "center",
   },
 });

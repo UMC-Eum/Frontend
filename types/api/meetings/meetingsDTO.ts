@@ -19,11 +19,11 @@ export type MeetingWeekday =
 export interface IMeetingCreateRequest {
   name: string;
   introText: string;
-  date: string;
   spot: string;
   capacity: number;
-  cost?: string | null;
+  cost?: string;
   joinPolicy: ClubJoinPolicy;
+  recurrence: IMeetingRecurrence;
 }
 
 export interface IMeetingResponse {
@@ -37,11 +37,14 @@ export interface IMeetingResponse {
   cost?: string | null;
   joinPolicy?: ClubJoinPolicy;
   isRegular: boolean;
+  recurrence?: IMeetingRecurrence;
+  dateLabel?: string;
+  nextOccurrenceAt?: string;
   attendeeCount: number;
   createdAt: string;
 }
 
-export interface IMeetingCreateResponse extends IMeetingResponse {}
+export type IMeetingCreateResponse = IMeetingResponse;
 
 export interface IMeetingsGetParams {
   filter?: MeetingFilter;
@@ -56,6 +59,8 @@ export interface IMeetingListItem {
   name: string;
   date: string;
   spot: string;
+  capacity?: number;
+  cost?: string | null;
   isRegular: boolean;
   attendeeCount: number;
   isAttending: boolean;
@@ -72,8 +77,8 @@ export interface IMeetingsGetResponse {
 
 export interface IMeetingRecurrence {
   type: MeetingRecurrenceType;
-  daysOfWeek: MeetingWeekday[];
-  dayOfMonth: number | null;
+  daysOfWeek?: MeetingWeekday[] | null;
+  dayOfMonth?: number | null;
   hour: number;
   minute: number;
 }
@@ -107,6 +112,7 @@ export interface IMeetingUpdateRequest {
   cost?: string | null;
   joinPolicy?: ClubJoinPolicy;
   isRegular?: boolean;
+  recurrence?: IMeetingRecurrence;
 }
 
 export interface IMeetingUpdateResponse {

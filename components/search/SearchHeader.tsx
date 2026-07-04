@@ -9,6 +9,7 @@ type SearchHeaderProps = {
   onSubmit: () => void;
   onClear: () => void;
   onBack: () => void;
+  autoFocus?: boolean;
 };
 
 export default function SearchHeader({
@@ -18,6 +19,7 @@ export default function SearchHeader({
   onSubmit,
   onClear,
   onBack,
+  autoFocus = true,
 }: SearchHeaderProps) {
   return (
     <View style={styles.header}>
@@ -28,7 +30,7 @@ export default function SearchHeader({
       <View style={styles.searchBox}>
         <TextInput
           ref={inputRef}
-          autoFocus
+          autoFocus={autoFocus}
           value={query}
           onChangeText={onChangeQuery}
           onSubmitEditing={onSubmit}

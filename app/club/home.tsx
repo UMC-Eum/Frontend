@@ -21,14 +21,45 @@ import {
   useRecommendedClubsQuery,
 } from "@/hooks/api/useClub";
 import { useMyProfileQuery } from "@/hooks/api/useUsers";
+import type { ClubCategory } from "@/types/api/club/clubDTO";
 
 const CATEGORIES = [
-  { label: "운동, 스포츠", icon: "walk" },
-  { label: "봉사활동", icon: "heart" },
-  { label: "자기개발", icon: "trending-up" },
-  { label: "취미생활", icon: "musical-notes" },
-  { label: "사교", icon: "people" },
-] as const;
+  {
+    label: "운동, 스포츠",
+    searchLabel: "운동 / 스포츠",
+    value: "SPORTS",
+    icon: "walk",
+  },
+  {
+    label: "봉사활동",
+    searchLabel: "봉사활동",
+    value: "VOLUNTEER",
+    icon: "heart",
+  },
+  {
+    label: "자기개발",
+    searchLabel: "자기개발",
+    value: "STUDY",
+    icon: "trending-up",
+  },
+  {
+    label: "취미생활",
+    searchLabel: "취미생활",
+    value: "HOBBY",
+    icon: "musical-notes",
+  },
+  {
+    label: "사교",
+    searchLabel: "사교",
+    value: "OTHERS",
+    icon: "people",
+  },
+] as const satisfies readonly {
+  label: string;
+  searchLabel: string;
+  value: ClubCategory;
+  icon: keyof typeof Ionicons.glyphMap;
+}[];
 
 export default function ClubHomeScreen() {
   const router = useRouter();
@@ -149,6 +180,15 @@ export default function ClubHomeScreen() {
                 key={category.label}
                 label={category.label}
                 icon={category.icon}
+                onPress={() =>
+                  router.push({
+                    pathname: "/search",
+                    params: {
+                      category: category.value,
+                      categoryLabel: category.searchLabel,
+                    },
+                  } as never)
+                }
               />
             ))}
           </View>
@@ -234,19 +274,25 @@ function MyClubCard({
 function CategoryButton({
   label,
   icon,
+  onPress,
 }: {
   label: string;
   icon: keyof typeof Ionicons.glyphMap;
+  onPress: () => void;
 }) {
   return (
-    <View style={styles.categoryItem}>
+    <Pressable
+      style={styles.categoryItem}
+      onPress={onPress}
+      accessibilityRole="button"
+    >
       <View style={styles.categoryIconBox}>
         <Ionicons name={icon} size={28} color="#FC3367" />
       </View>
       <Text style={styles.categoryLabel} numberOfLines={1}>
         {label}
       </Text>
-    </View>
+    </Pressable>
   );
 }
 
