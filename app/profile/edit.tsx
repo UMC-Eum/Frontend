@@ -31,6 +31,7 @@ import {
   useUpdateMyProfileMutation,
 } from "@/hooks/api/useUsers";
 import { KEYBOARD_AVOIDING_BEHAVIOR } from "@/constants/keyboard";
+import { useFastInputScroll } from "@/hooks/useFastInputScroll";
 
 const ACCENT = "#FC3367";
 const TEXT = "#202020";
@@ -38,6 +39,8 @@ const MUTED = "#A6AFB6";
 const PROFILE_IMAGE_PURPOSE = "PROFILE_IMAGE";
 const DEFAULT_PROFILE_IMAGE =
   "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=240&h=240&fit=crop&crop=faces";
+const NAME_INPUT_SCROLL_Y = 150;
+const INTRO_INPUT_SCROLL_Y = 280;
 
 type PickedProfileImage = {
   uri: string;
@@ -47,6 +50,7 @@ type PickedProfileImage = {
 export default function ProfileEditScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const inputScroll = useFastInputScroll();
   const myProfileQuery = useMyProfileQuery();
   const updateMyProfileMutation = useUpdateMyProfileMutation();
   const profile = myProfileQuery.data;
@@ -240,8 +244,11 @@ export default function ProfileEditScreen() {
         </View>
 
         <ScrollView
+          ref={inputScroll.scrollViewRef}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
+          scrollEventThrottle={inputScroll.scrollEventThrottle}
+          onScroll={inputScroll.onScroll}
           contentContainerStyle={styles.content}
         >
           <Pressable style={styles.photoButton} onPress={handlePhotoPick}>
@@ -268,6 +275,7 @@ export default function ProfileEditScreen() {
               maxLength={20}
               placeholder="이름을 입력해주세요"
               placeholderTextColor={MUTED}
+              onFocus={() => inputScroll.scrollTo(NAME_INPUT_SCROLL_Y)}
             />
           </View>
 
@@ -284,6 +292,7 @@ export default function ProfileEditScreen() {
               placeholder="자기소개를 입력해주세요"
               placeholderTextColor={MUTED}
               textAlignVertical="top"
+              onFocus={() => inputScroll.scrollTo(INTRO_INPUT_SCROLL_Y)}
             />
           </View>
         </ScrollView>

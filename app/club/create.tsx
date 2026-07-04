@@ -3,10 +3,11 @@ import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import {
   Alert,
   KeyboardAvoidingView,
+  LayoutChangeEvent,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -22,6 +23,7 @@ import TextBox from "@/components/TextBox";
 import { CLUB_CREATE_CATEGORIES } from "@/constants/club";
 import { postPresign, uploadFileToS3 } from "@/api/onboarding/onboardingApi";
 import { useCreateClubMutation } from "@/hooks/api/useClub";
+import { useFastInputScroll } from "@/hooks/useFastInputScroll";
 import { useClubLocationStore } from "@/stores/clubLocationStore";
 import type { ApiFailResponse } from "@/types/api/api";
 
@@ -33,9 +35,15 @@ type CoverImage = {
   uri: string;
   contentType: string;
 };
+type InputField = "name" | "intro";
 
 export default function ClubCreateScreen() {
   const router = useRouter();
+  const inputScroll = useFastInputScroll();
+  const inputOffsets = useRef<Record<InputField, number>>({
+    name: 0,
+    intro: 0,
+  });
   const createClubMutation = useCreateClubMutation();
   const [name, setName] = useState("");
   const [intro, setIntro] = useState("");
@@ -56,6 +64,16 @@ export default function ClubCreateScreen() {
       !!areaCode,
     [areaCode, category, intro, name],
   );
+
+  const handleInputLayout =
+    (field: InputField) =>
+    (event: LayoutChangeEvent) => {
+      inputOffsets.current[field] = event.nativeEvent.layout.y;
+    };
+
+  const scrollToInput = (field: InputField) => {
+    inputScroll.scrollTo(inputOffsets.current[field] - 8);
+  };
 
   const handlePickCoverImages = async () => {
     try {
@@ -149,10 +167,13 @@ export default function ClubCreateScreen() {
         </View>
 
         <ScrollView
+          ref={inputScroll.scrollViewRef}
           style={styles.scrollView}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
+          scrollEventThrottle={inputScroll.scrollEventThrottle}
+          onScroll={inputScroll.onScroll}
         >
           {/* 커버 사진 업로드 진입 영역입니다. */}
           <Pressable
@@ -186,7 +207,7 @@ export default function ClubCreateScreen() {
             )}
           </Pressable>
 
-          <FormSection>
+          <FormSection onLayout={handleInputLayout("name")}>
             <RequiredLabel label="동호회 이름" />
             <TextBox
               value={name}
@@ -195,16 +216,18 @@ export default function ClubCreateScreen() {
               multiline={false}
               inputBoxStyle={styles.nameInputBox}
               style={styles.nameInput}
+              onFocus={() => scrollToInput("name")}
             />
           </FormSection>
 
-          <FormSection>
+          <FormSection onLayout={handleInputLayout("intro")}>
             <RequiredLabel label="동호회 소개" />
             <TextBox
               value={intro}
               onChangeText={setIntro}
               placeholder={"동호회를 소개해주세요.\n(활동 내용, 분위기, 참여 방법 등)"}
               maxLength={200}
+              onFocus={() => scrollToInput("intro")}
             />
           </FormSection>
 
@@ -373,8 +396,18 @@ function contentTypeToImageExtension(contentType: string) {
   return "jpg";
 }
 
-function FormSection({ children }: { children: React.ReactNode }) {
-  return <View style={styles.section}>{children}</View>;
+function FormSection({
+  children,
+  onLayout,
+}: {
+  children: React.ReactNode;
+  onLayout?: (event: LayoutChangeEvent) => void;
+}) {
+  return (
+    <View style={styles.section} onLayout={onLayout}>
+      {children}
+    </View>
+  );
 }
 
 function RequiredLabel({
