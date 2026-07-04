@@ -40,6 +40,7 @@ import type {
   IAnalyzeResponse,
   PresignPurpose,
 } from "@/types/api/onboarding/onboardingDTO";
+import { resolveBirthDate } from "@/utils/profileVoice";
 
 type VoiceStep =
   | "idle"
@@ -50,6 +51,8 @@ type VoiceStep =
   | "complete";
 
 const MIN_RECORDING_SECONDS = 10;
+const DEFAULT_AREA_CODE = "1121500000";
+const DEFAULT_GENDER = "M";
 const INTRO_AUDIO_PURPOSE: PresignPurpose = "PROFILE_INTRO_AUDIO";
 const PROFILE_IMAGE_PURPOSE: PresignPurpose = "PROFILE_IMAGE";
 const VOICE_ANALYZE_TIMEOUT_MS = 60000;
@@ -355,6 +358,10 @@ export default function WelcomeScreen() {
             audioUrl: uploadedAudioUrl,
             language: "ko-KR",
             analysisType: "profile",
+            nickname: userName,
+            gender: draftGender ?? DEFAULT_GENDER,
+            birthDate: resolveBirthDate(draftBirthDate, draftAge),
+            areaCode: draftAreaCode ?? DEFAULT_AREA_CODE,
           }),
           VOICE_ANALYZE_TIMEOUT_MS,
         );

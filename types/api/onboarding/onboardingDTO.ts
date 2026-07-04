@@ -34,6 +34,10 @@ export interface IAnalyzeRequest {
   audioUrl: string;
   language: "ko-KR";
   analysisType: "profile" | "ideal-type";
+  nickname: string;
+  gender: "M" | "F";
+  birthDate: string;
+  areaCode: string;
 }
 export interface IAnalyzeResponse {
   userId?: number;

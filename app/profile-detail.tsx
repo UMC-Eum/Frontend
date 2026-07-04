@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import { isAxiosError } from "axios";
 import Constants from "expo-constants";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
@@ -230,14 +231,22 @@ export default function ProfileDetailScreen() {
     const targetUserId = getTargetUserId();
     if (!targetUserId || createChatRoomMutation.isPending) return;
 
+    if (blockedRelation) {
+      Alert.alert(
+        "대화할 수 없어요",
+        "차단한 사용자와는 대화방을 열 수 없어요. 차단 해제 후 다시 시도해주세요.",
+      );
+      return;
+    }
+
     try {
       const room = await createChatRoomMutation.mutateAsync({ targetUserId });
       router.push({
         pathname: "/chat/[id]",
         params: { id: String(room.chatRoomId) },
       } as never);
-    } catch {
-      Alert.alert("대화 시작 실패", "대화방을 여는 중 문제가 발생했어요.");
+    } catch (error) {
+      Alert.alert("대화할 수 없어요", formatStartChatErrorMessage(error));
     }
   };
 
@@ -419,13 +428,6 @@ export default function ProfileDetailScreen() {
             <ProfileHeroMeta profile={profile} />
             <HeroLikeButton liked={liked} onPress={handleToggleLike} />
           </View>
-
-          <View style={styles.pagination}>
-            <View style={styles.activeDot} />
-            <View style={styles.dot} />
-            <View style={styles.dot} />
-            <View style={styles.dot} />
-          </View>
         </ImageBackground>
 
         {/* 소개와 사용자 성향을 카드/칩 형태로 보여주는 본문입니다. */}
@@ -507,7 +509,7 @@ function ProfileHeroMeta({ profile }: { profile: ProfileViewData }) {
     <View style={styles.heroMeta}>
       <View style={styles.nameRow}>
         <Text style={styles.profileName}>{profile.name}</Text>
-        {profile.age ? <Text style={styles.profileName}>{profile.age}</Text> : null}
+        {profile.age ? <Text style={styles.profileName}>{profile.age}세</Text> : null}
         <View style={styles.verifiedIconWrap}>
           <VerifiedBadgeIcon />
         </View>
@@ -771,6 +773,58 @@ function findBlockedRelation(
     data.pages
       .flatMap((page) => page.items)
       .find((item) => String(item.targetUserId) === String(userId)) ?? null
+  );
+}
+
+function formatStartChatErrorMessage(error: unknown) {
+  const apiError = getApiErrorDetail(error);
+  const code = apiError.code.toUpperCase();
+  const message = apiError.message;
+
+  if (
+    code.includes("BLOCK") ||
+    message.includes("차단") ||
+    message.toUpperCase().includes("BLOCK")
+  ) {
+    return "차단 상태에서는 대화방을 열 수 없어요.";
+  }
+
+  return "대화방을 여는 중 문제가 발생했어요. 잠시 후 다시 시도해주세요.";
+}
+
+function getApiErrorDetail(error: unknown) {
+  if (!isAxiosError(error)) {
+    return { code: "", message: "" };
+  }
+
+  const data = error.response?.data;
+  if (isApiErrorPayload(data)) {
+    return {
+      code: data.error.code,
+      message: data.error.message,
+    };
+  }
+
+  return {
+    code: error.code ?? "",
+    message: error.message,
+  };
+}
+
+function isApiErrorPayload(
+  value: unknown,
+): value is { error: { code: string; message: string } } {
+  if (typeof value !== "object" || value === null || !("error" in value)) {
+    return false;
+  }
+
+  const error = (value as { error?: unknown }).error;
+
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    typeof (error as { code?: unknown }).code === "string" &&
+    typeof (error as { message?: unknown }).message === "string"
   );
 }
 
@@ -1143,29 +1197,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "rgba(255, 255, 255, 0.24)",
-  },
-  pagination: {
-    position: "absolute",
-    bottom: 22,
-    left: 0,
-    right: 0,
-    zIndex: 1,
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    gap: 6,
-  },
-  activeDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: "#FFFFFF",
-  },
-  dot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: "rgba(255, 255, 255, 0.48)",
   },
   content: {
     paddingHorizontal: 20,
