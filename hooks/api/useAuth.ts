@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
+  appleLogin,
   getTestAccounts,
   kakaoLogin,
   logout,
@@ -8,6 +9,7 @@ import {
 } from "@/api/auth/authApi";
 import { useAuthStore } from "@/stores/authStore";
 import {
+  IAppleLoginRequest,
   IKakaoLoginRequest,
   ITestLoginRequest,
 } from "@/types/api/auth/authDTO";
@@ -23,6 +25,23 @@ export function useKakaoLoginMutation() {
     onSuccess: (data) => {
       if (__DEV__) {
         console.log("[ACCESS_TOKEN][LOGIN]", data.accessToken);
+      }
+
+      queryClient.removeQueries();
+      setAuth(data);
+    },
+  });
+}
+
+export function useAppleLoginMutation() {
+  const queryClient = useQueryClient();
+  const setAuth = useAuthStore((state) => state.setAuth);
+
+  return useMutation({
+    mutationFn: (body: IAppleLoginRequest) => appleLogin(body),
+    onSuccess: (data) => {
+      if (__DEV__) {
+        console.log("[ACCESS_TOKEN][APPLE_LOGIN]", data.accessToken);
       }
 
       queryClient.removeQueries();

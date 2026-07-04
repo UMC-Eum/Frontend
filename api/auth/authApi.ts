@@ -2,6 +2,8 @@
 import api from "../axiosInstance";
 import { ApiSuccessResponse } from "../../types/api/api";
 import {
+  IAppleLoginRequest,
+  IAppleLoginResponse,
   IKakaoLoginRequest,
   IKakaoLoginResponse,
   ITestAccountsResponse,
@@ -12,6 +14,16 @@ import {
 export const kakaoLogin = async (body: IKakaoLoginRequest) => {
   const { data } = await api.post<ApiSuccessResponse<IKakaoLoginResponse>>(
     "/v1/auth/kakao/login",
+    body,
+  );
+
+  return data.success.data;
+};
+
+//v1/auth/apple/login
+export const appleLogin = async (body: IAppleLoginRequest) => {
+  const { data } = await api.post<ApiSuccessResponse<IAppleLoginResponse>>(
+    "/v1/auth/apple/login",
     body,
   );
 
