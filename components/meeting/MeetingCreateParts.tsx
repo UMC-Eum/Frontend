@@ -15,6 +15,7 @@ export type MeetingJoinType = "free" | "approval";
 
 export const MEETING_COLORS = {
   pink: "#FF3E70",
+  red: "#F03F40",
   text: "#202020",
   gray700: "#636970",
   gray500: "#A6AFB6",
@@ -24,6 +25,36 @@ export const MEETING_COLORS = {
   pink50: "#FFF0F2",
   white: "#FFFFFF",
 };
+
+interface MeetingScreenHeaderProps {
+  title?: string;
+  icon?: "back" | "close";
+  onPressIcon: () => void;
+}
+
+export function MeetingScreenHeader({
+  title,
+  icon = "back",
+  onPressIcon,
+}: MeetingScreenHeaderProps) {
+  return (
+    <View style={styles.screenHeader}>
+      <Pressable
+        style={styles.screenHeaderButton}
+        onPress={onPressIcon}
+        hitSlop={12}
+      >
+        <Ionicons
+          name={icon === "back" ? "chevron-back" : "close"}
+          size={icon === "back" ? 28 : 30}
+          color={MEETING_COLORS.gray500}
+        />
+      </Pressable>
+      {title ? <Text style={styles.screenHeaderTitle}>{title}</Text> : <View />}
+      <View style={styles.screenHeaderButton} />
+    </View>
+  );
+}
 
 interface MeetingFieldSectionProps {
   label: string;
@@ -179,6 +210,7 @@ interface MeetingSummaryCardProps {
   dateText: string;
   location: string;
   cost: string;
+  ddayText?: string;
   style?: ViewStyle;
 }
 
@@ -187,13 +219,14 @@ export function MeetingSummaryCard({
   dateText,
   location,
   cost,
+  ddayText = "D-?",
   style,
 }: MeetingSummaryCardProps) {
   return (
     <View style={[styles.summaryCard, style]}>
       <View style={styles.summaryTitleRow}>
         <View style={styles.ddayBadge}>
-          <Text style={styles.ddayText}>D-4</Text>
+          <Text style={styles.ddayText}>{ddayText}</Text>
         </View>
         <Text style={styles.summaryTitle} numberOfLines={1}>
           {title}
@@ -245,6 +278,25 @@ export function ShareAction({
 }
 
 const styles = StyleSheet.create({
+  screenHeader: {
+    height: 56,
+    backgroundColor: MEETING_COLORS.white,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  screenHeaderButton: {
+    width: 48,
+    height: 48,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  screenHeaderTitle: {
+    color: MEETING_COLORS.text,
+    fontSize: 24,
+    fontWeight: "600",
+    lineHeight: 30,
+  },
   section: {
     paddingHorizontal: 20,
     paddingVertical: 8,

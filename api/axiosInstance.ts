@@ -1,4 +1,4 @@
-import axios, { AxiosError, AxiosRequestConfig } from "axios";
+import axios, { AxiosError, AxiosRequestConfig, create } from "axios";
 import { getAuthAccessToken, useAuthStore } from "../stores/authStore";
 import { ApiFailResponse, ApiSuccessResponse } from "../types/api/api";
 import { ITokenRefreshResponse } from "../types/api/auth/authDTO";
@@ -23,30 +23,35 @@ const normalizedBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL?.replace(
 );
 const REFRESH_TOKEN_PATH = "/v1/auth/token/refresh";
 
-const getJwtDebugInfo = (token: string | null) => {
-  if (!token) return null;
-
-  try {
-    const payload = JSON.parse(
-      atob(token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/")),
-    ) as { exp?: number; sub?: string; userId?: number | string };
-
-    return {
-      exp: payload.exp,
-      expired: payload.exp ? payload.exp * 1000 <= Date.now() : undefined,
-      sub: payload.sub,
-      userId: payload.userId,
-    };
-  } catch {
-    return { parseFailed: true };
-  }
-};
-
-const api = axios.create({
+const api = create({
   baseURL: normalizedBaseUrl,
   headers: { "Content-Type": "application/json" },
   withCredentials: true,
 });
+
+const formatDebugPayload = (payload: unknown) => {
+  if (payload === undefined || payload === null || payload === "") {
+    return payload;
+  }
+
+  if (typeof FormData !== "undefined" && payload instanceof FormData) {
+    return "[FormData]";
+  }
+
+  if (typeof payload === "string") {
+    try {
+      return JSON.stringify(JSON.parse(payload), null, 2);
+    } catch {
+      return payload;
+    }
+  }
+
+  try {
+    return JSON.stringify(payload, null, 2);
+  } catch {
+    return payload;
+  }
+};
 
 export const refreshAccessToken = async () => {
   if (!normalizedBaseUrl) {
@@ -78,11 +83,13 @@ api.interceptors.request.use((config) => {
   }
   if (__DEV__) {
     const method = config.method?.toUpperCase() ?? "GET";
-    console.log(`[API Request] ${method} ${config.baseURL}${config.url}`, {
-      hasAuthorizationHeader: Boolean(config.headers.Authorization),
-      hasToken: Boolean(token),
-      token: getJwtDebugInfo(token),
-    });
+    console.log(`[API Request] ${method} ${config.baseURL}${config.url}`);
+    if (config.params) {
+      console.log("[API Request Params]", formatDebugPayload(config.params));
+    }
+    if (config.data) {
+      console.log("[API Request Body]", formatDebugPayload(config.data));
+    }
   }
   return config;
 });

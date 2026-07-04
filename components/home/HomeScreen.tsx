@@ -56,7 +56,14 @@ const USER_NICKNAME = "루씨";
 const FALLBACK_PROFILE_IMAGE =
   "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=85&w=1200&auto=format&fit=crop";
 const RECOMMENDATION_COUNTDOWN_MS = 60 * 60 * 1000;
-const MY_CLUBS = [
+type HomeMockClub = {
+  id: string;
+  title: string;
+  image: string;
+  status?: string;
+};
+
+const MY_CLUBS: HomeMockClub[] = [
   {
     id: "my-club-1",
     title: "우리집 강아지 산책 동호회",
@@ -798,8 +805,13 @@ function ProfileCard({
   onLike,
 }: ProfileCardProps) {
   return (
-    <View style={[styles.profileCard, { width: screenWidth }]}>
-      {/* 추천 프로필 카드는 좌우 스와이프로 목록을 넘길 수 있습니다. */}
+    <Pressable
+      style={[styles.profileCard, { width: screenWidth }]}
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`${profile.name} 프로필 상세 보기`}
+    >
+      {/* 추천 프로필 카드는 좌우 스와이프와 상세 진입을 함께 제공합니다. */}
       <View style={styles.profilePressable}>
         <ImageBackground
           source={{ uri: profile.images[0] ?? FALLBACK_PROFILE_IMAGE }}
@@ -833,7 +845,7 @@ function ProfileCard({
           <Text style={styles.likeText}>마음에들어요</Text>
         </Pressable>
       </View>
-    </View>
+    </Pressable>
   );
 }
 

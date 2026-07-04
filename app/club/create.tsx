@@ -18,15 +18,22 @@ import Cta from "@/components/Cta";
 import { Chip } from "@/components/Chip";
 import TextBox from "@/components/TextBox";
 import { CLUB_CREATE_CATEGORIES } from "@/constants/club";
+import { postPresign, uploadFileToS3 } from "@/api/onboarding/onboardingApi";
 import { useCreateClubMutation } from "@/hooks/api/useClub";
+import type { ApiFailResponse } from "@/types/api/api";
 
-const categories = CLUB_CREATE_CATEGORIES.map((item) => item.label);
+const categories = CLUB_CREATE_CATEGORIES;
 
 type JoinType = "free" | "approval";
 type BoardScope = "all" | "member";
+type CoverImage = {
+  uri: string;
+  contentType: string;
+};
 
 export default function ClubCreateScreen() {
   const router = useRouter();
+  const createClubMutation = useCreateClubMutation();
   const [name, setName] = useState("");
   const [intro, setIntro] = useState("");
   const [category, setCategory] = useState(categories[0]);
@@ -34,7 +41,8 @@ export default function ClubCreateScreen() {
   const [maxMembers, setMaxMembers] = useState(15);
   const [joinType, setJoinType] = useState<JoinType>("free");
   const [boardScope, setBoardScope] = useState<BoardScope>("member");
-  const [coverImageUris, setCoverImageUris] = useState<string[]>([]);
+  const [coverImages, setCoverImages] = useState<CoverImage[]>([]);
+  const [isUploadingCover, setUploadingCover] = useState(false);
 
   const canSubmit = useMemo(
     () => name.trim().length > 0 && intro.trim().length > 0 && !!category && !!region,
@@ -59,7 +67,12 @@ export default function ClubCreateScreen() {
       });
 
       if (!result.canceled) {
-        setCoverImageUris(result.assets.slice(0, 5).map((asset) => asset.uri));
+        setCoverImages(
+          result.assets.slice(0, 5).map((asset) => ({
+            uri: asset.uri,
+            contentType: asset.mimeType ?? resolveImageContentType(asset.uri),
+          })),
+        );
       }
     } catch (error) {
       console.error("Cover Image Picker Error:", error);
@@ -67,42 +80,42 @@ export default function ClubCreateScreen() {
     }
   };
 
-  const createClubMutation = useCreateClubMutation();
+  const handleSubmit = async () => {
+    if (!canSubmit || createClubMutation.isPending || isUploadingCover) return;
 
-  const handleSubmit = () => {
-    const categoryValue =
-      CLUB_CREATE_CATEGORIES.find((item) => item.label === category)?.value ??
-      "OTHERS";
-
-    createClubMutation.mutate(
-      {
+    try {
+      setUploadingCover(true);
+      const thumbnailUrl = coverImages[0]
+        ? await uploadClubCoverImage(coverImages[0])
+        : null;
+      const createdClub = await createClubMutation.mutateAsync({
         name: name.trim(),
-        category: categoryValue,
+        category: category.value,
         introText: intro.trim(),
-        // ponytail: 음성/키워드 UI 없음 — 서버 필수값이라 빈 값 전송, 거부 시 백엔드 협의
-        introVoice: "",
+        thumbnailUrl,
         capacity: maxMembers,
-        keywordIds: [],
-      },
-      {
-        onSuccess: (club) => {
-          router.push({
-            pathname: "/club/create-complete",
-            params: {
-              clubId: String(club.clubId),
-              name: club.name,
-              intro: intro.trim(),
-              location: region,
-              host: club.host?.nickname ?? "",
-              image: coverImageUris[0] ?? "",
-            },
-          } as never);
+      });
+
+      router.push({
+        pathname: "/club/create-complete",
+        params: {
+          clubId: String(createdClub.clubId),
+          name: createdClub.name,
+          intro: intro.trim(),
+          location: region,
+          host: createdClub.host?.nickname ?? "",
+          image: thumbnailUrl ?? coverImages[0]?.uri ?? "",
         },
-        onError: () => {
-          Alert.alert("동호회 생성 실패", "잠시 후 다시 시도해주세요.");
-        },
-      },
-    );
+      } as never);
+    } catch (error) {
+      Alert.alert(
+        "동호회 생성 실패",
+        getApiErrorMessage(error) ??
+          "동호회를 생성하지 못했어요. 잠시 후 다시 시도해주세요.",
+      );
+    } finally {
+      setUploadingCover(false);
+    }
   };
 
   return (
@@ -130,10 +143,10 @@ export default function ClubCreateScreen() {
           style={styles.coverBox}
           onPress={handlePickCoverImages}
         >
-          {coverImageUris[0] ? (
+          {coverImages[0] ? (
             <>
               <Image
-                source={{ uri: coverImageUris[0] }}
+                source={{ uri: coverImages[0].uri }}
                 style={styles.coverImage}
                 contentFit="cover"
               />
@@ -141,7 +154,7 @@ export default function ClubCreateScreen() {
               <View style={styles.coverEditBadge}>
                 <Ionicons name="camera" size={17} color="#FFFFFF" />
                 <Text style={styles.coverEditText}>
-                  {coverImageUris.length}/5
+                  {coverImages.length}/5
                 </Text>
               </View>
             </>
@@ -187,9 +200,9 @@ export default function ClubCreateScreen() {
           <View style={styles.chipList}>
             {categories.map((item) => (
               <Chip
-                key={item}
-                label={item}
-                variant={category === item ? "outlineActive" : "outline"}
+                key={item.label}
+                label={item.label}
+                variant={category.label === item.label ? "outlineActive" : "outline"}
                 size="small"
                 onPress={() => setCategory(item)}
                 style={[
@@ -278,14 +291,64 @@ export default function ClubCreateScreen() {
       </ScrollView>
 
       <Cta
-        label={canSubmit ? "동호회 만들기" : "다음"}
-        disabled={!canSubmit || createClubMutation.isPending}
+        label={
+          createClubMutation.isPending || isUploadingCover
+            ? "생성 중..."
+            : canSubmit
+              ? "동호회 만들기"
+              : "다음"
+        }
+        disabled={!canSubmit || createClubMutation.isPending || isUploadingCover}
         onPress={handleSubmit}
         buttonStyle={styles.ctaButton}
         labelStyle={styles.ctaLabel}
       />
     </SafeAreaView>
   );
+}
+
+function getApiErrorMessage(error: unknown) {
+  const apiError = error as { response?: { data?: ApiFailResponse } };
+  return apiError.response?.data?.error?.message;
+}
+
+async function uploadClubCoverImage(image: CoverImage) {
+  const extension = contentTypeToImageExtension(image.contentType);
+  const { uploadUrl, fileUrl } = await postPresign({
+    fileName: `club-cover-${Date.now()}.${extension}`,
+    contentType: image.contentType,
+    purpose: "PROFILE_IMAGE",
+  });
+  const fileResponse = await fetch(image.uri);
+  const blob = await fileResponse.blob();
+  const uploadBlob = blob.type
+    ? blob
+    : new Blob([blob], { type: image.contentType });
+
+  await uploadFileToS3(uploadUrl, uploadBlob, image.contentType);
+
+  return fileUrl;
+}
+
+function resolveImageContentType(uri: string) {
+  const lowerUri = uri.toLowerCase();
+
+  if (lowerUri.startsWith("data:image/png") || lowerUri.endsWith(".png")) {
+    return "image/png";
+  }
+
+  if (lowerUri.startsWith("data:image/webp") || lowerUri.endsWith(".webp")) {
+    return "image/webp";
+  }
+
+  return "image/jpeg";
+}
+
+function contentTypeToImageExtension(contentType: string) {
+  if (contentType === "image/png") return "png";
+  if (contentType === "image/webp") return "webp";
+
+  return "jpg";
 }
 
 function FormSection({ children }: { children: React.ReactNode }) {

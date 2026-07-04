@@ -20,7 +20,11 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { CLUB_CATEGORY_LABELS } from "@/constants/club";
-import { useClubDetailQuery, useJoinClubMutation } from "@/hooks/api/useClub";
+import {
+  useClubDetailQuery,
+  useJoinClubMutation,
+  useLeaveClubMutation,
+} from "@/hooks/api/useClub";
 import { ClubMemberStatus } from "@/types/api/club/clubDTO";
 import { ClubPostCategory } from "@/types/api/clubs/clubPostsDTO";
 import { IMeetingListItem } from "@/types/api/meetings/meetingsDTO";
@@ -181,9 +185,11 @@ export default function ClubDetailScreen() {
 
   const detailQuery = useClubDetailQuery(clubId);
   const joinMutation = useJoinClubMutation(clubId);
+  const leaveMutation = useLeaveClubMutation();
   const detail = detailQuery.data;
 
-  const isJoined = detail?.isJoined || joinStatus === "ACTIVE";
+  const isJoined =
+    joinStatus === "ACTIVE" || Boolean(detail?.isJoined && joinStatus !== "LEFT");
   const isJoinPending = joinStatus === "PENDING";
   const bottomBarHeight = isJoined
     ? insets.bottom + (activeTab === "board" ? 110 : 24)
@@ -233,11 +239,17 @@ export default function ClubDetailScreen() {
     );
   };
 
-  // ponytail: 탈퇴 API 연동은 이번 범위 밖 — 로컬 상태만 초기화
   const handleLeaveConfirm = () => {
-    setLeaveConfirmVisible(false);
-    setJoinStatus(null);
-    setActiveTab("home");
+    leaveMutation.mutate(clubId, {
+      onSuccess: () => {
+        setLeaveConfirmVisible(false);
+        setJoinStatus("LEFT");
+        setActiveTab("home");
+      },
+      onError: () => {
+        Alert.alert("탈퇴 실패", "잠시 후 다시 시도해주세요.");
+      },
+    });
   };
 
   return (
@@ -425,6 +437,7 @@ export default function ClubDetailScreen() {
 
       <LeaveConfirmModal
         visible={isLeaveConfirmVisible}
+        isSubmitting={leaveMutation.isPending}
         onCancel={() => setLeaveConfirmVisible(false)}
         onConfirm={handleLeaveConfirm}
       />
@@ -487,9 +500,7 @@ function ClubHomeTab({
             />
             <MeetingInfo
               label="비용"
-              value={
-                "n만원"
-              }
+              value={firstMeeting?.cost ?? "n만원"}
             />
           </View>
 
@@ -498,10 +509,8 @@ function ClubHomeTab({
             <View style={[styles.attendeeAvatar, styles.attendeeOverlap]} />
             <View style={[styles.attendeeAvatar, styles.attendeeOverlap]} />
             <Text style={styles.attendeeText}>
-              {firstMeeting?.attendeeCount ?? firstMeeting?.currentAttendeeCount ?? 4}
-              명 참석중 (
-              {firstMeeting?.attendeeCount ?? firstMeeting?.currentAttendeeCount ?? 4}/
-              {firstMeeting?.maxAttendeeCount ?? 8})
+              {firstMeeting?.attendeeCount ?? 4}명 참석중 (
+              {firstMeeting?.attendeeCount ?? 4}/{firstMeeting?.capacity ?? 8})
             </Text>
           </View>
 
@@ -1105,10 +1114,12 @@ function LeaveActionSheet({
 
 function LeaveConfirmModal({
   visible,
+  isSubmitting,
   onCancel,
   onConfirm,
 }: {
   visible: boolean;
+  isSubmitting: boolean;
   onCancel: () => void;
   onConfirm: () => void;
 }) {
@@ -1127,10 +1138,18 @@ function LeaveConfirmModal({
             정말 탈퇴하시나요.{"\n"}한번 동호회를 탈퇴하면 재가입이 어려워요.
           </Text>
           <View style={styles.confirmButtonRow}>
-            <Pressable style={styles.cancelButton} onPress={onCancel}>
+            <Pressable
+              style={styles.cancelButton}
+              onPress={onCancel}
+              disabled={isSubmitting}
+            >
               <Text style={styles.cancelButtonText}>취소</Text>
             </Pressable>
-            <Pressable style={styles.leaveConfirmButton} onPress={onConfirm}>
+            <Pressable
+              style={styles.leaveConfirmButton}
+              onPress={onConfirm}
+              disabled={isSubmitting}
+            >
               <Text style={styles.leaveConfirmButtonText}>탈퇴</Text>
             </Pressable>
           </View>

@@ -1,9 +1,8 @@
 export type ClubCategory =
   | "SPORTS"
-  | "LANGUAGE"
+  | "HOBBY"
   | "VOLUNTEER"
-  | "OUTDOOR"
-  | "CULTURE"
+  | "STUDY"
   | "OTHERS"
   | (string & {});
 
@@ -62,9 +61,8 @@ export interface IClubCreateRequest {
   name: string;
   category: ClubCategory;
   introText: string;
-  introVoice?: string | null;
+  thumbnailUrl?: string | null;
   capacity: number;
-  keywordIds: number[];
 }
 
 export interface IClubCreateResponse {

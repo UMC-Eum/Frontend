@@ -1,13 +1,14 @@
 import { Image } from "expo-image";
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
-  KeyboardAvoidingView,
+  Keyboard,
   Modal,
   Platform,
   Pressable,
   StyleSheet,
   Text,
   TextInput,
+  useWindowDimensions,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -44,7 +45,38 @@ export default function ClubJoinRequestSheet({
   isApprovalRequired = false,
 }: Props) {
   const insets = useSafeAreaInsets();
+  const { height: windowHeight } = useWindowDimensions();
   const canSubmit = message.trim().length > 0;
+  const [sheetLift, setSheetLift] = useState(0);
+
+  useEffect(() => {
+    const showEvent =
+      Platform.OS === "ios" ? "keyboardWillChangeFrame" : "keyboardDidShow";
+    const hideEvent =
+      Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+    const showSubscription = Keyboard.addListener(showEvent, (event) => {
+      const keyboardHeight =
+        Platform.OS === "ios"
+          ? Math.max(0, windowHeight - event.endCoordinates.screenY)
+          : event.endCoordinates.height;
+
+      setSheetLift(Math.max(0, keyboardHeight - insets.bottom));
+    });
+    const hideSubscription = Keyboard.addListener(hideEvent, () => {
+      setSheetLift(0);
+    });
+
+    return () => {
+      showSubscription.remove();
+      hideSubscription.remove();
+    };
+  }, [insets.bottom, windowHeight]);
+
+  useEffect(() => {
+    if (!visible) {
+      setSheetLift(0);
+    }
+  }, [visible]);
 
   return (
     <Modal
@@ -53,13 +85,18 @@ export default function ClubJoinRequestSheet({
       animationType="slide"
       onRequestClose={onClose}
     >
-      <KeyboardAvoidingView
-        style={styles.overlay}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-      >
+      <View style={styles.overlay}>
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
 
-        <View style={[styles.sheet, { paddingBottom: insets.bottom + 24 }]}>
+        <View
+          style={[
+            styles.sheet,
+            {
+              paddingBottom: insets.bottom + 24,
+              transform: [{ translateY: -sheetLift }],
+            },
+          ]}
+        >
           <View style={styles.handleArea}>
             <View style={styles.handle} />
           </View>
@@ -136,7 +173,7 @@ export default function ClubJoinRequestSheet({
             />
           </View>
         </View>
-      </KeyboardAvoidingView>
+      </View>
     </Modal>
   );
 }

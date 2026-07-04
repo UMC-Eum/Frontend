@@ -10,4 +10,6 @@ export type Club = {
   date: string;
   score: number;
   createdAt: number;
+  thumbnailUrl?: string | null;
+  category?: string;
 };
