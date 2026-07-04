@@ -61,8 +61,12 @@ export interface IClubCreateRequest {
   name: string;
   category: ClubCategory;
   introText: string;
-  thumbnailUrl?: string | null;
   capacity: number;
+  areaCode: string;
+  approvalRequired: boolean;
+  boardPublic: boolean;
+  thumbnailUrl: string | null;
+  imageUrls: string[];
 }
 
 export interface IClubCreateResponse {

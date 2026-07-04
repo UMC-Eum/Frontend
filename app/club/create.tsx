@@ -22,6 +22,7 @@ import TextBox from "@/components/TextBox";
 import { CLUB_CREATE_CATEGORIES } from "@/constants/club";
 import { postPresign, uploadFileToS3 } from "@/api/onboarding/onboardingApi";
 import { useCreateClubMutation } from "@/hooks/api/useClub";
+import { useClubLocationStore } from "@/stores/clubLocationStore";
 import type { ApiFailResponse } from "@/types/api/api";
 
 const categories = CLUB_CREATE_CATEGORIES;
@@ -39,16 +40,21 @@ export default function ClubCreateScreen() {
   const [name, setName] = useState("");
   const [intro, setIntro] = useState("");
   const [category, setCategory] = useState(categories[0]);
-  const [region, setRegion] = useState("");
   const [maxMembers, setMaxMembers] = useState(15);
   const [joinType, setJoinType] = useState<JoinType>("free");
   const [boardScope, setBoardScope] = useState<BoardScope>("member");
   const [coverImages, setCoverImages] = useState<CoverImage[]>([]);
   const [isUploadingCover, setUploadingCover] = useState(false);
+  const areaCode = useClubLocationStore((state) => state.areaCode);
+  const areaName = useClubLocationStore((state) => state.areaName);
 
   const canSubmit = useMemo(
-    () => name.trim().length > 0 && intro.trim().length > 0 && !!category && !!region,
-    [category, intro, name, region],
+    () =>
+      name.trim().length > 0 &&
+      intro.trim().length > 0 &&
+      !!category &&
+      !!areaCode,
+    [areaCode, category, intro, name],
   );
 
   const handlePickCoverImages = async () => {
@@ -87,15 +93,18 @@ export default function ClubCreateScreen() {
 
     try {
       setUploadingCover(true);
-      const thumbnailUrl = coverImages[0]
-        ? await uploadClubCoverImage(coverImages[0])
-        : null;
+      const imageUrls = await Promise.all(coverImages.map(uploadClubCoverImage));
+      const thumbnailUrl = imageUrls[0] ?? null;
       const createdClub = await createClubMutation.mutateAsync({
         name: name.trim(),
         category: category.value,
         introText: intro.trim(),
-        thumbnailUrl,
         capacity: maxMembers,
+        areaCode: areaCode!,
+        approvalRequired: joinType === "approval",
+        boardPublic: boardScope === "all",
+        thumbnailUrl,
+        imageUrls,
       });
 
       router.push({
@@ -104,7 +113,7 @@ export default function ClubCreateScreen() {
           clubId: String(createdClub.clubId),
           name: createdClub.name,
           intro: intro.trim(),
-          location: region,
+          location: areaName ?? "",
           host: createdClub.host?.nickname ?? "",
           image: thumbnailUrl ?? coverImages[0]?.uri ?? "",
         },
@@ -229,10 +238,15 @@ export default function ClubCreateScreen() {
             <RequiredLabel label="활동 지역" />
             <Pressable
               style={styles.selectBox}
-              onPress={() => setRegion("서울시 서대문구")}
+              onPress={() =>
+                router.push({
+                  pathname: "/profile/location",
+                  params: { mode: "club" },
+                } as never)
+              }
             >
-              <Text style={[styles.selectText, region && styles.selectTextActive]}>
-                {region || "지역을 선택해주세요"}
+              <Text style={[styles.selectText, areaName && styles.selectTextActive]}>
+                {areaName || "지역을 선택해주세요"}
               </Text>
               <Ionicons name="chevron-forward" size={22} color="#A6AFB6" />
             </Pressable>
