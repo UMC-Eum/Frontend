@@ -17,17 +17,10 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import Cta from "@/components/Cta";
 import { Chip } from "@/components/Chip";
 import TextBox from "@/components/TextBox";
-import TxtBox from "@/components/txt-box";
+import { CLUB_CREATE_CATEGORIES } from "@/constants/club";
+import { useCreateClubMutation } from "@/hooks/api/useClub";
 
-const categories = [
-  "운동 / 스포츠",
-  "취미 / 여가",
-  "문화 / 예술",
-  "봉사활동",
-  "음식 / 맛집",
-  "독서 / 공부",
-  "기타",
-];
+const categories = CLUB_CREATE_CATEGORIES.map((item) => item.label);
 
 type JoinType = "free" | "approval";
 type BoardScope = "all" | "member";
@@ -74,8 +67,42 @@ export default function ClubCreateScreen() {
     }
   };
 
+  const createClubMutation = useCreateClubMutation();
+
   const handleSubmit = () => {
-    router.push("/club/create-complete" as never);
+    const categoryValue =
+      CLUB_CREATE_CATEGORIES.find((item) => item.label === category)?.value ??
+      "OTHERS";
+
+    createClubMutation.mutate(
+      {
+        name: name.trim(),
+        category: categoryValue,
+        introText: intro.trim(),
+        // ponytail: 음성/키워드 UI 없음 — 서버 필수값이라 빈 값 전송, 거부 시 백엔드 협의
+        introVoice: "",
+        capacity: maxMembers,
+        keywordIds: [],
+      },
+      {
+        onSuccess: (club) => {
+          router.push({
+            pathname: "/club/create-complete",
+            params: {
+              clubId: String(club.clubId),
+              name: club.name,
+              intro: intro.trim(),
+              location: region,
+              host: club.host?.nickname ?? "",
+              image: coverImageUris[0] ?? "",
+            },
+          } as never);
+        },
+        onError: () => {
+          Alert.alert("동호회 생성 실패", "잠시 후 다시 시도해주세요.");
+        },
+      },
+    );
   };
 
   return (
@@ -121,7 +148,8 @@ export default function ClubCreateScreen() {
           ) : (
             <>
               <View style={styles.cameraCircle}>
-                <Ionicons name="camera" size={22} color="#9EA8AF" />
+                {/* ponytail: Figma MCP 미연결로 아이콘 크기 36 적용, 실제 값 다르면 수치만 조정 */}
+                <Ionicons name="camera" size={36} color="#9EA8AF" />
               </View>
               <Text style={styles.coverText}>커버 사진 추가</Text>
               <Text style={styles.coverSubText}>(최대 5장까지 가능)</Text>
@@ -131,10 +159,13 @@ export default function ClubCreateScreen() {
 
         <FormSection>
           <RequiredLabel label="동호회 이름" />
-          <TxtBox
+          <TextBox
             value={name}
             onChangeText={setName}
             placeholder="동호회 이름을 입력해주세요"
+            multiline={false}
+            inputBoxStyle={styles.nameInputBox}
+            style={styles.nameInput}
           />
         </FormSection>
 
@@ -200,6 +231,7 @@ export default function ClubCreateScreen() {
                 disabled={maxMembers <= 2}
                 onPress={() => setMaxMembers((prev) => Math.max(2, prev - 1))}
               />
+              <View style={styles.stepperDivider} />
               <RoundIconButton
                 icon="add"
                 onPress={() => setMaxMembers((prev) => Math.min(99, prev + 1))}
@@ -247,7 +279,7 @@ export default function ClubCreateScreen() {
 
       <Cta
         label={canSubmit ? "동호회 만들기" : "다음"}
-        disabled={!canSubmit}
+        disabled={!canSubmit || createClubMutation.isPending}
         onPress={handleSubmit}
         buttonStyle={styles.ctaButton}
         labelStyle={styles.ctaLabel}
@@ -481,6 +513,16 @@ const styles = StyleSheet.create({
   selectTextActive: {
     color: "#1F2937",
   },
+  nameInputBox: {
+    height: 48,
+    minHeight: 48,
+    paddingTop: 0,
+    paddingBottom: 0,
+    justifyContent: "center",
+  },
+  nameInput: {
+    minHeight: 0,
+  },
   counterBox: {
     flexDirection: "row",
     alignItems: "center",
@@ -503,8 +545,6 @@ const styles = StyleSheet.create({
     height: 48,
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: 1,
-    borderColor: "#DEE3E5",
   },
   roundButtonMuted: {
     backgroundColor: "#F8FAFB",
@@ -518,6 +558,15 @@ const styles = StyleSheet.create({
   stepperGroup: {
     flexDirection: "row",
     alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#DEE3E5",
+    borderRadius: 10,
+    overflow: "hidden",
+  },
+  stepperDivider: {
+    width: 1,
+    alignSelf: "stretch",
+    backgroundColor: "#DEE3E5",
   },
   memberCount: {
     color: "#202020",

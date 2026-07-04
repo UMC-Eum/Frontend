@@ -11,6 +11,7 @@ import {
 interface TextBoxProps extends TextInputProps {
   supportingText?: string;
   containerStyle?: ViewStyle;
+  inputBoxStyle?: ViewStyle;
 }
 
 /**
@@ -19,40 +20,47 @@ interface TextBoxProps extends TextInputProps {
  */
 export default function TextBox({
   value,
-  maxLength = 200,
+  maxLength,
   supportingText,
   containerStyle,
+  inputBoxStyle,
+  style,
   ...props
 }: TextBoxProps) {
   const [isFocused, setIsFocused] = useState(false);
   const currentLength = String(value ?? "").length;
-  const isOverLimit = currentLength > maxLength;
+  const hasLimit = maxLength != null;
+  const isOverLimit = hasLimit && currentLength > maxLength;
   const isActive = isFocused || isOverLimit;
 
   return (
     <View style={[styles.container, containerStyle]}>
-      <View style={[styles.inputBox, isActive && styles.inputBoxActive]}>
+      <View style={[styles.inputBox, isActive && styles.inputBoxActive, inputBoxStyle]}>
         <TextInput
           value={value}
           maxLength={maxLength}
           multiline
           textAlignVertical="top"
           placeholderTextColor="#A6AFB6"
-          style={styles.input}
+          style={[styles.input, style]}
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
           {...props}
         />
-        <View style={styles.bottomRow}>
-          {supportingText ? (
-            <Text style={styles.supportingText}>{supportingText}</Text>
-          ) : (
-            <View />
-          )}
-          <Text style={[styles.counter, isOverLimit && styles.counterError]}>
-            {currentLength}/{maxLength}
-          </Text>
-        </View>
+        {(supportingText || hasLimit) && (
+          <View style={styles.bottomRow}>
+            {supportingText ? (
+              <Text style={styles.supportingText}>{supportingText}</Text>
+            ) : (
+              <View />
+            )}
+            {hasLimit && (
+              <Text style={[styles.counter, isOverLimit && styles.counterError]}>
+                {currentLength}/{maxLength}
+              </Text>
+            )}
+          </View>
+        )}
       </View>
     </View>
   );

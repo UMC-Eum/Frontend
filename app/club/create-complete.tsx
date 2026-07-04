@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
@@ -17,17 +17,17 @@ const COLORS = {
   white: "#FFFFFF",
 };
 
-const MOCK_CLUB = {
-  title: "새벽 등산 동호회⛰️",
-  intro: "해뜨기전에 산에 올라 일출을 보는 모임이에요. 초보도 환영!",
-  location: "서울시 서대문구",
-  host: "루씨",
-  image:
-    "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=400&q=80&auto=format&fit=crop",
-};
-
 export default function ClubCreateCompleteScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{
+    clubId?: string;
+    name?: string;
+    intro?: string;
+    location?: string;
+    host?: string;
+    image?: string;
+  }>();
+  const metaText = [params.location, params.host].filter(Boolean).join(" · ");
 
   return (
     <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
@@ -55,25 +55,31 @@ export default function ClubCreateCompleteScreen() {
         </View>
 
         <View style={styles.clubCard}>
-          <Image source={{ uri: MOCK_CLUB.image }} style={styles.clubImage} contentFit="cover" />
+          {params.image ? (
+            <Image
+              source={{ uri: params.image }}
+              style={styles.clubImage}
+              contentFit="cover"
+            />
+          ) : (
+            <View style={styles.clubImage} />
+          )}
           <View style={styles.clubInfo}>
             <View>
               <Text style={styles.clubTitle} numberOfLines={1}>
-                {MOCK_CLUB.title}
+                {params.name ?? ""}
               </Text>
               <Text style={styles.clubIntro} numberOfLines={2}>
-                {MOCK_CLUB.intro}
+                {params.intro ?? ""}
               </Text>
             </View>
-            <View style={styles.clubMetaRow}>
-              <Text style={styles.clubMeta} numberOfLines={1}>
-                {MOCK_CLUB.location}
-              </Text>
-              <Text style={styles.metaDot}> · </Text>
-              <Text style={styles.clubMeta} numberOfLines={1}>
-                {MOCK_CLUB.host}
-              </Text>
-            </View>
+            {metaText ? (
+              <View style={styles.clubMetaRow}>
+                <Text style={styles.clubMeta} numberOfLines={1}>
+                  {metaText}
+                </Text>
+              </View>
+            ) : null}
           </View>
         </View>
 
@@ -228,11 +234,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
     fontWeight: "500",
-  },
-  metaDot: {
-    color: COLORS.gray700,
-    fontSize: 14,
-    lineHeight: 20,
   },
   shareBlock: {
     marginTop: "auto",

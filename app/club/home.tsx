@@ -14,24 +14,13 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { AppNavbar } from "@/components/AppNavbar";
-import ClubRow from "@/components/search/ClubRow";
-import { CLUBS, RECOMMENDED_CLUBS } from "@/constants/search";
-
-const MY_CLUBS = [
-  {
-    id: "my-club-1",
-    title: "우리집 강아지 산책 동호회",
-    image:
-      "https://images.unsplash.com/photo-1517849845537-4d257902454a?w=400&q=80&auto=format&fit=crop",
-    status: "가입 대기",
-  },
-  {
-    id: "my-club-2",
-    title: "압백 등반 동호회",
-    image:
-      "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?w=400&q=80&auto=format&fit=crop",
-  },
-];
+import ClubRow, { ClubRowItem } from "@/components/search/ClubRow";
+import {
+  useClubsInfiniteQuery,
+  useMyClubsQuery,
+  useRecommendedClubsQuery,
+} from "@/hooks/api/useClub";
+import { useMyProfileQuery } from "@/hooks/api/useUsers";
 
 const CATEGORIES = [
   { label: "운동, 스포츠", icon: "walk" },
@@ -44,8 +33,33 @@ const CATEGORIES = [
 export default function ClubHomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const localClubs = CLUBS.slice(0, 3);
-  const todayClubs = RECOMMENDED_CLUBS.slice(0, 3);
+  const myClubsQuery = useMyClubsQuery();
+  const clubsQuery = useClubsInfiniteQuery({ limit: 3 });
+  const recommendedQuery = useRecommendedClubsQuery();
+  const profileQuery = useMyProfileQuery();
+
+  const nickname = profileQuery.data?.nickname || "회원";
+  const myClubs = myClubsQuery.data?.items ?? [];
+  const localClubs: ClubRowItem[] = (
+    clubsQuery.data?.pages[0]?.items ?? []
+  )
+    .slice(0, 3)
+    .map((club) => ({
+      id: String(club.clubId),
+      title: club.name,
+      description: club.introText,
+      members: club.memberCount,
+      thumbnailUrl: club.thumbnailUrl,
+    }));
+  const todayClubs: ClubRowItem[] = (recommendedQuery.data?.items ?? [])
+    .slice(0, 3)
+    .map((club) => ({
+      id: club.clubId,
+      title: club.name,
+      description: club.introText ?? undefined,
+      district: club.addressName,
+      thumbnailUrl: club.thumbnailUrl,
+    }));
   const openClubDetail = (clubId: string) => {
     router.push({
       pathname: "/club/detail",
@@ -115,12 +129,12 @@ export default function ClubHomeScreen() {
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.myClubList}
         >
-          {MY_CLUBS.map((club) => (
+          {/* ponytail: my-clubs API에 가입대기(PENDING) 정보가 없어 status 배지 미표시 — 서버 추가 시 status prop 복원 */}
+          {myClubs.map((club) => (
             <MyClubCard
-              key={club.id}
-              title={club.title}
-              image={club.image}
-              status={club.status}
+              key={club.clubId}
+              title={club.name}
+              image={club.thumbnailUrl}
             />
           ))}
         </ScrollView>
@@ -143,8 +157,8 @@ export default function ClubHomeScreen() {
         <View style={styles.sectionDivider} />
 
         <ClubSection
-          title="루씨 님을 위한 동호회"
-          accent="루씨"
+          title={`${nickname} 님을 위한 동호회`}
+          accent={nickname}
           clubs={localClubs}
           showMore
           onClubPress={openClubDetail}
@@ -194,13 +208,15 @@ function MyClubCard({
   status,
 }: {
   title: string;
-  image: string;
+  image?: string | null;
   status?: string;
 }) {
   return (
     <TouchableOpacity style={styles.myClubCard} activeOpacity={0.85}>
       <View style={styles.myClubImageWrap}>
-        <Image source={{ uri: image }} style={styles.myClubImage} contentFit="cover" />
+        {image ? (
+          <Image source={{ uri: image }} style={styles.myClubImage} contentFit="cover" />
+        ) : null}
         {status ? (
           <>
             <View style={styles.myClubDim} />
@@ -245,7 +261,7 @@ function ClubSection({
   title: string;
   accent?: string;
   icon?: "sparkles";
-  clubs: typeof CLUBS;
+  clubs: ClubRowItem[];
   showMore?: boolean;
   onClubPress?: (clubId: string) => void;
 }) {

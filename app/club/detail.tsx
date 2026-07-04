@@ -5,6 +5,7 @@ import { StatusBar } from "expo-status-bar";
 import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Animated,
   Easing,
   Modal,
@@ -18,6 +19,9 @@ import {
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { CLUB_CATEGORY_LABELS } from "@/constants/club";
+import { useClubDetailQuery, useJoinClubMutation } from "@/hooks/api/useClub";
+import { ClubMemberStatus } from "@/types/api/club/clubDTO";
 import { ClubPostCategory } from "@/types/api/clubs/clubPostsDTO";
 import { IMeetingListItem } from "@/types/api/meetings/meetingsDTO";
 
@@ -171,9 +175,16 @@ export default function ClubDetailScreen() {
   const [isJoinModalVisible, setJoinModalVisible] = useState(false);
   const [joinMessage, setJoinMessage] = useState("");
   const [hasTriedJoinSubmit, setTriedJoinSubmit] = useState(false);
-  const [isJoined, setJoined] = useState(false);
+  const [joinStatus, setJoinStatus] = useState<ClubMemberStatus | null>(null);
   const [isLeaveSheetVisible, setLeaveSheetVisible] = useState(false);
   const [isLeaveConfirmVisible, setLeaveConfirmVisible] = useState(false);
+
+  const detailQuery = useClubDetailQuery(clubId);
+  const joinMutation = useJoinClubMutation(clubId);
+  const detail = detailQuery.data;
+
+  const isJoined = detail?.isJoined || joinStatus === "ACTIVE";
+  const isJoinPending = joinStatus === "PENDING";
   const bottomBarHeight = isJoined
     ? insets.bottom + (activeTab === "board" ? 110 : 24)
     : insets.bottom + 96;
@@ -181,15 +192,16 @@ export default function ClubDetailScreen() {
   const trimmedJoinMessage = joinMessage.trim();
   const meetings: IMeetingListItem[] = [];
   const archives: { archiveId: number; imageUrl: string }[] = [];
+  // ponytail: 상세 API에 이미지/주소 필드가 없어 히어로는 placeholder 유지, 지역 표기는 생략
   const heroImage = HERO_IMAGE;
-  const clubTitle = "새벽 등산 동호회";
-  const categoryText = "운동 / 스포츠";
-  const areaText = "서울시 서대문구";
-  const hostName = "루씨";
-  const memberCount = 6;
-  const maxMemberCount = 15;
-  const description =
-    "해 뜨기 전에 산에 올라 일출 보고 내려옵니다. 평일 새벽이라 부담 없이 운동 삼아 나오시는 분들 많아요. 초보도 환영해요~~😁😁";
+  const clubTitle = detail?.name ?? "";
+  const categoryText = detail
+    ? (CLUB_CATEGORY_LABELS[detail.category] ?? detail.category)
+    : "";
+  const hostName = detail?.host.nickname ?? "";
+  const memberCount = detail?.memberCount ?? 0;
+  const maxMemberCount = detail?.capacity ?? 0;
+  const description = detail?.introText ?? "";
 
   const handleFavoritePress = () => {
     setFavorite((prev) => !prev);
@@ -201,15 +213,30 @@ export default function ClubDetailScreen() {
       return;
     }
 
-    setJoinModalVisible(false);
-    setTriedJoinSubmit(false);
-    setJoined(true);
-    setActiveTab("home");
+    joinMutation.mutate(
+      { message: trimmedJoinMessage },
+      {
+        onSuccess: (result) => {
+          setJoinModalVisible(false);
+          setTriedJoinSubmit(false);
+          setJoinStatus(result.status);
+          if (result.status === "PENDING") {
+            Alert.alert("가입 신청 완료", "운영자 승인 후 활동할 수 있어요.");
+          } else {
+            setActiveTab("home");
+          }
+        },
+        onError: () => {
+          Alert.alert("가입 신청 실패", "잠시 후 다시 시도해주세요.");
+        },
+      },
+    );
   };
 
+  // ponytail: 탈퇴 API 연동은 이번 범위 밖 — 로컬 상태만 초기화
   const handleLeaveConfirm = () => {
     setLeaveConfirmVisible(false);
-    setJoined(false);
+    setJoinStatus(null);
     setActiveTab("home");
   };
 
@@ -258,8 +285,6 @@ export default function ClubDetailScreen() {
           </View>
           <Text style={styles.clubTitle}>{clubTitle}</Text>
           <View style={styles.metaRow}>
-            <Text style={styles.metaText}>{areaText}</Text>
-            <Text style={styles.metaDot}>·</Text>
             <Text style={styles.metaText}>{hostName}</Text>
             <Text style={styles.metaDot}>·</Text>
             <Ionicons name="person" size={16} color={GRAY} />
@@ -353,19 +378,24 @@ export default function ClubDetailScreen() {
             />
           </Pressable>
           <Pressable
-            style={styles.joinButton}
+            style={[styles.joinButton, isJoinPending && styles.joinButtonDisabled]}
+            disabled={isJoinPending}
             onPress={() => {
               setTriedJoinSubmit(false);
               setJoinModalVisible(true);
             }}
           >
-            <Text style={styles.joinButtonText}>가입</Text>
+            <Text style={styles.joinButtonText}>
+              {isJoinPending ? "가입 대기중" : "가입"}
+            </Text>
           </Pressable>
         </View>
       ) : null}
 
       <JoinRequestModal
         visible={isJoinModalVisible}
+        clubTitle={clubTitle}
+        clubMeta={categoryText}
         message={joinMessage}
         showMessageRequired={
           hasTriedJoinSubmit && trimmedJoinMessage.length === 0
@@ -897,6 +927,8 @@ function ChatBubble({
 
 function JoinRequestModal({
   visible,
+  clubTitle,
+  clubMeta,
   message,
   showMessageRequired,
   bottomPadding,
@@ -905,6 +937,8 @@ function JoinRequestModal({
   onSubmit,
 }: {
   visible: boolean;
+  clubTitle: string;
+  clubMeta: string;
   message: string;
   showMessageRequired: boolean;
   bottomPadding: number;
@@ -956,8 +990,8 @@ function JoinRequestModal({
             <View style={styles.modalClubCard}>
               <View style={styles.modalClubImage} />
               <View style={styles.modalClubInfo}>
-                <Text style={styles.modalClubTitle}>새벽 등산 동호회</Text>
-                <Text style={styles.modalClubMeta}>서울시 서대문구 · 운동/스포츠</Text>
+                <Text style={styles.modalClubTitle}>{clubTitle}</Text>
+                <Text style={styles.modalClubMeta}>{clubMeta}</Text>
               </View>
             </View>
 
@@ -1666,6 +1700,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: PINK,
+  },
+  joinButtonDisabled: {
+    backgroundColor: GRAY,
   },
   joinButtonText: {
     color: "#FFFFFF",
