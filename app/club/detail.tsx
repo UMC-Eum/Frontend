@@ -258,158 +258,153 @@ export default function ClubDetailScreen() {
     <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
       <StatusBar style="dark" />
 
-      <KeyboardAvoidingView
-        style={styles.keyboardView}
-        behavior={KEYBOARD_AVOIDING_BEHAVIOR}
-      >
-        <View style={styles.header}>
+      <View style={styles.header}>
+        <Pressable
+          style={styles.headerIconButton}
+          onPress={() => router.back()}
+          hitSlop={12}
+        >
+          <Ionicons name="chevron-back" size={28} color={BLACK} />
+        </Pressable>
+
+        <View style={styles.headerActions}>
+          <Pressable style={styles.headerIconButton} hitSlop={12}>
+            <Ionicons name="share-outline" size={24} color={BLACK} />
+          </Pressable>
           <Pressable
             style={styles.headerIconButton}
-            onPress={() => router.back()}
+            onPress={() => {
+              if (isJoined) {
+                setLeaveSheetVisible(true);
+              }
+            }}
             hitSlop={12}
           >
-            <Ionicons name="chevron-back" size={28} color={BLACK} />
+            <Ionicons name="ellipsis-vertical" size={23} color={BLACK} />
           </Pressable>
+        </View>
+      </View>
 
-          <View style={styles.headerActions}>
-            <Pressable style={styles.headerIconButton} hitSlop={12}>
-              <Ionicons name="share-outline" size={24} color={BLACK} />
-            </Pressable>
-            <Pressable
-              style={styles.headerIconButton}
-              onPress={() => {
-                if (isJoined) {
-                  setLeaveSheetVisible(true);
-                }
-              }}
-              hitSlop={12}
-            >
-              <Ionicons name="ellipsis-vertical" size={23} color={BLACK} />
-            </Pressable>
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={{ paddingBottom: bottomBarHeight }}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <Image source={{ uri: heroImage }} style={styles.heroImage} contentFit="cover" />
+
+        <View style={styles.summary}>
+          <View style={styles.categoryChip}>
+            <Text style={styles.categoryText}>{categoryText}</Text>
+          </View>
+          <Text style={styles.clubTitle}>{clubTitle}</Text>
+          <View style={styles.metaRow}>
+            <Text style={styles.metaText}>{hostName}</Text>
+            <Text style={styles.metaDot}>·</Text>
+            <Ionicons name="person" size={16} color={GRAY} />
+            <Text style={styles.memberText}>
+              {memberCount}명 참석중 ({memberCount}/{maxMemberCount})
+            </Text>
           </View>
         </View>
 
-        <ScrollView
-          style={styles.scrollView}
-          contentContainerStyle={{ paddingBottom: bottomBarHeight }}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-        >
-          <Image source={{ uri: heroImage }} style={styles.heroImage} contentFit="cover" />
+        <View style={styles.dividerBand} />
 
-          <View style={styles.summary}>
-            <View style={styles.categoryChip}>
-              <Text style={styles.categoryText}>{categoryText}</Text>
-            </View>
-            <Text style={styles.clubTitle}>{clubTitle}</Text>
-            <View style={styles.metaRow}>
-              <Text style={styles.metaText}>{hostName}</Text>
-              <Text style={styles.metaDot}>·</Text>
-              <Ionicons name="person" size={16} color={GRAY} />
-              <Text style={styles.memberText}>
-                {memberCount}명 참석중 ({memberCount}/{maxMemberCount})
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.dividerBand} />
-
-          <View style={styles.tabBar}>
-            {CLUB_TABS.map((tab) => (
-              <Pressable
-                key={tab.id}
-                style={styles.tabButton}
-                onPress={() => setActiveTab(tab.id)}
+        <View style={styles.tabBar}>
+          {CLUB_TABS.map((tab) => (
+            <Pressable
+              key={tab.id}
+              style={styles.tabButton}
+              onPress={() => setActiveTab(tab.id)}
+            >
+              <Text
+                style={[
+                  styles.tabText,
+                  activeTab === tab.id && styles.tabTextActive,
+                ]}
               >
-                <Text
-                  style={[
-                    styles.tabText,
-                    activeTab === tab.id && styles.tabTextActive,
-                  ]}
-                >
-                  {tab.label}
-                </Text>
-                {isJoined && tab.id === "chat" ? <View style={styles.chatDot} /> : null}
-                {activeTab === tab.id ? <View style={styles.tabUnderline} /> : null}
-              </Pressable>
-            ))}
-          </View>
+                {tab.label}
+              </Text>
+              {isJoined && tab.id === "chat" ? <View style={styles.chatDot} /> : null}
+              {activeTab === tab.id ? <View style={styles.tabUnderline} /> : null}
+            </Pressable>
+          ))}
+        </View>
 
-          {activeTab === "home" ? (
-            <ClubHomeTab
-              description={description}
-              isJoined={isJoined}
-              meetings={meetings}
-            />
-          ) : null}
-          {activeTab === "board" ? (
-            <BoardTab
-              onPostPress={(postId) =>
-                router.push({
-                  pathname: "/club/post-detail",
-                  params: { postId: String(postId), clubId: String(clubId) },
-                } as never)
-              }
-            />
-          ) : null}
-          {activeTab === "album" ? (
-            <AlbumTab
-              archives={archives}
-              isLoading={false}
-              itemSize={albumItemSize}
-            />
-          ) : null}
-          {activeTab === "chat" ? (
-            isJoined ? (
-              <ChatTab bottomPadding={0} />
-            ) : (
-              <View style={styles.preJoinChatPlaceholder} />
-            )
-          ) : null}
-        </ScrollView>
-
-        {isJoined && activeTab === "board" ? (
-          <Pressable
-            style={[styles.boardFab, { bottom: insets.bottom + 24 }]}
-            onPress={() =>
+        {activeTab === "home" ? (
+          <ClubHomeTab
+            description={description}
+            isJoined={isJoined}
+            meetings={meetings}
+          />
+        ) : null}
+        {activeTab === "board" ? (
+          <BoardTab
+            onPostPress={(postId) =>
               router.push({
-                pathname: "/club/post-create",
-                params: { clubId: String(clubId) },
+                pathname: "/club/post-detail",
+                params: { postId: String(postId), clubId: String(clubId) },
               } as never)
             }
-          >
-            <Ionicons name="add" size={38} color="#FFFFFF" />
-          </Pressable>
+          />
         ) : null}
+        {activeTab === "album" ? (
+          <AlbumTab
+            archives={archives}
+            isLoading={false}
+            itemSize={albumItemSize}
+          />
+        ) : null}
+        {activeTab === "chat" ? (
+          isJoined ? (
+            <ChatTab bottomPadding={0} />
+          ) : (
+            <View style={styles.preJoinChatPlaceholder} />
+          )
+        ) : null}
+      </ScrollView>
 
-        {!isJoined ? (
-          <View style={[styles.bottomBar, { paddingBottom: insets.bottom + 16 }]}>
-            <Pressable
-              style={styles.favoriteButton}
-              onPress={handleFavoritePress}
-              hitSlop={10}
-            >
-              <Ionicons
-                name={isFavorite ? "heart" : "heart-outline"}
-                size={32}
-                color={isFavorite ? PINK : "#111111"}
-              />
-            </Pressable>
-            <Pressable
-              style={[styles.joinButton, isJoinPending && styles.joinButtonDisabled]}
-              disabled={isJoinPending}
-              onPress={() => {
-                setTriedJoinSubmit(false);
-                setJoinModalVisible(true);
-              }}
-            >
-              <Text style={styles.joinButtonText}>
-                {isJoinPending ? "가입 대기중" : "가입"}
-              </Text>
-            </Pressable>
-          </View>
-        ) : null}
-      </KeyboardAvoidingView>
+      {isJoined && activeTab === "board" ? (
+        <Pressable
+          style={[styles.boardFab, { bottom: insets.bottom + 24 }]}
+          onPress={() =>
+            router.push({
+              pathname: "/club/post-create",
+              params: { clubId: String(clubId) },
+            } as never)
+          }
+        >
+          <Ionicons name="add" size={38} color="#FFFFFF" />
+        </Pressable>
+      ) : null}
+
+      {!isJoined ? (
+        <View style={[styles.bottomBar, { paddingBottom: insets.bottom + 16 }]}>
+          <Pressable
+            style={styles.favoriteButton}
+            onPress={handleFavoritePress}
+            hitSlop={10}
+          >
+            <Ionicons
+              name={isFavorite ? "heart" : "heart-outline"}
+              size={32}
+              color={isFavorite ? PINK : "#111111"}
+            />
+          </Pressable>
+          <Pressable
+            style={[styles.joinButton, isJoinPending && styles.joinButtonDisabled]}
+            disabled={isJoinPending}
+            onPress={() => {
+              setTriedJoinSubmit(false);
+              setJoinModalVisible(true);
+            }}
+          >
+            <Text style={styles.joinButtonText}>
+              {isJoinPending ? "가입 대기중" : "가입"}
+            </Text>
+          </Pressable>
+        </View>
+      ) : null}
 
       <JoinRequestModal
         visible={isJoinModalVisible}
@@ -1176,9 +1171,6 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: "#FFFFFF",
-  },
-  keyboardView: {
-    flex: 1,
   },
   header: {
     height: 48,
