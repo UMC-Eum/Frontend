@@ -26,8 +26,7 @@ import { KEYBOARD_AVOIDING_BEHAVIOR } from "@/constants/keyboard";
 import { createArticle } from "@/api/articles/articlesApi";
 import { postPresign } from "@/api/onboarding/onboardingApi";
 import {
-  contentTypeToImageExtension,
-  resolveImageContentType,
+  normalizeImageForUpload,
   uploadImageUriToS3,
 } from "@/utils/s3ImageUpload";
 import { queryKeys } from "@/hooks/api/queryKeys";
@@ -267,16 +266,15 @@ export default function ClubPostCreateScreen() {
 }
 
 async function uploadPostImage(uri: string) {
-  const contentType = resolveImageContentType(uri);
-  const extension = contentTypeToImageExtension(contentType);
-  const { uploadUrl, fileUrl } = await postPresign({
-    fileName: `club-post-${Date.now()}.${extension}`,
-    contentType,
+  const image = await normalizeImageForUpload(uri);
+  const { uploadUrl, fileRef } = await postPresign({
+    fileName: `club-post-${Date.now()}.${image.extension}`,
+    contentType: image.contentType,
     purpose: "CLUB",
   });
-  await uploadImageUriToS3(uploadUrl, uri, contentType);
+  await uploadImageUriToS3(uploadUrl, image.uri, image.contentType);
 
-  return fileUrl;
+  return fileRef;
 }
 
 const styles = StyleSheet.create({

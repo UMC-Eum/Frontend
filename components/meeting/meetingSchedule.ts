@@ -48,6 +48,28 @@ export const RECURRENCE_OPTIONS: {
   { label: "매달", value: "MONTHLY" },
 ];
 
+export const MERIDIEM_OPTIONS: { label: string; value: MeetingMeridiem }[] = [
+  { label: "오전", value: "AM" },
+  { label: "오후", value: "PM" },
+];
+
+export const HOUR12_OPTIONS: { label: string; value: number }[] = Array.from(
+  { length: 12 },
+  (_, index) => {
+    const hour = index + 1;
+    return { label: `${String(hour).padStart(2, "0")}시`, value: hour };
+  },
+);
+
+// 분은 10분 단위로만 선택한다.
+export const MINUTE_OPTIONS: { label: string; value: number }[] = Array.from(
+  { length: 6 },
+  (_, index) => {
+    const minute = index * 10;
+    return { label: `${String(minute).padStart(2, "0")}분`, value: minute };
+  },
+);
+
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 export function to24Hour(schedule: MeetingScheduleForm) {

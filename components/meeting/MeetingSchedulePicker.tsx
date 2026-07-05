@@ -15,6 +15,9 @@ import { Chip } from "@/components/Chip";
 import { MEETING_COLORS } from "./MeetingCreateParts";
 import {
   DEFAULT_MEETING_SCHEDULE,
+  HOUR12_OPTIONS,
+  MERIDIEM_OPTIONS,
+  MINUTE_OPTIONS,
   MeetingScheduleForm,
   RECURRENCE_OPTIONS,
   WEEKDAY_OPTIONS,
@@ -100,15 +103,23 @@ export function MeetingSchedulePicker({
   const [draft, setDraft] = useState<MeetingScheduleForm>(
     value ?? DEFAULT_MEETING_SCHEDULE,
   );
+  const [openDropdown, setOpenDropdown] = useState<TimeDropdownKey | null>(
+    null,
+  );
 
   useEffect(() => {
     if (visible) {
       setDraft(value ?? DEFAULT_MEETING_SCHEDULE);
+      setOpenDropdown(null);
     }
   }, [value, visible]);
 
   const updateDraft = (next: Partial<MeetingScheduleForm>) => {
     setDraft((current) => ({ ...current, ...next }));
+  };
+
+  const toggleDropdown = (key: TimeDropdownKey) => {
+    setOpenDropdown((current) => (current === key ? null : key));
   };
 
   const handleConfirm = () => {
@@ -203,47 +214,41 @@ export function MeetingSchedulePicker({
             ) : null}
 
             <PickerSection label="시간">
-              <View style={styles.timeGroup}>
-                <OptionRow
-                  options={["AM", "PM"]}
-                  getLabel={(option) => (option === "AM" ? "오전" : "오후")}
+              <View style={styles.timeDropdownRow}>
+                <TimeDropdown
+                  options={MERIDIEM_OPTIONS}
                   selected={draft.meridiem}
-                  onSelect={(meridiem) => updateDraft({ meridiem })}
+                  isOpen={openDropdown === "meridiem"}
+                  onToggle={() => toggleDropdown("meridiem")}
+                  onSelect={(meridiem) => {
+                    updateDraft({ meridiem });
+                    setOpenDropdown(null);
+                  }}
                 />
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={styles.hourRow}
-                >
-                  {Array.from({ length: 12 }, (_, index) => index + 1).map(
-                    (hour) => (
-                      <Chip
-                        key={hour}
-                        label={`${String(hour).padStart(2, "0")}시`}
-                        shape="rect"
-                        size="small"
-                        variant={
-                          draft.hour12 === hour ? "outlineActive" : "outline"
-                        }
-                        onPress={() => updateDraft({ hour12: hour })}
-                        style={styles.timeChip}
-                        textStyle={
-                          draft.hour12 === hour
-                            ? styles.activeChipText
-                            : styles.defaultChipText
-                        }
-                      />
-                    ),
-                  )}
-                </ScrollView>
-                <OptionRow
-                  options={[0, 30]}
-                  getLabel={(option) => `${String(option).padStart(2, "0")}분`}
+                <TimeDropdown
+                  options={HOUR12_OPTIONS}
+                  selected={draft.hour12}
+                  isOpen={openDropdown === "hour"}
+                  onToggle={() => toggleDropdown("hour")}
+                  onSelect={(hour12) => {
+                    updateDraft({ hour12 });
+                    setOpenDropdown(null);
+                  }}
+                />
+                <TimeDropdown
+                  options={MINUTE_OPTIONS}
                   selected={draft.minute}
-                  onSelect={(minute) => updateDraft({ minute })}
+                  isOpen={openDropdown === "minute"}
+                  onToggle={() => toggleDropdown("minute")}
+                  onSelect={(minute) => {
+                    updateDraft({ minute });
+                    setOpenDropdown(null);
+                  }}
                 />
               </View>
             </PickerSection>
+
+            {openDropdown ? <View style={styles.dropdownSpacer} /> : null}
           </ScrollView>
 
           <Pressable style={styles.confirmButton} onPress={handleConfirm}>
@@ -270,33 +275,72 @@ function PickerSection({
   );
 }
 
-function OptionRow<T extends string | number>({
+type TimeDropdownKey = "meridiem" | "hour" | "minute";
+
+function TimeDropdown<T extends string | number>({
   options,
   selected,
-  getLabel,
+  isOpen,
+  onToggle,
   onSelect,
 }: {
-  options: T[];
+  options: { label: string; value: T }[];
   selected: T;
-  getLabel: (option: T) => string;
-  onSelect: (option: T) => void;
+  isOpen: boolean;
+  onToggle: () => void;
+  onSelect: (value: T) => void;
 }) {
+  const selectedLabel =
+    options.find((option) => option.value === selected)?.label ?? "";
+
   return (
-    <View style={styles.optionRow}>
-      {options.map((option) => (
-        <Chip
-          key={String(option)}
-          label={getLabel(option)}
-          shape="rect"
-          size="small"
-          variant={selected === option ? "outlineActive" : "outline"}
-          onPress={() => onSelect(option)}
-          style={styles.flexChip}
-          textStyle={
-            selected === option ? styles.activeChipText : styles.defaultChipText
-          }
+    <View style={[styles.dropdownWrap, isOpen && styles.dropdownWrapOpen]}>
+      <Pressable
+        style={[styles.dropdownBox, isOpen && styles.dropdownBoxOpen]}
+        onPress={onToggle}
+      >
+        <Text
+          style={[styles.dropdownLabel, isOpen && styles.dropdownLabelOpen]}
+        >
+          {selectedLabel}
+        </Text>
+        <Ionicons
+          name={isOpen ? "chevron-up" : "chevron-down"}
+          size={18}
+          color={isOpen ? MEETING_COLORS.pink : MEETING_COLORS.gray500}
         />
-      ))}
+      </Pressable>
+
+      {isOpen ? (
+        <View style={styles.dropdownMenu}>
+          <ScrollView
+            style={styles.dropdownMenuScroll}
+            nestedScrollEnabled
+            showsVerticalScrollIndicator
+          >
+            {options.map((option) => {
+              const isSelected = option.value === selected;
+
+              return (
+                <Pressable
+                  key={String(option.value)}
+                  style={styles.dropdownItem}
+                  onPress={() => onSelect(option.value)}
+                >
+                  <Text
+                    style={[
+                      styles.dropdownItemText,
+                      isSelected && styles.dropdownItemTextSelected,
+                    ]}
+                  >
+                    {option.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -418,13 +462,12 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 12,
   },
-  optionRow: {
-    flexDirection: "row",
-    gap: 12,
-  },
   flexChip: {
     flex: 1,
     alignSelf: "stretch",
+    height: 42,
+    paddingVertical: 0,
+    borderRadius: 7,
   },
   weekdayRow: {
     flexDirection: "row",
@@ -433,7 +476,10 @@ const styles = StyleSheet.create({
   weekdayChip: {
     flex: 1,
     alignSelf: "stretch",
+    height: 42,
     paddingHorizontal: 0,
+    paddingVertical: 0,
+    borderRadius: 21,
   },
   dayGrid: {
     flexDirection: "row",
@@ -446,15 +492,75 @@ const styles = StyleSheet.create({
     paddingHorizontal: 0,
     paddingVertical: 0,
   },
-  timeGroup: {
+  timeDropdownRow: {
+    flexDirection: "row",
     gap: 12,
   },
-  hourRow: {
-    gap: 8,
-    paddingRight: 20,
+  dropdownWrap: {
+    flex: 1,
   },
-  timeChip: {
-    minWidth: 72,
+  dropdownWrapOpen: {
+    zIndex: 30,
+  },
+  dropdownBox: {
+    height: 42,
+    borderRadius: 7,
+    borderWidth: 1,
+    borderColor: MEETING_COLORS.gray300,
+    backgroundColor: MEETING_COLORS.gray100,
+    paddingHorizontal: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 4,
+  },
+  dropdownBoxOpen: {
+    borderColor: MEETING_COLORS.pink,
+  },
+  dropdownLabel: {
+    color: MEETING_COLORS.text,
+    fontSize: 16,
+    fontWeight: "500",
+    lineHeight: 24,
+  },
+  dropdownLabelOpen: {
+    color: MEETING_COLORS.pink,
+  },
+  dropdownMenu: {
+    position: "absolute",
+    top: 46,
+    left: 0,
+    right: 0,
+    borderRadius: 7,
+    borderWidth: 1,
+    borderColor: MEETING_COLORS.gray300,
+    backgroundColor: MEETING_COLORS.white,
+    shadowColor: "#000000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
+    elevation: 8,
+    overflow: "hidden",
+  },
+  dropdownMenuScroll: {
+    maxHeight: 150,
+  },
+  dropdownItem: {
+    height: 38,
+    paddingHorizontal: 16,
+    justifyContent: "center",
+  },
+  dropdownItemText: {
+    color: MEETING_COLORS.text,
+    fontSize: 16,
+    fontWeight: "500",
+    lineHeight: 24,
+  },
+  dropdownItemTextSelected: {
+    color: MEETING_COLORS.pink,
+  },
+  dropdownSpacer: {
+    height: 160,
   },
   defaultChipText: {
     color: MEETING_COLORS.text,

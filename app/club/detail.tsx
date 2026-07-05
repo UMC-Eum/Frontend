@@ -3,7 +3,13 @@ import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import React, { useEffect, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -22,7 +28,21 @@ import {
   SafeAreaView,
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
+import {
+  Gesture,
+  GestureDetector,
+  GestureHandlerRootView,
+} from "react-native-gesture-handler";
+import Reanimated, {
+  Easing as ReanimatedEasing,
+  runOnJS,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+  withTiming,
+} from "react-native-reanimated";
 
+import { ClubImageLightbox } from "@/components/club/ClubImageLightbox";
 import { CLUB_CATEGORY_LABELS } from "@/constants/club";
 import { KEYBOARD_AVOIDING_BEHAVIOR } from "@/constants/keyboard";
 import {
@@ -63,6 +83,7 @@ const PINK = "#FF3E70";
 const BLACK = "#202020";
 const GRAY = "#A6AFB6";
 const BORDER = "#E9ECED";
+const SHEET_SPRING = { damping: 24, stiffness: 240, mass: 0.9 };
 const HERO_IMAGE =
   "https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?q=85&w=1400&auto=format&fit=crop";
 
@@ -112,6 +133,12 @@ export default function ClubDetailScreen() {
   const [joinStatus, setJoinStatus] = useState<ClubMemberStatus | null>(null);
   const [isLeaveSheetVisible, setLeaveSheetVisible] = useState(false);
   const [isLeaveConfirmVisible, setLeaveConfirmVisible] = useState(false);
+  const [activeBoardCategory, setActiveBoardCategory] = useState<
+    ClubPostCategory | "ALL"
+  >("ALL");
+  const [clubChatMessages, setClubChatMessages] = useState<ClubChatMessage[]>(
+    INITIAL_CLUB_CHAT_MESSAGES,
+  );
 
   const detailQuery = useClubDetailQuery(clubId);
   const joinMutation = useJoinClubMutation(clubId);
@@ -133,13 +160,16 @@ export default function ClubDetailScreen() {
   const albumItemSize = width / 3;
   const trimmedJoinMessage = joinMessage.trim();
   const meetings = detail?.meetings ?? [];
-  const archives =
-    archivesQuery.data?.pages.flatMap((page) =>
-      page.items.map((item) => ({
-        archiveId: item.photoId,
-        imageUrl: item.photoUrl,
-      })),
-    ) ?? [];
+  const archives = useMemo(
+    () =>
+      archivesQuery.data?.pages.flatMap((page) =>
+        page.items.map((item) => ({
+          archiveId: item.photoId,
+          imageUrl: item.photoUrl,
+        })),
+      ) ?? [],
+    [archivesQuery.data],
+  );
   const isHost = detail?.myAuthority === "HOST";
   // ponytail: 서버 썸네일이 없을 때만 placeholder 유지
   const heroImage = detail?.thumbnailUrl ?? HERO_IMAGE;
@@ -155,6 +185,47 @@ export default function ClubDetailScreen() {
   const handleFavoritePress = () => {
     setFavorite((prev) => !prev);
   };
+
+  const handleTabPress = useCallback((tabId: ClubDetailTab) => {
+    setActiveTab(tabId);
+  }, []);
+
+  const handlePressCreateMeeting = useCallback(() => {
+    router.push({
+      pathname: "/meeting-create",
+      params: { clubId: String(clubId) },
+    } as never);
+  }, [clubId, router]);
+
+  const handlePressMeetingManage = useCallback(
+    (meetingId: number) => {
+      router.push({
+        pathname: "/meeting-manage",
+        params: {
+          clubId: String(clubId),
+          meetingId: String(meetingId),
+        },
+      } as never);
+    },
+    [clubId, router],
+  );
+
+  const handlePostPress = useCallback(
+    (postId: number) => {
+      router.push({
+        pathname: "/club/post-detail",
+        params: { postId: String(postId), clubId: String(clubId) },
+      } as never);
+    },
+    [clubId, router],
+  );
+
+  const handleCreatePostPress = useCallback(() => {
+    router.push({
+      pathname: "/club/post-create",
+      params: { clubId: String(clubId) },
+    } as never);
+  }, [clubId, router]);
 
   const handleJoinSubmit = () => {
     if (trimmedJoinMessage.length === 0) {
@@ -263,7 +334,7 @@ export default function ClubDetailScreen() {
             <Pressable
               key={tab.id}
               style={styles.tabButton}
-              onPress={() => setActiveTab(tab.id)}
+              onPress={() => handleTabPress(tab.id)}
             >
               <Text
                 style={[
@@ -290,32 +361,16 @@ export default function ClubDetailScreen() {
             isJoined={isJoined}
             isHost={isHost}
             meetings={meetings}
-            onPressCreateMeeting={() =>
-              router.push({
-                pathname: "/meeting-create",
-                params: { clubId: String(clubId) },
-              } as never)
-            }
-            onPressMeetingManage={(meetingId) =>
-              router.push({
-                pathname: "/meeting-manage",
-                params: {
-                  clubId: String(clubId),
-                  meetingId: String(meetingId),
-                },
-              } as never)
-            }
+            onPressCreateMeeting={handlePressCreateMeeting}
+            onPressMeetingManage={handlePressMeetingManage}
           />
         ) : null}
         {activeTab === "board" ? (
           <BoardTab
             clubId={clubId}
-            onPostPress={(postId) =>
-              router.push({
-                pathname: "/club/post-detail",
-                params: { postId: String(postId), clubId: String(clubId) },
-              } as never)
-            }
+            activeCategory={activeBoardCategory}
+            onCategoryChange={setActiveBoardCategory}
+            onPostPress={handlePostPress}
           />
         ) : null}
         {activeTab === "album" ? (
@@ -327,7 +382,11 @@ export default function ClubDetailScreen() {
         ) : null}
         {activeTab === "chat" ? (
           isJoined ? (
-            <ChatTab bottomPadding={0} />
+            <ChatTab
+              bottomPadding={0}
+              messages={clubChatMessages}
+              setMessages={setClubChatMessages}
+            />
           ) : (
             <View style={styles.preJoinChatPlaceholder} />
           )
@@ -337,12 +396,7 @@ export default function ClubDetailScreen() {
       {isJoined && activeTab === "board" ? (
         <Pressable
           style={[styles.boardFab, { bottom: insets.bottom + 24 }]}
-          onPress={() =>
-            router.push({
-              pathname: "/club/post-create",
-              params: { clubId: String(clubId) },
-            } as never)
-          }
+          onPress={handleCreatePostPress}
         >
           <Ionicons name="add" size={38} color="#FFFFFF" />
         </Pressable>
@@ -453,11 +507,13 @@ function ClubHomeTab({
   onPressMeetingManage: (meetingId: number) => void;
 }) {
   const firstMeetingSummary = meetings[0];
-  // 호스트는 서버에서 isJoined=false로 내려올 수 있어 별도로 허용한다.
+  // 서버가 클럽 상세의 meetingId를 문자열("19")로 내려주는 경우가 있어 숫자로 정규화한다.
+  // 문자열이면 useMeetingDetailQuery의 Number.isFinite 가드에 걸려 요청이 아예 안 나간다.
+  const firstMeetingSummaryId = Number(firstMeetingSummary?.meetingId ?? NaN);
   const meetingDetailQuery = useMeetingDetailQuery(
     clubId,
-    firstMeetingSummary?.meetingId ?? 0,
-    (isJoined || isHost) && !!firstMeetingSummary?.meetingId,
+    firstMeetingSummaryId,
+    Number.isFinite(firstMeetingSummaryId),
   );
   const firstMeeting = meetingDetailQuery.data;
   const meetingTitle = firstMeeting?.name ?? firstMeetingSummary?.name;
@@ -466,7 +522,9 @@ function ClubHomeTab({
     [firstMeetingSummary?.day, formatSummaryTime(firstMeetingSummary?.time)]
       .filter(Boolean)
       .join(" ");
-  const meetingId = firstMeeting?.meetingId ?? firstMeetingSummary?.meetingId;
+  const meetingId =
+    firstMeeting?.meetingId ??
+    (Number.isFinite(firstMeetingSummaryId) ? firstMeetingSummaryId : undefined);
   const ddaySource = firstMeeting?.nextOccurrenceAt;
   const [isMeetingSheetVisible, setMeetingSheetVisible] = useState(false);
   const attendMeetingMutation = useAttendMeetingMutation(
@@ -623,7 +681,10 @@ function ClubHomeTab({
         visible={isMeetingSheetVisible}
         meeting={firstMeeting}
         fallbackTitle={meetingTitle}
+        fallbackDateText={meetingDateText}
         ddayText={ddaySource ? formatDday(ddaySource) : ""}
+        isLoading={meetingDetailQuery.isLoading}
+        isError={meetingDetailQuery.isError}
         onClose={() => setMeetingSheetVisible(false)}
         onAttend={handleAttendMeeting}
         isSubmitting={attendMeetingMutation.isPending}
@@ -636,7 +697,10 @@ function MeetingDetailSheet({
   visible,
   meeting,
   fallbackTitle,
+  fallbackDateText,
   ddayText,
+  isLoading,
+  isError,
   isSubmitting,
   onClose,
   onAttend,
@@ -644,62 +708,85 @@ function MeetingDetailSheet({
   visible: boolean;
   meeting?: IMeetingDetailResponse;
   fallbackTitle?: string;
+  fallbackDateText?: string;
   ddayText: string;
+  isLoading: boolean;
+  isError: boolean;
   isSubmitting: boolean;
   onClose: () => void;
   onAttend: () => void;
 }) {
   const { height: screenHeight } = useWindowDimensions();
-  const translateY = useRef(new Animated.Value(screenHeight)).current;
-  const backdropOpacity = useRef(new Animated.Value(0)).current;
+  const translateY = useSharedValue(screenHeight);
+  const backdropOpacity = useSharedValue(0);
   const [isMounted, setIsMounted] = useState(visible);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
+  const requestClose = useCallback(() => {
+    onCloseRef.current();
+  }, []);
+
+  // 드래그는 reanimated 제스처로 UI 스레드에서 처리해 JS 스레드가 바빠도 끊기지 않는다.
+  const panGesture = useMemo(
+    () =>
+      Gesture.Pan()
+        .activeOffsetY([-14, 10])
+        .failOffsetX([-20, 20])
+        .onUpdate((event) => {
+          // 위로 올릴 땐 고무줄 저항, 아래로는 손가락을 그대로 따라간다.
+          translateY.value =
+            event.translationY > 0
+              ? event.translationY
+              : event.translationY / 6;
+        })
+        .onEnd((event) => {
+          if (event.translationY > 120 || event.velocityY > 800) {
+            runOnJS(requestClose)();
+            return;
+          }
+          translateY.value = withSpring(0, SHEET_SPRING);
+        }),
+    [translateY, requestClose],
+  );
+
+  const sheetAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: translateY.value }],
+  }));
+  const dimAnimatedStyle = useAnimatedStyle(() => ({
+    opacity: backdropOpacity.value,
+  }));
 
   useEffect(() => {
     if (visible) {
       setIsMounted(true);
-      Animated.parallel([
-        Animated.timing(backdropOpacity, {
-          toValue: 1,
-          duration: 200,
-          useNativeDriver: true,
-        }),
-        Animated.spring(translateY, {
-          toValue: 0,
-          damping: 24,
-          stiffness: 240,
-          mass: 0.9,
-          useNativeDriver: true,
-        }),
-      ]).start();
+      backdropOpacity.value = withTiming(1, { duration: 200 });
+      translateY.value = withSpring(0, SHEET_SPRING);
       return;
     }
 
-    Animated.parallel([
-      Animated.timing(backdropOpacity, {
-        toValue: 0,
-        duration: 180,
-        useNativeDriver: true,
-      }),
-      Animated.timing(translateY, {
-        toValue: screenHeight,
-        duration: 220,
-        easing: Easing.in(Easing.cubic),
-        useNativeDriver: true,
-      }),
-    ]).start(({ finished }) => {
-      if (finished) setIsMounted(false);
-    });
+    backdropOpacity.value = withTiming(0, { duration: 180 });
+    translateY.value = withTiming(
+      screenHeight,
+      { duration: 220, easing: ReanimatedEasing.in(ReanimatedEasing.cubic) },
+      (finished) => {
+        if (finished) runOnJS(setIsMounted)(false);
+      },
+    );
   }, [visible, screenHeight, translateY, backdropOpacity]);
 
-  if (!isMounted || !meeting) return null;
+  if (!isMounted) return null;
 
-  const nextDate = new Date(meeting.nextOccurrenceAt);
-  const nextDateText = Number.isNaN(nextDate.getTime())
-    ? ""
-    : formatOccurrenceDate(nextDate);
-  const recurrenceText = getRecurrenceText(meeting.recurrence.type);
-  const attendeeCountText = `${meeting.attendeeCount}/${meeting.capacity}`;
-  const attendDisabled = meeting.isAttending || isSubmitting;
+  // 상세 조회가 늦거나 실패해도 시트는 열어서 요약 정보라도 보여준다.
+  const nextDate = meeting ? new Date(meeting.nextOccurrenceAt) : null;
+  const nextDateText =
+    nextDate && !Number.isNaN(nextDate.getTime())
+      ? formatOccurrenceDate(nextDate)
+      : "";
+  const attendeeCountText = meeting
+    ? `${meeting.attendeeCount}/${meeting.capacity}`
+    : "";
+  const attendDisabled = !meeting || meeting.isAttending || isSubmitting;
 
   return (
     <Modal
@@ -709,20 +796,21 @@ function MeetingDetailSheet({
       statusBarTranslucent
       onRequestClose={onClose}
     >
-      <View style={styles.meetingSheetBackdrop}>
-        <Animated.View
+      <GestureHandlerRootView style={styles.meetingSheetBackdrop}>
+        <Reanimated.View
           style={[
             StyleSheet.absoluteFill,
             styles.meetingSheetDim,
-            { opacity: backdropOpacity },
+            dimAnimatedStyle,
           ]}
           pointerEvents="none"
         />
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
-        <Animated.View
-          style={[styles.meetingSheet, { transform: [{ translateY }] }]}
-        >
-          <View style={styles.meetingSheetHandle} />
+        <GestureDetector gesture={panGesture}>
+          <Reanimated.View style={[styles.meetingSheet, sheetAnimatedStyle]}>
+            <View style={styles.meetingSheetGrabZone}>
+              <View style={styles.meetingSheetHandle} />
+            </View>
 
           <View style={styles.meetingSheetTop}>
             <View style={styles.meetingSheetChipRow}>
@@ -731,12 +819,16 @@ function MeetingDetailSheet({
                   <Text style={styles.dDayText}>{ddayText}</Text>
                 </View>
               ) : null}
-              <View style={styles.repeatBadge}>
-                <Text style={styles.repeatBadgeText}>{recurrenceText}</Text>
-              </View>
+              {meeting ? (
+                <View style={styles.repeatBadge}>
+                  <Text style={styles.repeatBadgeText}>
+                    {getRecurrenceText(meeting.recurrence.type)}
+                  </Text>
+                </View>
+              ) : null}
             </View>
             <Text style={styles.meetingSheetTitle}>
-              {meeting.name || fallbackTitle}
+              {meeting?.name || fallbackTitle}
             </Text>
           </View>
 
@@ -745,32 +837,58 @@ function MeetingDetailSheet({
           <View style={styles.meetingSheetInfoList}>
             <MeetingIconInfo
               icon={IconCalendar}
-              title={meeting.dateLabel}
+              title={meeting?.dateLabel ?? fallbackDateText ?? "-"}
               subtitle={
-                nextDateText ? `다음 모임 · ${nextDateText} · ${ddayText}` : ""
+                meeting && nextDateText
+                  ? `다음 모임 · ${nextDateText} · ${ddayText}`
+                  : ""
               }
               subtitleEmphasis={ddayText}
             />
-            <MeetingIconInfo icon={IconLocation} title={meeting.spot} />
-            <MeetingIconInfo icon={IconWallet} title={meeting.cost ?? "없음"} />
+            {meeting ? (
+              <>
+                <MeetingIconInfo icon={IconLocation} title={meeting.spot} />
+                <MeetingIconInfo
+                  icon={IconWallet}
+                  title={meeting.cost ?? "없음"}
+                />
+              </>
+            ) : null}
           </View>
+
+          {!meeting && isLoading ? (
+            <View style={styles.meetingSheetStatusBox}>
+              <ActivityIndicator color={PINK} />
+            </View>
+          ) : null}
+          {!meeting && !isLoading && isError ? (
+            <View style={styles.meetingSheetStatusBox}>
+              <Text style={styles.meetingSheetStatusText}>
+                모임 정보를 불러오지 못했어요. 잠시 후 다시 시도해주세요.
+              </Text>
+            </View>
+          ) : null}
 
           <View style={styles.meetingSheetDivider} />
 
-          <Text style={styles.meetingSheetSectionTitle}>안내사항</Text>
-          <View style={styles.meetingNoticeBox}>
-            <Text style={styles.meetingNoticeText}>{meeting.introText}</Text>
-          </View>
-
-          <View style={styles.meetingAttendeeHeader}>
-            <Text style={styles.meetingSheetSectionTitle}>참석자</Text>
-            <Text style={styles.meetingAttendeeCount}>{attendeeCountText}</Text>
-          </View>
-          <View style={styles.meetingAttendeeList}>
-            {meeting.attendeesPreview.slice(0, 4).map((attendee) => (
-              <MeetingSheetAttendee key={attendee.userId} attendee={attendee} />
-            ))}
-          </View>
+          {meeting ? (
+            <>
+              <View style={styles.meetingAttendeeHeader}>
+                <Text style={styles.meetingSheetSectionTitle}>참석자</Text>
+                <Text style={styles.meetingAttendeeCount}>
+                  {attendeeCountText}
+                </Text>
+              </View>
+              <View style={styles.meetingAttendeeList}>
+                {meeting.attendeesPreview.slice(0, 4).map((attendee) => (
+                  <MeetingSheetAttendee
+                    key={attendee.userId}
+                    attendee={attendee}
+                  />
+                ))}
+              </View>
+            </>
+          ) : null}
 
           <Pressable
             style={[
@@ -781,15 +899,16 @@ function MeetingDetailSheet({
             disabled={attendDisabled}
           >
             <Text style={styles.meetingAttendButtonText}>
-              {meeting.isAttending
+              {meeting?.isAttending
                 ? "참석 중"
                 : isSubmitting
                   ? "처리 중..."
                   : "참석하기"}
             </Text>
           </Pressable>
-        </Animated.View>
-      </View>
+          </Reanimated.View>
+        </GestureDetector>
+      </GestureHandlerRootView>
     </Modal>
   );
 }
@@ -871,23 +990,42 @@ function MeetingInfo({ label, value }: { label: string; value: string }) {
 
 function BoardTab({
   clubId,
+  activeCategory,
+  onCategoryChange,
   onPostPress,
 }: {
   clubId: number;
+  activeCategory: ClubPostCategory | "ALL";
+  onCategoryChange: (category: ClubPostCategory | "ALL") => void;
   onPostPress: (postId: number) => void;
 }) {
-  const [activeCategory, setActiveCategory] = useState<
-    ClubPostCategory | "ALL"
-  >("ALL");
-  const articlesQuery = useArticlesInfiniteQuery(clubId, {
-    category: activeCategory === "ALL" ? undefined : activeCategory,
-  });
-  const articles = uniqueBy(
-    articlesQuery.data?.pages.flatMap((page) => page.articles) ?? [],
-    (article) => article.articleId,
+  const articleParams = useMemo(
+    () => ({
+      category: activeCategory === "ALL" ? undefined : activeCategory,
+    }),
+    [activeCategory],
   );
-  const pinnedArticles = articles.filter((article) => article.isPinned);
-  const normalArticles = articles.filter((article) => !article.isPinned);
+  const articlesQuery = useArticlesInfiniteQuery(clubId, articleParams);
+  const fetchNextPage = articlesQuery.fetchNextPage;
+  const articles = useMemo(
+    () =>
+      uniqueBy(
+        articlesQuery.data?.pages.flatMap((page) => page.articles) ?? [],
+        (article) => article.articleId,
+      ),
+    [articlesQuery.data],
+  );
+  const pinnedArticles = useMemo(
+    () => articles.filter((article) => article.isPinned),
+    [articles],
+  );
+  const normalArticles = useMemo(
+    () => articles.filter((article) => !article.isPinned),
+    [articles],
+  );
+  const handleFetchNextPage = useCallback(() => {
+    fetchNextPage();
+  }, [fetchNextPage]);
 
   return (
     <View style={styles.boardContent}>
@@ -906,7 +1044,7 @@ function BoardTab({
                 styles.boardCategoryChip,
                 isActive && styles.boardCategoryChipActive,
               ]}
-              onPress={() => setActiveCategory(category.value)}
+              onPress={() => onCategoryChange(category.value)}
             >
               <Text
                 style={[
@@ -957,7 +1095,7 @@ function BoardTab({
           {articlesQuery.hasNextPage ? (
             <Pressable
               style={styles.moreButton}
-              onPress={() => articlesQuery.fetchNextPage()}
+              onPress={handleFetchNextPage}
               disabled={articlesQuery.isFetchingNextPage}
             >
               {articlesQuery.isFetchingNextPage ? (
@@ -1076,6 +1214,15 @@ function AlbumTab({
   isLoading: boolean;
   itemSize: number;
 }) {
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  const lightboxImages = useMemo(
+    () =>
+      archives.map((archive) => ({
+        id: archive.archiveId,
+        imageUrl: archive.imageUrl,
+      })),
+    [archives],
+  );
   const hasArchives = archives.length > 0;
 
   if (isLoading && !hasArchives) {
@@ -1096,20 +1243,31 @@ function AlbumTab({
 
   return (
     <View style={styles.albumGrid}>
-      {archives.map((archive) => (
-        <Image
+      {archives.map((archive, index) => (
+        <Pressable
           key={archive.archiveId}
-          source={{ uri: archive.imageUrl }}
-          style={[
-            styles.albumItem,
-            {
-              width: itemSize,
-              height: itemSize,
-            },
-          ]}
-          contentFit="cover"
-        />
+          onPress={() => setLightboxIndex(index)}
+        >
+          <Image
+            source={{ uri: archive.imageUrl }}
+            style={[
+              styles.albumItem,
+              {
+                width: itemSize,
+                height: itemSize,
+              },
+            ]}
+            contentFit="cover"
+          />
+        </Pressable>
       ))}
+
+      <ClubImageLightbox
+        visible={lightboxIndex !== null}
+        images={lightboxImages}
+        initialIndex={lightboxIndex ?? 0}
+        onClose={() => setLightboxIndex(null)}
+      />
     </View>
   );
 }
@@ -1135,8 +1293,15 @@ function formatChatTime() {
   return `${period} ${String(displayHours).padStart(2, "0")}:${minutes}`;
 }
 
-function ChatTab({ bottomPadding }: { bottomPadding: number }) {
-  const [messages, setMessages] = useState(INITIAL_CLUB_CHAT_MESSAGES);
+function ChatTab({
+  bottomPadding,
+  messages,
+  setMessages,
+}: {
+  bottomPadding: number;
+  messages: ClubChatMessage[];
+  setMessages: React.Dispatch<React.SetStateAction<ClubChatMessage[]>>;
+}) {
   const [inputText, setInputText] = useState("");
   const [isAttachmentOpen, setAttachmentOpen] = useState(false);
   const canSend = inputText.trim().length > 0;
@@ -1699,11 +1864,17 @@ const styles = StyleSheet.create({
   },
   meetingCard: {
     marginTop: 16,
-    padding: 22,
+    paddingHorizontal: 24,
+    paddingVertical: 16,
     borderWidth: 1,
     borderColor: BORDER,
-    borderRadius: 12,
+    borderRadius: 14,
     backgroundColor: "#FFFFFF",
+    shadowColor: "#000000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 2,
   },
   meetingCardHeader: {
     flexDirection: "row",
@@ -1730,7 +1901,8 @@ const styles = StyleSheet.create({
   dDayText: {
     color: "#FFFFFF",
     fontSize: 12,
-    fontWeight: "800",
+    fontWeight: "500",
+    lineHeight: 20,
   },
   repeatBadge: {
     height: 24,
@@ -1749,33 +1921,35 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   meetingTitle: {
-    marginTop: 14,
+    marginTop: 6,
     color: BLACK,
-    fontSize: 18,
-    fontWeight: "800",
+    fontSize: 20,
+    fontWeight: "600",
+    lineHeight: 25,
   },
   meetingInfoList: {
-    marginTop: 18,
-    gap: 7,
+    marginTop: 12,
   },
   meetingInfoRow: {
     flexDirection: "row",
     alignItems: "center",
+    gap: 12,
   },
   meetingInfoLabel: {
-    width: 40,
-    color: "#6A747C",
-    fontSize: 14,
-    fontWeight: "700",
+    color: "#636970",
+    fontSize: 16,
+    fontWeight: "500",
+    lineHeight: 24,
   },
   meetingInfoValue: {
     flex: 1,
     color: BLACK,
-    fontSize: 14,
-    fontWeight: "700",
+    fontSize: 16,
+    fontWeight: "500",
+    lineHeight: 24,
   },
   attendeeRow: {
-    marginTop: 18,
+    marginTop: 12,
     flexDirection: "row",
     alignItems: "center",
   },
@@ -1789,25 +1963,26 @@ const styles = StyleSheet.create({
     marginLeft: -3,
   },
   attendeeText: {
-    marginLeft: 14,
-    color: "#8E9AA3",
-    fontSize: 13,
-    fontWeight: "700",
+    marginLeft: 12,
+    color: GRAY,
+    fontSize: 14,
+    fontWeight: "500",
+    lineHeight: 20,
   },
   attendanceButton: {
-    height: 46,
-    marginTop: 22,
+    height: 42,
+    marginTop: 16,
     borderWidth: 1,
     borderColor: PINK,
-    borderRadius: 8,
+    borderRadius: 10,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#FFF0F2",
   },
   attendanceButtonText: {
     color: PINK,
-    fontSize: 15,
-    fontWeight: "800",
+    fontSize: 16,
+    fontWeight: "600",
   },
   attendanceButtonDisabled: {
     borderColor: "#E5E7EB",
@@ -1832,13 +2007,18 @@ const styles = StyleSheet.create({
     paddingTop: 24,
     paddingBottom: 48,
   },
+  meetingSheetGrabZone: {
+    alignSelf: "stretch",
+    alignItems: "center",
+    marginTop: -24,
+    paddingTop: 16,
+    paddingBottom: 12,
+  },
   meetingSheetHandle: {
-    alignSelf: "center",
     width: 46,
     height: 4,
     borderRadius: 2,
     backgroundColor: "#DEE3E5",
-    marginBottom: 12,
   },
   meetingSheetTop: {
     gap: 12,
@@ -1897,24 +2077,20 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     lineHeight: 23,
   },
-  meetingNoticeBox: {
-    minHeight: 48,
-    marginTop: 16,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: "#FFCBD6",
-    backgroundColor: "#FFF0F2",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+  meetingSheetStatusBox: {
+    minHeight: 64,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingBottom: 12,
   },
-  meetingNoticeText: {
-    color: BLACK,
-    fontSize: 16,
+  meetingSheetStatusText: {
+    color: "#636970",
+    fontSize: 14,
     fontWeight: "500",
-    lineHeight: 24,
+    textAlign: "center",
   },
   meetingAttendeeHeader: {
-    marginTop: 32,
+    marginTop: 24,
     flexDirection: "row",
     alignItems: "center",
     gap: 12,

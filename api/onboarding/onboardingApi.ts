@@ -8,6 +8,7 @@ import {
   IRecommendationsRequest,
   IRecommendationsResponse,
 } from "../../types/api/onboarding/onboardingDTO";
+import { normalizeS3ObjectRef } from "@/utils/s3ObjectRef";
 
 // v1/files/presign (POST)
 export const postPresign = async (body: IPresignRequest) => {
@@ -20,14 +21,14 @@ export const postPresign = async (body: IPresignRequest) => {
   if (__DEV__) {
     console.log("[Presign] response data", {
       hasUploadUrl: !!presignData.uploadUrl,
-      hasFileUrl: !!presignData.fileUrl,
+      hasFileRef: !!presignData.fileRef,
       expiresAt: presignData.expiresAt,
     });
   }
 
-  if (!presignData.uploadUrl || !presignData.fileUrl) {
+  if (!presignData.uploadUrl || !presignData.fileRef) {
     throw new Error(
-      `Presign response missing uploadUrl or fileUrl: ${JSON.stringify(presignData)}`,
+      `Presign response missing uploadUrl or fileRef: ${JSON.stringify(presignData)}`,
     );
   }
 
@@ -69,6 +70,8 @@ type PresignResponseCandidate = {
   presignedUrl?: string;
   signedUrl?: string;
   url?: string;
+  fileRef?: string;
+  key?: string;
   fileUrl?: string;
   publicUrl?: string;
   expiresAt?: string;
@@ -87,12 +90,12 @@ function normalizePresignResponse(
     (payload as PresignResponseCandidate).signedUrl ??
     (payload as PresignResponseCandidate).url ??
     "";
-  const fileUrl =
-    payload.fileUrl ?? (payload as PresignResponseCandidate).publicUrl ?? "";
+  const fileRef = payload.fileRef ?? payload.key ?? "";
 
   return {
     uploadUrl,
-    fileUrl,
+    fileRef,
+    key: payload.key,
     expiresAt: payload.expiresAt ?? "",
   };
 }
@@ -111,7 +114,10 @@ function unwrapPresignPayload(
 export const postProfile = async (body: IProfileRequest) => {
   const { data } = await api.post<ApiSuccessResponse<IProfileResponse>>(
     "/v1/onboarding/profile",
-    body,
+    {
+      ...body,
+      introAudioUrl: normalizeS3ObjectRef(body.introAudioUrl),
+    },
   );
 
   return data.success.data;

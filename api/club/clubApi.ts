@@ -1,6 +1,10 @@
 import api from "../axiosInstance";
 import { ApiSuccessResponse } from "../../types/api/api";
 import * as DTO from "../../types/api/club/clubDTO";
+import {
+  normalizeS3ObjectRef,
+  normalizeS3ObjectRefs,
+} from "@/utils/s3ObjectRef";
 
 export const getClubs = async (params: DTO.IClubListParams = {}) => {
   const { data } = await api.get<ApiSuccessResponse<DTO.IClubsGetResponse>>(
@@ -13,7 +17,13 @@ export const getClubs = async (params: DTO.IClubListParams = {}) => {
 export const createClub = async (body: DTO.IClubCreateRequest) => {
   const { data } = await api.post<
     ApiSuccessResponse<DTO.IClubCreateResponse>
-  >("/v1/clubs", body);
+  >("/v1/clubs", {
+    ...body,
+    thumbnailUrl: body.thumbnailUrl
+      ? normalizeS3ObjectRef(body.thumbnailUrl)
+      : body.thumbnailUrl,
+    imageUrls: normalizeS3ObjectRefs(body.imageUrls),
+  });
   return data.success.data;
 };
 

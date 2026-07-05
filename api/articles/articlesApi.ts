@@ -1,6 +1,7 @@
 import api from "../axiosInstance";
 import { ApiSuccessResponse } from "../../types/api/api";
 import * as DTO from "../../types/api/articles/articlesDTO";
+import { normalizeS3ObjectRefs } from "@/utils/s3ObjectRef";
 
 export const getArticles = async (
   clubId: number,
@@ -19,7 +20,10 @@ export const createArticle = async (
 ) => {
   const { data } = await api.post<
     ApiSuccessResponse<DTO.IArticleCreateResponse>
-  >(`/v1/clubs/${clubId}/articles`, body);
+  >(`/v1/clubs/${clubId}/articles`, {
+    ...body,
+    photoUrls: normalizeS3ObjectRefs(body.photoUrls),
+  });
   return data.success.data;
 };
 
@@ -37,7 +41,10 @@ export const updateArticle = async (
 ) => {
   const { data } = await api.patch<
     ApiSuccessResponse<DTO.IArticleUpdateResponse>
-  >(`/v1/clubs/${clubId}/articles/${articleId}`, body);
+  >(`/v1/clubs/${clubId}/articles/${articleId}`, {
+    ...body,
+    photoUrls: normalizeS3ObjectRefs(body.photoUrls),
+  });
   return data.success.data;
 };
 

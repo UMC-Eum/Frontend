@@ -30,6 +30,7 @@ export interface IClubPostDetailResponse {
   likeCount: number;
   commentCount: number;
   createdAt: string;
+  isLiked: boolean;
   isMine?: boolean;
 }
 

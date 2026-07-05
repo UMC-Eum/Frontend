@@ -191,13 +191,22 @@ export function ClubAuthorMeta({
 export function ClubReactionSummary({
   likeCount,
   commentCount,
+  isLiked = false,
+  onLikePress,
 }: {
   likeCount: number;
   commentCount: number;
+  isLiked?: boolean;
+  onLikePress?: () => void;
 }) {
   return (
     <View style={styles.reactionRow}>
-      <Reaction icon="heart-outline" count={likeCount} />
+      <Reaction
+        icon={isLiked ? "heart" : "heart-outline"}
+        count={likeCount}
+        color={isLiked ? CLUB_COLORS.pink : undefined}
+        onPress={onLikePress}
+      />
       <Reaction icon="chatbubble-outline" count={commentCount} />
     </View>
   );
@@ -348,15 +357,24 @@ function MediaAction({
 function Reaction({
   icon,
   count,
+  color,
+  onPress,
 }: {
   icon: keyof typeof Ionicons.glyphMap;
   count: number;
+  color?: string;
+  onPress?: () => void;
 }) {
   return (
-    <View style={styles.reactionItem}>
-      <Ionicons name={icon} size={20} color={CLUB_COLORS.gray700} />
+    <Pressable
+      style={styles.reactionItem}
+      onPress={onPress}
+      disabled={!onPress}
+      hitSlop={8}
+    >
+      <Ionicons name={icon} size={20} color={color ?? CLUB_COLORS.gray700} />
       <Text style={styles.reactionCount}>{count}</Text>
-    </View>
+    </Pressable>
   );
 }
 

@@ -2,6 +2,7 @@ import { ApiSuccessResponse } from "../../types/api/api";
 import * as DTO from "../../types/api/chats/chatsDTO";
 import api from "../axiosInstance";
 import * as FileSystem from "expo-file-system/legacy";
+import { normalizeS3ObjectRef } from "@/utils/s3ObjectRef";
 
 type ChatUploadFile = {
   name: string;
@@ -247,9 +248,15 @@ export const sendChatMessage = async (
   chatRoomId: number,
   body: DTO.IChatsRoomIdMessagesPostRequset,
 ) => {
+  const requestBody = {
+    ...body,
+    mediaUrl: body.mediaUrl
+      ? normalizeS3ObjectRef(body.mediaUrl)
+      : body.mediaUrl,
+  };
   const { data } = await api.post<
     ApiSuccessResponse<DTO.IChatsRoomIdMessagesPostResponse>
-  >(`/v1/chats/rooms/${chatRoomId}/messages`, body);
+  >(`/v1/chats/rooms/${chatRoomId}/messages`, requestBody);
   return data.success.data;
 };
 

@@ -372,15 +372,19 @@ function mapReceivedHeartProfiles(
   return (
     uniqueBy(
       data?.pages.flatMap((page) =>
-        page.items.map((item) => {
+        page.items.flatMap((item) => {
+          const targetUserId = item.fromUserId;
+
+          if (!isPositiveUserId(targetUserId)) return [];
+
           const likedHeartId =
-            item.likedHeartId ?? sentHeartIdsByTargetUserId.get(item.fromUserId);
+            item.likedHeartId ?? sentHeartIdsByTargetUserId.get(targetUserId);
 
           return {
             id: `received-${item.heartId}`,
             receivedHeartId: item.heartId,
             likedHeartId,
-            targetUserId: item.fromUserId,
+            targetUserId,
             name: item.fromUser.nickname,
             age: getProfileAge(item.fromUser),
             location: getProfileLocation(item.fromUser),
@@ -400,20 +404,28 @@ function mapSentHeartProfiles(
   return (
     uniqueBy(
       data?.pages.flatMap((page) =>
-        page.items.map((item) => ({
-          id: `sent-${item.heartId}`,
-          likedHeartId: item.heartId,
-          targetUserId: item.targetUserId,
-          name: item.targetUser.nickname,
-          age: getProfileAge(item.targetUser),
-          location: getProfileLocation(item.targetUser),
-          image: item.targetUser.profileImageUrl || DEFAULT_PROFILE_IMAGE_URI,
-          isLiked: true,
-        })),
+        page.items.flatMap((item) => {
+          if (!isPositiveUserId(item.targetUserId)) return [];
+
+          return {
+            id: `sent-${item.heartId}`,
+            likedHeartId: item.heartId,
+            targetUserId: item.targetUserId,
+            name: item.targetUser.nickname,
+            age: getProfileAge(item.targetUser),
+            location: getProfileLocation(item.targetUser),
+            image: item.targetUser.profileImageUrl || DEFAULT_PROFILE_IMAGE_URI,
+            isLiked: true,
+          };
+        }),
       ) ?? [],
       (item) => item.id,
     )
   );
+}
+
+function isPositiveUserId(userId: number | null): userId is number {
+  return typeof userId === "number" && Number.isFinite(userId) && userId > 0;
 }
 
 function getProfileAge(profile: IProfileSummary): number | null {

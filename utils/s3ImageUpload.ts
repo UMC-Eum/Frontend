@@ -1,3 +1,4 @@
+import * as ImageManipulator from "expo-image-manipulator";
 import * as FileSystem from "expo-file-system/legacy";
 
 /**
@@ -22,6 +23,19 @@ export function contentTypeToImageExtension(contentType: string) {
   if (contentType === "image/webp") return "webp";
 
   return "jpg";
+}
+
+export async function normalizeImageForUpload(uri: string) {
+  const image = await ImageManipulator.manipulateAsync(uri, [], {
+    compress: 0.9,
+    format: ImageManipulator.SaveFormat.JPEG,
+  });
+
+  return {
+    uri: image.uri,
+    contentType: "image/jpeg",
+    extension: "jpg",
+  };
 }
 
 /**

@@ -174,8 +174,7 @@ export default function ProfileEditScreen() {
     if (!nextNickname || !nextIntroText || isSubmitting) return;
 
     try {
-      let profileImageUrl =
-        imageUri && imageUri.startsWith("http") ? imageUri : undefined;
+      let profileImageUrl: string | undefined;
 
       if (pickedImage) {
         profileImageUrl = await uploadProfileImage(pickedImage);
@@ -352,7 +351,7 @@ export default function ProfileEditScreen() {
 async function uploadProfileImage(asset: PickedProfileImage) {
   const contentType = asset.mimeType;
   const extension = contentTypeToImageExtension(contentType);
-  const { uploadUrl, fileUrl } = await postPresign({
+  const { uploadUrl, fileRef } = await postPresign({
     fileName: `profile-${Date.now()}.${extension}`,
     contentType,
     purpose: PROFILE_IMAGE_PURPOSE,
@@ -363,7 +362,7 @@ async function uploadProfileImage(asset: PickedProfileImage) {
 
   await uploadFileToS3(uploadUrl, uploadBlob, contentType);
 
-  return fileUrl;
+  return fileRef;
 }
 
 function contentTypeToImageExtension(contentType: string) {

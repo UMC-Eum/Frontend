@@ -3,6 +3,7 @@ import {
   IAnalyzeRequest,
   IAnalyzeResponse,
 } from "../../types/api/onboarding/onboardingDTO";
+import { normalizeS3ObjectRef } from "@/utils/s3ObjectRef";
 import api from "../axiosInstance";
 
 type AnalyzeResponseCandidate = IAnalyzeResponse & {
@@ -18,7 +19,7 @@ export const postVoiceAnalyze = async (body: IAnalyzeRequest) => {
     gender: body.gender,
     birthDate: body.birthDate,
     areaCode: body.areaCode,
-    introAudioUrl: body.audioUrl,
+    introAudioUrl: normalizeS3ObjectRef(body.audioUrl),
   };
 
   if (__DEV__) {

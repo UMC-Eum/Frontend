@@ -17,7 +17,7 @@ export interface IProfileSummary {
 
 //v1/hearts(post)
 export interface IHeartsRequest {
-  targetUserId: number;
+  targetUserId: number | string;
 }
 export interface IHeartsResponse {
   heartId: number;
@@ -27,7 +27,7 @@ export interface IHeartsResponse {
 //v1/hearts/sent(get)
 export interface IHeartsentItem {
   heartId: number;
-  targetUserId: number;
+  targetUserId: number | null;
   createdAt: string;
   targetUser: IProfileSummary;
 }
@@ -40,7 +40,7 @@ export interface IHeartsentResponse {
 //v1/hearts/received(get)
 export interface IHeartreceivedItem {
   heartId: number;
-  fromUserId: number;
+  fromUserId: number | null;
   createdAt: string;
   isLiked?: boolean;
   likedHeartId?: number | null;
