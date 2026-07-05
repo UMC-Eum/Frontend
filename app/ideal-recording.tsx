@@ -930,14 +930,6 @@ function buildProfileRestorePayload(
   if (profile.area?.code?.trim()) {
     payload.areaCode = profile.area.code.trim();
   }
-  payload.introAudioUrl = isRemoteUrl(profile.introAudioUrl)
-    ? profile.introAudioUrl
-    : null;
-
-  if (isRemoteUrl(profile.profileImageUrl)) {
-    payload.profileImageUrl = profile.profileImageUrl;
-  }
-
   return payload;
 }
 
@@ -966,10 +958,6 @@ function getProfileKeywordOptions(profile?: IUserProfile) {
     ...(profile.personalities ?? []),
     ...(profile.keywords ?? []),
   ]);
-}
-
-function isRemoteUrl(url?: string | null) {
-  return /^https?:\/\//i.test(url ?? "");
 }
 
 function labelsToVoiceKeywords(labels: string[]) {
@@ -1075,7 +1063,7 @@ async function uploadRecordedAudio(uri: string, onStepChange: (step: string) => 
   const contentType = resolveAudioContentType(uri);
   const fileName = `ideal-voice-${Date.now()}.${contentTypeToExtension(contentType)}`;
   onStepChange("S3 업로드 URL 발급");
-  const { uploadUrl, fileUrl } = await postPresign({
+  const { uploadUrl, fileRef } = await postPresign({
     fileName,
     contentType,
     purpose: AUDIO_PURPOSE,
@@ -1087,7 +1075,7 @@ async function uploadRecordedAudio(uri: string, onStepChange: (step: string) => 
   onStepChange("S3 음성 파일 업로드");
   await uploadBlobToPresignedUrl(uploadUrl, blob, contentType, "Ideal Voice Upload");
 
-  return fileUrl;
+  return fileRef;
 }
 
 function uploadBlobToPresignedUrl(

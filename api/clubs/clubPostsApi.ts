@@ -1,6 +1,14 @@
 import api from "../axiosInstance";
 import { ApiSuccessResponse } from "../../types/api/api";
-import type { IArticleResponse } from "../../types/api/articles/articlesDTO";
+import type {
+  IArticleLikeResponse,
+  IArticleResponse,
+} from "../../types/api/articles/articlesDTO";
+import { normalizeS3ObjectRefs } from "@/utils/s3ObjectRef";
+import type {
+  ICommentItem,
+  ICommentsGetResponse,
+} from "../../types/api/comments/commentsDTO";
 import * as DTO from "../../types/api/clubs/clubPostsDTO";
 
 export const getClubPosts = async (
@@ -19,22 +27,18 @@ export const createClubPost = async (
 ) => {
   const { data } = await api.post<
     ApiSuccessResponse<DTO.IClubPostCreateResponse>
-  >(`/v1/clubs/${clubId}/articles`, body);
+  >(`/v1/clubs/${clubId}/articles`, {
+    ...body,
+    imageUrls: normalizeS3ObjectRefs(body.imageUrls),
+  });
   return data.success.data;
 };
 
-export const getClubPostDetail = async (postId: number, clubId?: number) => {
-  if (clubId) {
-    const { data } = await api.get<ApiSuccessResponse<IArticleResponse>>(
-      `/v1/clubs/${clubId}/articles/${postId}`,
-    );
-    return mapArticleToClubPostDetail(data.success.data);
-  }
-
-  const { data } = await api.get<
-    ApiSuccessResponse<DTO.IClubPostDetailResponse>
-  >(`/v1/club-posts/${postId}`);
-  return data.success.data;
+export const getClubPostDetail = async (clubId: number, postId: number) => {
+  const { data } = await api.get<ApiSuccessResponse<IArticleResponse>>(
+    `/v1/clubs/${clubId}/articles/${postId}`,
+  );
+  return mapArticleToClubPostDetail(data.success.data);
 };
 
 function mapArticleToClubPostDetail(
@@ -54,6 +58,7 @@ function mapArticleToClubPostDetail(
     likeCount: article.likeCount,
     commentCount: article.commentCount,
     createdAt: article.createdAt,
+    isLiked: article.isLiked ?? false,
     isMine: article.isMine,
   };
 }
@@ -65,60 +70,66 @@ export const updateClubPost = async (
 ) => {
   const { data } = await api.patch<ApiSuccessResponse<null>>(
     `/v1/clubs/${clubId}/articles/${postId}`,
-    body,
+    {
+      ...body,
+      imageUrls: normalizeS3ObjectRefs(body.imageUrls),
+    },
   );
   return data.success.data;
 };
 
-export const deleteClubPost = async (postId: number, clubId?: number) => {
-  if (clubId) {
-    const { data } = await api.delete<ApiSuccessResponse<null>>(
-      `/v1/clubs/${clubId}/articles/${postId}`,
-    );
-    return data.success.data;
-  }
-
+export const deleteClubPost = async (clubId: number, postId: number) => {
   const { data } = await api.delete<ApiSuccessResponse<null>>(
-    `/v1/club-posts/${postId}`,
+    `/v1/clubs/${clubId}/articles/${postId}`,
   );
   return data.success.data;
 };
 
 export const createClubPostComment = async (
+  clubId: number,
   postId: number,
   body: DTO.IClubPostCommentCreateRequest,
-  clubId?: number,
 ) => {
-  if (clubId) {
-    const { data } = await api.post<
-      ApiSuccessResponse<DTO.IClubPostCommentCreateResponse>
-    >(`/v1/clubs/${clubId}/articles/${postId}/comments`, body);
-    return data.success.data;
-  }
-
   const { data } = await api.post<
     ApiSuccessResponse<DTO.IClubPostCommentCreateResponse>
-  >(`/v1/club-posts/${postId}/comments`, body);
+  >(`/v1/clubs/${clubId}/articles/${postId}/comments`, {
+    contents: body.content,
+    parentCommentId: null,
+  });
   return data.success.data;
 };
 
 export const getClubPostComments = async (
+  clubId: number,
   postId: number,
-  params: { cursor?: string | null; size: number },
-  clubId?: number,
+  params: { cursor?: string | null; limit?: number },
 ) => {
-  if (clubId) {
-    const { data } = await api.get<
-      ApiSuccessResponse<DTO.IClubPostCommentsGetResponse>
-    >(`/v1/clubs/${clubId}/articles/${postId}/comments`, { params });
-    return data.success.data;
-  }
-
-  const { data } = await api.get<
-    ApiSuccessResponse<DTO.IClubPostCommentsGetResponse>
-  >(`/v1/club-posts/${postId}/comments`, { params });
-  return data.success.data;
+  const { data } = await api.get<ApiSuccessResponse<ICommentsGetResponse>>(
+    `/v1/clubs/${clubId}/articles/${postId}/comments`,
+    { params },
+  );
+  return mapCommentsToClubPostComments(data.success.data);
 };
+
+function mapCommentsToClubPostComments(
+  response: ICommentsGetResponse,
+): DTO.IClubPostCommentsGetResponse {
+  const flatten = (comment: ICommentItem): DTO.IClubPostCommentItem[] => [
+    {
+      commentId: comment.commentId,
+      author: comment.author,
+      content: comment.contents,
+      createdAt: comment.createdAt,
+      isMine: comment.isMine,
+    },
+    ...(comment.replies ?? []).flatMap(flatten),
+  ];
+
+  return {
+    nextCursor: response.hasMore ? response.nextCursor : null,
+    items: response.comments.flatMap(flatten),
+  };
+}
 
 export const updateClubPostComment = async (
   clubId: number,
@@ -145,14 +156,14 @@ export const deleteClubPostComment = async (
 };
 
 export const likeClubPost = async (clubId: number, postId: number) => {
-  const { data } = await api.post<ApiSuccessResponse<null>>(
+  const { data } = await api.post<ApiSuccessResponse<IArticleLikeResponse>>(
     `/v1/clubs/${clubId}/articles/${postId}/like`,
   );
   return data.success.data;
 };
 
 export const unlikeClubPost = async (clubId: number, postId: number) => {
-  const { data } = await api.delete<ApiSuccessResponse<null>>(
+  const { data } = await api.delete<ApiSuccessResponse<IArticleLikeResponse>>(
     `/v1/clubs/${clubId}/articles/${postId}/like`,
   );
   return data.success.data;

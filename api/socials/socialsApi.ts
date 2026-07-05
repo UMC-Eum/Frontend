@@ -7,9 +7,15 @@ import * as DTO from "../../types/api/socials/socialsDTO";
 export const sendHeart = async (
   body: DTO.IHeartsRequest,
 ): Promise<DTO.IHeartsResponse> => {
+  const targetUserId = Number(body.targetUserId);
+
+  if (!Number.isFinite(targetUserId) || targetUserId <= 0) {
+    throw new Error("Invalid targetUserId.");
+  }
+
   const { data } = await api.post<ApiSuccessResponse<DTO.IHeartsResponse>>(
     "/v1/hearts",
-    body,
+    { targetUserId: String(targetUserId) },
   );
   return data.success.data;
 };

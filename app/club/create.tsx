@@ -27,8 +27,7 @@ import { useFastInputScroll } from "@/hooks/useFastInputScroll";
 import { useClubCreateAreaStore, useClubLocationStore } from "@/stores/clubLocationStore";
 import type { ApiFailResponse } from "@/types/api/api";
 import {
-  contentTypeToImageExtension,
-  resolveImageContentType,
+  normalizeImageForUpload,
   uploadImageUriToS3,
 } from "@/utils/s3ImageUpload";
 
@@ -38,7 +37,6 @@ type JoinType = "free" | "approval";
 type BoardScope = "all" | "member";
 type CoverImage = {
   uri: string;
-  contentType: string;
 };
 type InputField = "name" | "intro";
 
@@ -109,7 +107,6 @@ export default function ClubCreateScreen() {
         setCoverImages(
           result.assets.slice(0, 5).map((asset) => ({
             uri: asset.uri,
-            contentType: asset.mimeType ?? resolveImageContentType(asset.uri),
           })),
         );
       }
@@ -150,7 +147,7 @@ export default function ClubCreateScreen() {
           intro: intro.trim(),
           location: areaName ?? "",
           host: createdClub.host?.nickname ?? "",
-          image: thumbnailUrl ?? coverImages[0]?.uri ?? "",
+          image: coverImages[0]?.uri ?? "",
         },
       } as never);
     } catch (error) {
@@ -385,15 +382,19 @@ function getApiErrorMessage(error: unknown) {
 }
 
 async function uploadClubCoverImage(image: CoverImage) {
-  const extension = contentTypeToImageExtension(image.contentType);
-  const { uploadUrl, fileUrl } = await postPresign({
-    fileName: `club-cover-${Date.now()}.${extension}`,
-    contentType: image.contentType,
+  const uploadImage = await normalizeImageForUpload(image.uri);
+  const { uploadUrl, fileRef } = await postPresign({
+    fileName: `club-cover-${Date.now()}.${uploadImage.extension}`,
+    contentType: uploadImage.contentType,
     purpose: "CLUB",
   });
-  await uploadImageUriToS3(uploadUrl, image.uri, image.contentType);
+  await uploadImageUriToS3(
+    uploadUrl,
+    uploadImage.uri,
+    uploadImage.contentType,
+  );
 
-  return fileUrl;
+  return fileRef;
 }
 
 function FormSection({
