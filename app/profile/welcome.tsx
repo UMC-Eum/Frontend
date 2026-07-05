@@ -518,7 +518,7 @@ export default function WelcomeScreen() {
       introKeywords.length > 0
         ? `${userName}님은 ${introKeywords.join(", ")}에 관심이 있어요.`
         : `${userName}님의 이야기를 들려주세요.`;
-    const safeIntroAudioUrl = isRemoteUrl(introAudioUrl) ? introAudioUrl : "";
+    const safeIntroAudioUrl = introAudioUrl.trim();
 
     const resolveProfileImageUrl = async () => {
       if (
@@ -532,11 +532,9 @@ export default function WelcomeScreen() {
       try {
         let profileImageUrl = profileImageUri;
 
-        if (isRemoteUrl(profileImageUri)) {
-          profileImageUrl = profileImageUri;
-        } else {
-          profileImageUrl = await uploadProfileImage(profileImageUri);
-        }
+        if (isRemoteUrl(profileImageUri)) return null;
+
+        profileImageUrl = await uploadProfileImage(profileImageUri);
 
         if (__DEV__) {
           console.log("[Profile Image Upload] success", { profileImageUrl });
@@ -748,7 +746,7 @@ function idsFromLabels(labels: string[], keywords = MOCK_KEYWORDS) {
 async function uploadRecordedAudio(uri: string) {
   const contentType = resolveAudioContentType(uri);
   const fileName = `profile-voice-${Date.now()}.${contentTypeToExtension(contentType)}`;
-  const { uploadUrl, fileUrl } = await postPresign({
+  const { uploadUrl, fileRef } = await postPresign({
     fileName,
     contentType,
     purpose: INTRO_AUDIO_PURPOSE,
@@ -777,17 +775,17 @@ async function uploadRecordedAudio(uri: string) {
 
   if (__DEV__) {
     console.log("[Voice Upload] s3 success", {
-      fileUrl,
+      fileRef,
     });
   }
 
-  return fileUrl;
+  return fileRef;
 }
 
 async function uploadProfileImage(uri: string) {
   const contentType = resolveImageContentType(uri);
   const fileName = `profile-image-${Date.now()}.${contentTypeToImageExtension(contentType)}`;
-  const { uploadUrl, fileUrl } = await postPresign({
+  const { uploadUrl, fileRef } = await postPresign({
     fileName,
     contentType,
     purpose: PROFILE_IMAGE_PURPOSE,
@@ -801,7 +799,7 @@ async function uploadProfileImage(uri: string) {
     "Profile Image Upload",
   );
 
-  return fileUrl;
+  return fileRef;
 }
 
 function resolveImageContentType(uri: string) {

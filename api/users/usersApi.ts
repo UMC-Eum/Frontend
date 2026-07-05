@@ -1,5 +1,6 @@
 import api from "../axiosInstance";
 import { ApiSuccessResponse } from "../../types/api/api";
+import { normalizeS3ObjectRef } from "@/utils/s3ObjectRef";
 
 import { IUserProfile, IUserPublicProfile } from "../../types/user";
 import {
@@ -32,9 +33,19 @@ export const getUserProfile = async (userId: number) => {
 //v1/users/me(patch)
 
 export const updateMyProfile = async (body: IPatchUserProfileRequest) => {
+  const requestBody = {
+    ...body,
+    introAudioUrl:
+      typeof body.introAudioUrl === "string"
+        ? normalizeS3ObjectRef(body.introAudioUrl)
+        : body.introAudioUrl,
+    profileImageUrl: body.profileImageUrl
+      ? normalizeS3ObjectRef(body.profileImageUrl)
+      : body.profileImageUrl,
+  };
   const { data } = await api.patch<ApiSuccessResponse<null>>(
     "/v1/users/me",
-    body,
+    requestBody,
   );
 
   return data.success.data;

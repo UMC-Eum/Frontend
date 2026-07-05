@@ -1,14 +1,22 @@
 import api from "../axiosInstance";
 import { ApiSuccessResponse } from "../../types/api/api";
 import * as DTO from "../../types/api/host/hostDTO";
+import { normalizeS3ObjectRef } from "@/utils/s3ObjectRef";
 
 export const updateClub = async (
   clubId: number,
   body: DTO.IClubUpdateRequest,
 ) => {
+  const requestBody = {
+    ...body,
+    introVoice:
+      typeof body.introVoice === "string"
+        ? normalizeS3ObjectRef(body.introVoice)
+        : body.introVoice,
+  };
   const { data } = await api.patch<
     ApiSuccessResponse<DTO.IClubUpdateResponse>
-  >(`/v1/clubs/${clubId}`, body);
+  >(`/v1/clubs/${clubId}`, requestBody);
   return data.success.data;
 };
 

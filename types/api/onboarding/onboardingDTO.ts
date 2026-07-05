@@ -8,7 +8,8 @@ export interface IPresignRequest {
 }
 export interface IPresignResponse {
   uploadUrl: string;
-  fileUrl: string;
+  fileRef: string;
+  key?: string;
   expiresAt: string;
 }
 //v1/onboarding/voice-profile/analyze(post)

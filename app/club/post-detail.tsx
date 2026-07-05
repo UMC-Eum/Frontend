@@ -13,6 +13,7 @@ import React, { useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Keyboard,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -22,6 +23,7 @@ import {
 import { KeyboardAvoidingView } from "@/components/KeyboardCompat";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { ClubImageLightbox } from "@/components/club/ClubImageLightbox";
 import {
   ClubActionSheetMode,
   ClubAuthorMeta,
@@ -38,10 +40,15 @@ import {
   deleteClubPost,
   getClubPostComments,
   getClubPostDetail,
+  likeClubPost,
+  unlikeClubPost,
 } from "@/api/clubs/clubPostsApi";
 import { queryKeys } from "@/hooks/api/queryKeys";
 import type { IArticlesGetResponse } from "@/types/api/articles/articlesDTO";
-import { ClubPostCategory } from "@/types/api/clubs/clubPostsDTO";
+import type {
+  ClubPostCategory,
+  IClubPostDetailResponse,
+} from "@/types/api/clubs/clubPostsDTO";
 import { uniqueBy } from "@/utils/array";
 
 const CATEGORY_LABELS: Record<ClubPostCategory, string> = {
@@ -67,35 +74,77 @@ export default function ClubPostDetailScreen() {
   }>();
   const [isActionSheetVisible, setActionSheetVisible] = useState(false);
   const [comment, setComment] = useState("");
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
 
   const postId = Number(params.postId);
   const clubId = Number(params.clubId);
-  const hasPostId = Number.isFinite(postId);
   const activeClubId = Number.isFinite(clubId) ? clubId : undefined;
+  const hasPostId = Number.isFinite(postId) && activeClubId !== undefined;
   const postQuery = useQuery({
     queryKey: queryKeys.clubs.post(postId),
-    queryFn: () => getClubPostDetail(postId, activeClubId),
+    queryFn: () => getClubPostDetail(activeClubId!, postId),
     enabled: hasPostId,
   });
   const commentsQuery = useInfiniteQuery({
     queryKey: queryKeys.clubs.comments(postId),
     queryFn: ({ pageParam }) =>
-      getClubPostComments(postId, { cursor: pageParam, size: 20 }, activeClubId),
+      getClubPostComments(activeClubId!, postId, { cursor: pageParam, limit: 20 }),
     initialPageParam: null as string | null,
     getNextPageParam: (lastPage) => lastPage.nextCursor,
     enabled: hasPostId,
   });
+  const likeMutation = useMutation({
+    mutationFn: (nextLiked: boolean) =>
+      nextLiked
+        ? likeClubPost(activeClubId!, postId)
+        : unlikeClubPost(activeClubId!, postId),
+    onMutate: async (nextLiked) => {
+      await queryClient.cancelQueries({ queryKey: queryKeys.clubs.post(postId) });
+      const previousPost = queryClient.getQueryData<IClubPostDetailResponse>(
+        queryKeys.clubs.post(postId),
+      );
+      queryClient.setQueryData<IClubPostDetailResponse>(
+        queryKeys.clubs.post(postId),
+        (current) =>
+          current
+            ? {
+                ...current,
+                isLiked: nextLiked,
+                likeCount: Math.max(0, current.likeCount + (nextLiked ? 1 : -1)),
+              }
+            : current,
+      );
+      return { previousPost };
+    },
+    onError: (_error, _nextLiked, context) => {
+      if (context?.previousPost) {
+        queryClient.setQueryData(queryKeys.clubs.post(postId), context.previousPost);
+      }
+      Alert.alert("좋아요 실패", "잠시 후 다시 시도해주세요.");
+    },
+    onSuccess: (data) => {
+      queryClient.setQueryData<IClubPostDetailResponse>(
+        queryKeys.clubs.post(postId),
+        (current) =>
+          current
+            ? { ...current, isLiked: data.isLiked, likeCount: data.likeCount }
+            : current,
+      );
+      if (activeClubId) {
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.articles.all(activeClubId),
+        });
+      }
+    },
+  });
   const createCommentMutation = useMutation({
     mutationFn: () =>
-      createClubPostComment(
-        postId,
-        {
-          content: comment.trim(),
-        },
-        activeClubId,
-      ),
+      createClubPostComment(activeClubId!, postId, {
+        content: comment.trim(),
+      }),
     onSuccess: () => {
       setComment("");
+      Keyboard.dismiss();
       queryClient.invalidateQueries({ queryKey: queryKeys.clubs.post(postId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.clubs.comments(postId) });
     },
@@ -104,7 +153,7 @@ export default function ClubPostDetailScreen() {
     },
   });
   const deletePostMutation = useMutation({
-    mutationFn: () => deleteClubPost(postId, activeClubId),
+    mutationFn: () => deleteClubPost(activeClubId!, postId),
     onSuccess: () => {
       if (activeClubId) {
         removeDeletedArticleFromLists(queryClient, activeClubId, postId);
@@ -137,6 +186,12 @@ export default function ClubPostDetailScreen() {
     }
 
     createCommentMutation.mutate();
+  };
+
+  const handleToggleLike = () => {
+    if (!post || likeMutation.isPending) return;
+
+    likeMutation.mutate(!post.isLiked);
   };
 
   const handlePrimaryAction = () => {
@@ -223,19 +278,25 @@ export default function ClubPostDetailScreen() {
               <View style={styles.postBody}>
                 {post.title ? <Text style={styles.postTitle}>{post.title}</Text> : null}
                 <Text style={styles.postContent}>{post.content}</Text>
-                {post.images.map((image) => (
-                  <Image
+                {post.images.map((image, index) => (
+                  <Pressable
                     key={image.imageId}
-                    source={{ uri: image.imageUrl }}
-                    style={styles.postImage}
-                    contentFit="cover"
-                  />
+                    onPress={() => setLightboxIndex(index)}
+                  >
+                    <Image
+                      source={{ uri: image.imageUrl }}
+                      style={styles.postImage}
+                      contentFit="cover"
+                    />
+                  </Pressable>
                 ))}
               </View>
 
               <ClubReactionSummary
                 likeCount={post.likeCount}
                 commentCount={post.commentCount}
+                isLiked={post.isLiked}
+                onLikePress={handleToggleLike}
               />
 
               <View style={styles.dividerBand} />
@@ -280,6 +341,18 @@ export default function ClubPostDetailScreen() {
           onClose={() => setActionSheetVisible(false)}
           onPrimaryPress={handlePrimaryAction}
           onSecondaryPress={handleSecondaryAction}
+        />
+
+        <ClubImageLightbox
+          visible={lightboxIndex !== null}
+          images={
+            post?.images.map((image) => ({
+              id: image.imageId,
+              imageUrl: image.imageUrl,
+            })) ?? []
+          }
+          initialIndex={lightboxIndex ?? 0}
+          onClose={() => setLightboxIndex(null)}
         />
       </KeyboardAvoidingView>
     </SafeAreaView>
