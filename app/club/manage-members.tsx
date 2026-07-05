@@ -1,10 +1,25 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
-import { useRouter } from "expo-router";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import React, { useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import React, { useCallback, useMemo } from "react";
+import {
+  ActivityIndicator,
+  Alert,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+
+import {
+  useClubMembersInfiniteQuery,
+  useKickClubMemberMutation,
+  useUpdateClubMemberStatusMutation,
+} from "@/hooks/api/useHost";
+import type { IClubMemberItem } from "@/types/api/host/hostDTO";
 
 const COLORS = {
   pink: "#FF3E70",
@@ -19,123 +34,179 @@ const COLORS = {
   white: "#FFFFFF",
 };
 
-type JoinRequest = {
-  id: string;
-  name: string;
-  age: number;
-  area: string;
-  message: string;
-  date: string;
-  image: string;
-};
+function parseClubId(value?: string) {
+  if (!value) return NaN;
+  const numeric = Number(value);
+  if (Number.isFinite(numeric)) return numeric;
+  const match = value.match(/\d+/);
+  return match ? Number(match[0]) : NaN;
+}
 
-type Member = {
-  id: string;
-  name: string;
-  age: number;
-  joinedAt: string;
-  isOwner?: boolean;
-  image: string;
-};
+function isClubMemberItem(member: unknown): member is IClubMemberItem {
+  return (
+    !!member &&
+    typeof member === "object" &&
+    typeof (member as IClubMemberItem).userId === "number"
+  );
+}
 
-const INITIAL_REQUESTS: JoinRequest[] = [
-  {
-    id: "1",
-    name: "김철수",
-    age: 65,
-    area: "서울시 종로구",
-    message: "산을 정말 좋아합니다. 새벽 공기마시며 건강하게 활동 하고싶어요!",
-    date: "05.10 신청",
-    image:
-      "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=300&auto=format&fit=crop",
-  },
-  {
-    id: "2",
-    name: "29아나29",
-    age: 70,
-    area: "서울시 관악구",
-    message: "안녕하세요 산을 좋아합니다!",
-    date: "05.10 신청",
-    image:
-      "https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=300&auto=format&fit=crop",
-  },
-];
+// 탈퇴/강퇴/거절된 멤버는 목록에서 제외한다. status가 없으면 활성으로 간주한다.
+const INACTIVE_MEMBER_STATUSES = new Set(["LEFT", "KICKED", "REJECTED"]);
+function isActiveMember(member: IClubMemberItem) {
+  return !member.status || !INACTIVE_MEMBER_STATUSES.has(member.status);
+}
 
-const INITIAL_MEMBERS: Member[] = [
-  {
-    id: "m1",
-    name: "루시",
-    age: 58,
-    joinedAt: "2026.05.10",
-    isOwner: true,
-    image:
-      "https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=300&auto=format&fit=crop",
-  },
-  {
-    id: "m2",
-    name: "등산등산",
-    age: 62,
-    joinedAt: "2026.05.14",
-    image:
-      "https://images.unsplash.com/photo-1517841905240-472988babdf9?q=80&w=300&auto=format&fit=crop",
-  },
-  {
-    id: "m3",
-    name: "등산등산",
-    age: 62,
-    joinedAt: "2026.05.14",
-    image:
-      "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=300&auto=format&fit=crop",
-  },
-  {
-    id: "m4",
-    name: "등산조아",
-    age: 50,
-    joinedAt: "2026.05.16",
-    image:
-      "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?q=80&w=300&auto=format&fit=crop",
-  },
-];
+// "2026-05-10T..." → "2026.05.10", 신청 목록은 "05.10 신청" 형태로 다듬는다.
+function formatJoinedDate(value?: string | null) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}.${month}.${day}`;
+}
+
+function formatRequestedDate(value?: string | null) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${month}.${day} 신청`;
+}
+
+function formatNameAge(member: IClubMemberItem) {
+  return typeof member.age === "number"
+    ? `${member.nickname} · ${member.age}세`
+    : member.nickname;
+}
 
 export default function ClubManageMembersScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const [requests, setRequests] = useState(INITIAL_REQUESTS);
-  const [members, setMembers] = useState(INITIAL_MEMBERS);
+  const params = useLocalSearchParams<{ clubId?: string }>();
+  const clubId = parseClubId(params.clubId);
+  const hasValidClub = Number.isFinite(clubId);
 
-  const handleRequest = (id: string, approve: boolean) => {
-    setRequests((prev) => {
-      const target = prev.find((request) => request.id === id);
-      if (approve && target) {
-        setMembers((current) => [
-          ...current,
-          {
-            id: `m-${target.id}`,
-            name: target.name,
-            age: target.age,
-            joinedAt: "2026.05.20",
-            image: target.image,
-          },
-        ]);
-      }
-      return prev.filter((request) => request.id !== id);
-    });
+  const requestsQuery = useClubMembersInfiniteQuery(
+    clubId,
+    { status: "PENDING", limit: 20 },
+    hasValidClub,
+  );
+  const membersQuery = useClubMembersInfiniteQuery(
+    clubId,
+    { status: "ACTIVE", limit: 20 },
+    hasValidClub,
+  );
+  const statusMutation = useUpdateClubMemberStatusMutation(clubId);
+  const kickMutation = useKickClubMemberMutation(clubId);
+  const isMutating = statusMutation.isPending || kickMutation.isPending;
+
+  // 다른 기기/계정에서의 변경(탈퇴 등)을 반영하도록 화면 재진입 시 목록을 다시 불러온다.
+  const refetchRequests = requestsQuery.refetch;
+  const refetchMembers = membersQuery.refetch;
+  useFocusEffect(
+    useCallback(() => {
+      if (!hasValidClub) return;
+      refetchRequests();
+      refetchMembers();
+    }, [hasValidClub, refetchRequests, refetchMembers]),
+  );
+
+  const requests = useMemo(
+    () =>
+      (
+        requestsQuery.data?.pages.flatMap((page) => page.members ?? []) ?? []
+      ).filter(isClubMemberItem),
+    [requestsQuery.data],
+  );
+  const members = useMemo(
+    () =>
+      (membersQuery.data?.pages.flatMap((page) => page.members ?? []) ?? [])
+        .filter(isClubMemberItem)
+        // 서버가 status 필터 없이 전체를 내려줄 수 있어, 탈퇴·강퇴·거절 멤버는 제외한다.
+        .filter((member) => isActiveMember(member)),
+    [membersQuery.data],
+  );
+
+  const approveRequest = (member: IClubMemberItem) => {
+    if (isMutating) return;
+    statusMutation.mutate(
+      { userId: member.userId, body: { status: "ACTIVE" } },
+      {
+        onError: () =>
+          Alert.alert("승인 실패", "잠시 후 다시 시도해주세요."),
+      },
+    );
   };
 
-  const removeMember = (id: string) => {
-    setMembers((prev) => prev.filter((member) => member.id !== id));
+  const rejectRequest = (member: IClubMemberItem) => {
+    if (isMutating) return;
+    Alert.alert(
+      "가입 신청 거절",
+      `거절 시 ${member.nickname}님은 이 동호회에 참여할 수 없어요.`,
+      [
+        { text: "취소", style: "cancel" },
+        {
+          text: "거절",
+          style: "destructive",
+          onPress: () =>
+            statusMutation.mutate(
+              { userId: member.userId, body: { status: "REJECTED" } },
+              {
+                onError: () =>
+                  Alert.alert("거절 실패", "잠시 후 다시 시도해주세요."),
+              },
+            ),
+        },
+      ],
+    );
   };
+
+  const kickMember = (member: IClubMemberItem) => {
+    if (isMutating) return;
+    Alert.alert("멤버 퇴장", `${member.nickname}님을 퇴장 처리할까요?`, [
+      { text: "취소", style: "cancel" },
+      {
+        text: "퇴장",
+        style: "destructive",
+        onPress: () =>
+          kickMutation.mutate(
+            { userId: member.userId },
+            {
+              onError: () =>
+                Alert.alert("퇴장 실패", "잠시 후 다시 시도해주세요."),
+            },
+          ),
+      },
+    ]);
+  };
+
+  const isLoading = requestsQuery.isLoading || membersQuery.isLoading;
 
   return (
     <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
       <StatusBar style="dark" />
       <Header title="멤버 관리" onBack={() => router.back()} />
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={{ paddingBottom: insets.bottom + 28 }}
-        showsVerticalScrollIndicator={false}
-      >
-        {requests.length > 0 ? (
+
+      {!hasValidClub ? (
+        <View style={styles.centerBox}>
+          <Text style={styles.centerText}>동호회 정보를 찾을 수 없어요.</Text>
+          <Pressable style={styles.retryButton} onPress={() => router.back()}>
+            <Text style={styles.retryButtonText}>돌아가기</Text>
+          </Pressable>
+        </View>
+      ) : isLoading ? (
+        <View style={styles.centerBox}>
+          <ActivityIndicator color={COLORS.pink} />
+        </View>
+      ) : (
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={{ paddingBottom: insets.bottom + 28 }}
+          showsVerticalScrollIndicator={false}
+        >
           <View style={styles.requestSection}>
             <View style={styles.sectionTitleRow}>
               <Text style={styles.sectionTitle}>가입신청</Text>
@@ -144,88 +215,132 @@ export default function ClubManageMembersScreen() {
               </View>
             </View>
 
-            <View style={styles.requestList}>
-              {requests.map((request) => (
-                <View key={request.id} style={styles.requestCard}>
-                  <View style={styles.requestHeader}>
-                    <View style={styles.profileRow}>
-                      <Image
-                        source={{ uri: request.image }}
-                        style={styles.avatar}
-                        contentFit="cover"
-                      />
-                      <View style={styles.profileInfo}>
-                        <Text style={styles.profileName}>
-                          {request.name} · {request.age}세
-                        </Text>
-                        <Text style={styles.profileArea}>{request.area}</Text>
+            {requests.length === 0 ? (
+              <View style={styles.emptyBox}>
+                <Text style={styles.emptyText}>
+                  {requestsQuery.isError
+                    ? "가입신청을 불러오지 못했어요."
+                    : "대기 중인 가입신청이 없어요."}
+                </Text>
+              </View>
+            ) : (
+              <View style={styles.requestList}>
+                {requests.map((request) => (
+                  <View key={request.userId} style={styles.requestCard}>
+                    <View style={styles.requestHeader}>
+                      <View style={styles.profileRow}>
+                        {request.profileImageUrl ? (
+                          <Image
+                            source={{ uri: request.profileImageUrl }}
+                            style={styles.avatar}
+                            contentFit="cover"
+                          />
+                        ) : (
+                          <View style={styles.avatar} />
+                        )}
+                        <View style={styles.profileInfo}>
+                          <Text style={styles.profileName}>
+                            {formatNameAge(request)}
+                          </Text>
+                        </View>
                       </View>
+                      <Text style={styles.requestDate}>
+                        {formatRequestedDate(request.requestedAt)}
+                      </Text>
                     </View>
-                    <Text style={styles.requestDate}>{request.date}</Text>
-                  </View>
 
-                  <View style={styles.messageBox}>
-                    <Text style={styles.messageText}>{request.message}</Text>
-                  </View>
-
-                  <View style={styles.actionRow}>
-                    <Pressable
-                      style={[styles.actionButton, styles.rejectButton]}
-                      onPress={() => handleRequest(request.id, false)}
-                    >
-                      <Text style={styles.rejectText}>거절</Text>
-                    </Pressable>
-                    <Pressable
-                      style={[styles.actionButton, styles.approveButton]}
-                      onPress={() => handleRequest(request.id, true)}
-                    >
-                      <Text style={styles.approveText}>승인</Text>
-                    </Pressable>
-                  </View>
-                </View>
-              ))}
-            </View>
-          </View>
-        ) : null}
-
-        <View style={styles.dividerBand} />
-
-        <View style={styles.memberTitleRow}>
-          <Text style={styles.sectionTitle}>멤버 목록</Text>
-        </View>
-
-        <View style={styles.memberList}>
-          {members.map((member) => (
-            <View key={member.id} style={styles.memberRow}>
-              <View style={styles.profileRow}>
-                <Image
-                  source={{ uri: member.image }}
-                  style={styles.avatar}
-                  contentFit="cover"
-                />
-                <View style={styles.memberInfo}>
-                  <View style={styles.nameRow}>
-                    <Text style={styles.profileName}>
-                      {member.name} · {member.age}세
-                    </Text>
-                    {member.isOwner ? (
-                      <View style={styles.ownerChip}>
-                        <Text style={styles.ownerChipText}>운영자</Text>
+                    {request.message ? (
+                      <View style={styles.messageBox}>
+                        <Text style={styles.messageText}>{request.message}</Text>
                       </View>
                     ) : null}
+
+                    <View style={styles.actionRow}>
+                      <Pressable
+                        style={[styles.actionButton, styles.rejectButton]}
+                        onPress={() => rejectRequest(request)}
+                        disabled={isMutating}
+                      >
+                        <Text style={styles.rejectText}>거절</Text>
+                      </Pressable>
+                      <Pressable
+                        style={[styles.actionButton, styles.approveButton]}
+                        onPress={() => approveRequest(request)}
+                        disabled={isMutating}
+                      >
+                        <Text style={styles.approveText}>승인</Text>
+                      </Pressable>
+                    </View>
                   </View>
-                  <Text style={styles.memberJoinedAt}>가입일 {member.joinedAt}</Text>
-                </View>
+                ))}
               </View>
-              {!member.isOwner ? (
-                <Pressable style={styles.kickButton} onPress={() => removeMember(member.id)}>
-                  <Text style={styles.kickText}>퇴장</Text>
-                </Pressable>
-              ) : null}
+            )}
+          </View>
+
+          <View style={styles.dividerBand} />
+
+          <View style={styles.memberTitleRow}>
+            <Text style={styles.sectionTitle}>멤버 목록</Text>
+          </View>
+
+          {members.length === 0 ? (
+            <View style={styles.emptyBox}>
+              <Text style={styles.emptyText}>
+                {membersQuery.isError
+                  ? "멤버를 불러오지 못했어요."
+                  : "아직 멤버가 없어요."}
+              </Text>
             </View>
-          ))}
-        </View>
-      </ScrollView>
+          ) : (
+            <View style={styles.memberList}>
+              {members.map((member) => {
+                const isOwner = member.authority === "HOST";
+                return (
+                  <View key={member.userId} style={styles.memberRow}>
+                    <View style={styles.profileRow}>
+                      {member.profileImageUrl ? (
+                        <Image
+                          source={{ uri: member.profileImageUrl }}
+                          style={styles.avatar}
+                          contentFit="cover"
+                        />
+                      ) : (
+                        <View style={styles.avatar} />
+                      )}
+                      <View style={styles.memberInfo}>
+                        <View style={styles.nameRow}>
+                          <Text style={styles.profileName}>
+                            {formatNameAge(member)}
+                          </Text>
+                          {isOwner ? (
+                            <View style={styles.ownerChip}>
+                              <Text style={styles.ownerChipText}>운영자</Text>
+                            </View>
+                          ) : null}
+                        </View>
+                        {formatJoinedDate(member.joinedAt) ? (
+                          <Text style={styles.memberJoinedAt}>
+                            가입일 {formatJoinedDate(member.joinedAt)}
+                          </Text>
+                        ) : null}
+                      </View>
+                    </View>
+                    {!isOwner ? (
+                      <Pressable
+                        style={styles.kickButton}
+                        onPress={() => kickMember(member)}
+                        disabled={isMutating}
+                      >
+                        <Text style={styles.kickText}>퇴장</Text>
+                      </Pressable>
+                    ) : null}
+                  </View>
+                );
+              })}
+            </View>
+          )}
+        </ScrollView>
+      )}
     </SafeAreaView>
   );
 }
@@ -291,7 +406,6 @@ const styles = StyleSheet.create({
   avatar: { width: 48, height: 48, borderRadius: 24, backgroundColor: COLORS.gray150 },
   profileInfo: { gap: 4 },
   profileName: { fontSize: 18, lineHeight: 23, fontWeight: "500", color: COLORS.text },
-  profileArea: { fontSize: 14, lineHeight: 20, fontWeight: "500", color: COLORS.gray500 },
   requestDate: { fontSize: 14, lineHeight: 20, fontWeight: "500", color: COLORS.gray500 },
   messageBox: {
     minHeight: 48,
@@ -351,4 +465,45 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   kickText: { fontSize: 16, lineHeight: 24, fontWeight: "500", color: COLORS.gray700 },
+  centerBox: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 20,
+    gap: 16,
+  },
+  centerText: {
+    fontSize: 15,
+    lineHeight: 22,
+    fontWeight: "500",
+    color: COLORS.gray700,
+    textAlign: "center",
+  },
+  retryButton: {
+    height: 44,
+    paddingHorizontal: 24,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: COLORS.pink,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  retryButtonText: {
+    fontSize: 15,
+    lineHeight: 21,
+    fontWeight: "600",
+    color: COLORS.pink,
+  },
+  emptyBox: {
+    paddingHorizontal: 20,
+    paddingVertical: 48,
+    alignItems: "center",
+  },
+  emptyText: {
+    fontSize: 15,
+    lineHeight: 22,
+    fontWeight: "500",
+    color: COLORS.gray500,
+    textAlign: "center",
+  },
 });

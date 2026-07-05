@@ -697,6 +697,7 @@ function ClubHomeContent({
               key={club.clubId}
               title={club.name}
               image={club.thumbnailUrl}
+              onPress={() => onOpenClub(String(club.clubId))}
             />
           ))}
         </View>
@@ -711,6 +712,7 @@ function ClubHomeContent({
               key={club.clubId}
               title={club.name}
               image={club.thumbnailUrl}
+              onPress={() => onOpenClub(String(club.clubId))}
             />
           ))}
         </ScrollView>
@@ -769,13 +771,19 @@ function MyClubCard({
   title,
   image,
   status,
+  onPress,
 }: {
   title: string;
   image?: string | null;
   status?: string;
+  onPress: () => void;
 }) {
   return (
-    <Pressable style={styles.myClubCard}>
+    <Pressable
+      style={styles.myClubCard}
+      onPress={onPress}
+      accessibilityRole="button"
+    >
       <View style={styles.myClubImageWrap}>
         {image ? (
           <Image source={{ uri: image }} style={styles.myClubImage} contentFit="cover" />

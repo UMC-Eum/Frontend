@@ -1,11 +1,14 @@
 import { Tabs } from "expo-router";
 import React from "react";
 import { StyleSheet, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { AppNavbar } from "@/components/AppNavbar";
 import { TAB_BAR_HEIGHT } from "@/constants/layout";
 
 export default function TabLayout() {
+  const insets = useSafeAreaInsets();
+
   return (
     <Tabs
       detachInactiveScreens={false}
@@ -13,7 +16,12 @@ export default function TabLayout() {
         const currentRouteName = props.state.routes[props.state.index].name;
 
         return (
-          <View style={styles.tabBar}>
+          <View
+            style={[
+              styles.tabBar,
+              { height: TAB_BAR_HEIGHT + insets.bottom, paddingBottom: insets.bottom },
+            ]}
+          >
             <AppNavbar
               activeTabId={currentRouteName}
               onTabPress={(id) => {
@@ -44,7 +52,6 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
   },
   tabBar: {
-    height: TAB_BAR_HEIGHT,
     backgroundColor: "#FFFFFF",
   },
 });

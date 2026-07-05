@@ -23,11 +23,29 @@ export const getClubMembers = async (
   clubId: number,
   params: DTO.IClubMembersParams = {},
 ) => {
+  if (params.status === "PENDING") {
+    const { data } = await api.get<ApiSuccessResponse<DTO.IClubMembersResponse>>(
+      `/v1/clubs/${clubId}/members/requests`,
+    );
+    const response = data.success.data;
+
+    return {
+      ...response,
+      members: response.members ?? response.items ?? [],
+      nextCursor: response.nextCursor ?? null,
+    };
+  }
+
   const { data } = await api.get<ApiSuccessResponse<DTO.IClubMembersResponse>>(
     `/v1/clubs/${clubId}/members`,
-    { params },
   );
-  return data.success.data;
+  const response = data.success.data;
+
+  return {
+    ...response,
+    members: response.members ?? response.items ?? [],
+    nextCursor: response.nextCursor ?? null,
+  };
 };
 
 export const updateClubMemberStatus = async (

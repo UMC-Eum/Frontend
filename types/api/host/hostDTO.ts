@@ -48,12 +48,18 @@ export interface IClubMemberItem {
   nickname: string;
   profileImageUrl: string | null;
   authority: ClubAuthority;
-  joinedAt: string;
-  badges: IClubMemberBadge[];
+  status?: ClubMemberStatus | "KICKED" | "LEFT";
+  message?: string;
+  requestedAt?: string;
+  joinedAt: string | null;
+  age?: number;
+  sex?: string;
+  badges?: IClubMemberBadge[];
 }
 
 export interface IClubMembersResponse {
   members: IClubMemberItem[];
+  items?: IClubMemberItem[];
   nextCursor: string | null;
 }
 

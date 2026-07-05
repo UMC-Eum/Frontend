@@ -22,7 +22,9 @@ import {
   SafeAreaView,
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
+import Svg, { Path, type SvgProps } from "react-native-svg";
 
+import ClubActionSheet, { type ActionSheetItem } from "@/components/club/ClubActionSheet";
 import { CLUB_CATEGORY_LABELS } from "@/constants/club";
 import { KEYBOARD_AVOIDING_BEHAVIOR } from "@/constants/keyboard";
 import {
@@ -38,6 +40,10 @@ import {
   useAttendMeetingMutation,
   useMeetingDetailQuery,
 } from "@/hooks/api/useMeetings";
+import {
+  useClubMembersInfiniteQuery,
+  useDeleteClubMutation,
+} from "@/hooks/api/useHost";
 import type { ApiFailResponse } from "@/types/api/api";
 import { IArticleListItem } from "@/types/api/articles/articlesDTO";
 import {
@@ -53,11 +59,19 @@ import {
 import {
   IconCalendar,
   IconLocation,
+  IconPerson,
+  IconTrash,
   IconWallet,
+  IconWrite,
 } from "@/components/SvgIcons";
-import type { SvgProps } from "react-native-svg";
-import type { IMeetingDetailResponse } from "@/types/api/meetings/meetingsDTO";
+import type {
+  IMeetingDetailResponse,
+  IMeetingListItem,
+} from "@/types/api/meetings/meetingsDTO";
 import { uniqueBy } from "@/utils/array";
+import { ClubViewer, getClubViewer } from "@/utils/clubViewer";
+import { getClubChatRoomId } from "@/utils/clubChat";
+import ClubChatTab from "@/components/club/ClubChatTab";
 
 const PINK = "#FF3E70";
 const BLACK = "#202020";
@@ -112,10 +126,13 @@ export default function ClubDetailScreen() {
   const [joinStatus, setJoinStatus] = useState<ClubMemberStatus | null>(null);
   const [isLeaveSheetVisible, setLeaveSheetVisible] = useState(false);
   const [isLeaveConfirmVisible, setLeaveConfirmVisible] = useState(false);
+  const [isSettingsSheetVisible, setSettingsSheetVisible] = useState(false);
+  const [isGuestSheetVisible, setGuestSheetVisible] = useState(false);
 
   const detailQuery = useClubDetailQuery(clubId);
   const joinMutation = useJoinClubMutation(clubId);
   const leaveMutation = useLeaveClubMutation();
+  const deleteClubMutation = useDeleteClubMutation();
   const archivesQuery = useArticleArchiveInfiniteQuery(
     clubId,
     {},
@@ -127,7 +144,12 @@ export default function ClubDetailScreen() {
     joinStatus === "ACTIVE" ||
     Boolean(detail?.isJoined && joinStatus !== "LEFT");
   const isJoinPending = joinStatus === "PENDING";
-  const bottomBarHeight = isJoined
+  const isHost = detail?.myAuthority === "HOST";
+  // 게스트/멤버/호스트 역할과 화면 권한을 한 곳에서 계산한다.
+  const viewer = getClubViewer({ isJoined, isHost });
+  // 단체 채팅방 id (백엔드가 내려주면 실제 채팅 연결, 아직 없으면 null)
+  const clubChatRoomId = getClubChatRoomId(detail);
+  const bottomBarHeight = viewer.isParticipant
     ? insets.bottom + (activeTab === "board" ? 110 : 24)
     : insets.bottom + 96;
   const albumItemSize = width / 3;
@@ -140,7 +162,6 @@ export default function ClubDetailScreen() {
         imageUrl: item.photoUrl,
       })),
     ) ?? [];
-  const isHost = detail?.myAuthority === "HOST";
   // ponytail: 서버 썸네일이 없을 때만 placeholder 유지
   const heroImage = detail?.thumbnailUrl ?? HERO_IMAGE;
   const clubTitle = detail?.name ?? "";
@@ -176,6 +197,13 @@ export default function ClubDetailScreen() {
           }
         },
         onError: (error) => {
+          if (getApiErrorCode(error) === "CLUB-004") {
+            setJoinModalVisible(false);
+            setTriedJoinSubmit(false);
+            Alert.alert("가입 신청", "이미 가입 신청 넣은 동호회입니다!");
+            return;
+          }
+
           Alert.alert(
             "가입 신청 실패",
             getApiErrorMessage(error) ?? "잠시 후 다시 시도해주세요.",
@@ -198,6 +226,77 @@ export default function ClubDetailScreen() {
     });
   };
 
+  const handleDeleteClub = () => {
+    Alert.alert(
+      "동호회 삭제",
+      "정말 동호회를 삭제하시나요? 삭제 후 복구가 불가능해요.",
+      [
+        { text: "취소", style: "cancel" },
+        {
+          text: "삭제",
+          style: "destructive",
+          onPress: () => {
+            deleteClubMutation.mutate(clubId, {
+              onSuccess: () => {
+                router.replace("/(tabs)?tab=club" as never);
+              },
+              onError: () => {
+                Alert.alert("삭제 실패", "잠시 후 다시 시도해주세요.");
+              },
+            });
+          },
+        },
+      ],
+    );
+  };
+
+  const settingsItems: ActionSheetItem[] = [
+    {
+      key: "edit",
+      renderIcon: () => <IconWrite width={28} height={28} />,
+      title: "동호회 정보 수정",
+      description: "이름, 소개, 사진, 카테고리 등",
+      onPress: () =>
+        router.push({
+          pathname: "/club/manage-settings",
+          params: { clubId: String(clubId) },
+        } as never),
+    },
+    {
+      key: "members",
+      renderIcon: () => <IconPerson width={28} height={28} color="#636970" />,
+      title: "멤버 관리",
+      description: "멤버 목록, 가입 신청, 강제 퇴장",
+      onPress: () =>
+        router.push({
+          pathname: "/club/manage-members",
+          params: { clubId: String(clubId) },
+        } as never),
+    },
+    {
+      key: "delete",
+      renderIcon: () => <IconTrash width={28} height={28} />,
+      title: "동호회 삭제",
+      description: "삭제 후 복구가 불가능해요",
+      danger: true,
+      onPress: handleDeleteClub,
+    },
+  ];
+
+  // 가입 전 게스트용 더보기 메뉴: 아직 관리 권한이 없어 신고만 제공한다.
+  const guestSheetItems: ActionSheetItem[] = [
+    {
+      key: "report",
+      renderIcon: () => (
+        <Ionicons name="alert-circle-outline" size={28} color="#636970" />
+      ),
+      title: "동호회 신고",
+      description: "부적절한 동호회를 신고해요",
+      onPress: () =>
+        Alert.alert("신고 접수", "신고가 접수되었어요. 검토 후 조치할게요."),
+    },
+  ];
+
   return (
     <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
       <StatusBar style="dark" />
@@ -215,16 +314,25 @@ export default function ClubDetailScreen() {
           <Pressable style={styles.headerIconButton} hitSlop={12}>
             <Ionicons name="share-outline" size={24} color={BLACK} />
           </Pressable>
+          {/* 동호회장은 설정(너트), 그 외(가입 전 게스트·일반 멤버)는 더보기(⋮) */}
           <Pressable
             style={styles.headerIconButton}
             onPress={() => {
-              if (isJoined) {
+              if (viewer.isHost) {
+                setSettingsSheetVisible(true);
+              } else if (viewer.isMember) {
                 setLeaveSheetVisible(true);
+              } else {
+                setGuestSheetVisible(true);
               }
             }}
             hitSlop={12}
           >
-            <Ionicons name="ellipsis-vertical" size={23} color={BLACK} />
+            {viewer.showSettingsIcon ? (
+              <IconClubSettings width={48} height={48} />
+            ) : (
+              <Ionicons name="ellipsis-vertical" size={23} color={BLACK} />
+            )}
           </Pressable>
         </View>
       </View>
@@ -265,17 +373,19 @@ export default function ClubDetailScreen() {
               style={styles.tabButton}
               onPress={() => setActiveTab(tab.id)}
             >
-              <Text
-                style={[
-                  styles.tabText,
-                  activeTab === tab.id && styles.tabTextActive,
-                ]}
-              >
-                {tab.label}
-              </Text>
-              {isJoined && tab.id === "chat" ? (
-                <View style={styles.chatDot} />
-              ) : null}
+              <View style={styles.tabLabelRow}>
+                <Text
+                  style={[
+                    styles.tabText,
+                    activeTab === tab.id && styles.tabTextActive,
+                  ]}
+                >
+                  {tab.label}
+                </Text>
+                {viewer.canUseChat && tab.id === "chat" ? (
+                  <View style={styles.chatDot} />
+                ) : null}
+              </View>
               {activeTab === tab.id ? (
                 <View style={styles.tabUnderline} />
               ) : null}
@@ -287,8 +397,7 @@ export default function ClubDetailScreen() {
           <ClubHomeTab
             clubId={clubId}
             description={description}
-            isJoined={isJoined}
-            isHost={isHost}
+            viewer={viewer}
             meetings={meetings}
             onPressCreateMeeting={() =>
               router.push({
@@ -303,6 +412,12 @@ export default function ClubDetailScreen() {
                   clubId: String(clubId),
                   meetingId: String(meetingId),
                 },
+              } as never)
+            }
+            onPressPendingMembers={() =>
+              router.push({
+                pathname: "/club/manage-members",
+                params: { clubId: String(clubId) },
               } as never)
             }
           />
@@ -326,15 +441,37 @@ export default function ClubDetailScreen() {
           />
         ) : null}
         {activeTab === "chat" ? (
-          isJoined ? (
-            <ChatTab bottomPadding={0} />
+          viewer.canUseChat ? (
+            clubChatRoomId ? (
+              <ClubChatTab chatRoomId={clubChatRoomId} bottomPadding={0} />
+            ) : (
+              <View style={styles.preJoinChatPlaceholder}>
+                <Ionicons
+                  name="chatbubble-ellipses-outline"
+                  size={40}
+                  color="#C5CDD3"
+                />
+                <Text style={styles.preJoinChatText}>
+                  채팅방을 준비하고 있어요.
+                </Text>
+              </View>
+            )
           ) : (
-            <View style={styles.preJoinChatPlaceholder} />
+            <View style={styles.preJoinChatPlaceholder}>
+              <Ionicons
+                name="chatbubble-ellipses-outline"
+                size={40}
+                color="#C5CDD3"
+              />
+              <Text style={styles.preJoinChatText}>
+                가입하면 채팅을 볼 수 있어요!
+              </Text>
+            </View>
           )
         ) : null}
       </ScrollView>
 
-      {isJoined && activeTab === "board" ? (
+      {viewer.canWritePost && activeTab === "board" ? (
         <Pressable
           style={[styles.boardFab, { bottom: insets.bottom + 24 }]}
           onPress={() =>
@@ -348,7 +485,7 @@ export default function ClubDetailScreen() {
         </Pressable>
       ) : null}
 
-      {!isJoined ? (
+      {viewer.showJoinCta ? (
         <View style={[styles.bottomBar, { paddingBottom: insets.bottom + 16 }]}>
           <Pressable
             style={styles.favoriteButton}
@@ -416,6 +553,18 @@ export default function ClubDetailScreen() {
         onCancel={() => setLeaveConfirmVisible(false)}
         onConfirm={handleLeaveConfirm}
       />
+
+      <ClubActionSheet
+        visible={isSettingsSheetVisible}
+        items={settingsItems}
+        onClose={() => setSettingsSheetVisible(false)}
+      />
+
+      <ClubActionSheet
+        visible={isGuestSheetVisible}
+        items={guestSheetItems}
+        onClose={() => setGuestSheetVisible(false)}
+      />
     </SafeAreaView>
   );
 }
@@ -430,68 +579,110 @@ function parseClubId(value?: string) {
   return match ? Number(match[0]) : 1;
 }
 
+function IconClubSettings(props: SvgProps) {
+  const color = props.color ?? BLACK;
+
+  return (
+    <Svg width={48} height={48} viewBox="0 0 48 48" fill="none" {...props}>
+      <Path
+        d="M32.3499 20.9229L31.9837 20.7192C31.9269 20.6876 31.8989 20.6717 31.8714 20.6552C31.5983 20.4917 31.3682 20.2656 31.2002 19.9952C31.1833 19.968 31.1674 19.9395 31.1348 19.8831C31.1023 19.8268 31.0858 19.7982 31.0706 19.77C30.92 19.4887 30.8385 19.1752 30.8336 18.8561C30.8331 18.824 30.8332 18.7912 30.8343 18.726L30.8415 18.3008C30.8529 17.6203 30.8587 17.2789 30.763 16.9726C30.6781 16.7005 30.536 16.4499 30.3462 16.2373C30.1317 15.9969 29.8347 15.8253 29.2402 15.4828L28.7464 15.1982C28.1536 14.8566 27.8571 14.6857 27.5423 14.6206C27.2639 14.5629 26.9765 14.5656 26.6991 14.6279C26.3859 14.6982 26.0931 14.8735 25.5079 15.224L25.5045 15.2255L25.1507 15.4374C25.0948 15.4709 25.0665 15.4878 25.0384 15.5034C24.7601 15.6581 24.4495 15.7437 24.1312 15.7539C24.0992 15.7549 24.0665 15.7549 24.0013 15.7549C23.9365 15.7549 23.9024 15.7549 23.8704 15.7539C23.5515 15.7436 23.2402 15.6576 22.9615 15.5022C22.9334 15.4866 22.9056 15.4696 22.8496 15.4359L22.4935 15.2221C21.9042 14.8684 21.6091 14.6912 21.2943 14.6206C21.0157 14.5581 20.7274 14.5563 20.4479 14.6147C20.1324 14.6806 19.8358 14.8528 19.2426 15.197L19.2399 15.1982L18.7523 15.4812L18.7469 15.4845C18.159 15.8257 17.8644 15.9967 17.6517 16.2361C17.4629 16.4486 17.3218 16.6988 17.2374 16.9702C17.1419 17.2769 17.147 17.619 17.1585 18.3027L17.1657 18.7274C17.1668 18.7917 17.1686 18.8236 17.1682 18.8552C17.1634 19.175 17.0809 19.4891 16.9297 19.771C16.9148 19.7988 16.8987 19.8267 16.8665 19.8824C16.8344 19.9381 16.8188 19.9658 16.8021 19.9927C16.6334 20.2645 16.4021 20.4919 16.1273 20.6557C16.1001 20.6719 16.0715 20.6875 16.0152 20.7187L15.6536 20.9191C15.0521 21.2524 14.7514 21.4193 14.5326 21.6567C14.339 21.8667 14.1928 22.1158 14.1035 22.3872C14.0026 22.6939 14.0027 23.0378 14.0042 23.7255L14.0055 24.2877C14.0071 24.9708 14.0092 25.3122 14.1103 25.6168C14.1998 25.8863 14.3449 26.134 14.5374 26.3427C14.755 26.5787 15.0527 26.7445 15.6497 27.0766L16.0081 27.276C16.0691 27.3099 16.0998 27.3266 16.1292 27.3444C16.4015 27.5083 16.6309 27.735 16.7982 28.0053C16.8163 28.0345 16.8336 28.0648 16.8683 28.1255C16.9026 28.1853 16.9201 28.2152 16.9359 28.2452C17.0826 28.5229 17.1611 28.8315 17.1665 29.1455C17.1671 29.1794 17.1666 29.2137 17.1654 29.2827L17.1585 29.6902C17.147 30.3763 17.1419 30.7197 17.2379 31.0273C17.3229 31.2994 17.4648 31.55 17.6546 31.7627C17.8692 32.0031 18.1666 32.1745 18.7611 32.5171L19.2548 32.8015C19.8476 33.1432 20.1439 33.3138 20.4587 33.379C20.7371 33.4366 21.0246 33.4344 21.3021 33.3721C21.6157 33.3017 21.9095 33.1258 22.4964 32.7743L22.8502 32.5625C22.9062 32.5289 22.9346 32.5121 22.9626 32.4965C23.2409 32.3418 23.5512 32.2558 23.8695 32.2456C23.9015 32.2446 23.9342 32.2446 23.9994 32.2446C24.0648 32.2446 24.0974 32.2446 24.1295 32.2456C24.4484 32.2559 24.7607 32.3422 25.0394 32.4975C25.0639 32.5112 25.0885 32.526 25.1316 32.5519L25.5078 32.7777C26.0971 33.1315 26.3916 33.3081 26.7065 33.3788C26.985 33.4413 27.2736 33.4438 27.5531 33.3855C27.8685 33.3196 28.1657 33.1471 28.7586 32.803L29.2536 32.5157C29.8418 32.1743 30.1367 32.0031 30.3495 31.7636C30.5383 31.5512 30.6796 31.3011 30.764 31.0297C30.8588 30.7252 30.8531 30.3858 30.8417 29.7119L30.8343 29.2724C30.8332 29.2081 30.8331 29.1761 30.8336 29.1445C30.8383 28.8247 30.9195 28.5104 31.0706 28.2286C31.0856 28.2007 31.1018 28.1726 31.1338 28.1171C31.166 28.0615 31.1827 28.0337 31.1994 28.0068C31.3681 27.7349 31.5995 27.5074 31.8744 27.3435C31.9012 27.3275 31.9289 27.3122 31.9838 27.2818L31.9857 27.2809L32.3472 27.0805C32.9488 26.7472 33.2501 26.5801 33.4689 26.3427C33.6625 26.1327 33.8085 25.8839 33.8978 25.6126C33.9981 25.3077 33.9973 24.9658 33.9958 24.2861L33.9945 23.7119C33.9929 23.0287 33.9921 22.6874 33.891 22.3828C33.8015 22.1133 33.6555 21.8656 33.463 21.6568C33.2457 21.4211 32.9475 21.2553 32.3517 20.9238L32.3499 20.9229Z"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Path
+        d="M20.0003 24C20.0003 26.2091 21.7912 28 24.0003 28C26.2095 28 28.0003 26.2091 28.0003 24C28.0003 21.7908 26.2095 20 24.0003 20C21.7912 20 20.0003 21.7908 20.0003 24Z"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
 function getApiErrorMessage(error: unknown) {
   const apiError = error as { response?: { data?: ApiFailResponse } };
   return apiError.response?.data?.error?.message;
 }
 
+function getApiErrorCode(error: unknown) {
+  const apiError = error as { response?: { data?: ApiFailResponse } };
+  return apiError.response?.data?.error?.code;
+}
+
 function ClubHomeTab({
   clubId,
   description,
-  isJoined,
-  isHost,
+  viewer,
   meetings,
   onPressCreateMeeting,
   onPressMeetingManage,
+  onPressPendingMembers,
 }: {
   clubId: number;
   description: string;
-  isJoined: boolean;
-  isHost: boolean;
+  viewer: ClubViewer;
   meetings: IClubMeetingSummary[];
   onPressCreateMeeting: () => void;
   onPressMeetingManage: (meetingId: number) => void;
+  onPressPendingMembers: () => void;
 }) {
-  const firstMeetingSummary = meetings[0];
-  // 호스트는 서버에서 isJoined=false로 내려올 수 있어 별도로 허용한다.
+  // 동호회 상세 응답의 정기모임 요약(meetings)으로 카드를 구성한다.
+  // 개별 위치/비용/참석자 등 상세는 카드 탭 시 useMeetingDetailQuery로 조회한다.
+  const meetingCardItems = buildMeetingCardItems([], meetings);
+  const [selectedMeetingId, setSelectedMeetingId] = useState<number | null>(
+    null,
+  );
+  const [isMeetingSheetVisible, setMeetingSheetVisible] = useState(false);
+  // 호스트에게만 가입 대기중인 멤버 배너를 노출한다.
+  const pendingMembersQuery = useClubMembersInfiniteQuery(
+    clubId,
+    { status: "PENDING", limit: 20 },
+    viewer.showPendingMemberBanner,
+  );
+  const pendingMemberCount =
+    pendingMembersQuery.data?.pages.reduce(
+      (total, page) => total + (page.members?.length ?? 0),
+      0,
+    ) ?? 0;
   const meetingDetailQuery = useMeetingDetailQuery(
     clubId,
-    firstMeetingSummary?.meetingId ?? 0,
-    (isJoined || isHost) && !!firstMeetingSummary?.meetingId,
+    selectedMeetingId ?? 0,
+    isMeetingSheetVisible && !!selectedMeetingId,
   );
-  const firstMeeting = meetingDetailQuery.data;
-  const meetingTitle = firstMeeting?.name ?? firstMeetingSummary?.name;
-  const meetingDateText =
-    firstMeeting?.dateLabel ??
-    [firstMeetingSummary?.day, formatSummaryTime(firstMeetingSummary?.time)]
-      .filter(Boolean)
-      .join(" ");
-  const meetingId = firstMeeting?.meetingId ?? firstMeetingSummary?.meetingId;
-  const ddaySource = firstMeeting?.nextOccurrenceAt;
-  const [isMeetingSheetVisible, setMeetingSheetVisible] = useState(false);
-  const attendMeetingMutation = useAttendMeetingMutation(
-    clubId,
-    meetingId ?? 0,
-  );
-
-  const handleAttendMeeting = () => {
-    if (!meetingId || firstMeeting?.isAttending) return;
-
-    attendMeetingMutation.mutate(undefined, {
-      onError: () => {
-        Alert.alert("참석 실패", "잠시 후 다시 시도해주세요.");
-      },
-    });
-  };
+  const selectedMeeting =
+    meetingDetailQuery.data ??
+    meetingCardItems.find((meeting) => meeting.meetingId === selectedMeetingId);
+  const selectedMeetingDdayText = getMeetingCardDdayText(selectedMeeting);
 
   return (
     <View style={styles.homeContent}>
+      {pendingMemberCount > 0 ? (
+        <Pressable
+          style={styles.pendingBanner}
+          onPress={onPressPendingMembers}
+        >
+          <Ionicons name="alert-circle-outline" size={24} color={PINK} />
+          <View style={styles.pendingBannerTextBox}>
+            <Text style={styles.pendingBannerTitle}>
+              가입 대기중인 멤버가 있어요
+            </Text>
+            <Text style={styles.pendingBannerSubtitle}>
+              {pendingMemberCount}명이 가입 승인을 기다리고 있어요.
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={24} color="#8E9AA3" />
+        </Pressable>
+      ) : null}
+
       <Text style={styles.descriptionText}>{description}</Text>
 
       <View style={styles.meetingSection}>
         <View style={styles.meetingSectionHeader}>
           <Text style={styles.sectionTitle}>정기모임</Text>
-          {isHost ? (
+          {viewer.canCreateMeeting ? (
             <Pressable
               style={styles.meetingCreateButton}
               onPress={onPressCreateMeeting}
@@ -505,107 +696,28 @@ function ClubHomeTab({
           ) : null}
         </View>
 
-        {firstMeetingSummary ? (
-          <Pressable
-            style={styles.meetingCard}
-            onPress={() => setMeetingSheetVisible(true)}
-          >
-            <View style={styles.meetingCardHeader}>
-              <View style={styles.meetingBadgeRow}>
-                {ddaySource ? (
-                  <View style={styles.dDayBadge}>
-                    <Text style={styles.dDayText}>{formatDday(ddaySource)}</Text>
-                  </View>
-                ) : null}
-                {firstMeeting ? (
-                  <View style={styles.repeatBadge}>
-                    <Text style={styles.repeatBadgeText}>
-                      {getRecurrenceText(firstMeeting.recurrence.type)}
-                    </Text>
-                  </View>
-                ) : null}
-              </View>
-              <Pressable
-                style={styles.meetingMenuButton}
-                hitSlop={8}
+        {meetingCardItems.length > 0 ? (
+          <View style={styles.meetingCardList}>
+            {meetingCardItems.map((meeting) => (
+              <MeetingCard
+                key={meeting.meetingId}
+                clubId={clubId}
+                meeting={meeting}
+                viewer={viewer}
                 onPress={() => {
-                  if ((isJoined || isHost) && meetingId) {
-                    onPressMeetingManage(meetingId);
-                    return;
-                  }
+                  setSelectedMeetingId(meeting.meetingId);
                   setMeetingSheetVisible(true);
                 }}
-              >
-                <Ionicons name="ellipsis-vertical" size={18} color="#8E9AA3" />
-              </Pressable>
-            </View>
-
-            <Text style={styles.meetingTitle}>{meetingTitle}</Text>
-
-            <View style={styles.meetingInfoList}>
-              <MeetingInfo label="일시" value={meetingDateText || "-"} />
-              {firstMeeting ? (
-                <>
-                  <MeetingInfo label="위치" value={firstMeeting.spot} />
-                  <MeetingInfo label="비용" value={firstMeeting.cost ?? "없음"} />
-                </>
-              ) : null}
-            </View>
-
-            {firstMeeting ? (
-              <View style={styles.attendeeRow}>
-                {firstMeeting.attendeesPreview.slice(0, 3).map((attendee, index) => (
-                  <Image
-                    key={attendee.userId}
-                    source={{ uri: attendee.profileImageUrl ?? undefined }}
-                    style={[
-                      styles.attendeeAvatar,
-                      index > 0 && styles.attendeeOverlap,
-                    ]}
-                    contentFit="cover"
-                  />
-                ))}
-                <Text style={styles.attendeeText}>
-                  {firstMeeting.attendeeCount}명 참석중 (
-                  {firstMeeting.attendeeCount}/{firstMeeting.capacity})
-                </Text>
-              </View>
-            ) : null}
-
-            <Pressable
-              style={[
-                styles.attendanceButton,
-                (firstMeeting?.isAttending || !meetingId) &&
-                  styles.attendanceButtonDisabled,
-              ]}
-              onPress={handleAttendMeeting}
-              disabled={
-                firstMeeting?.isAttending ||
-                !meetingId ||
-                attendMeetingMutation.isPending
-              }
-            >
-              <Text
-                style={[
-                  styles.attendanceButtonText,
-                  (firstMeeting?.isAttending || !meetingId) &&
-                    styles.attendanceButtonTextDisabled,
-                ]}
-              >
-                {firstMeeting?.isAttending
-                  ? "참석 중"
-                  : attendMeetingMutation.isPending
-                    ? "처리 중..."
-                    : "참석하기"}
-              </Text>
-            </Pressable>
-          </Pressable>
+                onPressManage={() => onPressMeetingManage(meeting.meetingId)}
+              />
+            ))}
+          </View>
         ) : (
           <View style={[styles.meetingCard, styles.meetingEmptyCard]}>
             <Text style={styles.meetingEmptyText}>
               아직 예정된 정기모임이 없어요.
             </Text>
-            {isHost ? (
+            {viewer.canCreateMeeting ? (
               <Pressable
                 style={styles.meetingEmptyCreateButton}
                 onPress={onPressCreateMeeting}
@@ -620,39 +732,194 @@ function ClubHomeTab({
       </View>
 
       <MeetingDetailSheet
+        clubId={clubId}
         visible={isMeetingSheetVisible}
-        meeting={firstMeeting}
-        fallbackTitle={meetingTitle}
-        ddayText={ddaySource ? formatDday(ddaySource) : ""}
+        meeting={meetingDetailQuery.data}
+        fallbackMeeting={selectedMeeting}
+        ddayText={selectedMeetingDdayText}
         onClose={() => setMeetingSheetVisible(false)}
-        onAttend={handleAttendMeeting}
-        isSubmitting={attendMeetingMutation.isPending}
+        onPressManage={
+          selectedMeetingId
+            ? () => onPressMeetingManage(selectedMeetingId)
+            : undefined
+        }
+        viewer={viewer}
       />
     </View>
   );
 }
 
+type MeetingCardItem = {
+  meetingId: number;
+  name: string;
+  date?: string;
+  dateLabel?: string;
+  nextOccurrenceAt?: string;
+  day?: string;
+  time?: string;
+  spot?: string;
+  cost?: string | null;
+  capacity?: number;
+  attendeeCount?: number;
+  isAttending?: boolean;
+  attendeesPreview?: IClubUserSummary[];
+};
+
+function MeetingCard({
+  clubId,
+  meeting,
+  viewer,
+  onPress,
+  onPressManage,
+}: {
+  clubId: number;
+  meeting: MeetingCardItem;
+  viewer: ClubViewer;
+  onPress: () => void;
+  onPressManage: () => void;
+}) {
+  const attendMeetingMutation = useAttendMeetingMutation(
+    clubId,
+    meeting.meetingId,
+  );
+  const isAttending = meeting.isAttending ?? false;
+  const attendeeCount = meeting.attendeeCount ?? 0;
+  const attendeeCountText =
+    typeof meeting.capacity === "number"
+      ? `${attendeeCount}명 참석중 (${attendeeCount}/${meeting.capacity})`
+      : `${attendeeCount}명 참석중`;
+  const ddayText = getMeetingCardDdayText(meeting);
+  const dateText = getMeetingCardDateText(meeting);
+  const attendeesPreview = meeting.attendeesPreview ?? [];
+
+  const handleAttendMeeting = () => {
+    if (isAttending || attendMeetingMutation.isPending) return;
+
+    attendMeetingMutation.mutate(undefined, {
+      onError: () => {
+        Alert.alert("참석 실패", "잠시 후 다시 시도해주세요.");
+      },
+    });
+  };
+
+  return (
+    <Pressable style={styles.meetingCard} onPress={onPress}>
+      <View style={styles.meetingCardHeader}>
+        <View style={styles.meetingTitleRow}>
+          {ddayText ? (
+            <View style={styles.dDayBadge}>
+              <Text style={styles.dDayText}>{ddayText}</Text>
+            </View>
+          ) : null}
+          <Text style={styles.meetingTitle} numberOfLines={1}>
+            {meeting.name}
+          </Text>
+        </View>
+        {/* 가입 전 게스트에게는 모임 관리(⋮) 메뉴를 노출하지 않는다. */}
+        {viewer.canActOnMeeting ? (
+          <Pressable
+            style={styles.meetingMenuButton}
+            hitSlop={8}
+            onPress={onPressManage}
+          >
+            <Ionicons name="ellipsis-vertical" size={18} color="#8E9AA3" />
+          </Pressable>
+        ) : null}
+      </View>
+
+      <View style={styles.meetingInfoList}>
+        <MeetingInfo label="일시" value={dateText || "-"} />
+        <MeetingInfo label="위치" value={meeting.spot || "-"} />
+        <MeetingInfo label="비용" value={meeting.cost || "-"} />
+      </View>
+
+      <View style={styles.attendeeRow}>
+        {attendeesPreview.length > 0
+          ? attendeesPreview.slice(0, 3).map((attendee, index) => (
+              <Image
+                key={attendee.userId}
+                source={{ uri: attendee.profileImageUrl ?? undefined }}
+                style={[
+                  styles.attendeeAvatar,
+                  index > 0 && styles.attendeeOverlap,
+                ]}
+                contentFit="cover"
+              />
+            ))
+          : [0, 1, 2].map((index) => (
+              <View
+                key={index}
+                style={[
+                  styles.attendeeAvatar,
+                  index > 0 && styles.attendeeOverlap,
+                ]}
+              />
+            ))}
+        <Text style={styles.attendeeText}>{attendeeCountText}</Text>
+      </View>
+
+      {/* 가입 전 게스트에게는 참석/관리 버튼을 노출하지 않는다. */}
+      {viewer.canActOnMeeting ? (
+        <Pressable
+          style={[
+            styles.attendanceButton,
+            !viewer.canManageMeeting &&
+              isAttending &&
+              styles.attendanceButtonDisabled,
+          ]}
+          onPress={viewer.canManageMeeting ? onPressManage : handleAttendMeeting}
+          disabled={
+            !viewer.canManageMeeting &&
+            (isAttending || attendMeetingMutation.isPending)
+          }
+        >
+          <Text
+            style={[
+              styles.attendanceButtonText,
+              !viewer.canManageMeeting &&
+                isAttending &&
+                styles.attendanceButtonTextDisabled,
+            ]}
+          >
+            {viewer.canManageMeeting
+              ? "참석 현황 확인"
+              : isAttending
+                ? "참석 중"
+                : attendMeetingMutation.isPending
+                  ? "처리 중..."
+                  : "참석하기"}
+          </Text>
+        </Pressable>
+      ) : null}
+    </Pressable>
+  );
+}
+
 function MeetingDetailSheet({
+  clubId,
   visible,
   meeting,
-  fallbackTitle,
+  fallbackMeeting,
   ddayText,
-  isSubmitting,
   onClose,
-  onAttend,
+  onPressManage,
+  viewer,
 }: {
+  clubId: number;
   visible: boolean;
   meeting?: IMeetingDetailResponse;
-  fallbackTitle?: string;
+  fallbackMeeting?: MeetingCardItem;
   ddayText: string;
-  isSubmitting: boolean;
   onClose: () => void;
-  onAttend: () => void;
+  onPressManage?: () => void;
+  viewer: ClubViewer;
 }) {
   const { height: screenHeight } = useWindowDimensions();
   const translateY = useRef(new Animated.Value(screenHeight)).current;
   const backdropOpacity = useRef(new Animated.Value(0)).current;
   const [isMounted, setIsMounted] = useState(visible);
+  const meetingId = meeting?.meetingId ?? fallbackMeeting?.meetingId ?? 0;
+  const attendMeetingMutation = useAttendMeetingMutation(clubId, meetingId);
 
   useEffect(() => {
     if (visible) {
@@ -691,15 +958,37 @@ function MeetingDetailSheet({
     });
   }, [visible, screenHeight, translateY, backdropOpacity]);
 
-  if (!isMounted || !meeting) return null;
+  if (!isMounted || (!meeting && !fallbackMeeting)) return null;
 
-  const nextDate = new Date(meeting.nextOccurrenceAt);
+  const nextOccurrenceAt =
+    meeting?.nextOccurrenceAt ?? fallbackMeeting?.nextOccurrenceAt ?? fallbackMeeting?.date;
+  const nextDate = new Date(nextOccurrenceAt ?? "");
   const nextDateText = Number.isNaN(nextDate.getTime())
     ? ""
     : formatOccurrenceDate(nextDate);
-  const recurrenceText = getRecurrenceText(meeting.recurrence.type);
-  const attendeeCountText = `${meeting.attendeeCount}/${meeting.capacity}`;
-  const attendDisabled = meeting.isAttending || isSubmitting;
+  const recurrenceText = meeting ? getRecurrenceText(meeting.recurrence.type) : "";
+  const attendeeCount = meeting?.attendeeCount ?? fallbackMeeting?.attendeeCount ?? 0;
+  const capacity = meeting?.capacity ?? fallbackMeeting?.capacity;
+  const attendeeCountText =
+    typeof capacity === "number" ? `${attendeeCount}/${capacity}` : `${attendeeCount}`;
+  const isAttending = meeting?.isAttending ?? fallbackMeeting?.isAttending ?? false;
+  const attendDisabled = isAttending || attendMeetingMutation.isPending;
+  const meetingTitle = meeting?.name ?? fallbackMeeting?.name ?? "";
+  const meetingDateTitle =
+    meeting?.dateLabel ?? getMeetingCardDateText(fallbackMeeting) ?? "-";
+  const meetingSpot = meeting?.spot ?? fallbackMeeting?.spot ?? "-";
+  const meetingCost = meeting?.cost ?? fallbackMeeting?.cost ?? "-";
+  const attendeesPreview = meeting?.attendeesPreview ?? fallbackMeeting?.attendeesPreview ?? [];
+
+  const handleAttend = () => {
+    if (!meetingId || attendDisabled) return;
+
+    attendMeetingMutation.mutate(undefined, {
+      onError: () => {
+        Alert.alert("참석 실패", "잠시 후 다시 시도해주세요.");
+      },
+    });
+  };
 
   return (
     <Modal
@@ -731,13 +1020,13 @@ function MeetingDetailSheet({
                   <Text style={styles.dDayText}>{ddayText}</Text>
                 </View>
               ) : null}
-              <View style={styles.repeatBadge}>
-                <Text style={styles.repeatBadgeText}>{recurrenceText}</Text>
-              </View>
+              {recurrenceText ? (
+                <View style={styles.repeatBadge}>
+                  <Text style={styles.repeatBadgeText}>{recurrenceText}</Text>
+                </View>
+              ) : null}
             </View>
-            <Text style={styles.meetingSheetTitle}>
-              {meeting.name || fallbackTitle}
-            </Text>
+            <Text style={styles.meetingSheetTitle}>{meetingTitle}</Text>
           </View>
 
           <View style={styles.meetingSheetBar} />
@@ -745,21 +1034,23 @@ function MeetingDetailSheet({
           <View style={styles.meetingSheetInfoList}>
             <MeetingIconInfo
               icon={IconCalendar}
-              title={meeting.dateLabel}
+              title={meetingDateTitle}
               subtitle={
                 nextDateText ? `다음 모임 · ${nextDateText} · ${ddayText}` : ""
               }
               subtitleEmphasis={ddayText}
             />
-            <MeetingIconInfo icon={IconLocation} title={meeting.spot} />
-            <MeetingIconInfo icon={IconWallet} title={meeting.cost ?? "없음"} />
+            <MeetingIconInfo icon={IconLocation} title={meetingSpot} />
+            <MeetingIconInfo icon={IconWallet} title={meetingCost} />
           </View>
 
           <View style={styles.meetingSheetDivider} />
 
           <Text style={styles.meetingSheetSectionTitle}>안내사항</Text>
           <View style={styles.meetingNoticeBox}>
-            <Text style={styles.meetingNoticeText}>{meeting.introText}</Text>
+            <Text style={styles.meetingNoticeText}>
+              {meeting?.introText ?? "정기모임 상세 정보를 불러오는 중이에요."}
+            </Text>
           </View>
 
           <View style={styles.meetingAttendeeHeader}>
@@ -767,27 +1058,34 @@ function MeetingDetailSheet({
             <Text style={styles.meetingAttendeeCount}>{attendeeCountText}</Text>
           </View>
           <View style={styles.meetingAttendeeList}>
-            {meeting.attendeesPreview.slice(0, 4).map((attendee) => (
+            {attendeesPreview.slice(0, 4).map((attendee) => (
               <MeetingSheetAttendee key={attendee.userId} attendee={attendee} />
             ))}
           </View>
 
-          <Pressable
-            style={[
-              styles.meetingAttendButton,
-              attendDisabled && styles.meetingAttendButtonDisabled,
-            ]}
-            onPress={onAttend}
-            disabled={attendDisabled}
-          >
-            <Text style={styles.meetingAttendButtonText}>
-              {meeting.isAttending
-                ? "참석 중"
-                : isSubmitting
-                  ? "처리 중..."
-                  : "참석하기"}
-            </Text>
-          </Pressable>
+          {/* 가입 전 게스트에게는 참석/관리 버튼을 노출하지 않는다. */}
+          {viewer.canActOnMeeting ? (
+            <Pressable
+              style={[
+                styles.meetingAttendButton,
+                attendDisabled && styles.meetingAttendButtonDisabled,
+              ]}
+              onPress={viewer.canManageMeeting ? onPressManage : handleAttend}
+              disabled={
+                viewer.canManageMeeting ? !onPressManage : attendDisabled
+              }
+            >
+              <Text style={styles.meetingAttendButtonText}>
+                {viewer.canManageMeeting
+                  ? "참석 현황 확인"
+                  : isAttending
+                    ? "참석 중"
+                    : attendMeetingMutation.isPending
+                      ? "처리 중..."
+                      : "참석하기"}
+              </Text>
+            </Pressable>
+          ) : null}
         </Animated.View>
       </View>
     </Modal>
@@ -852,6 +1150,112 @@ function formatSummaryTime(time?: string) {
   if (!time) return undefined;
   const match = time.match(/^(\d{1,2}:\d{2})/);
   return match ? match[1] : time;
+}
+
+function buildMeetingCardItems(
+  listItems: IMeetingListItem[],
+  summaries: IClubMeetingSummary[],
+): MeetingCardItem[] {
+  const listCardItems: MeetingCardItem[] = listItems.map((meeting) => ({
+    meetingId: meeting.meetingId,
+    name: meeting.name,
+    date: meeting.date,
+    spot: meeting.spot,
+    capacity: meeting.capacity,
+    cost: meeting.cost,
+    attendeeCount: meeting.attendeeCount,
+    isAttending: meeting.isAttending,
+  }));
+  const listIds = new Set(listCardItems.map((meeting) => meeting.meetingId));
+  const summaryCardItems: MeetingCardItem[] = summaries
+    .filter((meeting) => !listIds.has(meeting.meetingId))
+    .map((meeting) => ({
+      meetingId: meeting.meetingId,
+      name: meeting.name,
+      day: meeting.day,
+      time: meeting.time,
+    }));
+
+  return [...listCardItems, ...summaryCardItems];
+}
+
+function getMeetingCardDdayText(meeting?: MeetingCardItem) {
+  if (!meeting) return "";
+
+  const ddaySource = meeting.nextOccurrenceAt ?? meeting.date;
+  if (ddaySource) return formatDday(ddaySource);
+
+  const summaryNextOccurrence = getNextOccurrenceFromSummary(
+    meeting.day,
+    meeting.time,
+  );
+
+  return summaryNextOccurrence ? formatDday(summaryNextOccurrence) : "";
+}
+
+function getMeetingCardDateText(meeting?: MeetingCardItem) {
+  if (!meeting) return undefined;
+
+  return (
+    meeting.dateLabel ??
+    formatMeetingListDate(meeting.date) ??
+    [meeting.day, formatSummaryTime(meeting.time)].filter(Boolean).join(" ")
+  );
+}
+
+function formatMeetingListDate(date?: string) {
+  if (!date) return undefined;
+
+  const parsedDate = new Date(date);
+  if (Number.isNaN(parsedDate.getTime())) return undefined;
+
+  const weekdayLabels = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
+  const weekday = weekdayLabels[parsedDate.getDay()];
+  const hour = String(parsedDate.getHours()).padStart(2, "0");
+  const minute = String(parsedDate.getMinutes()).padStart(2, "0");
+
+  return `${weekday} ${hour}:${minute}`;
+}
+
+function getNextOccurrenceFromSummary(day?: string, time?: string) {
+  if (!day || !time) return undefined;
+
+  const weekdayIndex = getWeekdayIndex(day);
+  if (weekdayIndex === null) return undefined;
+
+  const timeMatch = time.match(/^(\d{1,2}):(\d{2})/);
+  if (!timeMatch) return undefined;
+
+  const hour = Number(timeMatch[1]);
+  const minute = Number(timeMatch[2]);
+  if (!Number.isFinite(hour) || !Number.isFinite(minute)) return undefined;
+
+  const now = new Date();
+  const next = new Date(now);
+  const dayDiff = (weekdayIndex - now.getDay() + 7) % 7;
+  next.setDate(now.getDate() + dayDiff);
+  next.setHours(hour, minute, 0, 0);
+
+  if (next.getTime() < now.getTime()) {
+    next.setDate(next.getDate() + 7);
+  }
+
+  return next;
+}
+
+function getWeekdayIndex(day: string) {
+  const normalizedDay = day.trim().slice(0, 3).toUpperCase();
+  const indexes: Record<string, number> = {
+    SUN: 0,
+    MON: 1,
+    TUE: 2,
+    WED: 3,
+    THU: 4,
+    FRI: 5,
+    SAT: 6,
+  };
+
+  return normalizedDay in indexes ? indexes[normalizedDay] : null;
 }
 
 function getRecurrenceText(type: IMeetingDetailResponse["recurrence"]["type"]) {
@@ -1110,165 +1514,6 @@ function AlbumTab({
           contentFit="cover"
         />
       ))}
-    </View>
-  );
-}
-
-type ClubChatMessage = {
-  id: string;
-  mine?: boolean;
-  name?: string;
-  time?: string;
-  text: string;
-};
-
-// ponytail: 동호회 단체 채팅 API가 아직 없어 화면 안에서만 동작하는 임시 UI로 유지
-const INITIAL_CLUB_CHAT_MESSAGES: ClubChatMessage[] = [];
-
-function formatChatTime() {
-  const now = new Date();
-  const hours = now.getHours();
-  const minutes = String(now.getMinutes()).padStart(2, "0");
-  const period = hours >= 12 ? "오후" : "오전";
-  const displayHours = hours % 12 === 0 ? 12 : hours % 12;
-
-  return `${period} ${String(displayHours).padStart(2, "0")}:${minutes}`;
-}
-
-function ChatTab({ bottomPadding }: { bottomPadding: number }) {
-  const [messages, setMessages] = useState(INITIAL_CLUB_CHAT_MESSAGES);
-  const [inputText, setInputText] = useState("");
-  const [isAttachmentOpen, setAttachmentOpen] = useState(false);
-  const canSend = inputText.trim().length > 0;
-
-  const handleSend = () => {
-    const text = inputText.trim();
-
-    if (!text) return;
-
-    setMessages((prevMessages) => [
-      ...prevMessages,
-      {
-        id: `club-chat-${Date.now()}`,
-        mine: true,
-        time: formatChatTime(),
-        text,
-      },
-    ]);
-    setInputText("");
-    setAttachmentOpen(false);
-  };
-
-  return (
-    <View style={[styles.chatContent, { paddingBottom: bottomPadding }]}>
-      {messages.length === 0 ? (
-        <View style={styles.statusBox}>
-          <Text style={styles.emptyStateText}>
-            아직 대화가 없어요. 첫 메시지를 남겨보세요.
-          </Text>
-        </View>
-      ) : null}
-
-      {messages.map((message) => (
-        <ChatBubble
-          key={message.id}
-          mine={message.mine}
-          name={message.name}
-          time={message.time}
-          text={message.text}
-        />
-      ))}
-
-      <View style={styles.chatInputBar}>
-        <Pressable
-          style={styles.chatIconButton}
-          onPress={() => setAttachmentOpen((prevOpen) => !prevOpen)}
-          hitSlop={8}
-        >
-          <Ionicons
-            name={isAttachmentOpen ? "close" : "add"}
-            size={28}
-            color="#8E9AA3"
-          />
-        </Pressable>
-        <TextInput
-          style={styles.chatInputBox}
-          value={inputText}
-          onChangeText={setInputText}
-          placeholder="대화 내용을 입력하세요."
-          placeholderTextColor="#A6AFB6"
-          returnKeyType="send"
-          onSubmitEditing={handleSend}
-        />
-        <Pressable
-          style={styles.chatIconButton}
-          onPress={handleSend}
-          hitSlop={8}
-        >
-          <Ionicons name="send" size={24} color={canSend ? PINK : "#A6AFB6"} />
-        </Pressable>
-      </View>
-
-      {isAttachmentOpen ? (
-        <View style={styles.clubChatAttachmentPanel}>
-          <ClubChatAttachmentAction iconName="camera" label="카메라" />
-          <ClubChatAttachmentAction iconName="image" label="갤러리" />
-        </View>
-      ) : null}
-    </View>
-  );
-}
-
-function ClubChatAttachmentAction({
-  iconName,
-  label,
-}: {
-  iconName: keyof typeof Ionicons.glyphMap;
-  label: string;
-}) {
-  return (
-    <Pressable style={styles.clubChatAttachmentAction}>
-      <View style={styles.clubChatAttachmentIcon}>
-        <Ionicons name={iconName} size={24} color="#6F7780" />
-      </View>
-      <Text style={styles.clubChatAttachmentLabel}>{label}</Text>
-    </Pressable>
-  );
-}
-
-function ChatBubble({
-  mine = false,
-  name,
-  time,
-  text,
-}: {
-  mine?: boolean;
-  name?: string;
-  time?: string;
-  text: string;
-}) {
-  return (
-    <View style={[styles.chatBubbleRow, mine && styles.chatBubbleRowMine]}>
-      {!mine && name ? <View style={styles.chatAvatar} /> : null}
-      <View style={styles.chatBubbleColumn}>
-        {!mine && name ? <Text style={styles.chatName}>{name}</Text> : null}
-        <View style={styles.chatMessageLine}>
-          {mine && time ? <Text style={styles.chatTime}>{time}</Text> : null}
-          <View
-            style={[
-              styles.chatBubble,
-              mine ? styles.myChatBubble : styles.otherChatBubble,
-            ]}
-          >
-            <Text
-              style={[styles.chatBubbleText, mine && styles.myChatBubbleText]}
-            >
-              {text}
-            </Text>
-          </View>
-          {!mine && time ? <Text style={styles.chatTime}>{time}</Text> : null}
-        </View>
-      </View>
     </View>
   );
 }
@@ -1604,6 +1849,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  tabLabelRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 2,
+  },
   tabText: {
     color: GRAY,
     fontSize: 16,
@@ -1615,8 +1865,8 @@ const styles = StyleSheet.create({
   },
   chatDot: {
     position: "absolute",
-    top: 15,
-    right: 31,
+    top: -2,
+    right: -8,
     width: 6,
     height: 6,
     borderRadius: 3,
@@ -1633,6 +1883,33 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 26,
   },
+  pendingBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    padding: 12,
+    marginBottom: 20,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: PINK,
+    backgroundColor: "#FFF0F2",
+  },
+  pendingBannerTextBox: {
+    flex: 1,
+  },
+  pendingBannerTitle: {
+    color: BLACK,
+    fontSize: 18,
+    fontWeight: "600",
+    lineHeight: 23,
+  },
+  pendingBannerSubtitle: {
+    marginTop: 2,
+    color: "#636970",
+    fontSize: 14,
+    fontWeight: "500",
+    lineHeight: 20,
+  },
   descriptionText: {
     color: "#565F66",
     fontSize: 15,
@@ -1641,6 +1918,9 @@ const styles = StyleSheet.create({
   },
   meetingSection: {
     marginTop: 48,
+  },
+  meetingCardList: {
+    gap: 14,
   },
   meetingSectionHeader: {
     flexDirection: "row",
@@ -1699,21 +1979,29 @@ const styles = StyleSheet.create({
   },
   meetingCard: {
     marginTop: 16,
-    padding: 22,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
     borderWidth: 1,
     borderColor: BORDER,
     borderRadius: 12,
     backgroundColor: "#FFFFFF",
+    shadowColor: "#000000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
   },
   meetingCardHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    gap: 12,
   },
-  meetingBadgeRow: {
+  meetingTitleRow: {
+    flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    gap: 12,
   },
   meetingMenuButton: {
     padding: 4,
@@ -1749,14 +2037,15 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   meetingTitle: {
-    marginTop: 14,
+    flex: 1,
     color: BLACK,
     fontSize: 18,
-    fontWeight: "800",
+    fontWeight: "700",
+    lineHeight: 23,
   },
   meetingInfoList: {
-    marginTop: 18,
-    gap: 7,
+    marginTop: 16,
+    gap: 4,
   },
   meetingInfoRow: {
     flexDirection: "row",
@@ -1764,18 +2053,20 @@ const styles = StyleSheet.create({
   },
   meetingInfoLabel: {
     width: 40,
-    color: "#6A747C",
+    color: "#636970",
     fontSize: 14,
-    fontWeight: "700",
+    fontWeight: "600",
+    lineHeight: 20,
   },
   meetingInfoValue: {
     flex: 1,
     color: BLACK,
     fontSize: 14,
-    fontWeight: "700",
+    fontWeight: "600",
+    lineHeight: 20,
   },
   attendeeRow: {
-    marginTop: 18,
+    marginTop: 14,
     flexDirection: "row",
     alignItems: "center",
   },
@@ -1786,28 +2077,28 @@ const styles = StyleSheet.create({
     backgroundColor: "#D1D5D8",
   },
   attendeeOverlap: {
-    marginLeft: -3,
+    marginLeft: -6,
   },
   attendeeText: {
-    marginLeft: 14,
+    marginLeft: 12,
     color: "#8E9AA3",
     fontSize: 13,
     fontWeight: "700",
   },
   attendanceButton: {
-    height: 46,
-    marginTop: 22,
+    height: 42,
+    marginTop: 16,
     borderWidth: 1,
     borderColor: PINK,
-    borderRadius: 8,
+    borderRadius: 10,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#FFF0F2",
   },
   attendanceButtonText: {
     color: PINK,
-    fontSize: 15,
-    fontWeight: "800",
+    fontSize: 16,
+    fontWeight: "700",
   },
   attendanceButtonDisabled: {
     borderColor: "#E5E7EB",
@@ -2133,6 +2424,16 @@ const styles = StyleSheet.create({
   preJoinChatPlaceholder: {
     minHeight: 240,
     backgroundColor: "#FFFFFF",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 12,
+    paddingHorizontal: 20,
+  },
+  preJoinChatText: {
+    color: "#8E9AA3",
+    fontSize: 15,
+    fontWeight: "500",
+    textAlign: "center",
   },
   chatContent: {
     paddingHorizontal: 20,
@@ -2167,6 +2468,33 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-end",
     gap: 8,
+  },
+  chatSelectedImageList: {
+    paddingTop: 4,
+    paddingBottom: 12,
+    gap: 10,
+  },
+  chatSelectedImageWrap: {
+    width: 76,
+    height: 76,
+    borderRadius: 10,
+    overflow: "hidden",
+    backgroundColor: "#D9D9D9",
+  },
+  chatSelectedImage: {
+    width: "100%",
+    height: "100%",
+  },
+  chatSelectedImageRemove: {
+    position: "absolute",
+    top: 5,
+    right: 5,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.55)",
   },
   chatBubble: {
     maxWidth: 250,

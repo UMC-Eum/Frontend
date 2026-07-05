@@ -3,6 +3,7 @@ import type { ManagerOptions, Socket, SocketOptions } from "socket.io-client";
 
 import { getAccessToken } from "@/api/axiosInstance";
 import type {
+  MemberJoinedPayload,
   MessageDeletedPayload,
   MessageNewPayload,
   MessageReadPayload,
@@ -23,6 +24,8 @@ type ChatServerToClientEvents = {
   "message.new": (payload: MessageNewPayload) => void;
   "message.read": (payload: MessageReadPayload) => void;
   "message.deleted": (payload: MessageDeletedPayload) => void;
+  // CLUB(단체) 채팅방 전용: 새 멤버 입장 브로드캐스트
+  "member.joined": (payload: MemberJoinedPayload) => void;
 };
 
 type ChatClientToServerEvents = {
@@ -215,4 +218,13 @@ export const onMessageDeleted = (
 ): UnsubscribeSocketEvent => {
   socket.on("message.deleted", listener);
   return () => socket.off("message.deleted", listener);
+};
+
+// CLUB(단체) 채팅방 전용: 새 멤버 입장 이벤트 구독
+export const onMemberJoined = (
+  listener: (payload: MemberJoinedPayload) => void,
+  socket = connectChatSocket(),
+): UnsubscribeSocketEvent => {
+  socket.on("member.joined", listener);
+  return () => socket.off("member.joined", listener);
 };

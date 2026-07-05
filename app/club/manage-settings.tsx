@@ -1,9 +1,10 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
   Pressable,
   ScrollView,
@@ -15,6 +16,13 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
 import DeleteClubModal from "@/components/club/DeleteClubModal";
+import { CLUB_CREATE_CATEGORIES } from "@/constants/club";
+import { useClubDetailQuery } from "@/hooks/api/useClub";
+import {
+  useDeleteClubMutation,
+  useUpdateClubMutation,
+} from "@/hooks/api/useHost";
+import type { ClubCategory } from "@/types/api/club/clubDTO";
 
 const COLORS = {
   pink: "#FF3E70",
@@ -28,51 +36,100 @@ const COLORS = {
   white: "#FFFFFF",
 };
 
-const CATEGORIES = [
-  "운동 / 스포츠",
-  "취미 / 여가",
-  "문화 / 예술",
-  "봉사활동",
-  "음식 / 맛집",
-  "독서 / 공부",
-  "기타",
-];
-
-const COVER_PHOTOS = [
-  "https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?q=80&w=400&auto=format&fit=crop",
-  "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=80&w=400&auto=format&fit=crop",
-  "https://images.unsplash.com/photo-1477346611705-65d1883cee1e?q=80&w=400&auto=format&fit=crop",
-  "https://images.unsplash.com/photo-1445307806294-bff7f67ff225?q=80&w=400&auto=format&fit=crop",
-  "https://images.unsplash.com/photo-1469474968028-56623f02e42e?q=80&w=400&auto=format&fit=crop",
-];
-
 const INTRO_MAX = 200;
+
+function parseClubId(value?: string) {
+  if (!value) return NaN;
+  const numeric = Number(value);
+  if (Number.isFinite(numeric)) return numeric;
+  const match = value.match(/\d+/);
+  return match ? Number(match[0]) : NaN;
+}
 
 export default function ClubManageSettingsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const [photos, setPhotos] = useState(COVER_PHOTOS);
-  const [name, setName] = useState("새벽 등산 동호회");
-  const [intro, setIntro] = useState(
-    "해뜨기 전에 산에 올라 일출 보고 내려옵니다. 평일 새벽이라 부담없이 하시는 분들도 많아요 편하게 활동 가능합니다~ ",
-  );
-  const [category, setCategory] = useState(CATEGORIES[0]);
-  const [capacity, setCapacity] = useState(15);
-  const [approvalRequired, setApprovalRequired] = useState(false);
-  const [memberOnlyBoard, setMemberOnlyBoard] = useState(true);
+  const params = useLocalSearchParams<{ clubId?: string }>();
+  const clubId = parseClubId(params.clubId);
+
+  const detailQuery = useClubDetailQuery(clubId, Number.isFinite(clubId));
+  const detail = detailQuery.data;
+  const updateMutation = useUpdateClubMutation(clubId);
+  const deleteMutation = useDeleteClubMutation();
+
+  // 서버가 내려주는 커버 이미지 목록 필드가 없어 썸네일 1장만 초기값으로 사용한다.
+  const [photos, setPhotos] = useState<string[]>([]);
+  const [name, setName] = useState("");
+  const [intro, setIntro] = useState("");
+  const [category, setCategory] = useState<ClubCategory | null>(null);
+  const [capacity, setCapacity] = useState(1);
+  // 활동지역/가입방식/게시판 공개범위는 조회·수정 API에 필드가 없어 비워둔다.
+  const [approvalRequired, setApprovalRequired] = useState<boolean | null>(null);
+  const [memberOnlyBoard, setMemberOnlyBoard] = useState<boolean | null>(null);
   const [deleteVisible, setDeleteVisible] = useState(false);
+
+  // 최대인원은 현재 가입 인원보다 낮게 설정할 수 없다.
+  const minCapacity = Math.max(1, detail?.memberCount ?? 1);
+
+  // 조회 데이터가 도착하면 폼 기본값을 채운다.
+  useEffect(() => {
+    if (!detail) return;
+    setName(detail.name);
+    setIntro(detail.introText ?? "");
+    setCategory(detail.category);
+    setCapacity(Math.max(detail.capacity, detail.memberCount, 1));
+    setPhotos(detail.thumbnailUrl ? [detail.thumbnailUrl] : []);
+  }, [detail]);
 
   const removePhoto = (index: number) => {
     setPhotos((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleSave = () => {
-    Alert.alert("저장 완료", "동호회 정보가 저장되었어요.");
+    if (!Number.isFinite(clubId)) return;
+
+    const trimmedName = name.trim();
+    if (trimmedName.length === 0) {
+      Alert.alert("동호회 이름", "동호회 이름을 입력해주세요.");
+      return;
+    }
+    if (!category) {
+      Alert.alert("카테고리", "카테고리를 선택해주세요.");
+      return;
+    }
+
+    updateMutation.mutate(
+      {
+        name: trimmedName,
+        introText: intro.trim(),
+        category,
+        capacity,
+      },
+      {
+        onSuccess: () => {
+          Alert.alert("저장 완료", "동호회 정보가 저장되었어요.");
+          router.back();
+        },
+        onError: () => {
+          Alert.alert("저장 실패", "잠시 후 다시 시도해주세요.");
+        },
+      },
+    );
   };
 
   const handleDelete = () => {
-    setDeleteVisible(false);
-    router.back();
+    if (!Number.isFinite(clubId)) return;
+
+    deleteMutation.mutate(clubId, {
+      onSuccess: () => {
+        setDeleteVisible(false);
+        router.back();
+      },
+      onError: () => {
+        setDeleteVisible(false);
+        Alert.alert("삭제 실패", "잠시 후 다시 시도해주세요.");
+      },
+    });
   };
 
   return (
@@ -86,6 +143,24 @@ export default function ClubManageSettingsScreen() {
         <View style={styles.headerIconButton} />
       </View>
 
+      {detailQuery.isLoading ? (
+        <View style={styles.centerBox}>
+          <ActivityIndicator color={COLORS.pink} />
+        </View>
+      ) : detailQuery.isError || !detail ? (
+        <View style={styles.centerBox}>
+          <Text style={styles.errorText}>
+            동호회 정보를 불러오지 못했어요.{"\n"}잠시 후 다시 시도해주세요.
+          </Text>
+          <Pressable
+            style={styles.retryButton}
+            onPress={() => detailQuery.refetch()}
+          >
+            <Text style={styles.retryButtonText}>다시 시도</Text>
+          </Pressable>
+        </View>
+      ) : (
+        <>
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={{ paddingBottom: insets.bottom + 120 }}
@@ -158,15 +233,17 @@ export default function ClubManageSettingsScreen() {
             <Text style={styles.labelHint}>최소 1개 선택</Text>
           </View>
           <View style={styles.chipRow}>
-            {CATEGORIES.map((item) => {
-              const active = category === item;
+            {CLUB_CREATE_CATEGORIES.map((item) => {
+              const active = category === item.value;
               return (
                 <Pressable
-                  key={item}
+                  key={item.value}
                   style={[styles.chip, active && styles.chipActive]}
-                  onPress={() => setCategory(item)}
+                  onPress={() => setCategory(item.value)}
                 >
-                  <Text style={[styles.chipText, active && styles.chipTextActive]}>{item}</Text>
+                  <Text style={[styles.chipText, active && styles.chipTextActive]}>
+                    {item.label}
+                  </Text>
                 </Pressable>
               );
             })}
@@ -176,7 +253,7 @@ export default function ClubManageSettingsScreen() {
         <View style={styles.field}>
           <FieldLabel label="활동 지역" />
           <Pressable style={styles.listItem}>
-            <Text style={styles.listItemText}>서울시 광진구</Text>
+            <Text style={styles.listItemPlaceholder}>지역을 선택해주세요</Text>
             <Ionicons name="chevron-forward" size={22} color={COLORS.gray700} />
           </Pressable>
         </View>
@@ -191,7 +268,9 @@ export default function ClubManageSettingsScreen() {
             <View style={styles.stepperButtons}>
               <Pressable
                 style={[styles.stepperButton, styles.stepperButtonLeft]}
-                onPress={() => setCapacity((prev) => Math.max(1, prev - 1))}
+                onPress={() =>
+                  setCapacity((prev) => Math.max(minCapacity, prev - 1))
+                }
               >
                 <Ionicons name="remove" size={22} color={COLORS.gray700} />
               </Pressable>
@@ -211,13 +290,13 @@ export default function ClubManageSettingsScreen() {
             <SelectCard
               title="자유 가입"
               description="누구나 바로 가입"
-              active={!approvalRequired}
+              active={approvalRequired === false}
               onPress={() => setApprovalRequired(false)}
             />
             <SelectCard
               title="승인 필요"
               description="운영자 확인 후 가입"
-              active={approvalRequired}
+              active={approvalRequired === true}
               onPress={() => setApprovalRequired(true)}
             />
           </View>
@@ -229,13 +308,13 @@ export default function ClubManageSettingsScreen() {
             <SelectCard
               title="전체 공개"
               description="누구나 게시판 열람"
-              active={!memberOnlyBoard}
+              active={memberOnlyBoard === false}
               onPress={() => setMemberOnlyBoard(false)}
             />
             <SelectCard
               title="회원 공개"
               description="가입 회원만 열람 가능"
-              active={memberOnlyBoard}
+              active={memberOnlyBoard === true}
               onPress={() => setMemberOnlyBoard(true)}
             />
           </View>
@@ -254,10 +333,23 @@ export default function ClubManageSettingsScreen() {
       />
 
       <View style={[styles.footer, { paddingBottom: insets.bottom + 12 }]}>
-        <Pressable style={styles.saveButton} onPress={handleSave}>
-          <Text style={styles.saveButtonText}>저장</Text>
+        <Pressable
+          style={[
+            styles.saveButton,
+            updateMutation.isPending && styles.saveButtonDisabled,
+          ]}
+          onPress={handleSave}
+          disabled={updateMutation.isPending}
+        >
+          {updateMutation.isPending ? (
+            <ActivityIndicator color={COLORS.white} />
+          ) : (
+            <Text style={styles.saveButtonText}>저장</Text>
+          )}
         </Pressable>
       </View>
+        </>
+      )}
     </SafeAreaView>
   );
 }
@@ -382,6 +474,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   listItemText: { fontSize: 16, lineHeight: 24, fontWeight: "500", color: COLORS.text },
+  listItemPlaceholder: { fontSize: 16, lineHeight: 24, fontWeight: "500", color: COLORS.gray500 },
   stepperRow: { marginTop: 10, flexDirection: "row", gap: 12 },
   stepperValueBox: {
     flex: 1,
@@ -448,5 +541,30 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  saveButtonDisabled: { opacity: 0.6 },
   saveButtonText: { fontSize: 18, lineHeight: 23, fontWeight: "600", color: COLORS.white },
+  centerBox: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 20,
+    gap: 16,
+  },
+  errorText: {
+    fontSize: 15,
+    lineHeight: 22,
+    fontWeight: "500",
+    color: COLORS.gray700,
+    textAlign: "center",
+  },
+  retryButton: {
+    height: 44,
+    paddingHorizontal: 24,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: COLORS.pink,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  retryButtonText: { fontSize: 15, lineHeight: 21, fontWeight: "600", color: COLORS.pink },
 });

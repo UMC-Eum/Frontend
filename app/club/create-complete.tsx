@@ -27,6 +27,7 @@ export default function ClubCreateCompleteScreen() {
     host?: string;
     image?: string;
   }>();
+  const clubId = Number(params.clubId);
   const metaText = [params.location, params.host].filter(Boolean).join(" · ");
 
   return (
@@ -100,7 +101,17 @@ export default function ClubCreateCompleteScreen() {
 
       <Cta
         label="동호회 바로가기"
-        onPress={() => router.replace("/(tabs)?tab=club" as never)}
+        onPress={() => {
+          if (Number.isFinite(clubId)) {
+            router.replace({
+              pathname: "/club/detail",
+              params: { clubId: String(clubId) },
+            } as never);
+            return;
+          }
+
+          router.replace("/(tabs)?tab=club" as never);
+        }}
         containerStyle={styles.ctaContainer}
         buttonStyle={styles.ctaButton}
         labelStyle={styles.ctaLabel}
