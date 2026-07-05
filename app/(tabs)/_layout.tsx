@@ -1,23 +1,27 @@
 import { Tabs } from "expo-router";
-import React, { useEffect, useState } from "react";
-import { Keyboard, Platform, StyleSheet, View } from "react-native";
+import React from "react";
+import { StyleSheet, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { AppNavbar } from "@/components/AppNavbar";
 import { TAB_BAR_HEIGHT } from "@/constants/layout";
 
 export default function TabLayout() {
-  const isKeyboardShown = useIsKeyboardShown();
+  const insets = useSafeAreaInsets();
 
   return (
     <Tabs
       detachInactiveScreens={false}
       tabBar={(props) => {
-        if (isKeyboardShown) return null;
-
         const currentRouteName = props.state.routes[props.state.index].name;
 
         return (
-          <View style={styles.tabBar}>
+          <View
+            style={[
+              styles.tabBar,
+              { height: TAB_BAR_HEIGHT + insets.bottom, paddingBottom: insets.bottom },
+            ]}
+          >
             <AppNavbar
               activeTabId={currentRouteName}
               onTabPress={(id) => {
@@ -43,36 +47,11 @@ export default function TabLayout() {
   );
 }
 
-function useIsKeyboardShown() {
-  const [isKeyboardShown, setIsKeyboardShown] = useState(false);
-
-  useEffect(() => {
-    const showEvent =
-      Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
-    const hideEvent =
-      Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
-    const showSubscription = Keyboard.addListener(showEvent, () =>
-      setIsKeyboardShown(true),
-    );
-    const hideSubscription = Keyboard.addListener(hideEvent, () =>
-      setIsKeyboardShown(false),
-    );
-
-    return () => {
-      showSubscription.remove();
-      hideSubscription.remove();
-    };
-  }, []);
-
-  return isKeyboardShown;
-}
-
 const styles = StyleSheet.create({
   scene: {
     backgroundColor: "#FFFFFF",
   },
   tabBar: {
-    height: TAB_BAR_HEIGHT,
     backgroundColor: "#FFFFFF",
   },
 });

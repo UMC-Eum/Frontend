@@ -40,7 +40,12 @@ export interface RoomJoinAckData {
   joined: string;
 }
 
-export type RoomJoinErrorCode = "VALID-001" | "AUTH-001" | "CHAT-002";
+// CHAT-003: CLUB(단체) 방에 가입 승인 안 된 사용자가 입장 시도 (delta 명세)
+export type RoomJoinErrorCode =
+  | "VALID-001"
+  | "AUTH-001"
+  | "CHAT-002"
+  | "CHAT-003";
 
 export type RoomJoinAckResponse = SocketAckResponse<
   RoomJoinAckData,
@@ -114,6 +119,8 @@ export interface MessageReadData {
   chatRoomId: number;
   readerUserId: number;
   readAt: string;
+  // CLUB delta: 아직 안 읽은 멤버 수(본인 제외). DIRECT는 0/1, CLUB은 ≥0.
+  unreadCount?: number;
 }
 
 export type MessageReadPayload = SocketBroadcastPayload<MessageReadData>;
@@ -128,3 +135,14 @@ export interface MessageDeletedData {
 
 export type MessageDeletedPayload =
   SocketBroadcastPayload<MessageDeletedData>;
+
+// member.joined 푸시 데이터 (Broadcast) — CLUB(단체) 채팅방 전용
+export interface MemberJoinedData {
+  chatRoomId: number;
+  userId: number;
+  nickname: string;
+  joinedAt: string;
+  memberCount: number;
+}
+
+export type MemberJoinedPayload = SocketBroadcastPayload<MemberJoinedData>;

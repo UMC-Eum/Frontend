@@ -102,7 +102,11 @@ export default function ClubManageScreen() {
       renderIcon: () => <IconPerson width={28} height={28} color={DARK_GRAY} />,
       title: "멤버 관리",
       description: "멤버 목록, 가입 신청, 강제 퇴장",
-      onPress: () => router.push("/club/manage-members" as never),
+      onPress: () =>
+        router.push({
+          pathname: "/club/manage-members",
+          params: { clubId: String(clubId) },
+        } as never),
     },
     {
       key: "delete",
@@ -203,7 +207,12 @@ export default function ClubManageScreen() {
           <HomeTab
             intro={club.intro}
             pendingCount={2}
-            onPendingPress={() => router.push("/club/manage-members" as never)}
+            onPendingPress={() =>
+              router.push({
+                pathname: "/club/manage-members",
+                params: { clubId: String(clubId) },
+              } as never)
+            }
           />
         ) : null}
         {activeTab === "board" ? <BoardTab /> : null}

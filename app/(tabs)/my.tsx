@@ -225,8 +225,14 @@ export default function MyTabScreen() {
               <ClubRow
                 key={club.clubId}
                 title={club.name || "이름 없는 동호회"}
-                subtitle={`멤버 ${club.memberCount ?? 0}명`}
+                subtitle={`${club.authority === "HOST" ? "동호회장" : "멤버"} · 멤버 ${club.memberCount ?? 0}명`}
                 variant={index % 2 === 0 ? "running" : "mountain"}
+                onPress={() =>
+                  router.push({
+                    pathname: "/club/detail",
+                    params: { clubId: String(club.clubId) },
+                  } as never)
+                }
               />
             ))
           ) : (
@@ -285,13 +291,15 @@ function ClubRow({
   title,
   subtitle,
   variant,
+  onPress,
 }: {
   title: string;
   subtitle: string;
   variant: "running" | "mountain";
+  onPress: () => void;
 }) {
   return (
-    <View style={styles.clubRow}>
+    <TouchableOpacity style={styles.clubRow} activeOpacity={0.82} onPress={onPress}>
       <View
         style={[
           styles.clubThumb,
@@ -315,7 +323,7 @@ function ClubRow({
         <Text style={styles.clubTitle}>{title}</Text>
         <Text style={styles.clubSubtitle}>{subtitle}</Text>
       </View>
-    </View>
+    </TouchableOpacity>
   );
 }
 

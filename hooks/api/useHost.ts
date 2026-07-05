@@ -60,7 +60,12 @@ export function useDeleteClubMutation() {
 
   return useMutation({
     mutationFn: (clubId: number) => deleteClub(clubId),
-    onSuccess: () => {
+    onSuccess: (_data, clubId) => {
+      // 삭제된 클럽의 상세/모임/멤버 등 하위 쿼리를 먼저 제거해 404 재조회를 막는다.
+      queryClient.removeQueries({ queryKey: queryKeys.club.detail(clubId) });
+      queryClient.removeQueries({ queryKey: queryKeys.host.club(clubId) });
+      // 내 동호회/목록 등 나머지는 갱신이 필요하므로 무효화한다.
+      // (removeQueries로 지운 상세 키는 옵저버가 없어 refetch되지 않는다.)
       queryClient.invalidateQueries({ queryKey: queryKeys.club.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.host.all });
     },
