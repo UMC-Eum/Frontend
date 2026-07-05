@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
-import React, { useCallback, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   FlatList,
   Modal,
@@ -14,6 +14,9 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { CLUB_COLORS } from "./ClubPostParts";
+
+// FlatList는 viewabilityConfig의 런타임 변경을 지원하지 않아 모듈 상수로 고정한다.
+const VIEWABILITY_CONFIG = { itemVisiblePercentThreshold: 60 };
 
 export interface ClubLightboxImage {
   id: number | string;
@@ -41,6 +44,13 @@ export function ClubImageLightbox({
   const insets = useSafeAreaInsets();
   const startIndex = Math.min(Math.max(initialIndex, 0), images.length - 1);
   const [currentIndex, setCurrentIndex] = useState(startIndex);
+
+  // 닫혀도 언마운트되지 않으므로 다시 열릴 때 카운터를 시작 인덱스로 동기화한다.
+  useEffect(() => {
+    if (visible) {
+      setCurrentIndex(startIndex);
+    }
+  }, [visible, startIndex]);
 
   // 스와이프로 페이지가 바뀔 때 상단 카운터를 갱신합니다.
   const handleViewableItemsChanged = useRef(
@@ -90,7 +100,7 @@ export function ClubImageLightbox({
             index,
           })}
           onViewableItemsChanged={handleViewableItemsChanged}
-          viewabilityConfig={{ itemVisiblePercentThreshold: 60 }}
+          viewabilityConfig={VIEWABILITY_CONFIG}
         />
 
         <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>

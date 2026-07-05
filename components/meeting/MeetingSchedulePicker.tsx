@@ -298,6 +298,9 @@ function TimeDropdown<T extends string | number>({
       <Pressable
         style={[styles.dropdownBox, isOpen && styles.dropdownBoxOpen]}
         onPress={onToggle}
+        accessibilityRole="button"
+        accessibilityLabel={selectedLabel}
+        accessibilityState={{ expanded: isOpen }}
       >
         <Text
           style={[styles.dropdownLabel, isOpen && styles.dropdownLabelOpen]}
@@ -326,6 +329,9 @@ function TimeDropdown<T extends string | number>({
                   key={String(option.value)}
                   style={styles.dropdownItem}
                   onPress={() => onSelect(option.value)}
+                  accessibilityRole="button"
+                  accessibilityLabel={option.label}
+                  accessibilityState={{ selected: isSelected }}
                 >
                   <Text
                     style={[
