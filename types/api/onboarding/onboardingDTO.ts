@@ -9,8 +9,11 @@ export interface IPresignRequest {
 export interface IPresignResponse {
   uploadUrl: string;
   fileRef: string;
-  key?: string;
+  key: string;
   expiresAt: string;
+}
+export interface IPresignApiData {
+  data: IPresignResponse;
 }
 //v1/onboarding/voice-profile/analyze(post)
 export interface IPersonality {
