@@ -14,6 +14,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import NotificationItem from "@/components/NotificationItem";
+import { NotificationListSkeleton } from "@/components/skeletons";
 import {
   useNotificationsInfiniteQuery,
   useReadNotificationMutation,
@@ -133,9 +134,7 @@ export default function NotificationsScreen() {
       </View>
 
       {isInitialLoading ? (
-        <View style={styles.loadingWrap}>
-          <ActivityIndicator color="#FF4F7E" />
-        </View>
+        <NotificationListSkeleton />
       ) : (
         <FlatList
           data={notifications}
@@ -331,11 +330,6 @@ const styles = StyleSheet.create({
   },
   emptyListContent: {
     flexGrow: 1,
-  },
-  loadingWrap: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
   },
   footerLoading: {
     height: 56,

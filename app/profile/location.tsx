@@ -36,6 +36,7 @@ export default function LocationEditScreen() {
   const isOnboardingMode = mode === "onboarding";
   const isClubMode = mode === "club";
   const isClubCreateMode = mode === "club-create";
+  const isClubEditMode = mode === "club-edit";
   const draftAreaCode = useOnboardingDraftStore((state) => state.areaCode);
   const setDraftArea = useOnboardingDraftStore((state) => state.setArea);
   const clubAreaCode = useClubLocationStore((state) => state.areaCode);
@@ -59,7 +60,7 @@ export default function LocationEditScreen() {
       ? draftAreaCode
       : isClubMode
         ? clubAreaCode
-        : isClubCreateMode
+        : isClubCreateMode || isClubEditMode
           ? clubCreateAreaCode
           : myProfileQuery.data?.area?.code;
     if (!areaCode) return;
@@ -81,6 +82,7 @@ export default function LocationEditScreen() {
     clubCreateAreaCode,
     draftAreaCode,
     isClubCreateMode,
+    isClubEditMode,
     isClubMode,
     isOnboardingMode,
     myProfileQuery.data?.area?.code,
@@ -98,6 +100,7 @@ export default function LocationEditScreen() {
     !isOnboardingMode &&
     !isClubMode &&
     !isClubCreateMode &&
+    !isClubEditMode &&
     updateMyProfileMutation.isPending;
   const canSubmit =
     !isSubmitting && (step === 1 ? !!selectedRegionCode : !!selectedDistrictCode);
@@ -157,8 +160,8 @@ export default function LocationEditScreen() {
       return;
     }
 
-    // 동호회 생성: 활동 지역만 저장 후 생성 화면으로 복귀
-    if (isClubCreateMode) {
+    // 동호회 생성/수정: 활동 지역만 저장 후 이전 화면으로 복귀
+    if (isClubCreateMode || isClubEditMode) {
       setClubCreateArea(
         selectedDistrictCode,
         getLocationName(selectedRegionCode, selectedDistrict),
@@ -166,7 +169,7 @@ export default function LocationEditScreen() {
       if (router.canGoBack()) {
         router.back();
       } else {
-        router.replace("/club/create" as never);
+        router.replace((isClubEditMode ? "/club/manage-settings" : "/club/create") as never);
       }
       return;
     }
@@ -203,6 +206,7 @@ export default function LocationEditScreen() {
     !isOnboardingMode &&
     !isClubMode &&
     !isClubCreateMode &&
+    !isClubEditMode &&
     myProfileQuery.isLoading
   ) {
     return (
@@ -243,7 +247,7 @@ export default function LocationEditScreen() {
           <Ionicons name="chevron-back" size={28} color={MUTED} />
         </Pressable>
         <Text style={styles.headerTitle}>
-          {isClubMode || isClubCreateMode ? "지역 선택" : "거주지 수정"}
+          {isClubMode || isClubCreateMode || isClubEditMode ? "지역 선택" : "거주지 수정"}
         </Text>
         <View style={styles.headerButton} />
       </View>
@@ -253,14 +257,18 @@ export default function LocationEditScreen() {
           <Text style={styles.title}>
             {isClubCreateMode
               ? "어느 지역에서\n활동하는 동호회인가요?"
-              : isClubMode
+              : isClubEditMode
+                ? "어느 지역에서\n활동하는 동호회인가요?"
+                : isClubMode
                 ? "어떤 지역의\n동호회를 볼까요?"
                 : "현재 거주하는\n지역이 어디인가요?"}
           </Text>
           <Text style={styles.subtitle}>
             {isClubCreateMode
               ? "동호회의 주요 활동 지역을 선택해주세요."
-              : isClubMode
+              : isClubEditMode
+                ? "동호회의 주요 활동 지역을 선택해주세요."
+                : isClubMode
                 ? "선택한 지역의 동호회를 보여드려요."
                 : "내 거주지와 가까운 분들과 더 잘 이어져요."}
           </Text>

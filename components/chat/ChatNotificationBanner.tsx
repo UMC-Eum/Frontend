@@ -41,7 +41,6 @@ type ChatRoomPreview = {
 };
 
 const DISPLAY_DURATION_MS = 5000;
-const CHAT_NOTIFICATION_POLL_MS = 3000;
 const COLORS = {
   primary: "#FF3E70",
   primarySoft: "#FFE2EA",
@@ -79,7 +78,6 @@ export default function ChatNotificationBanner() {
   const chatRoomsQuery = useChatRoomsInfiniteQuery(undefined, {
     enabled: isAuthInitialized && isAuthenticated,
     staleTime: 0,
-    refetchInterval: CHAT_NOTIFICATION_POLL_MS,
     refetchOnMount: false,
   });
 
