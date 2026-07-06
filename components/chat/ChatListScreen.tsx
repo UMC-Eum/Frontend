@@ -208,20 +208,6 @@ function mapChatRooms(data?: {
   );
 }
 
-function mapActiveMembers(items: ChatPreview[]): ActiveMember[] {
-  const fromChats = items
-    .filter((item) => !item.isClub)
-    .filter((item) => item.image)
-    .map((item) => ({
-      id: `active-${item.id}`,
-      name: item.name,
-      age: 0,
-      image: item.image ?? "",
-    }));
-
-  return fromChats;
-}
-
 function formatRelativeTime(value?: string | null) {
   if (!value) return "";
 

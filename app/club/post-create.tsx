@@ -50,7 +50,7 @@ type InputField = "title" | "content";
 export default function ClubPostCreateScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const params = useLocalSearchParams<{ clubId?: string }>();
+  const params = useLocalSearchParams<{ clubId?: string; canPin?: string }>();
   const insets = useSafeAreaInsets();
   const inputScroll = useFastInputScroll();
   const inputOffsets = useRef<Record<InputField, number>>({
@@ -96,7 +96,11 @@ export default function ClubPostCreateScreen() {
       queryClient.invalidateQueries({ queryKey: queryKeys.articles.all(clubId) });
       router.replace({
         pathname: "/club/post-detail",
-        params: { postId: String(articleId), clubId: String(clubId) },
+        params: {
+          postId: String(articleId),
+          clubId: String(clubId),
+          canPin: params.canPin === "true" ? "true" : "false",
+        },
       } as never);
     },
     onError: (error) => {

@@ -10,6 +10,7 @@ import ClubActionSheet, { type ActionSheetItem } from "@/components/club/ClubAct
 import DeleteClubModal from "@/components/club/DeleteClubModal";
 import { IconCalendar, IconPerson, IconTrash, IconWrite } from "@/components/SvgIcons";
 import { useMockClubStore } from "@/stores/mockClubStore";
+import { shareClub } from "@/utils/shareLinks";
 
 const PINK = "#FC3367";
 const BLACK = "#202020";
@@ -147,7 +148,11 @@ export default function ClubManageScreen() {
           <Ionicons name="chevron-back" size={28} color={BLACK} />
         </Pressable>
         <View style={styles.headerActions}>
-          <Pressable style={styles.headerIconButton} hitSlop={12}>
+          <Pressable
+            style={styles.headerIconButton}
+            onPress={() => shareClub(clubId, club.title)}
+            hitSlop={12}
+          >
             <Ionicons name="share-outline" size={24} color={BLACK} />
           </Pressable>
           <Pressable

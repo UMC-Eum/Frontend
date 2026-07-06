@@ -15,6 +15,7 @@ import {
   getMyClubs,
   getRecentClubSearches,
   getRecommendedClubs,
+  getTodayRecommendedClubs,
   getTopHosts,
   joinClub,
   leaveClub,
@@ -63,6 +64,13 @@ export function useRecommendedClubsQuery() {
   return useQuery({
     queryKey: queryKeys.club.recommended(),
     queryFn: getRecommendedClubs,
+  });
+}
+
+export function useTodayRecommendedClubsQuery() {
+  return useQuery({
+    queryKey: queryKeys.club.todayRecommended(),
+    queryFn: getTodayRecommendedClubs,
   });
 }
 
