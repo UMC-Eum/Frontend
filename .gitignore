@@ -71,8 +71,10 @@ render.experimental.xml
 *.jks
 *.keystore
 
-# Google Services (e.g. APIs or Firebase)
-google-services.json
+# Native projects — 관리형(prebuild/EAS 생성). google-services.json / GoogleService-Info.plist는
+# EAS 빌드가 config plugin으로 주입하도록 커밋 대상으로 둔다.
+/ios/
+/android/
 
 # Android Profiling
 *.hprof
