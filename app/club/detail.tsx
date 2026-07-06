@@ -1,9 +1,9 @@
 import { KeyboardAvoidingView } from "@/components/KeyboardCompat";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -141,6 +141,8 @@ export default function ClubDetailScreen() {
 
   const detailQuery = useClubDetailQuery(clubId);
   const myClubsQuery = useMyClubsQuery();
+  const refetchDetail = detailQuery.refetch;
+  const refetchMyClubs = myClubsQuery.refetch;
   const joinMutation = useJoinClubMutation(clubId);
   const leaveMutation = useLeaveClubMutation();
   const deleteClubMutation = useDeleteClubMutation();
@@ -153,11 +155,18 @@ export default function ClubDetailScreen() {
   const myClubStatus = myClubsQuery.data?.items.find(
     (item) => item.clubId === clubId,
   )?.status;
-  const currentJoinStatus = joinStatus ?? myClubStatus ?? null;
+  const isConfirmedJoined =
+    joinStatus === "ACTIVE" ||
+    myClubStatus === "ACTIVE" ||
+    Boolean(detail?.isJoined);
+  const currentJoinStatus =
+    joinStatus === "LEFT"
+      ? "LEFT"
+      : isConfirmedJoined
+        ? "ACTIVE"
+        : myClubStatus ?? joinStatus ?? null;
 
-  const isJoined =
-    currentJoinStatus === "ACTIVE" ||
-    Boolean(detail?.isJoined && currentJoinStatus !== "LEFT");
+  const isJoined = currentJoinStatus === "ACTIVE";
   const isJoinPending = currentJoinStatus === "PENDING";
   const isHost = detail?.myAuthority === "HOST";
   // 게스트/멤버/호스트 역할과 화면 권한을 한 곳에서 계산한다.
@@ -212,6 +221,24 @@ export default function ClubDetailScreen() {
   const memberCount = detail?.memberCount ?? 0;
   const maxMemberCount = detail?.capacity ?? 0;
   const description = detail?.introText ?? "";
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!Number.isFinite(clubId)) return;
+
+      void refetchDetail();
+      void refetchMyClubs();
+    }, [clubId, refetchDetail, refetchMyClubs]),
+  );
+
+  useEffect(() => {
+    if (activeTab !== "chat" || viewer.canUseChat || !Number.isFinite(clubId)) {
+      return;
+    }
+
+    void refetchDetail();
+    void refetchMyClubs();
+  }, [activeTab, clubId, refetchDetail, refetchMyClubs, viewer.canUseChat]);
 
   const handleFavoritePress = () => {
     setFavorite((prev) => !prev);
@@ -337,8 +364,9 @@ export default function ClubDetailScreen() {
       ),
       title: "동호회 신고",
       description: "부적절한 동호회를 신고해요",
+      // TODO(EUM): 백엔드 동호회 신고 API 추가 후 연결 (현재 스펙에 클럽 신고 엔드포인트 없음)
       onPress: () =>
-        Alert.alert("신고 접수", "신고가 접수되었어요. 검토 후 조치할게요."),
+        Alert.alert("준비 중", "동호회 신고 기능을 준비하고 있어요."),
     },
   ];
 
@@ -496,7 +524,11 @@ export default function ClubDetailScreen() {
         {activeTab === "chat" ? (
           viewer.canUseChat ? (
             clubChatRoomId ? (
-              <ClubChatTab chatRoomId={clubChatRoomId} bottomPadding={0} />
+              <ClubChatTab
+                chatRoomId={clubChatRoomId}
+                clubId={clubId}
+                bottomPadding={0}
+              />
             ) : clubChatRoomQuery.isLoading || clubChatRoomQuery.isFetching ? (
               <View style={styles.preJoinChatPlaceholder}>
                 <ActivityIndicator color={PINK} />

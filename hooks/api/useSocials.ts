@@ -2,7 +2,6 @@ import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-q
 
 import {
   blockUser,
-  createClubReport,
   createReport,
   getBlocks,
   getReceivedHearts,
@@ -13,7 +12,6 @@ import {
 } from "@/api/socials/socialsApi";
 import {
   IBlocksRequest,
-  IClubReportRequest,
   IReportsRequest,
 } from "@/types/api/socials/socialsDTO";
 
@@ -124,11 +122,5 @@ export function usePatchBlockMutation() {
 export function useCreateReportMutation() {
   return useMutation({
     mutationFn: (body: IReportsRequest) => createReport(body),
-  });
-}
-
-export function useCreateClubReportMutation() {
-  return useMutation({
-    mutationFn: (body: IClubReportRequest) => createClubReport(body),
   });
 }

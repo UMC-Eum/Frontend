@@ -3,6 +3,7 @@ import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-q
 import {
   deleteNotification,
   getNotificationChats,
+  getNotificationClubs,
   getNotificationHearts,
   getNotifications,
   readAllHeartNotifications,
@@ -13,12 +14,13 @@ import { queryKeys } from "./queryKeys";
 import { useProtectedQueryEnabled } from "./useProtectedQueryEnabled";
 
 const DEFAULT_PAGE_SIZE = 20;
-type NotificationScope = "all" | "heart" | "chat";
+type NotificationScope = "all" | "heart" | "chat" | "club";
 
 const notificationFetchers = {
   all: getNotifications,
   heart: getNotificationHearts,
   chat: getNotificationChats,
+  club: getNotificationClubs,
 };
 
 export function useNotificationsInfiniteQuery(

@@ -1,5 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useQueryClient } from "@tanstack/react-query";
+import type { InfiniteData } from "@tanstack/react-query";
 import { isAxiosError } from "axios";
 import {
   AudioModule,
@@ -32,7 +33,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import {
   isChatS3UploadError,
   postChatMediaPresign,
-  readChatMessage,
+  readChatRoom,
   uploadChatFileToS3,
   uploadChatFileUriToS3,
 } from "@/api/chats/chatsApi";
@@ -313,9 +314,7 @@ export default function ChatRoom() {
       readMessageIdsRef.current.add(messageId);
     });
 
-    void Promise.all(
-      unreadMessageIds.map((messageId) => readChatMessage(messageId)),
-    )
+    void readChatRoom(chatRoomId)
       .then(() => {
         queryClient.invalidateQueries({ queryKey: queryKeys.chats.all });
         queryClient.invalidateQueries({
@@ -419,6 +418,26 @@ export default function ChatRoom() {
         return;
       }
 
+      const isMineMessage = myUserId
+        ? nextMessage.senderUserId === myUserId
+        : peerUserIdRef.current
+          ? nextMessage.senderUserId !== peerUserIdRef.current
+          : false;
+
+      if (
+        !isMineMessage &&
+        !readMessageIdsRef.current.has(nextMessage.messageId)
+      ) {
+        readMessageIdsRef.current.add(nextMessage.messageId);
+        void readChatRoom(chatRoomId)
+          .then(() => {
+            queryClient.invalidateQueries({ queryKey: queryKeys.chats.all });
+          })
+          .catch((error) => {
+            console.log("[ChatSocket] read incoming message error", error);
+          });
+      }
+
       queryClient.invalidateQueries({
         queryKey: queryKeys.chats.messages(chatRoomId, 30),
       });
@@ -466,14 +485,21 @@ export default function ChatRoom() {
       if (readEvent.chatRoomId !== chatRoomId) return;
 
       console.log("[ChatSocket] message.read", readEvent);
+      if (readEvent.readerUserId !== myUserId) {
+        queryClient.setQueryData(
+          queryKeys.chats.messages(chatRoomId, 30),
+          (current: InfiniteData<CachedChatMessagesPage> | undefined) =>
+            markCachedMessagesRead(current, readEvent),
+        );
+        setOptimisticMessages((prevMessages) =>
+          markSocketMessageRead(prevMessages, readEvent),
+        );
+      }
+
       queryClient.invalidateQueries({
         queryKey: queryKeys.chats.messages(chatRoomId, 30),
       });
       queryClient.invalidateQueries({ queryKey: queryKeys.chats.all });
-
-      setOptimisticMessages((prevMessages) =>
-        markSocketMessageRead(prevMessages, readEvent),
-      );
     }, socket);
 
     const unsubscribeMessageDeleted = onMessageDeleted((payload) => {
@@ -967,7 +993,11 @@ export default function ChatRoom() {
           behavior={KEYBOARD_AVOIDING_BEHAVIOR}
           keyboardVerticalOffset={KEYBOARD_VERTICAL_OFFSET}
         >
-          <ClubChatTab chatRoomId={chatRoomId} bottomPadding={0} />
+          <ClubChatTab
+            chatRoomId={chatRoomId}
+            clubId={roomDetail?.club?.clubId}
+            bottomPadding={0}
+          />
         </KeyboardAvoidingView>
       </SafeAreaView>
     );
@@ -1538,11 +1568,11 @@ function markSocketMessageRead(
   readEvent: MessageReadData,
 ) {
   return messages.map((message) => {
-    if (message.id !== `message-${readEvent.messageId}`) {
+    if (message.type === "date" || !message.isMine) {
       return message;
     }
 
-    if (message.type === "date") {
+    if (!isReadByEvent(message, readEvent)) {
       return message;
     }
 
@@ -1551,6 +1581,65 @@ function markSocketMessageRead(
       showUnreadIndicator: false,
     };
   });
+}
+
+type CachedChatMessagesPage = {
+  items: {
+    messageId: number;
+    isMine: boolean;
+    sentAt: string;
+    readAt?: string | null;
+  }[];
+};
+
+function markCachedMessagesRead(
+  current: InfiniteData<CachedChatMessagesPage> | undefined,
+  readEvent: MessageReadData,
+) {
+  return current
+    ? {
+        ...current,
+        pages: current.pages.map((page) => ({
+          ...page,
+          items: page.items.map((message) =>
+            message.isMine &&
+            isMessageReadByEvent(message.messageId, message.sentAt, readEvent)
+              ? { ...message, readAt: readEvent.readAt }
+              : message,
+          ),
+        })),
+      }
+    : current;
+}
+
+function isReadByEvent(
+  message: Exclude<ChatMessageData, { type: "date" }>,
+  readEvent: MessageReadData,
+) {
+  const messageId = getMessageId(message.id);
+  return isMessageReadByEvent(messageId, message.sentAt, readEvent);
+}
+
+function isMessageReadByEvent(
+  messageId: number | null,
+  sentAt: string | undefined,
+  readEvent: MessageReadData,
+) {
+  if (messageId !== null) return messageId <= readEvent.messageId;
+  if (!sentAt) return false;
+
+  const sentAtMs = Date.parse(sentAt);
+  const readAtMs = Date.parse(readEvent.readAt);
+  return (
+    Number.isFinite(sentAtMs) &&
+    Number.isFinite(readAtMs) &&
+    sentAtMs <= readAtMs
+  );
+}
+
+function getMessageId(id: string) {
+  const match = /^message-(\d+)$/.exec(id);
+  return match ? Number(match[1]) : null;
 }
 
 function getSocketMessageData(payload: unknown): MessageNewData | null {

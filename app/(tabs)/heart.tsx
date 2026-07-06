@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useFocusEffect, useRouter } from "expo-router";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -64,8 +64,11 @@ type OptimisticHeartState = {
 
 export default function HeartScreen() {
   const router = useRouter();
+  const { tab } = useLocalSearchParams<{ tab?: string }>();
   const { width } = useWindowDimensions();
-  const [activeTab, setActiveTab] = useState<HeartTab>("received");
+  const [activeTab, setActiveTab] = useState<HeartTab>(
+    tab === "sent" ? "sent" : "received",
+  );
   const [isPullRefreshing, setIsPullRefreshing] = useState(false);
   const [pendingUserIds, setPendingUserIds] = useState<Set<number>>(
     () => new Set(),
@@ -113,6 +116,10 @@ export default function HeartScreen() {
   const activeQuery = activeTab === "received" ? receivedQuery : sentQuery;
   const isInitialLoading = activeQuery.isLoading && profiles.length === 0;
   const receivedCount = receivedProfiles.length;
+
+  useEffect(() => {
+    if (tab === "sent" || tab === "received") setActiveTab(tab);
+  }, [tab]);
 
   // 마음함이 포커스되면 현재까지 받은 마음을 읽음 처리해 navbar dot을 끈다.
   const markHeartsSeen = useHeartBadgeStore((state) => state.markHeartsSeen);

@@ -267,9 +267,10 @@ export const sendChatMessage = async (
   return data.success.data;
 };
 
-export const readChatMessage = async (messageId: number) => {
-  const { data } = await api.patch<ApiSuccessResponse<null>>(
-    `/v1/chats/messages/${messageId}/read`,
+/** 채팅방 읽음 처리(읽음 커서 전진). 방 단위로 내 lastReadAt을 현재 시각으로 전진시킨다. */
+export const readChatRoom = async (chatRoomId: number) => {
+  const { data } = await api.patch<ApiSuccessResponse<{ lastReadAt: string }>>(
+    `/v1/chats/rooms/${chatRoomId}/read`,
   );
   return data.success.data;
 };

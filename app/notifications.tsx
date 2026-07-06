@@ -53,7 +53,7 @@ export default function NotificationsScreen() {
     notificationEnabled,
   );
   const clubQuery = useNotificationsInfiniteQuery(
-    "chat",
+    "club",
     undefined,
     notificationEnabled,
   );

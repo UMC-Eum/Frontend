@@ -26,3 +26,8 @@ export interface INotificationChatGetResponse {
   nextCursor: string | null;
   items: INotification[];
 }
+//v1/notifications/clubs(get)
+export interface INotificationClubGetResponse {
+  nextCursor: string | null;
+  items: INotification[];
+}

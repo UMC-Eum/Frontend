@@ -124,13 +124,24 @@ function mapCommentsToClubPostComments(
       createdAt: comment.createdAt,
       isMine: comment.isMine,
     },
-    ...(comment.replies ?? []).flatMap(flatten),
+    ...sortCommentsByCreatedAt(comment.replies ?? []).flatMap(flatten),
   ];
 
   return {
     nextCursor: response.hasMore ? response.nextCursor : null,
-    items: response.comments.flatMap(flatten),
+    items: sortCommentsByCreatedAt(response.comments).flatMap(flatten),
   };
+}
+
+function sortCommentsByCreatedAt<T extends { createdAt: string }>(comments: T[]) {
+  return [...comments].sort(
+    (a, b) => getCommentTimestamp(a.createdAt) - getCommentTimestamp(b.createdAt),
+  );
+}
+
+function getCommentTimestamp(value: string) {
+  const timestamp = Date.parse(value);
+  return Number.isNaN(timestamp) ? 0 : timestamp;
 }
 
 export const updateClubPostComment = async (
