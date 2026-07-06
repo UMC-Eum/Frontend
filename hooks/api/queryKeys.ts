@@ -27,7 +27,7 @@ export const queryKeys = {
   },
   notifications: {
     all: ["notifications"] as const,
-    list: (scope: "all" | "heart" | "chat", size: number) =>
+    list: (scope: "all" | "heart" | "chat" | "club", size: number) =>
       [...queryKeys.notifications.all, scope, { size }] as const,
   },
   agreements: {
@@ -62,9 +62,10 @@ export const queryKeys = {
     all: ["club"] as const,
     list: (params: object) => [...queryKeys.club.all, "list", params] as const,
     detail: (clubId: number) => [...queryKeys.club.all, "detail", clubId] as const,
-    recommended: () => [...queryKeys.club.all, "recommended"] as const,
-    todayRecommended: () =>
-      [...queryKeys.club.all, "todayRecommended"] as const,
+    recommended: (params: object = {}) =>
+      [...queryKeys.club.all, "recommended", params] as const,
+    todayRecommended: (limit: number) =>
+      [...queryKeys.club.all, "todayRecommended", { limit }] as const,
     topHosts: (limit: number) => [...queryKeys.club.all, "topHosts", { limit }] as const,
     my: () => [...queryKeys.club.all, "my"] as const,
     archives: (clubId: number, params: object) =>

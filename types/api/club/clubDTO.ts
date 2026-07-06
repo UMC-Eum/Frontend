@@ -39,10 +39,15 @@ export interface IClubMeetingSummary {
 export interface IClubListParams {
   keyword?: string;
   category?: ClubCategory;
-  areaCode?: string;
   sort?: ClubListSort;
   cursor?: string | null;
   limit?: number;
+}
+
+export interface IRecommendedClubsParams {
+  cursor?: string | null;
+  size?: number;
+  areaCode?: string;
 }
 
 export interface IClubListItem {

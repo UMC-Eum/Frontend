@@ -11,10 +11,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import {
-  getChatMessages,
-  readChatMessage,
-} from "@/api/chats/chatsApi";
+import { readChatRoom } from "@/api/chats/chatsApi";
 import { connectChatSocket, onMessageNew } from "@/api/chats/chatSocketApi";
 import { useChatRoomsInfiniteQuery } from "@/hooks/api/useChats";
 import { queryKeys } from "@/hooks/api/queryKeys";
@@ -72,6 +69,7 @@ export default function ChatNotificationBanner() {
   );
   const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const unreadCountsRef = useRef<Map<number, number> | null>(null);
+  const clubRoomIdsRef = useRef<Set<number>>(new Set());
 
   const currentChatRoomId = useMemo(() => {
     if (!pathname.startsWith("/chat/")) return null;
@@ -101,6 +99,8 @@ export default function ChatNotificationBanner() {
       const nextMessage = payload.success.data;
       if (nextMessage.senderUserId === myUserId) return;
       if (nextMessage.chatRoomId === currentChatRoomId) return;
+      // 동호회 채팅 메시지는 채팅 배너로 띄우지 않는다.
+      if (clubRoomIdsRef.current.has(nextMessage.chatRoomId)) return;
 
       setNotification(mapChatNotification(nextMessage));
       queryClient.invalidateQueries({ queryKey: queryKeys.chats.all });
@@ -116,6 +116,20 @@ export default function ChatNotificationBanner() {
     notificationEnabled,
     queryClient,
   ]);
+
+  // 소켓 배너 필터용 동호회 방 ID 목록을 최신 상태로 유지한다.
+  useEffect(() => {
+    const clubRoomIds = new Set<number>();
+    chatRoomsQuery.data?.pages.forEach((page) => {
+      (page.items ?? []).forEach((room) => {
+        if (!room?.chatRoomId) return;
+        if (room.type === "CLUB" || (!room.peer && room.club)) {
+          clubRoomIds.add(room.chatRoomId);
+        }
+      });
+    });
+    clubRoomIdsRef.current = clubRoomIds;
+  }, [chatRoomsQuery.data]);
 
   useEffect(() => {
     if (!notificationEnabled) return;
@@ -182,14 +196,9 @@ export default function ChatNotificationBanner() {
 
   const handleRead = async () => {
     const chatRoomId = notification.chatRoomId;
-    const messageId = notification.messageId;
     dismiss();
 
-    if (messageId > 0) {
-      await readChatMessage(messageId).catch(() => undefined);
-    } else {
-      await readLatestUnreadMessages(chatRoomId).catch(() => undefined);
-    }
+    await readChatRoom(chatRoomId).catch(() => undefined);
 
     queryClient.invalidateQueries({
       queryKey: queryKeys.chats.messages(chatRoomId, 30),
@@ -265,10 +274,12 @@ function mapChatRoomPreviews(data?: {
   pages: {
     items?: {
       chatRoomId?: number | null;
+      type?: string | null;
       peer?: {
         nickname?: string | null;
         profileImageUrl?: string | null;
       } | null;
+      club?: unknown;
       lastMessage?: {
         textPreview?: string | null;
         sentAt?: string | null;
@@ -281,6 +292,8 @@ function mapChatRoomPreviews(data?: {
     data?.pages.flatMap((page) =>
       (page.items ?? []).flatMap((room) => {
         if (!room.chatRoomId) return [];
+        // 동호회 채팅은 채팅 배너 대상이 아니다 (알림 탭의 동호회 알림으로 안내).
+        if (room.type === "CLUB" || (!room.peer && room.club)) return [];
 
         return {
           chatRoomId: room.chatRoomId,
@@ -293,17 +306,6 @@ function mapChatRoomPreviews(data?: {
         };
       }),
     ) ?? []
-  );
-}
-
-async function readLatestUnreadMessages(chatRoomId: number) {
-  const messages = await getChatMessages(chatRoomId, { size: 30 });
-  const unreadMessageIds = messages.items
-    .filter((message) => !message.isMine && !message.readAt)
-    .map((message) => message.messageId);
-
-  await Promise.all(
-    unreadMessageIds.map((messageId) => readChatMessage(messageId)),
   );
 }
 

@@ -7,10 +7,13 @@ import {
   getChatRoomDetail,
   getChatRooms,
   patchChatRoomLeave,
-  readChatMessage,
+  readChatRoom,
   sendChatMessage,
 } from "@/api/chats/chatsApi";
-import { IChatsRoomsPostRequest, IChatsRoomIdMessagesPostRequset } from "@/types/api/chats/chatsDTO";
+import {
+  IChatsRoomIdMessagesPostRequset,
+  IChatsRoomsPostRequest,
+} from "@/types/api/chats/chatsDTO";
 
 import { queryKeys } from "./queryKeys";
 import { useProtectedQueryEnabled } from "./useProtectedQueryEnabled";
@@ -114,9 +117,9 @@ export function useSendChatMessageMutation(chatRoomId: number) {
   });
 }
 
-export function useReadChatMessageMutation() {
+export function useReadChatRoomMutation() {
   return useMutation({
-    mutationFn: (messageId: number) => readChatMessage(messageId),
+    mutationFn: (chatRoomId: number) => readChatRoom(chatRoomId),
   });
 }
 

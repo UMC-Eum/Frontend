@@ -28,7 +28,6 @@ type ChatPreview = {
   timeLabel: string;
   unreadCount: number;
   image?: string;
-  isClub?: boolean;
 };
 
 export default function ChatListScreen() {
@@ -59,9 +58,7 @@ export default function ChatListScreen() {
       style={styles.chatItem}
       onPress={() => openChatRoom(item.id)}
       accessibilityRole="button"
-      accessibilityLabel={
-        item.isClub ? `${item.name} 동호회 대화` : `${item.name}님과의 대화`
-      }
+      accessibilityLabel={`${item.name}님과의 대화`}
     >
       {item.image ? (
         <Image
@@ -181,25 +178,20 @@ function mapChatRooms(data?: {
       data?.pages.flatMap((page) =>
         (page.items ?? []).flatMap((room) => {
           if (!room?.chatRoomId) return [];
-          const isClub = room.type === "CLUB";
+          // 동호회 채팅은 공지 성격이라 1:1 대화 목록에서 제외한다 (동호회 탭/알림에서 확인).
+          const isClub = room.type === "CLUB" || (!room.peer && Boolean(room.club));
+          if (isClub) return [];
 
           return {
             id: String(room.chatRoomId),
-            name: isClub
-              ? room.club?.name?.trim() || "동호회 채팅"
-              : room.peer?.nickname?.trim() || "이름 없는 사용자",
-            location: isClub
-              ? `${room.memberCount ?? 0}명 참여중`
-              : room.peer?.areaName?.trim() || "지역 정보 없음",
+            name: room.peer?.nickname?.trim() || "이름 없는 사용자",
+            location: room.peer?.areaName?.trim() || "지역 정보 없음",
             lastMessage:
               room.lastMessage?.textPreview?.trim() ||
               "새로운 대화를 시작해보세요.",
             timeLabel: formatRelativeTime(room.lastMessage?.sentAt),
             unreadCount: room.unreadCount ?? 0,
-            image: isClub
-              ? room.club?.thumbnailUrl ?? undefined
-              : room.peer?.profileImageUrl ?? undefined,
-            isClub,
+            image: room.peer?.profileImageUrl ?? undefined,
           };
         }),
       ) ?? [],

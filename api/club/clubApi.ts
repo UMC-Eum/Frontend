@@ -91,17 +91,21 @@ export const unlikeClub = async (clubId: number) => {
   return data.success.data;
 };
 
-export const getRecommendedClubs = async () => {
+export const getRecommendedClubs = async (
+  params: DTO.IRecommendedClubsParams = {},
+) => {
   const { data } = await api.get<
     ApiSuccessResponse<DTO.IRecommendedClubsResponse>
-  >("/v1/matches/club/recommended");
+  >("/v1/matches/club/recommended", { params });
   return data.success.data;
 };
 
-export const getTodayRecommendedClubs = async () => {
+export const getTodayRecommendedClubs = async (
+  params: { limit?: number } = {},
+) => {
   const { data } = await api.get<
     ApiSuccessResponse<DTO.IRecommendedClubsResponse>
-  >("/v1/clubs/today-recommended");
+  >("/v1/clubs/today-recommended", { params });
   return data.success.data;
 };
 

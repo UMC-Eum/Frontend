@@ -60,17 +60,21 @@ export function useClubDetailQuery(clubId: number, enabled = true) {
   });
 }
 
-export function useRecommendedClubsQuery() {
+export function useRecommendedClubsQuery(
+  params: DTO.IRecommendedClubsParams = {},
+  enabled = true,
+) {
   return useQuery({
-    queryKey: queryKeys.club.recommended(),
-    queryFn: getRecommendedClubs,
+    queryKey: queryKeys.club.recommended(params),
+    queryFn: () => getRecommendedClubs(params),
+    enabled,
   });
 }
 
-export function useTodayRecommendedClubsQuery() {
+export function useTodayRecommendedClubsQuery(limit = 10) {
   return useQuery({
-    queryKey: queryKeys.club.todayRecommended(),
-    queryFn: getTodayRecommendedClubs,
+    queryKey: queryKeys.club.todayRecommended(limit),
+    queryFn: () => getTodayRecommendedClubs({ limit }),
   });
 }
 

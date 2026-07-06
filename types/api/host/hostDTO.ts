@@ -12,8 +12,6 @@ export interface IClubUpdateRequest {
   introVoice?: string | null;
   capacity?: number;
   category?: ClubCategory;
-  areaCode?: string;
-  keywordIds?: number[];
 }
 
 export interface IClubUpdateResponse {

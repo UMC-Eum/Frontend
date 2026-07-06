@@ -96,7 +96,11 @@ export default function ClubManageScreen() {
       renderIcon: () => <IconWrite width={28} height={28} />,
       title: "동호회 정보 수정",
       description: "이름, 소개, 사진, 카테고리 등",
-      onPress: () => router.push("/club/manage-settings" as never),
+      onPress: () =>
+        router.push({
+          pathname: "/club/manage-settings",
+          params: { clubId: String(clubId) },
+        } as never),
     },
     {
       key: "members",

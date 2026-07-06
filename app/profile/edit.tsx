@@ -31,14 +31,13 @@ import {
   useUpdateMyProfileMutation,
 } from "@/hooks/api/useUsers";
 import { KEYBOARD_AVOIDING_BEHAVIOR } from "@/constants/keyboard";
+import { DEFAULT_PROFILE_IMAGE_URI } from "@/constants/defaultProfileImage";
 import { useFastInputScroll } from "@/hooks/useFastInputScroll";
 
 const ACCENT = "#FC3367";
 const TEXT = "#202020";
 const MUTED = "#A6AFB6";
 const PROFILE_IMAGE_PURPOSE = "PROFILE_IMAGE";
-const DEFAULT_PROFILE_IMAGE =
-  "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=240&h=240&fit=crop&crop=faces";
 const NAME_INPUT_SCROLL_Y = 150;
 const INTRO_INPUT_SCROLL_Y = 280;
 
@@ -139,7 +138,7 @@ export default function ProfileEditScreen() {
 
   const handleDefaultProfile = () => {
     setPickedImage(null);
-    setImageUri(DEFAULT_PROFILE_IMAGE);
+    setImageUri(DEFAULT_PROFILE_IMAGE_URI);
     setShowActionSheet(false);
   };
 
@@ -253,7 +252,7 @@ export default function ProfileEditScreen() {
           <Pressable style={styles.photoButton} onPress={handlePhotoPick}>
             <View style={styles.avatar}>
               <Image
-                source={{ uri: imageUri || DEFAULT_PROFILE_IMAGE }}
+                source={{ uri: imageUri || DEFAULT_PROFILE_IMAGE_URI }}
                 style={styles.avatarImage}
                 resizeMode="cover"
               />
