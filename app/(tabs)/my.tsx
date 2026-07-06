@@ -2,7 +2,6 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import {
   Alert,
-  ActivityIndicator,
   Image,
   ScrollView,
   StyleSheet,
@@ -13,6 +12,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { MyClubRowListSkeleton } from "@/components/skeletons";
 import { useMyClubsQuery } from "@/hooks/api/useClub";
 import { useLogoutMutation } from "@/hooks/api/useAuth";
 import { useRecommendationsInfiniteQuery } from "@/hooks/api/useRecommendations";
@@ -221,10 +221,7 @@ export default function MyTabScreen() {
           <Text style={styles.sectionTitle}>내 동호회</Text>
 
           {myClubsQuery.isLoading ? (
-            <View style={styles.clubLoadingBox}>
-              <ActivityIndicator color={ACCENT} />
-              <Text style={styles.clubEmptyText}>내 동호회를 불러오는 중이에요.</Text>
-            </View>
+            <MyClubRowListSkeleton />
           ) : myClubs.length > 0 ? (
             myClubs.map((club, index) => (
               <ClubRow
@@ -641,11 +638,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "500",
     lineHeight: 18,
-  },
-  clubLoadingBox: {
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 12,
   },
   viewAllButton: {
     height: 34,

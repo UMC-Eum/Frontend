@@ -28,7 +28,7 @@ export interface IProfileVisitResponse {
 
 export interface IMyProfileVisitorsRequest {
   cursor?: string | null;
-  limit?: number;
+  size?: number;
 }
 
 export interface IMyProfileVisitorItem {
@@ -36,13 +36,14 @@ export interface IMyProfileVisitorItem {
   nickname: string;
   profileImageUrl: string | null;
   age: number;
-  sex: "M" | "F" | (string & {});
-  introText: string;
+  gender: "M" | "F" | (string & {});
+  areaName?: string | null;
+  introText?: string | null;
   visitedAt: string;
 }
 
 export interface IMyProfileVisitorsResponse {
-  visitors: IMyProfileVisitorItem[];
+  items: IMyProfileVisitorItem[];
   nextCursor: string | null;
 }
 

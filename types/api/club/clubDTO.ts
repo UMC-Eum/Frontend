@@ -39,6 +39,7 @@ export interface IClubMeetingSummary {
 export interface IClubListParams {
   keyword?: string;
   category?: ClubCategory;
+  areaCode?: string;
   sort?: ClubListSort;
   cursor?: string | null;
   limit?: number;
@@ -89,6 +90,10 @@ export interface IClubDetailResponse {
   thumbnailUrl: string | null;
   introVoice: string | null;
   introText: string;
+  areaCode?: string | null;
+  areaName?: string | null;
+  addressCode?: string | null;
+  addressName?: string | null;
   capacity: number;
   memberCount: number;
   likes: number;

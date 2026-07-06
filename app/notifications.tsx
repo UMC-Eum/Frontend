@@ -14,6 +14,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import NotificationItem from "@/components/NotificationItem";
+import { NotificationListSkeleton } from "@/components/skeletons";
 import {
   useNotificationsInfiniteQuery,
   useReadNotificationMutation,
@@ -146,18 +147,8 @@ export default function NotificationsScreen() {
         />
       </View>
 
-      {!notificationEnabled ? (
-        <View style={styles.emptyWrap}>
-          <Ionicons name="notifications-off-outline" size={34} color="#CBD5E1" />
-          <Text style={styles.emptyTitle}>알림 설정이 꺼져 있어요</Text>
-          <Text style={styles.emptyText}>
-            마이페이지에서 알림 설정을 켜면 마음과 대화 알림을 확인할 수 있어요.
-          </Text>
-        </View>
-      ) : isInitialLoading ? (
-        <View style={styles.loadingWrap}>
-          <ActivityIndicator color="#FF4F7E" />
-        </View>
+      {isInitialLoading ? (
+        <NotificationListSkeleton />
       ) : (
         <FlatList
           data={notifications}
@@ -353,11 +344,6 @@ const styles = StyleSheet.create({
   },
   emptyListContent: {
     flexGrow: 1,
-  },
-  loadingWrap: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
   },
   footerLoading: {
     height: 56,

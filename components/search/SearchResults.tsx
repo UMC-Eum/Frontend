@@ -10,6 +10,7 @@ import {
   View,
 } from "react-native";
 
+import { ClubRowListSkeleton } from "@/components/skeletons";
 import { Club, SortOption } from "@/types/search";
 
 import ClubRow from "./ClubRow";
@@ -63,7 +64,7 @@ export default function SearchResults({
               <Ionicons name="chevron-down" size={14} color="#202020" />
             </Pressable>
           ) : null}
-          {isLoading ? <LoadingState /> : null}
+          {isLoading ? <ClubRowListSkeleton count={5} featured /> : null}
           {!isLoading && !hasResults ? <EmptyState keyword={emptyKeyword} /> : null}
         </>
       }
@@ -103,15 +104,6 @@ export default function SearchResults({
 function parseClubId(value: string) {
   const match = value.match(/\d+/);
   return match?.[0] ?? value;
-}
-
-function LoadingState() {
-  return (
-    <View style={styles.loadingState}>
-      <ActivityIndicator size="small" color="#FC3367" />
-      <Text style={styles.loadingText}>동호회를 불러오는 중이에요.</Text>
-    </View>
-  );
 }
 
 function EmptyState({ keyword }: { keyword?: string }) {
@@ -186,16 +178,6 @@ const styles = StyleSheet.create({
     lineHeight: 17,
     color: "#A6AFB6",
     textAlign: "center",
-  },
-  loadingState: {
-    height: 176,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 10,
-  },
-  loadingText: {
-    fontSize: 12,
-    color: "#A6AFB6",
   },
   footerLoading: {
     height: 42,

@@ -12,7 +12,6 @@ export function useNavbarBadges({ suppressHeartBadge = false } = {}) {
   const queryOptions = {
     enabled: notificationEnabled && !suppressHeartBadge,
     staleTime: 0,
-    refetchInterval: 2500,
     refetchOnMount: false,
   } as const;
   const receivedHeartsQuery = useReceivedHeartsInfiniteQuery(
