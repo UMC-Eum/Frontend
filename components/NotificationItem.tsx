@@ -69,7 +69,12 @@ const formatRelativeTime = (timestamp: Date) => {
   }
 
   const diffHours = Math.floor(diffMinutes / 60);
-  return `${diffHours}시간전`;
+  if (diffHours < 24) {
+    return `${diffHours}시간전`;
+  }
+
+  const diffDays = Math.floor(diffHours / 24);
+  return `${diffDays}일전`;
 };
 
 const styles = StyleSheet.create({
