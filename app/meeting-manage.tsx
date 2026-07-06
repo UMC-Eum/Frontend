@@ -25,6 +25,7 @@ import {
   MeetingSummaryCard,
 } from "@/components/meeting/MeetingCreateParts";
 import { formatDday } from "@/components/meeting/meetingSchedule";
+import { useClubDetailQuery } from "@/hooks/api/useClub";
 import {
   useClubMembersInfiniteQuery,
   useKickClubMemberMutation,
@@ -46,16 +47,23 @@ export default function MeetingManageScreen() {
   const [pendingAction, setPendingAction] = useState<ManageAction | null>(null);
   const [actionError, setActionError] = useState("");
 
-  const meetingQuery = useMeetingDetailQuery(clubId, meetingId, hasValidParams);
+  const clubQuery = useClubDetailQuery(clubId, hasValidParams);
+  const canManageMeeting = clubQuery.data?.myAuthority === "HOST";
+  const canLoadManagement = hasValidParams && canManageMeeting;
+  const meetingQuery = useMeetingDetailQuery(
+    clubId,
+    meetingId,
+    canLoadManagement,
+  );
   const pendingMembersQuery = useClubMembersInfiniteQuery(
     clubId,
     { status: "PENDING", limit: 20 },
-    hasValidParams,
+    canLoadManagement,
   );
   const activeMembersQuery = useClubMembersInfiniteQuery(
     clubId,
     { status: "ACTIVE", limit: 20 },
-    hasValidParams,
+    canLoadManagement,
   );
   const updateMemberStatusMutation = useUpdateClubMemberStatusMutation(clubId);
   const kickMemberMutation = useKickClubMemberMutation(clubId);
@@ -143,6 +151,19 @@ export default function MeetingManageScreen() {
       {!hasValidParams ? (
         <View style={styles.centerState}>
           <Text style={styles.centerStateText}>정기모임 정보를 찾을 수 없어요.</Text>
+          <Pressable style={styles.retryButton} onPress={() => router.back()}>
+            <Text style={styles.retryButtonText}>돌아가기</Text>
+          </Pressable>
+        </View>
+      ) : clubQuery.isLoading ? (
+        <View style={styles.centerState}>
+          <ActivityIndicator color={MEETING_COLORS.pink} />
+        </View>
+      ) : !canManageMeeting ? (
+        <View style={styles.centerState}>
+          <Text style={styles.centerStateText}>
+            호스트만 정기모임을 관리할 수 있어요.
+          </Text>
           <Pressable style={styles.retryButton} onPress={() => router.back()}>
             <Text style={styles.retryButtonText}>돌아가기</Text>
           </Pressable>

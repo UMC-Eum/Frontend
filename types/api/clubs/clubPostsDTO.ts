@@ -13,6 +13,7 @@ export interface IClubPostImage {
 
 export interface IClubPostCommentItem {
   commentId: number;
+  parentCommentId: number | null;
   author: IClubPostAuthor;
   content: string;
   createdAt: string;
@@ -31,6 +32,7 @@ export interface IClubPostDetailResponse {
   commentCount: number;
   createdAt: string;
   isLiked: boolean;
+  isPinned: boolean;
   isMine?: boolean;
 }
 
@@ -55,10 +57,17 @@ export interface IClubPostUpdateRequest {
 
 export interface IClubPostCommentCreateRequest {
   content: string;
+  parentCommentId?: number | null;
 }
 
 export interface IClubPostCommentCreateResponse {
   commentId: number;
+}
+
+export interface IClubPostPinResponse {
+  postId?: number;
+  articleId?: number;
+  isPinned: boolean;
 }
 
 export interface IClubPostCommentsGetResponse {

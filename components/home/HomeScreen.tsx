@@ -38,9 +38,9 @@ import {
   ViewerListSkeleton,
 } from "@/components/skeletons";
 import {
-  useClubsInfiniteQuery,
   useMyClubsQuery,
   useRecommendedClubsQuery,
+  useTodayRecommendedClubsQuery,
 } from "@/hooks/api/useClub";
 import { useAuthStore } from "@/stores/authStore";
 import { useClubLocationStore } from "@/stores/clubLocationStore";
@@ -132,10 +132,14 @@ export default function HomePage() {
   const router = useRouter();
   const { width } = useWindowDimensions();
   const fabAnimation = useRef(new Animated.Value(1)).current;
+  const scrollViewRef = useRef<ScrollView>(null);
   const lastScrollY = useRef(0);
   const profileListRef = useRef<FlatList<Profile>>(null);
   const countdownEndAt = useRef(Date.now() + RECOMMENDATION_COUNTDOWN_MS);
-  const { tab: tabParam } = useLocalSearchParams<{ tab?: string }>();
+  const { tab: tabParam, tabPressAt } = useLocalSearchParams<{
+    tab?: string;
+    tabPressAt?: string;
+  }>();
   const [activeHomeTab, setActiveHomeTab] = useState<HomeTab>(
     tabParam === "club" ? "club" : "home",
   );
@@ -150,6 +154,11 @@ export default function HomePage() {
     (state) => state.enabled,
   );
   const myProfileQuery = useMyProfileQuery();
+  const clubAreaCode = useClubLocationStore((state) => state.areaCode);
+  const clubAreaName = useClubLocationStore((state) => state.areaName);
+  const activeClubAreaCode = clubAreaCode || myProfileQuery.data?.area?.code || undefined;
+  const clubLocationLabel =
+    clubAreaName || myProfileQuery.data?.area?.name || "지역 선택";
   const visitorsQuery = useMyProfileVisitorsQuery({ size: 12 });
   const recommendationsQuery = useRecommendationsInfiniteQuery();
   const refetchRecommendations = recommendationsQuery.refetch;
@@ -162,6 +171,13 @@ export default function HomePage() {
     "chat",
     undefined,
     notificationEnabled,
+  );
+  const clubRecommendationsQuery = useRecommendedClubsQuery(
+    {
+      ...(activeClubAreaCode ? { areaCode: activeClubAreaCode } : {}),
+      size: 10,
+    },
+    activeHomeTab === "club",
   );
   const sendHeartMutation = useSendRecommendationHeartMutation();
   const createProfileVisitMutation = useCreateProfileVisitMutation();
@@ -196,6 +212,16 @@ export default function HomePage() {
   useEffect(() => {
     if (tabParam === "club") setActiveHomeTab("club");
   }, [tabParam]);
+
+  useEffect(() => {
+    if (!tabPressAt) return;
+
+    lastScrollY.current = 0;
+    setProfileIndex(0);
+    scrollViewRef.current?.scrollTo({ y: 0, animated: false });
+    profileListRef.current?.scrollToOffset({ offset: 0, animated: false });
+    fabAnimation.setValue(1);
+  }, [fabAnimation, tabPressAt]);
 
   // 추천 마감 카운트다운이 끝나면 추천 목록을 새로 받아옵니다.
   useEffect(() => {
@@ -285,7 +311,10 @@ export default function HomePage() {
     if (selectedProfile.targetUserId && !selectedProfile.isLiked) {
       sendHeartMutation.mutate(selectedProfile.targetUserId);
     }
-    router.replace("/(tabs)/heart" as never);
+    router.replace({
+      pathname: "/(tabs)/heart",
+      params: { tab: "sent" },
+    } as never);
   };
 
   // 상대 프로필 상세로 진입할 때 방문 기록을 서버에 남깁니다.
@@ -329,6 +358,7 @@ export default function HomePage() {
     <SafeAreaView style={styles.safeArea} edges={["top"]}>
       <View style={styles.screen}>
         <ScrollView
+          ref={scrollViewRef}
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
@@ -491,8 +521,10 @@ export default function HomePage() {
           ) : (
             <ClubHomeContent
               nickname={nickname}
-              defaultAreaCode={myProfileQuery.data?.area?.code ?? undefined}
-              defaultAreaName={myProfileQuery.data?.area?.name ?? undefined}
+              activeAreaCode={activeClubAreaCode}
+              locationLabel={clubLocationLabel}
+              recommendedData={clubRecommendationsQuery.data}
+              isRecommendedLoading={clubRecommendationsQuery.isLoading}
               onOpenClub={(clubId) =>
                 router.push({
                   pathname: "/club/detail",
@@ -551,7 +583,7 @@ function parseClubId(value: string) {
 }
 
 function countUnreadNotifications(data?: {
-  pages: {
+  pages?: {
     items: {
       isRead?: boolean;
       read?: boolean;
@@ -560,13 +592,14 @@ function countUnreadNotifications(data?: {
   }[];
 }) {
   return (
-    data?.pages.reduce(
+    data?.pages?.reduce(
       (total, page) =>
         total +
         page.items.filter((item) => {
           if (typeof item.isRead === "boolean") return !item.isRead;
           if (typeof item.read === "boolean") return !item.read;
-          return !item.readAt;
+          if ("readAt" in item) return !item.readAt;
+          return false;
         }).length,
       0,
     ) ?? 0
@@ -574,7 +607,7 @@ function countUnreadNotifications(data?: {
 }
 
 function mapRecommendationProfiles(data?: {
-  pages: {
+  pages?: {
     items: {
       userId: number;
       nickname: string;
@@ -589,7 +622,7 @@ function mapRecommendationProfiles(data?: {
 }): Profile[] {
   return (
     uniqueBy(
-      data?.pages.flatMap((page) =>
+      data?.pages?.flatMap((page) =>
         page.items.map((item) => ({
           id: `recommendation-${item.userId}`,
           targetUserId: item.userId,
@@ -638,50 +671,30 @@ function HomeTabButton({ label, isActive, onPress }: HomeTabButtonProps) {
 
 function ClubHomeContent({
   nickname,
-  defaultAreaCode,
-  defaultAreaName,
+  activeAreaCode,
+  locationLabel,
+  recommendedData,
+  isRecommendedLoading,
   onOpenClub,
 }: {
   nickname: string;
-  defaultAreaCode?: string;
-  defaultAreaName?: string;
+  activeAreaCode?: string;
+  locationLabel: string;
+  recommendedData?: ClubRowsData;
+  isRecommendedLoading?: boolean;
   onOpenClub: (clubId: string) => void;
 }) {
   const router = useRouter();
-  const clubAreaCode = useClubLocationStore((state) => state.areaCode);
-  const clubAreaName = useClubLocationStore((state) => state.areaName);
-  const areaCode = clubAreaCode || defaultAreaCode;
-  const locationLabel = clubAreaName || defaultAreaName || "지역 선택";
   const [showAllMyClubs, setShowAllMyClubs] = useState(false);
   const myClubsQuery = useMyClubsQuery();
-  const clubsQuery = useClubsInfiniteQuery({
-    limit: 3,
-    ...(areaCode ? { areaCode } : {}),
-  });
-  const recommendedQuery = useRecommendedClubsQuery();
+  const todayRecommendedQuery = useTodayRecommendedClubsQuery(10);
 
   const myClubs = uniqueBy(
     myClubsQuery.data?.items ?? [],
     (item) => item.clubId,
   );
-  const localClubs: ClubRowItem[] = (clubsQuery.data?.pages[0]?.items ?? [])
-    .slice(0, 3)
-    .map((club) => ({
-      id: String(club.clubId),
-      title: club.name,
-      description: club.introText,
-      members: club.memberCount,
-      thumbnailUrl: club.thumbnailUrl,
-    }));
-  const todayClubs: ClubRowItem[] = (recommendedQuery.data?.items ?? [])
-    .slice(0, 3)
-    .map((club) => ({
-      id: String(club.clubId),
-      title: club.name,
-      description: club.introText ?? undefined,
-      district: club.addressName,
-      thumbnailUrl: club.thumbnailUrl,
-    }));
+  const recommendedClubs = mapClubRows(recommendedData, activeAreaCode);
+  const todayClubs = mapClubRows(todayRecommendedQuery.data, activeAreaCode);
 
   return (
     <View style={styles.clubHomeContent}>
@@ -770,9 +783,8 @@ function ClubHomeContent({
         title={`${nickname} 님을 위한 동호회`}
         accent={nickname}
         icon="sparkles"
-        clubs={localClubs}
-        isLoading={clubsQuery.isLoading}
-        showMore
+        clubs={recommendedClubs}
+        isLoading={isRecommendedLoading}
         onClubPress={onOpenClub}
       />
 
@@ -780,11 +792,70 @@ function ClubHomeContent({
         title="오늘의 추천 동호회"
         icon="sparkles"
         clubs={todayClubs}
-        isLoading={recommendedQuery.isLoading}
+        isLoading={todayRecommendedQuery.isLoading}
         onClubPress={onOpenClub}
       />
     </View>
   );
+}
+
+type ClubRowSource = {
+  clubId: number | string;
+  name: string;
+  introText?: string | null;
+  thumbnailUrl?: string | null;
+  areaName?: string | null;
+  addressCode?: string | null;
+  addressName?: string | null;
+  sidoCode?: string | null;
+  sigunguCode?: string | null;
+  district?: string | null;
+};
+
+type ClubRowsData = {
+  items?: ClubRowSource[];
+  pages?: { items: ClubRowSource[] }[];
+};
+
+function mapClubRows(
+  data?: ClubRowsData,
+  areaCode?: string | null,
+): ClubRowItem[] {
+  const clubs = data?.items ?? data?.pages?.flatMap((page) => page.items) ?? [];
+
+  return uniqueBy(
+    clubs
+      .filter((club) => isClubInArea(club, areaCode))
+      .map((club) => ({
+        id: String(club.clubId),
+        title: club.name,
+        description: club.introText ?? undefined,
+        district:
+          club.areaName?.trim() ||
+          club.addressName?.trim() ||
+          club.district?.trim() ||
+          undefined,
+        thumbnailUrl: club.thumbnailUrl,
+      })),
+    (item) => item.id,
+  );
+}
+
+function isClubInArea(club: ClubRowSource, areaCode?: string | null) {
+  const target = areaCode?.replace(/\D/g, "");
+  if (!target) return true;
+
+  const targetDistrictPrefix = target.slice(0, 5);
+  const addressCode = club.addressCode?.replace(/\D/g, "");
+  if (addressCode) return addressCode.startsWith(targetDistrictPrefix);
+
+  const sidoCode = club.sidoCode?.replace(/\D/g, "");
+  const sigunguCode = club.sigunguCode?.replace(/\D/g, "");
+  if (sidoCode && sigunguCode) {
+    return targetDistrictPrefix === `${sidoCode}${sigunguCode}`;
+  }
+
+  return false;
 }
 
 function MyClubCard({

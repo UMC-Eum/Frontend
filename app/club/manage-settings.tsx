@@ -22,7 +22,6 @@ import {
   useDeleteClubMutation,
   useUpdateClubMutation,
 } from "@/hooks/api/useHost";
-import { useClubCreateAreaStore } from "@/stores/clubLocationStore";
 import type { ClubCategory } from "@/types/api/club/clubDTO";
 
 const COLORS = {
@@ -57,20 +56,12 @@ export default function ClubManageSettingsScreen() {
   const detail = detailQuery.data;
   const updateMutation = useUpdateClubMutation(clubId);
   const deleteMutation = useDeleteClubMutation();
-  const areaCode = useClubCreateAreaStore((state) => state.areaCode);
-  const areaName = useClubCreateAreaStore((state) => state.areaName);
-  const setArea = useClubCreateAreaStore((state) => state.setArea);
-  const clearArea = useClubCreateAreaStore((state) => state.clear);
-
   // 서버가 내려주는 커버 이미지 목록 필드가 없어 썸네일 1장만 초기값으로 사용한다.
   const [photos, setPhotos] = useState<string[]>([]);
   const [name, setName] = useState("");
   const [intro, setIntro] = useState("");
   const [category, setCategory] = useState<ClubCategory | null>(null);
   const [capacity, setCapacity] = useState(1);
-  // 가입방식/게시판 공개범위는 조회·수정 API에 필드가 없어 비워둔다.
-  const [approvalRequired, setApprovalRequired] = useState<boolean | null>(null);
-  const [memberOnlyBoard, setMemberOnlyBoard] = useState<boolean | null>(null);
   const [deleteVisible, setDeleteVisible] = useState(false);
 
   // 최대인원은 현재 가입 인원보다 낮게 설정할 수 없다.
@@ -84,16 +75,7 @@ export default function ClubManageSettingsScreen() {
     setCategory(detail.category);
     setCapacity(Math.max(detail.capacity, detail.memberCount, 1));
     setPhotos(detail.thumbnailUrl ? [detail.thumbnailUrl] : []);
-    const detailAreaCode = detail.areaCode ?? detail.addressCode;
-    const detailAreaName = detail.areaName ?? detail.addressName;
-    if (detailAreaCode && detailAreaName) {
-      setArea(detailAreaCode, detailAreaName);
-    } else {
-      clearArea();
-    }
-  }, [clearArea, detail, setArea]);
-
-  useEffect(() => clearArea, [clearArea]);
+  }, [detail]);
 
   const removePhoto = (index: number) => {
     setPhotos((prev) => prev.filter((_, i) => i !== index));
@@ -118,7 +100,6 @@ export default function ClubManageSettingsScreen() {
         introText: intro.trim(),
         category,
         capacity,
-        ...(areaCode ? { areaCode } : {}),
       },
       {
         onSuccess: () => {
@@ -267,20 +248,17 @@ export default function ClubManageSettingsScreen() {
 
         <View style={styles.field}>
           <FieldLabel label="활동 지역" />
-          <Pressable
-            style={styles.listItem}
-            onPress={() =>
-              router.push({
-                pathname: "/profile/location",
-                params: { mode: "club-edit" },
-              } as never)
-            }
-          >
-            <Text style={areaName ? styles.listItemText : styles.listItemPlaceholder}>
-              {areaName || "지역을 선택해주세요"}
+          <View style={styles.listItem}>
+            <Text
+              style={
+                detail.areaName || detail.addressName
+                  ? styles.listItemText
+                  : styles.listItemPlaceholder
+              }
+            >
+              {detail.areaName || detail.addressName || "지역 정보 없음"}
             </Text>
-            <Ionicons name="chevron-forward" size={22} color={COLORS.gray700} />
-          </Pressable>
+          </View>
         </View>
 
         <View style={styles.field}>
@@ -306,42 +284,6 @@ export default function ClubManageSettingsScreen() {
                 <Ionicons name="add" size={22} color={COLORS.gray700} />
               </Pressable>
             </View>
-          </View>
-        </View>
-
-        <View style={styles.field}>
-          <FieldLabel label="가입방식" />
-          <View style={styles.selectCardRow}>
-            <SelectCard
-              title="자유 가입"
-              description="누구나 바로 가입"
-              active={approvalRequired === false}
-              onPress={() => setApprovalRequired(false)}
-            />
-            <SelectCard
-              title="승인 필요"
-              description="운영자 확인 후 가입"
-              active={approvalRequired === true}
-              onPress={() => setApprovalRequired(true)}
-            />
-          </View>
-        </View>
-
-        <View style={styles.field}>
-          <FieldLabel label="게시판 공개 범위" />
-          <View style={styles.selectCardRow}>
-            <SelectCard
-              title="전체 공개"
-              description="누구나 게시판 열람"
-              active={memberOnlyBoard === false}
-              onPress={() => setMemberOnlyBoard(false)}
-            />
-            <SelectCard
-              title="회원 공개"
-              description="가입 회원만 열람 가능"
-              active={memberOnlyBoard === true}
-              onPress={() => setMemberOnlyBoard(true)}
-            />
           </View>
         </View>
 
@@ -385,25 +327,6 @@ function FieldLabel({ label }: { label: string }) {
       <Text style={styles.fieldLabel}>{label}</Text>
       <Text style={styles.requiredMark}>*</Text>
     </View>
-  );
-}
-
-function SelectCard({
-  title,
-  description,
-  active,
-  onPress,
-}: {
-  title: string;
-  description: string;
-  active: boolean;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable style={[styles.selectCard, active && styles.selectCardActive]} onPress={onPress}>
-      <Text style={[styles.selectCardTitle, active && styles.selectCardTitleActive]}>{title}</Text>
-      <Text style={styles.selectCardDescription}>{description}</Text>
-    </Pressable>
   );
 }
 
@@ -525,21 +448,6 @@ const styles = StyleSheet.create({
   },
   stepperButtonLeft: { borderTopLeftRadius: 10, borderBottomLeftRadius: 10 },
   stepperButtonRight: { borderTopRightRadius: 10, borderBottomRightRadius: 10, marginLeft: -1 },
-  selectCardRow: { marginTop: 10, flexDirection: "row", gap: 12 },
-  selectCard: {
-    flex: 1,
-    height: 72,
-    borderWidth: 1,
-    borderColor: COLORS.gray150,
-    borderRadius: 12,
-    backgroundColor: COLORS.white,
-    padding: 12,
-    gap: 2,
-  },
-  selectCardActive: { borderWidth: 2, borderColor: COLORS.pink, backgroundColor: COLORS.pink50 },
-  selectCardTitle: { fontSize: 16, lineHeight: 24, fontWeight: "600", color: COLORS.text },
-  selectCardTitleActive: { color: COLORS.pink, fontWeight: "700" },
-  selectCardDescription: { fontSize: 14, lineHeight: 20, fontWeight: "500", color: COLORS.gray700 },
   deleteRow: {
     marginTop: 24,
     marginHorizontal: 20,

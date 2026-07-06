@@ -40,6 +40,16 @@ export const getNotificationChats = async (params: {
   >("/v1/notifications/chats", { params });
   return data.success.data;
 };
+//v1/notifications/clubs(get)
+export const getNotificationClubs = async (params: {
+  cursor?: string | null;
+  size: number;
+}) => {
+  const { data } = await api.get<
+    ApiSuccessResponse<DTO.INotificationClubGetResponse>
+  >("/v1/notifications/clubs", { params });
+  return data.success.data;
+};
 //v1/notifications/{notificationId} (delete)
 export const deleteNotification = async (notificationId: number) => {
   const { data } = await api.delete<ApiSuccessResponse<null>>(

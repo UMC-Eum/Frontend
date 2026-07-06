@@ -32,7 +32,10 @@ import {
   PROFILE_INTEREST_KEYWORDS,
   PROFILE_PERSONALITY_KEYWORDS,
 } from "@/constants/profileKeywords";
-import { usePostVoiceAnalyzeMutation } from "@/hooks/api/useOnboarding";
+import {
+  usePostProfileMutation,
+  usePostVoiceAnalyzeMutation,
+} from "@/hooks/api/useOnboarding";
 import { useUpdateMyProfileMutation } from "@/hooks/api/useUsers";
 import { useAuthStore } from "@/stores/authStore";
 import { useOnboardingDraftStore } from "@/stores/onboardingDraftStore";
@@ -118,6 +121,7 @@ export default function WelcomeScreen() {
   );
   const setVibeVector = useOnboardingDraftStore((state) => state.setVibeVector);
   const voiceAnalyzeMutation = usePostVoiceAnalyzeMutation();
+  const postProfileMutation = usePostProfileMutation();
   const updateMyProfileMutation = useUpdateMyProfileMutation();
   const [step, setStep] = useState<VoiceStep>("idle");
   const [recordingSeconds, setRecordingSeconds] = useState(0);
@@ -567,6 +571,20 @@ export default function WelcomeScreen() {
         console.log("[Profile Update] submit", profileUpdatePayload);
       }
 
+      // 온보딩 프로필 등록(POST /v1/onboarding/profile)이 nickname을 확정하고
+      // 서버측 온보딩 완료를 처리한다. introAudioUrl이 필수라 음성이 있을 때만 호출한다.
+      if (safeIntroAudioUrl) {
+        await postProfileMutation.mutateAsync({
+          nickname: userName,
+          gender: draftGender ?? DEFAULT_GENDER,
+          birthDate: resolveBirthDate(draftBirthDate, draftAge),
+          areaCode: draftAreaCode ?? DEFAULT_AREA_CODE,
+          introText: introText || generatedIntro,
+          introAudioUrl: safeIntroAudioUrl,
+        });
+      }
+
+      // 키워드/성격/이상형 등 나머지 프로필 필드는 PATCH로 이어서 반영한다.
       await updateMyProfileMutation.mutateAsync(profileUpdatePayload);
       completeOnboarding();
     };
@@ -644,7 +662,9 @@ export default function WelcomeScreen() {
           locationName={draftAreaName ?? "거주지 미선택"}
           profileImageUri={profileImageUri}
           selectedKeywords={displayKeywords}
-          isSubmitting={updateMyProfileMutation.isPending}
+          isSubmitting={
+            postProfileMutation.isPending || updateMyProfileMutation.isPending
+          }
           onStart={handleStartApp}
         />
       </SafeAreaView>

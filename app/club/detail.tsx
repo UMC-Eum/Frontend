@@ -1292,9 +1292,9 @@ function buildMeetingCardItems(
   }));
   const listIds = new Set(listCardItems.map((meeting) => meeting.meetingId));
   const summaryCardItems: MeetingCardItem[] = summaries
-    .filter((meeting) => !listIds.has(meeting.meetingId))
+    .filter((meeting) => !listIds.has(Number(meeting.meetingId)))
     .map((meeting) => ({
-      meetingId: meeting.meetingId,
+      meetingId: Number(meeting.meetingId),
       name: meeting.name,
       day: meeting.day,
       time: meeting.time,

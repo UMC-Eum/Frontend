@@ -15,7 +15,7 @@ export type ClubMemberStatus =
   | "REJECTED"
   | "KICKED"
   | "LEFT";
-export type ClubJoinPolicy = "AUTO" | "APPROVAL";
+export type ClubJoinPolicy = "AUTO" | "APPROVAL_REQUIRED";
 export type ClubListSort = "POPULAR" | "RECENT" | "LIKES";
 
 export interface IClubUserSummary {
@@ -30,7 +30,7 @@ export interface IClubKeyword {
 }
 
 export interface IClubMeetingSummary {
-  meetingId: number;
+  meetingId: number | string;
   name: string;
   day?: string;
   time?: string;
@@ -39,20 +39,27 @@ export interface IClubMeetingSummary {
 export interface IClubListParams {
   keyword?: string;
   category?: ClubCategory;
-  areaCode?: string;
   sort?: ClubListSort;
   cursor?: string | null;
   limit?: number;
 }
 
+export interface IRecommendedClubsParams {
+  cursor?: string | null;
+  size?: number;
+  areaCode?: string;
+}
+
 export interface IClubListItem {
-  clubId: number;
+  clubId: number | string;
+  hostNickname: string;
   name: string;
   category: ClubCategory;
   introText: string;
   thumbnailUrl: string | null;
   likes: number;
   memberCount: number;
+  createdAt: string;
 }
 
 export interface IClubsGetResponse {
@@ -152,7 +159,8 @@ export interface IMyClubItem {
   thumbnailUrl: string | null;
   memberCount: number;
   authority: ClubAuthority;
-  joinedAt: string;
+  status?: ClubMemberStatus;
+  joinedAt: string | null;
 }
 
 export interface IMyClubsResponse {

@@ -341,15 +341,11 @@ function mapClubListItemToSearchClub(item: IClubListItem): Club {
   const extendedItem = item as IClubListItem & {
     areaName?: string | null;
     capacity?: number | null;
-    createdAt?: string | null;
     district?: string | null;
-    host?: { nickname?: string | null } | null;
     likeCount?: number | null;
     location?: string | null;
   };
-  const createdAt = extendedItem.createdAt
-    ? Date.parse(extendedItem.createdAt)
-    : item.clubId;
+  const createdAt = Date.parse(item.createdAt);
   const memberCount = item.memberCount ?? 0;
   const capacity = extendedItem.capacity ?? null;
 
@@ -361,7 +357,7 @@ function mapClubListItemToSearchClub(item: IClubListItem): Club {
       extendedItem.district?.trim() ||
       extendedItem.location?.trim() ||
       getClubCategoryLabel(item.category),
-    host: extendedItem.host?.nickname || "운영자",
+    host: getClubHostNickname(item),
     description: item.introText || "",
     members: memberCount,
     date: capacity ? `${memberCount}/${capacity}` : `${memberCount}`,
@@ -370,6 +366,10 @@ function mapClubListItemToSearchClub(item: IClubListItem): Club {
     thumbnailUrl: item.thumbnailUrl,
     category: item.category,
   };
+}
+
+function getClubHostNickname(item: IClubListItem) {
+  return item.hostNickname?.trim() || "";
 }
 
 function getClubItemsFromPage(page: unknown): IClubListItem[] {
