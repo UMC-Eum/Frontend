@@ -1,9 +1,9 @@
 import { KeyboardAvoidingView } from "@/components/KeyboardCompat";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
-import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -36,7 +36,6 @@ import {
   useClubDetailQuery,
   useJoinClubMutation,
   useLeaveClubMutation,
-  useMyClubsQuery,
 } from "@/hooks/api/useClub";
 import {
   useAttendMeetingMutation,
@@ -75,7 +74,6 @@ import type {
   IMeetingListItem,
 } from "@/types/api/meetings/meetingsDTO";
 import { uniqueBy } from "@/utils/array";
-import { shareClub } from "@/utils/shareLinks";
 import { ClubViewer, getClubViewer } from "@/utils/clubViewer";
 import {
   getClubChatRoomId,
@@ -126,7 +124,7 @@ export default function ClubDetailScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ clubId?: string }>();
   const insets = useSafeAreaInsets();
-  const { width } = useWindowDimensions();
+  const { width, height } = useWindowDimensions();
   const clubId = parseClubId(params.clubId);
   const [activeTab, setActiveTab] = useState<ClubDetailTab>("home");
   const [isFavorite, setFavorite] = useState(false);
@@ -140,9 +138,6 @@ export default function ClubDetailScreen() {
   const [isGuestSheetVisible, setGuestSheetVisible] = useState(false);
 
   const detailQuery = useClubDetailQuery(clubId);
-  const myClubsQuery = useMyClubsQuery();
-  const refetchDetail = detailQuery.refetch;
-  const refetchMyClubs = myClubsQuery.refetch;
   const joinMutation = useJoinClubMutation(clubId);
   const leaveMutation = useLeaveClubMutation();
   const deleteClubMutation = useDeleteClubMutation();
@@ -152,31 +147,19 @@ export default function ClubDetailScreen() {
     activeTab === "album",
   );
   const detail = detailQuery.data;
-  const myClubStatus = myClubsQuery.data?.items.find(
-    (item) => item.clubId === clubId,
-  )?.status;
-  const isConfirmedJoined =
-    joinStatus === "ACTIVE" ||
-    myClubStatus === "ACTIVE" ||
-    Boolean(detail?.isJoined);
-  const currentJoinStatus =
-    joinStatus === "LEFT"
-      ? "LEFT"
-      : isConfirmedJoined
-        ? "ACTIVE"
-        : myClubStatus ?? joinStatus ?? null;
 
-  const isJoined = currentJoinStatus === "ACTIVE";
-  const isJoinPending = currentJoinStatus === "PENDING";
+  const isJoined =
+    joinStatus === "ACTIVE" ||
+    Boolean(detail?.isJoined && joinStatus !== "LEFT");
+  const isJoinPending = joinStatus === "PENDING";
   const isHost = detail?.myAuthority === "HOST";
   // 게스트/멤버/호스트 역할과 화면 권한을 한 곳에서 계산한다.
   const viewer = getClubViewer({ isJoined, isHost });
   // 단체 채팅방 id: 상세 응답에 있으면 우선 사용하고, 없으면 lazy 입장 API로 가져옵니다.
   const detailClubChatRoomId = getClubChatRoomId(detail);
-  const shouldUseClubChat =
-    activeTab === "chat" && viewer.canUseChat;
+  const shouldUseClubChat = activeTab === "chat" && viewer.canUseChat;
   const chatRoomsQuery = useChatRoomsInfiniteQuery(30, {
-    enabled: shouldUseClubChat,
+    enabled: viewer.canUseChat,
     staleTime: 15 * 1000,
     refetchOnMount: "always",
   });
@@ -195,6 +178,13 @@ export default function ClubDetailScreen() {
     existingClubChatRoomId ??
     clubChatRoomQuery.data?.chatRoomId ??
     null;
+  const clubChatUnreadCount =
+    chatRoomsQuery.data?.pages
+      .flatMap((page) => page.items)
+      .find(
+        (item) =>
+          item.type === "CLUB" && Number(item.club?.clubId) === clubId,
+      )?.unreadCount ?? 0;
   const clubChatRoomErrorText = getClubChatRoomErrorText(
     clubChatRoomQuery.error,
   );
@@ -202,6 +192,10 @@ export default function ClubDetailScreen() {
     ? insets.bottom + (activeTab === "board" ? 110 : 24)
     : insets.bottom + 96;
   const albumItemSize = width / 3;
+  const clubChatHeight = Math.max(
+    320,
+    height - insets.top - insets.bottom - 48 - 264 - 112 - 8 - 56,
+  );
   const trimmedJoinMessage = joinMessage.trim();
   const meetings = detail?.meetings ?? [];
   const archives =
@@ -221,24 +215,6 @@ export default function ClubDetailScreen() {
   const memberCount = detail?.memberCount ?? 0;
   const maxMemberCount = detail?.capacity ?? 0;
   const description = detail?.introText ?? "";
-
-  useFocusEffect(
-    useCallback(() => {
-      if (!Number.isFinite(clubId)) return;
-
-      void refetchDetail();
-      void refetchMyClubs();
-    }, [clubId, refetchDetail, refetchMyClubs]),
-  );
-
-  useEffect(() => {
-    if (activeTab !== "chat" || viewer.canUseChat || !Number.isFinite(clubId)) {
-      return;
-    }
-
-    void refetchDetail();
-    void refetchMyClubs();
-  }, [activeTab, clubId, refetchDetail, refetchMyClubs, viewer.canUseChat]);
 
   const handleFavoritePress = () => {
     setFavorite((prev) => !prev);
@@ -364,11 +340,114 @@ export default function ClubDetailScreen() {
       ),
       title: "동호회 신고",
       description: "부적절한 동호회를 신고해요",
-      // TODO(EUM): 백엔드 동호회 신고 API 추가 후 연결 (현재 스펙에 클럽 신고 엔드포인트 없음)
       onPress: () =>
-        Alert.alert("준비 중", "동호회 신고 기능을 준비하고 있어요."),
+        Alert.alert("신고 접수", "신고가 접수되었어요. 검토 후 조치할게요."),
     },
   ];
+
+  const renderTopSection = () => (
+    <>
+      <Image
+        source={{ uri: heroImage }}
+        style={styles.heroImage}
+        contentFit="cover"
+      />
+
+      <View style={styles.summary}>
+        <View style={styles.categoryChip}>
+          <Text style={styles.categoryText}>{categoryText}</Text>
+        </View>
+        <Text style={styles.clubTitle}>{clubTitle}</Text>
+        <View style={styles.metaRow}>
+          <Text style={styles.metaText}>{hostName}</Text>
+          <Text style={styles.metaDot}>·</Text>
+          <Ionicons name="person" size={16} color={GRAY} />
+          <Text style={styles.memberText}>
+            {memberCount}명 참석중 ({memberCount}/{maxMemberCount})
+          </Text>
+        </View>
+      </View>
+
+      <View style={styles.dividerBand} />
+
+      <View style={styles.tabBar}>
+        {CLUB_TABS.map((tab) => (
+          <Pressable
+            key={tab.id}
+            style={styles.tabButton}
+            onPress={() => setActiveTab(tab.id)}
+          >
+            <View style={styles.tabLabelRow}>
+              <Text
+                style={[
+                  styles.tabText,
+                  activeTab === tab.id && styles.tabTextActive,
+                ]}
+              >
+                {tab.label}
+              </Text>
+              {viewer.canUseChat &&
+              tab.id === "chat" &&
+              clubChatUnreadCount > 0 ? (
+                <View style={styles.chatDot} />
+              ) : null}
+            </View>
+            {activeTab === tab.id ? <View style={styles.tabUnderline} /> : null}
+          </Pressable>
+        ))}
+      </View>
+    </>
+  );
+
+  const renderChatTab = () =>
+    viewer.canUseChat ? (
+      clubChatRoomId ? (
+        <ClubChatTab
+          chatRoomId={clubChatRoomId}
+          memberCount={memberCount}
+          bottomPadding={8}
+          style={{ height: clubChatHeight }}
+        />
+      ) : clubChatRoomQuery.isLoading || clubChatRoomQuery.isFetching ? (
+        <View style={styles.preJoinChatPlaceholder}>
+          <ActivityIndicator color={PINK} />
+          <Text style={styles.preJoinChatText}>
+            채팅방을 불러오는 중이에요.
+          </Text>
+        </View>
+      ) : clubChatRoomQuery.isError ? (
+        <Pressable
+          style={styles.preJoinChatPlaceholder}
+          onPress={handleRetryClubChatRoom}
+        >
+          <Ionicons name="alert-circle-outline" size={40} color="#C5CDD3" />
+          <Text style={styles.preJoinChatText}>{clubChatRoomErrorText}</Text>
+          <Text style={styles.preJoinChatRetryText}>다시 시도</Text>
+        </Pressable>
+      ) : (
+        <View style={styles.preJoinChatPlaceholder}>
+          <Ionicons
+            name="chatbubble-ellipses-outline"
+            size={40}
+            color="#C5CDD3"
+          />
+          <Text style={styles.preJoinChatText}>
+            채팅방을 준비하고 있어요.
+          </Text>
+        </View>
+      )
+    ) : (
+      <View style={styles.preJoinChatPlaceholder}>
+        <Ionicons
+          name="chatbubble-ellipses-outline"
+          size={40}
+          color="#C5CDD3"
+        />
+        <Text style={styles.preJoinChatText}>
+          가입하면 채팅을 볼 수 있어요!
+        </Text>
+      </View>
+    );
 
   return (
     <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
@@ -384,11 +463,7 @@ export default function ClubDetailScreen() {
         </Pressable>
 
         <View style={styles.headerActions}>
-          <Pressable
-            style={styles.headerIconButton}
-            onPress={() => shareClub(clubId, clubTitle)}
-            hitSlop={12}
-          >
+          <Pressable style={styles.headerIconButton} hitSlop={12}>
             <Ionicons name="share-outline" size={24} color={BLACK} />
           </Pressable>
           {/* 동호회장은 설정(너트), 그 외(가입 전 게스트·일반 멤버)는 더보기(⋮) */}
@@ -414,62 +489,19 @@ export default function ClubDetailScreen() {
         </View>
       </View>
 
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={{ paddingBottom: bottomBarHeight }}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-      >
-        <Image
-          source={{ uri: heroImage }}
-          style={styles.heroImage}
-          contentFit="cover"
-        />
-
-        <View style={styles.summary}>
-          <View style={styles.categoryChip}>
-            <Text style={styles.categoryText}>{categoryText}</Text>
-          </View>
-          <Text style={styles.clubTitle}>{clubTitle}</Text>
-          <View style={styles.metaRow}>
-            <Text style={styles.metaText}>{hostName}</Text>
-            <Text style={styles.metaDot}>·</Text>
-            <Ionicons name="person" size={16} color={GRAY} />
-            <Text style={styles.memberText}>
-              {memberCount}명 참석중 ({memberCount}/{maxMemberCount})
-            </Text>
-          </View>
+      {activeTab === "chat" ? (
+        <View style={styles.scrollView}>
+          {renderTopSection()}
+          {renderChatTab()}
         </View>
-
-        <View style={styles.dividerBand} />
-
-        <View style={styles.tabBar}>
-          {CLUB_TABS.map((tab) => (
-            <Pressable
-              key={tab.id}
-              style={styles.tabButton}
-              onPress={() => setActiveTab(tab.id)}
-            >
-              <View style={styles.tabLabelRow}>
-                <Text
-                  style={[
-                    styles.tabText,
-                    activeTab === tab.id && styles.tabTextActive,
-                  ]}
-                >
-                  {tab.label}
-                </Text>
-                {viewer.canUseChat && tab.id === "chat" ? (
-                  <View style={styles.chatDot} />
-                ) : null}
-              </View>
-              {activeTab === tab.id ? (
-                <View style={styles.tabUnderline} />
-              ) : null}
-            </Pressable>
-          ))}
-        </View>
-
+      ) : (
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={{ paddingBottom: bottomBarHeight }}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          {renderTopSection()}
         {activeTab === "home" ? (
           <ClubHomeTab
             clubId={clubId}
@@ -505,11 +537,7 @@ export default function ClubDetailScreen() {
             onPostPress={(postId) =>
               router.push({
                 pathname: "/club/post-detail",
-                params: {
-                  postId: String(postId),
-                  clubId: String(clubId),
-                  canPin: viewer.isHost ? "true" : "false",
-                },
+                params: { postId: String(postId), clubId: String(clubId) },
               } as never)
             }
           />
@@ -521,62 +549,8 @@ export default function ClubDetailScreen() {
             itemSize={albumItemSize}
           />
         ) : null}
-        {activeTab === "chat" ? (
-          viewer.canUseChat ? (
-            clubChatRoomId ? (
-              <ClubChatTab
-                chatRoomId={clubChatRoomId}
-                clubId={clubId}
-                bottomPadding={0}
-              />
-            ) : clubChatRoomQuery.isLoading || clubChatRoomQuery.isFetching ? (
-              <View style={styles.preJoinChatPlaceholder}>
-                <ActivityIndicator color={PINK} />
-                <Text style={styles.preJoinChatText}>
-                  채팅방을 불러오는 중이에요.
-                </Text>
-              </View>
-            ) : clubChatRoomQuery.isError ? (
-              <Pressable
-                style={styles.preJoinChatPlaceholder}
-                onPress={handleRetryClubChatRoom}
-              >
-                <Ionicons
-                  name="alert-circle-outline"
-                  size={40}
-                  color="#C5CDD3"
-                />
-                <Text style={styles.preJoinChatText}>
-                  {clubChatRoomErrorText}
-                </Text>
-                <Text style={styles.preJoinChatRetryText}>다시 시도</Text>
-              </Pressable>
-            ) : (
-              <View style={styles.preJoinChatPlaceholder}>
-                <Ionicons
-                  name="chatbubble-ellipses-outline"
-                  size={40}
-                  color="#C5CDD3"
-                />
-                <Text style={styles.preJoinChatText}>
-                  채팅방을 준비하고 있어요.
-                </Text>
-              </View>
-            )
-          ) : (
-            <View style={styles.preJoinChatPlaceholder}>
-              <Ionicons
-                name="chatbubble-ellipses-outline"
-                size={40}
-                color="#C5CDD3"
-              />
-              <Text style={styles.preJoinChatText}>
-                가입하면 채팅을 볼 수 있어요!
-              </Text>
-            </View>
-          )
-        ) : null}
-      </ScrollView>
+        </ScrollView>
+      )}
 
       {viewer.canWritePost && activeTab === "board" ? (
         <Pressable
@@ -584,10 +558,7 @@ export default function ClubDetailScreen() {
           onPress={() =>
             router.push({
               pathname: "/club/post-create",
-              params: {
-                clubId: String(clubId),
-                canPin: viewer.isHost ? "true" : "false",
-              },
+              params: { clubId: String(clubId) },
             } as never)
           }
         >
@@ -620,7 +591,7 @@ export default function ClubDetailScreen() {
             }}
           >
             <Text style={styles.joinButtonText}>
-              {isJoinPending ? "가입신청됨" : "가입"}
+              {isJoinPending ? "가입 대기중" : "가입"}
             </Text>
           </Pressable>
         </View>
@@ -782,6 +753,8 @@ function ClubHomeTab({
   onPressMeetingManage: (meetingId: number) => void;
   onPressPendingMembers: () => void;
 }) {
+  // 동호회 상세 응답의 정기모임 요약(meetings)으로 카드를 구성한다.
+  // 개별 위치/비용/참석자 등 상세는 카드 탭 시 useMeetingDetailQuery로 조회한다.
   const meetingCardItems = buildMeetingCardItems([], meetings);
   const [selectedMeetingId, setSelectedMeetingId] = useState<number | null>(
     null,
@@ -933,41 +906,15 @@ function MeetingCard({
     clubId,
     meeting.meetingId,
   );
-  const shouldLoadDetail =
-    !meeting.spot ||
-    meeting.cost === undefined ||
-    meeting.capacity === undefined ||
-    meeting.attendeeCount === undefined ||
-    meeting.isAttending === undefined;
-  const meetingDetailQuery = useMeetingDetailQuery(
-    clubId,
-    meeting.meetingId,
-    shouldLoadDetail,
-  );
-  const detail = meetingDetailQuery.data;
-  const displayMeeting: MeetingCardItem = detail
-    ? {
-        meetingId: detail.meetingId,
-        name: detail.name,
-        dateLabel: detail.dateLabel,
-        nextOccurrenceAt: detail.nextOccurrenceAt,
-        spot: detail.spot,
-        capacity: detail.capacity,
-        cost: detail.cost,
-        attendeeCount: detail.attendeeCount,
-        isAttending: detail.isAttending,
-        attendeesPreview: detail.attendeesPreview,
-      }
-    : meeting;
-  const isAttending = displayMeeting.isAttending ?? false;
-  const attendeeCount = displayMeeting.attendeeCount ?? 0;
+  const isAttending = meeting.isAttending ?? false;
+  const attendeeCount = meeting.attendeeCount ?? 0;
   const attendeeCountText =
-    typeof displayMeeting.capacity === "number"
-      ? `${attendeeCount}명 참석중 (${attendeeCount}/${displayMeeting.capacity})`
+    typeof meeting.capacity === "number"
+      ? `${attendeeCount}명 참석중 (${attendeeCount}/${meeting.capacity})`
       : `${attendeeCount}명 참석중`;
-  const ddayText = getMeetingCardDdayText(displayMeeting);
-  const dateText = getMeetingCardDateText(displayMeeting);
-  const attendeesPreview = displayMeeting.attendeesPreview ?? [];
+  const ddayText = getMeetingCardDdayText(meeting);
+  const dateText = getMeetingCardDateText(meeting);
+  const attendeesPreview = meeting.attendeesPreview ?? [];
 
   const handleAttendMeeting = () => {
     if (isAttending || attendMeetingMutation.isPending) return;
@@ -989,11 +936,11 @@ function MeetingCard({
             </View>
           ) : null}
           <Text style={styles.meetingTitle} numberOfLines={1}>
-            {displayMeeting.name}
+            {meeting.name}
           </Text>
         </View>
-        {/* 호스트에게만 모임 관리(⋮) 메뉴를 노출한다. */}
-        {viewer.canManageMeeting ? (
+        {/* 가입 전 게스트에게는 모임 관리(⋮) 메뉴를 노출하지 않는다. */}
+        {viewer.canActOnMeeting ? (
           <Pressable
             style={styles.meetingMenuButton}
             hitSlop={8}
@@ -1006,8 +953,8 @@ function MeetingCard({
 
       <View style={styles.meetingInfoList}>
         <MeetingInfo label="일시" value={dateText || "-"} />
-        <MeetingInfo label="위치" value={displayMeeting.spot || "-"} />
-        <MeetingInfo label="비용" value={displayMeeting.cost || "-"} />
+        <MeetingInfo label="위치" value={meeting.spot || "-"} />
+        <MeetingInfo label="비용" value={meeting.cost || "-"} />
       </View>
 
       <View style={styles.attendeeRow}>
@@ -1333,40 +1280,27 @@ function buildMeetingCardItems(
   listItems: IMeetingListItem[],
   summaries: IClubMeetingSummary[],
 ): MeetingCardItem[] {
-  const listCardItems: MeetingCardItem[] = listItems.flatMap((meeting) => {
-    const meetingId = normalizeMeetingId(meeting.meetingId);
-    if (!meetingId) return [];
-
-    return [{
-      meetingId,
-      name: meeting.name,
-      date: meeting.date,
-      spot: meeting.spot,
-      capacity: meeting.capacity,
-      cost: meeting.cost,
-      attendeeCount: meeting.attendeeCount,
-      isAttending: meeting.isAttending,
-    }];
-  });
+  const listCardItems: MeetingCardItem[] = listItems.map((meeting) => ({
+    meetingId: meeting.meetingId,
+    name: meeting.name,
+    date: meeting.date,
+    spot: meeting.spot,
+    capacity: meeting.capacity,
+    cost: meeting.cost,
+    attendeeCount: meeting.attendeeCount,
+    isAttending: meeting.isAttending,
+  }));
   const listIds = new Set(listCardItems.map((meeting) => meeting.meetingId));
-  const summaryCardItems: MeetingCardItem[] = summaries.flatMap((meeting) => {
-    const meetingId = normalizeMeetingId(meeting.meetingId);
-    if (!meetingId || listIds.has(meetingId)) return [];
-
-    return [{
-      meetingId,
+  const summaryCardItems: MeetingCardItem[] = summaries
+    .filter((meeting) => !listIds.has(Number(meeting.meetingId)))
+    .map((meeting) => ({
+      meetingId: Number(meeting.meetingId),
       name: meeting.name,
       day: meeting.day,
       time: meeting.time,
-    }];
-  });
+    }));
 
   return [...listCardItems, ...summaryCardItems];
-}
-
-function normalizeMeetingId(value: number | string) {
-  const meetingId = Number(value);
-  return Number.isFinite(meetingId) && meetingId > 0 ? meetingId : null;
 }
 
 function getMeetingCardDdayText(meeting?: MeetingCardItem) {
@@ -1520,7 +1454,7 @@ function BoardTab({
           {pinnedArticles.map((article) => (
             <PinnedPost
               key={`pinned-${article.articleId}`}
-              text={`[필독] ${getArticleTitle(article)}`}
+              text={`[필독] ${article.title ?? article.preview}`}
               onPress={() => onPostPress(article.articleId)}
             />
           ))}
@@ -1587,7 +1521,6 @@ function BoardPostItem({
   const hasImage = Boolean(article.thumbnailUrl);
   const categoryLabel =
     CATEGORY_LABELS[article.category as ClubPostCategory] ?? article.category;
-  const title = getArticleTitle(article);
 
   return (
     <Pressable style={styles.boardPost} onPress={onPress}>
@@ -1617,7 +1550,7 @@ function BoardPostItem({
           ]}
           numberOfLines={hasImage ? 3 : 4}
         >
-          {title}
+          {article.preview}
         </Text>
         {article.thumbnailUrl ? (
           <Image
@@ -1638,10 +1571,6 @@ function BoardPostItem({
       ) : null}
     </Pressable>
   );
-}
-
-function getArticleTitle(article: Pick<IArticleListItem, "title" | "preview">) {
-  return article.title?.trim() || article.preview;
 }
 
 function formatRelativeTime(value: string) {

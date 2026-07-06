@@ -91,6 +91,7 @@ export interface IChatsRoomIdMessagesGetResponse {
     senderUserId: number;
     sentAt: string;
     readAt: string | null;
+    unreadCount?: number | null;
     isMine: boolean;
   }[];
 

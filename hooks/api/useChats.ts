@@ -7,13 +7,9 @@ import {
   getChatRoomDetail,
   getChatRooms,
   patchChatRoomLeave,
-  readChatRoom,
   sendChatMessage,
 } from "@/api/chats/chatsApi";
-import {
-  IChatsRoomIdMessagesPostRequset,
-  IChatsRoomsPostRequest,
-} from "@/types/api/chats/chatsDTO";
+import { IChatsRoomsPostRequest, IChatsRoomIdMessagesPostRequset } from "@/types/api/chats/chatsDTO";
 
 import { queryKeys } from "./queryKeys";
 import { useProtectedQueryEnabled } from "./useProtectedQueryEnabled";
@@ -114,12 +110,6 @@ export function useSendChatMessageMutation(chatRoomId: number) {
       queryClient.invalidateQueries({ queryKey: queryKeys.chats.messages(chatRoomId, DEFAULT_PAGE_SIZE) });
       queryClient.invalidateQueries({ queryKey: queryKeys.chats.rooms(DEFAULT_PAGE_SIZE) });
     },
-  });
-}
-
-export function useReadChatRoomMutation() {
-  return useMutation({
-    mutationFn: (chatRoomId: number) => readChatRoom(chatRoomId),
   });
 }
 

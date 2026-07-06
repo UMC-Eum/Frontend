@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   AudioModule,
   createAudioPlayer,
@@ -12,12 +13,13 @@ import type { AudioPlayer } from "expo-audio";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  FlatList,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   View,
 } from "react-native";
+import type { StyleProp, ViewStyle } from "react-native";
 
 import {
   connectChatSocket,
@@ -26,16 +28,19 @@ import {
   joinChatRoomSocket,
   onMemberJoined,
   onMessageNew,
+  onMessageRead,
   pingChatSocket,
   sendChatMessageSocket,
 } from "@/api/chats/chatSocketApi";
+import { markChatRoomRead } from "@/api/chats/chatsApi";
 import ChatInput from "@/components/chat/ChatInput";
 import ChatMessage, { ChatMessageData } from "@/components/chat/ChatMessage";
 import MicRecorder from "@/components/MicRecorder";
+import { queryKeys } from "@/hooks/api/queryKeys";
 import { useChatMessagesInfiniteQuery } from "@/hooks/api/useChats";
-import { useClubMembersInfiniteQuery } from "@/hooks/api/useHost";
 import { useAuthStore } from "@/stores/authStore";
 import { uniqueBy } from "@/utils/array";
+import { markChatRoomUnreadCountInCache } from "@/utils/chatUnreadCache";
 import {
   pickChatImage,
   uploadChatPhotoMessage,
@@ -45,6 +50,7 @@ import type {
   MemberJoinedData,
   MessageSendAckData,
   MessageNewData,
+  MessageReadData,
   SocketAckResponse,
 } from "@/types/api/socket";
 
@@ -52,19 +58,16 @@ const PAGE_SIZE = 30;
 
 // 단체 채팅용 확장 메시지 타입: 발신자 라벨 + 시스템(입장) 메시지 추가
 type ClubChatMessage =
-  | (ChatMessageData & { senderName?: string })
+  | (ChatMessageData & { senderName?: string; senderUserId?: number })
   | { id: string; type: "system"; text: string; sentAt?: string };
+
+type ClubBubbleMessage = Extract<ClubChatMessage, { isMine: boolean }>;
 
 type Props = {
   chatRoomId: number;
-  /** 발신자 닉네임/프로필 매핑용. 메시지 API 응답에 발신자 정보가 없어 멤버 목록으로 보강한다. */
-  clubId?: number;
+  memberCount?: number | null;
   bottomPadding?: number;
-};
-
-type ClubMemberSummary = {
-  nickname: string;
-  profileImageUrl?: string;
+  style?: StyleProp<ViewStyle>;
 };
 
 /**
@@ -74,9 +77,11 @@ type ClubMemberSummary = {
  */
 export default function ClubChatTab({
   chatRoomId,
-  clubId,
+  memberCount,
   bottomPadding = 0,
+  style,
 }: Props) {
+  const queryClient = useQueryClient();
   const myUserId = useAuthStore((state) => state.user?.userId);
   const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
   const recorderState = useAudioRecorderState(audioRecorder, 250);
@@ -86,28 +91,14 @@ export default function ClubChatTab({
     PAGE_SIZE,
     hasRoom,
   );
-  const membersQuery = useClubMembersInfiniteQuery(
-    clubId ?? Number.NaN,
-    { limit: 100 },
-    typeof clubId === "number" && Number.isFinite(clubId),
-  );
-  const memberMap = useMemo(() => {
-    const map = new Map<number, ClubMemberSummary>();
-    membersQuery.data?.pages.forEach((page) => {
-      page.members.forEach((member) => {
-        map.set(member.userId, {
-          nickname: member.nickname,
-          profileImageUrl: member.profileImageUrl ?? undefined,
-        });
-      });
-    });
-    return map;
-  }, [membersQuery.data]);
   const refetchMessages = messagesQuery.refetch;
+  const listRef = useRef<FlatList<ClubChatMessage>>(null);
   const playbackPlayerRef = useRef<AudioPlayer | null>(null);
   const playbackStopTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
     null,
   );
+  const roomReadInFlightRef = useRef(false);
+  const lastReadTriggerIdRef = useRef(0);
   const [liveMessages, setLiveMessages] = useState<ClubChatMessage[]>([]);
   const [systemMessages, setSystemMessages] = useState<ClubChatMessage[]>([]);
   const [errorText, setErrorText] = useState("");
@@ -121,13 +112,17 @@ export default function ClubChatTab({
     string | null
   >(null);
   const isRecording = recorderState.isRecording;
+  const fallbackUnreadCount =
+    typeof memberCount === "number" && Number.isFinite(memberCount)
+      ? Math.max(0, memberCount - 1)
+      : 0;
   const displayRecordingTime = isRecording
     ? Math.floor(recorderState.durationMillis / 1000)
     : recordingTime;
 
   const apiMessages = useMemo<ClubChatMessage[]>(
-    () => mapApiMessages(messagesQuery.data, memberMap),
-    [memberMap, messagesQuery.data],
+    () => mapApiMessages(messagesQuery.data, fallbackUnreadCount),
+    [fallbackUnreadCount, messagesQuery.data],
   );
 
   const messages = useMemo(() => {
@@ -139,29 +134,24 @@ export default function ClubChatTab({
     ];
     return merged.sort(sortByOrder);
   }, [apiMessages, liveMessages, systemMessages]);
+  const visibleMessages = useMemo(
+    () => withClubGroupedMessageTimes(messages),
+    [messages],
+  );
+  const displayedMessages = useMemo(
+    () => [...visibleMessages].reverse(),
+    [visibleMessages],
+  );
 
-  // 소켓 effect 재구독 없이 최신 멤버 매핑을 참조하기 위한 ref
-  const memberMapRef = useRef(memberMap);
-  useEffect(() => {
-    memberMapRef.current = memberMap;
-  }, [memberMap]);
-
-  const listScrollRef = useRef<ScrollView>(null);
-  const needsInitialScrollRef = useRef(true);
-  // 전체화면(chat/[id])에서는 자체 ScrollView가 스크롤하고,
-  // 동호회 상세 탭처럼 부모 ScrollView 안에서는 자연 높이로 부모가 스크롤한다.
   const scrollToLatest = useCallback(() => {
     requestAnimationFrame(() => {
-      listScrollRef.current?.scrollToEnd({ animated: true });
+      listRef.current?.scrollToOffset({ offset: 0, animated: true });
     });
-  }, []);
-  const handleListContentSizeChange = useCallback(() => {
-    if (!needsInitialScrollRef.current) return;
-    if (messagesQuery.isLoading) return;
 
-    needsInitialScrollRef.current = false;
-    listScrollRef.current?.scrollToEnd({ animated: false });
-  }, [messagesQuery.isLoading]);
+    setTimeout(() => {
+      listRef.current?.scrollToOffset({ offset: 0, animated: true });
+    }, 80);
+  }, []);
 
   const stopVoicePlayback = useCallback(() => {
     if (playbackStopTimerRef.current) {
@@ -189,6 +179,30 @@ export default function ClubChatTab({
     [refetchMessages],
   );
 
+  // 방 단위 읽음 처리(그룹): 내 읽음 커서를 전진시키고 목록/미읽음 배지를 갱신한다.
+  const markRoomRead = useCallback(() => {
+    if (!hasRoom) return;
+
+    markChatRoomUnreadCountInCache(queryClient, chatRoomId, 0);
+    if (roomReadInFlightRef.current) return;
+    roomReadInFlightRef.current = true;
+
+    void markChatRoomRead(chatRoomId)
+      .then(() => {
+        markChatRoomUnreadCountInCache(queryClient, chatRoomId, 0);
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.chats.messages(chatRoomId, PAGE_SIZE),
+        });
+        void queryClient.invalidateQueries({ queryKey: queryKeys.chats.all });
+      })
+      .catch((error) => {
+        console.log("[ClubChat] mark room read error", error);
+      })
+      .finally(() => {
+        roomReadInFlightRef.current = false;
+      });
+  }, [chatRoomId, hasRoom, queryClient]);
+
   useEffect(() => {
     if (!hasRoom) return;
 
@@ -198,6 +212,13 @@ export default function ClubChatTab({
 
     return () => clearInterval(intervalId);
   }, [hasRoom, refetchMessages]);
+
+  useEffect(() => {
+    if (!hasRoom) return;
+
+    void queryClient.cancelQueries({ queryKey: queryKeys.chats.all });
+    markChatRoomUnreadCountInCache(queryClient, chatRoomId, 0);
+  }, [chatRoomId, hasRoom, queryClient]);
 
   useEffect(() => {
     return () => {
@@ -211,6 +232,27 @@ export default function ClubChatTab({
 
     setRecordingTime(Math.floor(recorderState.durationMillis / 1000));
   }, [isRecording, recorderState.durationMillis]);
+
+  useEffect(() => {
+    if (!hasRoom) return;
+
+    // 다른 멤버가 보낸 최신 메시지가 새로 생기면 방 전체를 읽음 처리한다.
+    const latestIncomingId =
+      messagesQuery.data?.pages
+        .flatMap((page) => page.items)
+        .reduce(
+          (max, message) =>
+            !message.isMine && message.messageId > max
+              ? message.messageId
+              : max,
+          0,
+        ) ?? 0;
+
+    if (latestIncomingId > lastReadTriggerIdRef.current) {
+      lastReadTriggerIdRef.current = latestIncomingId;
+      markRoomRead();
+    }
+  }, [hasRoom, markRoomRead, messagesQuery.data]);
 
   // 소켓 연결 + room.join + 실시간 이벤트 구독
   useEffect(() => {
@@ -324,8 +366,11 @@ export default function ClubChatTab({
       if (next.chatRoomId !== chatRoomId) return;
 
       setLiveMessages((prev) =>
-        appendUnique(prev, mapSocketMessage(next, myUserId, memberMapRef.current)),
+        appendUnique(prev, mapSocketMessage(next, myUserId, fallbackUnreadCount)),
       );
+      if (next.senderUserId !== myUserId) {
+        markRoomRead();
+      }
       scrollToLatest();
     };
 
@@ -362,6 +407,18 @@ export default function ClubChatTab({
       appendIncomingMessage(next);
     }, socket);
 
+    const unsubscribeRead = onMessageRead((payload) => {
+      const readEvent = getSocketReadData(payload);
+      if (!readEvent) return;
+      if (readEvent.chatRoomId !== chatRoomId) return;
+
+      // 그룹은 멤버별 읽음 커서를 서버가 집계하므로, 최신 readCount를 다시 받아온다.
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.chats.messages(chatRoomId, PAGE_SIZE),
+      });
+      markChatRoomUnreadCountInCache(queryClient, chatRoomId, 0);
+    }, socket);
+
     const unsubscribeMember = onMemberJoined((payload) => {
       const joined = getMemberJoinedData(payload);
       if (!joined) return;
@@ -375,10 +432,19 @@ export default function ClubChatTab({
       socket.off("disconnect", handleDisconnect);
       socket.offAny(handleAnyEvent);
       unsubscribeNew();
+      unsubscribeRead();
       unsubscribeMember();
       disconnectChatSocket();
     };
-  }, [chatRoomId, hasRoom, myUserId, scrollToLatest]);
+  }, [
+    chatRoomId,
+    fallbackUnreadCount,
+    hasRoom,
+    markRoomRead,
+    myUserId,
+    queryClient,
+    scrollToLatest,
+  ]);
 
   const handleSend = (text: string) => {
     const trimmed = text.trim();
@@ -393,6 +459,8 @@ export default function ClubChatTab({
       time: formatTime(sentAt),
       sentAt,
       showTime: true,
+      unreadCount: fallbackUnreadCount,
+      showUnreadIndicator: fallbackUnreadCount > 0,
     };
 
     setLiveMessages((prev) => appendUnique(prev, pendingMessage));
@@ -463,6 +531,8 @@ export default function ClubChatTab({
       time: formatTime(sentAt),
       sentAt,
       showTime: true,
+      unreadCount: fallbackUnreadCount,
+      showUnreadIndicator: fallbackUnreadCount > 0,
     };
 
     setLiveMessages((prev) => appendUnique(prev, pendingMessage));
@@ -527,6 +597,7 @@ export default function ClubChatTab({
     if (isUploadingVoice) return;
 
     try {
+      stopVoicePlayback();
       const permission = await AudioModule.requestRecordingPermissionsAsync();
       if (!permission.granted) {
         setErrorText("마이크 권한이 필요해요.");
@@ -623,6 +694,8 @@ export default function ClubChatTab({
       time: formatTime(sentAt),
       sentAt,
       showTime: true,
+      unreadCount: fallbackUnreadCount,
+      showUnreadIndicator: fallbackUnreadCount > 0,
       isPlaying: false,
     };
 
@@ -726,62 +799,86 @@ export default function ClubChatTab({
     }
   };
 
-  const displayed = messages;
+  const handleRecordedVoicePlay = () => {
+    if (!recordingUri || recordingTime <= 0) {
+      setErrorText("재생할 녹음 파일을 찾지 못했어요.");
+      return;
+    }
+
+    void handleVoicePlay({
+      id: "recorded-voice-preview",
+      type: "voice",
+      duration: formatDuration(recordingTime),
+      mediaUrl: recordingUri,
+      isMine: true,
+      time: "",
+      isPlaying: playingVoiceMessageId === "recorded-voice-preview",
+    });
+  };
 
   return (
-    <View style={[styles.container, { paddingBottom: bottomPadding }]}>
+    <View style={[styles.container, style, { paddingBottom: bottomPadding }]}>
       {errorText ? (
         <View style={styles.banner}>
           <Text style={styles.bannerText}>{errorText}</Text>
         </View>
       ) : null}
 
-      <ScrollView
-        ref={listScrollRef}
-        style={styles.listScroll}
-        contentContainerStyle={styles.list}
+      <FlatList
+        ref={listRef}
+        style={styles.messageList}
+        data={displayedMessages}
+        inverted
         nestedScrollEnabled
-        onContentSizeChange={handleListContentSizeChange}
-        keyboardShouldPersistTaps="handled"
-      >
-        {messagesQuery.hasNextPage ? (
-          <Pressable
-            style={styles.loadMoreButton}
-            disabled={messagesQuery.isFetchingNextPage}
-            onPress={() => void messagesQuery.fetchNextPage()}
-          >
-            {messagesQuery.isFetchingNextPage ? (
-              <ActivityIndicator color="#FF3E70" />
-            ) : (
-              <Text style={styles.loadMoreText}>이전 대화 더 보기</Text>
-            )}
-          </Pressable>
-        ) : null}
-
-        {messagesQuery.isLoading ? (
-          <View style={styles.empty}>
-            <ActivityIndicator color="#FF3E70" />
-          </View>
-        ) : displayed.length > 0 ? (
-          displayed.map((item) => (
-            <ClubChatRow
-              key={item.id}
-              message={
-                item.type === "voice"
-                  ? { ...item, isPlaying: item.id === playingVoiceMessageId }
-                  : item
-              }
-              onVoicePress={handleVoicePlay}
-            />
-          ))
-        ) : (
-          <View style={styles.empty}>
-            <Text style={styles.emptyText}>
-              아직 대화가 없어요. 첫 메시지를 남겨보세요.
-            </Text>
-          </View>
+        keyExtractor={(item) => item.id}
+        renderItem={({ item }) => (
+          <ClubChatRow
+            message={
+              item.type === "voice"
+                ? { ...item, isPlaying: item.id === playingVoiceMessageId }
+                : item
+            }
+            onVoicePress={handleVoicePlay}
+          />
         )}
-      </ScrollView>
+        ListFooterComponent={
+          messagesQuery.hasNextPage ? (
+            <Pressable
+              style={styles.loadMoreButton}
+              disabled={messagesQuery.isFetchingNextPage}
+              onPress={() => void messagesQuery.fetchNextPage()}
+            >
+              {messagesQuery.isFetchingNextPage ? (
+                <ActivityIndicator color="#FF3E70" />
+              ) : (
+                <Text style={styles.loadMoreText}>이전 대화 더 보기</Text>
+              )}
+            </Pressable>
+          ) : null
+        }
+        ListEmptyComponent={
+          messagesQuery.isLoading ? (
+            <View style={styles.empty}>
+              <ActivityIndicator color="#FF3E70" />
+            </View>
+          ) : (
+            <View style={styles.empty}>
+              <Text style={styles.emptyText}>
+                아직 대화가 없어요. 첫 메시지를 남겨보세요.
+              </Text>
+            </View>
+          )
+        }
+        contentContainerStyle={styles.list}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+        onEndReached={() => {
+          if (messagesQuery.hasNextPage && !messagesQuery.isFetchingNextPage) {
+            messagesQuery.fetchNextPage();
+          }
+        }}
+        onEndReachedThreshold={0.35}
+      />
 
       {!isAttachmentOpen ? (
         isVoiceRecorderOpen ? (
@@ -794,6 +891,7 @@ export default function ClubChatTab({
               onCancelPress={handleVoiceCancel}
               onSendPress={handleVoiceSend}
               onResetPress={resetVoiceRecorder}
+              onPlayPress={handleRecordedVoicePlay}
               containerStyle={styles.voiceRecorder}
             />
           </View>
@@ -979,6 +1077,22 @@ function getMemberJoinedData(payload: unknown): MemberJoinedData | null {
   };
 }
 
+function getSocketReadData(payload: unknown): MessageReadData | null {
+  const data = unwrapSocketPayloadData(payload);
+  if (!isRecord(data)) return null;
+
+  const { chatRoomId, readerUserId, lastReadAt } = data;
+  if (
+    typeof chatRoomId !== "number" ||
+    typeof readerUserId !== "number" ||
+    typeof lastReadAt !== "string"
+  ) {
+    return null;
+  }
+
+  return { chatRoomId, readerUserId, lastReadAt };
+}
+
 function unwrapSocketPayloadData(payload: unknown) {
   if (!isRecord(payload)) return payload;
 
@@ -1007,7 +1121,7 @@ function mapApiMessages(
   data:
     | { pages: { items: ApiMessageItem[] }[] }
     | undefined,
-  memberMap: Map<number, ClubMemberSummary>,
+  fallbackUnreadCount: number,
 ): ClubChatMessage[] {
   return uniqueBy(
     data?.pages.flatMap((page) => page.items) ?? [],
@@ -1016,7 +1130,7 @@ function mapApiMessages(
     .sort(
       (a, b) => new Date(a.sentAt).getTime() - new Date(b.sentAt).getTime(),
     )
-    .map((item) => toChatMessage(item, memberMap));
+    .map((item) => toChatMessage(item, fallbackUnreadCount));
 }
 
 type ApiMessageItem = {
@@ -1027,14 +1141,25 @@ type ApiMessageItem = {
   durationSec: number;
   isMine: boolean;
   sentAt: string;
-  senderUserId?: number;
+  readAt?: string | null;
+  unreadCount?: number | null;
+  // 그룹 전용: 발신자 제외, 이 메시지를 읽은 인원수. 안읽음 = (전체-1) - readCount.
+  readCount?: number | null;
+  isSystem?: boolean;
   senderName?: string | null;
   senderProfileImage?: string | null;
+  senderUserId?: number | null;
+  sender?: {
+    userId?: number | null;
+    nickname?: string | null;
+    name?: string | null;
+    profileImageUrl?: string | null;
+  } | null;
 };
 
 function toChatMessage(
   item: ApiMessageItem,
-  memberMap: Map<number, ClubMemberSummary>,
+  fallbackUnreadCount: number,
 ): ClubChatMessage {
   if (item.type === "SYSTEM") {
     return {
@@ -1045,23 +1170,18 @@ function toChatMessage(
     };
   }
 
-  // 메시지 API 응답에는 발신자 프로필이 없어 멤버 목록으로 보강한다.
-  const member =
-    typeof item.senderUserId === "number"
-      ? memberMap.get(item.senderUserId)
-      : undefined;
+  const unreadCount = resolveUnreadCount(item, fallbackUnreadCount);
   const base = {
     id: `message-${item.messageId}`,
     isMine: item.isMine,
     time: formatTime(item.sentAt),
     sentAt: item.sentAt,
     showTime: true,
-    avatar: item.isMine
-      ? undefined
-      : item.senderProfileImage ?? member?.profileImageUrl,
-    senderName: item.isMine
-      ? undefined
-      : item.senderName ?? member?.nickname,
+    unreadCount,
+    showUnreadIndicator: unreadCount > 0,
+    avatar: item.isMine ? undefined : resolveSenderProfileImage(item),
+    senderName: item.isMine ? undefined : resolveSenderName(item),
+    senderUserId: item.senderUserId ?? item.sender?.userId ?? undefined,
   };
 
   if (item.type === "AUDIO") {
@@ -1092,18 +1212,21 @@ function toChatMessage(
 function mapSocketMessage(
   item: MessageNewData,
   myUserId?: number,
-  memberMap?: Map<number, ClubMemberSummary>,
+  fallbackUnreadCount = 1,
 ): ClubChatMessage {
   const isMine = myUserId ? item.senderUserId === myUserId : false;
-  const member = memberMap?.get(item.senderUserId);
+  const unreadCount = isMine ? Math.max(0, fallbackUnreadCount) : 0;
   const base = {
     id: `message-${item.messageId}`,
     isMine,
     time: formatTime(item.sentAt),
     sentAt: item.sentAt,
     showTime: true,
-    avatar: isMine ? undefined : item.senderProfileImage ?? member?.profileImageUrl,
-    senderName: isMine ? undefined : item.senderName ?? member?.nickname,
+    unreadCount,
+    showUnreadIndicator: unreadCount > 0,
+    avatar: isMine ? undefined : item.senderProfileImage,
+    senderName: isMine ? undefined : item.senderName,
+    senderUserId: item.senderUserId,
   };
 
   if (item.type === "AUDIO") {
@@ -1148,6 +1271,36 @@ function textForNonText(type: ApiMessageItem["type"]) {
   return "";
 }
 
+function resolveSenderName(item: ApiMessageItem) {
+  return (
+    item.senderName ??
+    item.sender?.nickname ??
+    item.sender?.name ??
+    undefined
+  );
+}
+
+function resolveSenderProfileImage(item: ApiMessageItem) {
+  return item.senderProfileImage ?? item.sender?.profileImageUrl ?? undefined;
+}
+
+function resolveUnreadCount(item: {
+  isMine: boolean;
+  readAt?: string | null;
+  unreadCount?: number | null;
+  readCount?: number | null;
+}, fallbackUnreadCount = 1) {
+  if (!item.isMine) return 0;
+  // 안읽음 인원 = (발신자 제외 전체 인원) - (읽은 인원수). fallbackUnreadCount = 전체-1.
+  if (typeof item.readCount === "number") {
+    return Math.max(0, fallbackUnreadCount - Math.max(0, item.readCount));
+  }
+  if (typeof item.unreadCount === "number") {
+    return Math.max(0, item.unreadCount);
+  }
+  return item.readAt ? 0 : Math.max(0, fallbackUnreadCount);
+}
+
 function appendUnique(list: ClubChatMessage[], next: ClubChatMessage) {
   if (list.some((message) => message.id === next.id)) return list;
   return [...list, next];
@@ -1163,6 +1316,56 @@ function replaceMessage(
   }
 
   return list.map((message) => (message.id === targetId ? next : message));
+}
+
+
+function withClubGroupedMessageTimes(messages: ClubChatMessage[]) {
+  return messages.map((message, index) => {
+    if (message.type === "date" || message.type === "system") {
+      return message;
+    }
+
+    const prevMessage = messages[index - 1];
+    const nextMessage = messages[index + 1];
+    const isSameGroupAsPrev = isSameClubMessageGroup(prevMessage, message);
+    const isSameGroupAsNext = isSameClubMessageGroup(message, nextMessage);
+
+    return {
+      ...message,
+      showTime: !isSameGroupAsNext,
+      showAvatar: message.isMine ? undefined : !isSameGroupAsPrev,
+      compactSpacing: Boolean(isSameGroupAsPrev || isSameGroupAsNext),
+      groupTopSpacing: Boolean(prevMessage && !isSameGroupAsPrev),
+    };
+  });
+}
+
+function isSameClubMessageGroup(
+  left: ClubChatMessage | undefined,
+  right: ClubChatMessage | undefined,
+) {
+  if (!isClubBubbleMessage(left) || !isClubBubbleMessage(right)) return false;
+  if (left.isMine !== right.isMine) return false;
+  if (left.time !== right.time) return false;
+
+  if (left.isMine && right.isMine) return true;
+
+  return getClubMessageSenderKey(left) === getClubMessageSenderKey(right);
+}
+
+function isClubBubbleMessage(
+  message: ClubChatMessage | undefined,
+): message is ClubBubbleMessage {
+  return Boolean(message && message.type !== "date" && message.type !== "system");
+}
+
+function getClubMessageSenderKey(message: ClubBubbleMessage) {
+  return (
+    message.senderUserId ??
+    message.senderName ??
+    message.avatar ??
+    "unknown"
+  );
 }
 
 function sortByOrder(a: ClubChatMessage, b: ClubChatMessage) {
@@ -1219,7 +1422,7 @@ const styles = StyleSheet.create({
     minHeight: 320,
     backgroundColor: "#FFFFFF",
   },
-  listScroll: {
+  messageList: {
     flex: 1,
   },
   list: {
@@ -1296,12 +1499,14 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   senderName: {
-    marginLeft: 44,
+    width: 32,
+    marginLeft: 0,
     marginBottom: 2,
     fontSize: 12,
     lineHeight: 16,
     fontWeight: "500",
     color: "#8E9AA3",
+    textAlign: "center",
   },
   systemRow: {
     alignItems: "center",

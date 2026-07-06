@@ -114,13 +114,13 @@ export interface MessageNewData {
 export type MessageNewPayload = SocketBroadcastPayload<MessageNewData>;
 
 // message.read 푸시 데이터 (Broadcast)
+// 백엔드 변경: 메시지 단위 읽음 → 방 단위 읽음 커서로 전환.
+// readerUserId가 chatRoomId에서 lastReadAt까지 읽었음을 의미한다.
+// 클라는 "내가 보낸 메시지 중 sentAt <= lastReadAt"인 것을 읽음 처리한다.
 export interface MessageReadData {
-  messageId: number;
   chatRoomId: number;
   readerUserId: number;
-  readAt: string;
-  // CLUB delta: 아직 안 읽은 멤버 수(본인 제외). DIRECT는 0/1, CLUB은 ≥0.
-  unreadCount?: number;
+  lastReadAt: string;
 }
 
 export type MessageReadPayload = SocketBroadcastPayload<MessageReadData>;
