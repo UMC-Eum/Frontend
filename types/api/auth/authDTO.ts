@@ -5,16 +5,9 @@ export interface IKakaoLoginRequest {
 
 export interface IAppleLoginRequest {
   identityToken: string;
-  authorizationCode: string | null;
+  authorizationCode: string;
   email: string | null;
-  fullName: {
-    familyName: string | null;
-    givenName: string | null;
-    middleName: string | null;
-    namePrefix: string | null;
-    nameSuffix: string | null;
-    nickname: string | null;
-  } | null;
+  name: string;
 }
 
 export interface IKakaoLoginResponse {

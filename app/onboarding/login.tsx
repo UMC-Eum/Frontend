@@ -25,7 +25,7 @@ import {
 } from "@/constants/auth";
 import { useAppleLoginMutation } from "@/hooks/api/useAuth";
 
-const isIphone = Platform.OS === "ios" && !Platform.isPad;
+const isIos = Platform.OS === "ios";
 
 /**
  * 로그인 화면
@@ -54,7 +54,7 @@ export default function LoginScreen() {
   }, [params.showTerms]);
 
   useEffect(() => {
-    if (!isIphone) return;
+    if (!isIos) return;
 
     let isMounted = true;
 
@@ -155,11 +155,16 @@ export default function LoginScreen() {
         return;
       }
 
+      if (!credential.authorizationCode) {
+        setErrorMessage("Apple 인증 코드를 가져오지 못했어요.");
+        return;
+      }
+
       const auth = await appleLoginMutation.mutateAsync({
         identityToken: credential.identityToken,
         authorizationCode: credential.authorizationCode,
         email: credential.email,
-        fullName: credential.fullName,
+        name: getAppleCredentialName(credential),
       });
 
       await finishLogin(auth);
@@ -171,7 +176,7 @@ export default function LoginScreen() {
       if (__DEV__) {
         console.log("[Apple Login] failed:", error);
       }
-      setErrorMessage("Apple 로그인에 실패했어요. 다시 시도해주세요.");
+      setErrorMessage(getAppleLoginErrorMessage(error));
     }
   };
 
@@ -380,3 +385,21 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
 });
+
+function getAppleLoginErrorMessage(error: unknown) {
+  const apiMessage = (error as {
+    response?: { data?: { error?: { message?: string } } };
+  }).response?.data?.error?.message;
+
+  return apiMessage ?? "Apple 로그인에 실패했어요. 다시 시도해주세요.";
+}
+
+function getAppleCredentialName(
+  credential: Awaited<ReturnType<typeof AppleAuthentication.signInAsync>>,
+) {
+  const formattedName = credential.fullName
+    ? AppleAuthentication.formatFullName(credential.fullName).trim()
+    : "";
+
+  return formattedName || credential.email?.split("@")[0] || "Apple 사용자";
+}
