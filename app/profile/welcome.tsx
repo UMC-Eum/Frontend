@@ -222,19 +222,6 @@ export default function WelcomeScreen() {
     setIsPlayingRecorded(false);
   };
 
-  const resetKeywordRecommendations = () => {
-    setKeywordOptions(MOCK_KEYWORDS);
-    const fallbackSelectedIds = MOCK_KEYWORDS.filter(
-      (keyword) => keyword.id !== "more",
-    )
-      .slice(0, 3)
-      .map((keyword) => keyword.id);
-
-    setSelectedKeywordIds(fallbackSelectedIds);
-    setSelectedKeywords(labelsFromIds(fallbackSelectedIds, MOCK_KEYWORDS));
-    setPersonalities([]);
-  };
-
   const handleBack = async () => {
     if (step === "idle") {
       router.back();
@@ -398,19 +385,29 @@ export default function WelcomeScreen() {
           "Voice Analyze Error:",
           isAxiosError(error) ? error.response?.data : error,
         );
-        resetKeywordRecommendations();
+        resetRecordedAudio();
+        Alert.alert("음성 분석 실패", getVoiceFlowErrorMessage(error));
+        return;
       }
+      setStep("keywords");
     } catch (error) {
       console.log(
         "Voice Upload Flow Error:",
         isAxiosError(error) ? error.response?.data : error,
       );
       setIntroAudioUrl("");
-      resetKeywordRecommendations();
+      resetRecordedAudio();
+      Alert.alert("음성 업로드 실패", getVoiceFlowErrorMessage(error));
     } finally {
       setIsUploadingAudio(false);
-      setStep("keywords");
     }
+  };
+
+  const resetRecordedAudio = () => {
+    setIntroAudioUrl("");
+    setRecordedAudioUri("");
+    setRecordingSeconds(0);
+    setStep("idle");
   };
 
   const handleResetRecording = async () => {
@@ -933,7 +930,7 @@ function keywordsFromAnalyze(result: IAnalyzeResponse) {
     .slice(0, 10);
 
   if (candidates.length === 0) {
-    return MOCK_KEYWORDS;
+    throw new Error("음성 분석 결과에 추천 키워드가 없습니다.");
   }
 
   return [
@@ -1018,6 +1015,16 @@ function getAnalyzeKeywordCandidates(result: IAnalyzeResponse) {
 
 function getAnalyzeVibeVector(result: IAnalyzeResponse) {
   return Array.isArray(result.vibeVector) ? result.vibeVector : [];
+}
+
+function getVoiceFlowErrorMessage(error: unknown) {
+  if (isAxiosError(error)) {
+    return error.response?.data?.error?.message ?? error.message;
+  }
+
+  if (error instanceof Error) return error.message;
+
+  return "잠시 후 다시 시도해주세요.";
 }
 
 function mergeKeywordOptions(
