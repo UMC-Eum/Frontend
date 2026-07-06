@@ -1,6 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { useState } from "react";
 import {
   Alert,
   ActivityIndicator,
@@ -22,6 +21,7 @@ import {
   useDeactivateUserMutation,
   useMyProfileQuery,
 } from "@/hooks/api/useUsers";
+import { useNotificationSettingsStore } from "@/stores/notificationSettingsStore";
 import { uniqueBy } from "@/utils/array";
 
 const ACCENT = "#FC3367";
@@ -33,7 +33,12 @@ const PROFILE_IMAGE =
 
 export default function MyTabScreen() {
   const router = useRouter();
-  const [notificationEnabled, setNotificationEnabled] = useState(true);
+  const notificationEnabled = useNotificationSettingsStore(
+    (state) => state.enabled,
+  );
+  const setNotificationEnabled = useNotificationSettingsStore(
+    (state) => state.setEnabled,
+  );
   const myProfileQuery = useMyProfileQuery();
   const receivedHeartsQuery = useReceivedHeartsInfiniteQuery();
   const recommendationsQuery = useRecommendationsInfiniteQuery();
