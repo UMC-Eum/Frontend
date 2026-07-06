@@ -1,8 +1,8 @@
 import api from "../axiosInstance";
 import { ApiSuccessResponse } from "../../types/api/api";
 import {
+  IPresignApiData,
   IPresignRequest,
-  IPresignResponse,
   IProfileRequest,
   IProfileResponse,
   IRecommendationsRequest,
@@ -12,11 +12,11 @@ import { normalizeS3ObjectRef } from "@/utils/s3ObjectRef";
 
 // v1/files/presign (POST)
 export const postPresign = async (body: IPresignRequest) => {
-  const { data } = await api.post<ApiSuccessResponse<IPresignResponse>>(
+  const { data } = await api.post<ApiSuccessResponse<IPresignApiData>>(
     "/v1/files/presign",
     body,
   );
-  const presignData = normalizePresignResponse(data);
+  const presignData = data.success.data.data;
 
   if (__DEV__) {
     console.log("[Presign] response data", {
@@ -62,59 +62,6 @@ export const uploadFileToS3 = async (
     throw new Error(`S3 upload failed: ${response.status} ${responseText}`);
   }
 };
-
-type PresignResponseCandidate = {
-  success?: { data?: Partial<IPresignResponse> | PresignResponseCandidate };
-  data?: Partial<IPresignResponse> | PresignResponseCandidate;
-  uploadUrl?: string;
-  presignedUrl?: string;
-  signedUrl?: string;
-  url?: string;
-  fileRef?: string;
-  key?: string;
-  fileUrl?: string;
-  publicUrl?: string;
-  expiresAt?: string;
-};
-
-function normalizePresignResponse(
-  response: ApiSuccessResponse<IPresignResponse> | PresignResponseCandidate,
-): IPresignResponse {
-  const candidate = response as PresignResponseCandidate;
-  const payload = unwrapPresignPayload(
-    candidate.success?.data ?? candidate.data ?? candidate,
-  );
-  const uploadUrl =
-    payload.uploadUrl ??
-    (payload as PresignResponseCandidate).presignedUrl ??
-    (payload as PresignResponseCandidate).signedUrl ??
-    (payload as PresignResponseCandidate).url ??
-    "";
-  const uploadRef = uploadUrl ? normalizeS3ObjectRef(uploadUrl) : "";
-  const fileRef =
-    payload.fileRef ??
-    payload.key ??
-    (payload.fileUrl ? normalizeS3ObjectRef(payload.fileUrl) : undefined) ??
-    (payload.publicUrl ? normalizeS3ObjectRef(payload.publicUrl) : undefined) ??
-    (uploadRef !== uploadUrl ? uploadRef : "");
-
-  return {
-    uploadUrl,
-    fileRef,
-    key: payload.key,
-    expiresAt: payload.expiresAt ?? "",
-  };
-}
-
-function unwrapPresignPayload(
-  payload: Partial<IPresignResponse> | PresignResponseCandidate,
-) {
-  const candidate = payload as PresignResponseCandidate;
-
-  return (candidate.success?.data ??
-    candidate.data ??
-    candidate) as Partial<IPresignResponse> & PresignResponseCandidate;
-}
 
 // v1/onboarding/profile (POST)
 export const postProfile = async (body: IProfileRequest) => {
