@@ -6,12 +6,18 @@ interface ChatInputProps {
   onSend: (text: string) => void;
   isAttachmentOpen?: boolean;
   onToggleAttachment?: () => void;
+  onCameraPress?: () => void;
+  onGalleryPress?: () => void;
+  isMediaSending?: boolean;
 }
 
 export default function ChatInput({
   onSend,
   isAttachmentOpen = false,
   onToggleAttachment,
+  onCameraPress,
+  onGalleryPress,
+  isMediaSending = false,
 }: ChatInputProps) {
   const [text, setText] = useState("");
   const canSend = text.trim().length > 0;
@@ -60,8 +66,18 @@ export default function ChatInput({
       {/* 첨부 패널: 플러스 버튼을 눌렀을 때 카메라/갤러리 선택지를 보여줍니다. */}
       {isAttachmentOpen ? (
         <View style={styles.attachmentPanel}>
-          <AttachmentAction iconName="camera" label="카메라" />
-          <AttachmentAction iconName="image" label="갤러리" />
+          <AttachmentAction
+            iconName="camera"
+            label="카메라"
+            onPress={onCameraPress}
+            disabled={isMediaSending}
+          />
+          <AttachmentAction
+            iconName="image"
+            label="갤러리"
+            onPress={onGalleryPress}
+            disabled={isMediaSending}
+          />
         </View>
       ) : null}
     </View>
@@ -71,10 +87,21 @@ export default function ChatInput({
 interface AttachmentActionProps {
   iconName: keyof typeof Ionicons.glyphMap;
   label: string;
+  onPress?: () => void;
+  disabled?: boolean;
 }
 
-const AttachmentAction = ({ iconName, label }: AttachmentActionProps) => (
-  <Pressable style={styles.attachmentAction}>
+const AttachmentAction = ({
+  iconName,
+  label,
+  onPress,
+  disabled = false,
+}: AttachmentActionProps) => (
+  <Pressable
+    style={[styles.attachmentAction, disabled && styles.attachmentDisabled]}
+    onPress={onPress}
+    disabled={disabled}
+  >
     <View style={styles.attachmentIcon}>
       <Ionicons name={iconName} size={24} color="#6F7780" />
     </View>
@@ -131,6 +158,9 @@ const styles = StyleSheet.create({
   attachmentAction: {
     alignItems: "center",
     width: 56,
+  },
+  attachmentDisabled: {
+    opacity: 0.45,
   },
   attachmentIcon: {
     width: 42,

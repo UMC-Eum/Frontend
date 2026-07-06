@@ -37,6 +37,20 @@ export type ChatMessageData =
       avatar?: string;
       mediaUrl?: string;
       isPlaying?: boolean;
+    }
+  | {
+      id: string;
+      type: "photo";
+      mediaUrl: string;
+      isMine: boolean;
+      time: string;
+      sentAt?: string;
+      showTime?: boolean;
+      showUnreadIndicator?: boolean;
+      compactSpacing?: boolean;
+      groupTopSpacing?: boolean;
+      showAvatar?: boolean;
+      avatar?: string;
     };
 
 export default function ChatMessage({
@@ -98,6 +112,8 @@ export default function ChatMessage({
             style={[
               styles.bubble,
               message.isMine ? styles.myBubble : styles.otherBubble,
+              message.type === "voice" && styles.voiceBubble,
+              message.type === "photo" && styles.photoBubble,
             ]}
           >
             {message.type === "text" ? (
@@ -120,8 +136,8 @@ export default function ChatMessage({
                 >
                   <Ionicons
                     name={message.isPlaying ? "pause" : "play"}
-                    size={16}
-                    color={message.isMine ? "#FF3E70" : "#FFFFFF"}
+                    size={20}
+                    color={message.isMine ? "#FF3E70" : "#6F7780"}
                   />
                 </Pressable>
                 <View
@@ -129,7 +145,25 @@ export default function ChatMessage({
                     styles.voiceWaveform,
                     !message.isMine && styles.otherVoiceWaveform,
                   ]}
-                />
+                >
+                  {VOICE_BARS.map((height, index) => (
+                    <View
+                      key={`voice-bar-${index}`}
+                      style={[
+                        styles.voiceWaveBar,
+                        {
+                          height,
+                          opacity: message.isMine
+                            ? index % 3 === 0
+                              ? 0.62
+                              : 0.94
+                            : 0.9,
+                        },
+                        !message.isMine && styles.otherVoiceWaveBar,
+                      ]}
+                    />
+                  ))}
+                </View>
                 <Text
                   style={[
                     styles.voiceDuration,
@@ -142,6 +176,10 @@ export default function ChatMessage({
                 </Text>
               </View>
             ) : null}
+
+            {message.type === "photo" ? (
+              <Image source={{ uri: message.mediaUrl }} style={styles.photo} />
+            ) : null}
           </View>
 
           {!message.isMine && message.showTime !== false ? (
@@ -152,6 +190,8 @@ export default function ChatMessage({
     </View>
   );
 }
+
+const VOICE_BARS = [4, 7, 5, 9, 13, 18, 12, 15, 20, 13, 9, 15, 10, 8, 12, 7, 5];
 
 const styles = StyleSheet.create({
   container: {
@@ -199,6 +239,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 9,
     borderRadius: 12,
+  },
+  photoBubble: {
+    paddingHorizontal: 0,
+    paddingVertical: 0,
+    backgroundColor: "transparent",
+    overflow: "hidden",
+  },
+  voiceBubble: {
+    maxWidth: 212,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 20,
   },
   myBubble: {
     backgroundColor: "#FF3E70",
@@ -253,31 +305,43 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   voiceContainer: {
-    width: 168,
+    width: 184,
+    height: 38,
     flexDirection: "row",
     alignItems: "center",
   },
   voicePlayBtn: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: "#FFFFFF",
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 8,
+    marginRight: 7,
   },
   voiceWaveform: {
     flex: 1,
-    height: 12,
-    backgroundColor: "rgba(255,255,255,0.36)",
-    borderRadius: 8,
-    marginRight: 8,
+    height: 21,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 2.5,
+    marginRight: 6,
   },
   otherVoiceWaveform: {
-    backgroundColor: "#C5CBD1",
+    backgroundColor: "transparent",
+  },
+  voiceWaveBar: {
+    width: 2.5,
+    borderRadius: 1.25,
+    backgroundColor: "#FFFFFF",
+  },
+  otherVoiceWaveBar: {
+    backgroundColor: "#8A949E",
   },
   voiceDuration: {
-    fontSize: 10,
+    minWidth: 31,
+    fontSize: 12,
     fontWeight: "700",
   },
   myVoiceDuration: {
@@ -285,5 +349,11 @@ const styles = StyleSheet.create({
   },
   otherVoiceDuration: {
     color: "#202020",
+  },
+  photo: {
+    width: 190,
+    height: 190,
+    borderRadius: 12,
+    backgroundColor: "#EEF0F2",
   },
 });

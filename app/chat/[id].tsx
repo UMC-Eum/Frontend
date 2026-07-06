@@ -16,6 +16,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   Image,
   Platform,
@@ -24,6 +25,7 @@ import {
   Text,
   View,
 } from "react-native";
+import * as ImagePicker from "expo-image-picker";
 import { KeyboardAvoidingView } from "@/components/KeyboardCompat";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -60,6 +62,7 @@ import {
   useLeaveChatRoomMutation,
 } from "@/hooks/api/useChats";
 import { queryKeys } from "@/hooks/api/queryKeys";
+import { normalizeImageForUpload } from "@/utils/s3ImageUpload";
 import {
   useBlockUserMutation,
   useBlocksInfiniteQuery,
@@ -73,6 +76,13 @@ import type {
   MessageReadData,
   SocketAckResponse,
 } from "@/types/api/socket";
+
+const DEFAULT_CHAT_GALLERY_IMAGE_URIS = [
+  Image.resolveAssetSource(require("@/assets/images/default-profile.png")).uri,
+  Image.resolveAssetSource(require("@/assets/images/onboarding-background-image.png")).uri,
+  Image.resolveAssetSource(require("@/assets/images/splash-image.png")).uri,
+];
+let defaultGalleryImageIndex = 0;
 
 export default function ChatRoom() {
   const { id } = useLocalSearchParams<{ id?: string }>();
@@ -153,6 +163,7 @@ export default function ChatRoom() {
   const [recordingUri, setRecordingUri] = useState<string | null>(null);
   const [recordingTime, setRecordingTime] = useState(0);
   const [isUploadingVoice, setIsUploadingVoice] = useState(false);
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const [playingVoiceMessageId, setPlayingVoiceMessageId] = useState<
     string | null
   >(null);
@@ -843,6 +854,85 @@ export default function ChatRoom() {
     }
   };
 
+  const handlePickPhoto = async (source: "camera" | "gallery") => {
+    if (isUploadingPhoto || !hasChatRoomId) return;
+
+    setIsAttachmentOpen(false);
+    setIsVoiceRecorderOpen(false);
+
+    try {
+      const pickedImage = await pickChatImage(source);
+      if (!pickedImage) return;
+
+      await sendPhotoMessage(pickedImage.uri);
+    } catch (error) {
+      console.log("[ChatPhoto] pick/send error", error);
+      showToast(`사진 전송 실패: ${truncateDebugMessage(formatUnknownError(error), 80)}`);
+    }
+  };
+
+  const sendPhotoMessage = async (imageUri: string) => {
+    if (isUploadingPhoto || !hasChatRoomId) return;
+
+    const sentAt = new Date().toISOString();
+    const nextMessage: ChatMessageData = {
+      id: `pending-photo-${Date.now()}`,
+      type: "photo",
+      mediaUrl: imageUri,
+      isMine: true,
+      time: formatChatTime(sentAt),
+      sentAt,
+      showUnreadIndicator: true,
+    };
+
+    setOptimisticMessages((prevMessages) => [...prevMessages, nextMessage]);
+    setIsUploadingPhoto(true);
+    scrollToLatestMessage();
+
+    try {
+      const mediaRef = await uploadChatPhotoMessage(chatRoomId, imageUri);
+      try {
+        const response = await sendChatMessageSocket({
+          type: "PHOTO",
+          chatRoomId,
+          mediaUrl: mediaRef,
+        });
+
+        console.log("[ChatSocket] photo.message.send", response);
+        if (isSocketSuccess(response)) {
+          const sentMessage = response.success.data;
+          const confirmedMessage: ChatMessageData = {
+            ...nextMessage,
+            id: `message-${sentMessage.messageId}`,
+            time: formatChatTime(sentMessage.sentAt),
+            sentAt: sentMessage.sentAt,
+          };
+
+          setOptimisticMessages((prevMessages) =>
+            replaceOptimisticMessage(
+              prevMessages,
+              nextMessage.id,
+              confirmedMessage,
+            ),
+          );
+        } else {
+          console.log("[ChatPhoto] send fail ack", response.error);
+        }
+      } catch (sendError) {
+        console.log("[ChatPhoto] socket send error", sendError);
+      }
+
+      syncSentMessage(nextMessage.id);
+    } catch (error) {
+      setOptimisticMessages((prevMessages) =>
+        prevMessages.filter((message) => message.id !== nextMessage.id),
+      );
+      throw error;
+    } finally {
+      setIsUploadingPhoto(false);
+    }
+  };
+
   const renderProfileInfo = () => (
     <View style={styles.profileHeader}>
       {profile ? (
@@ -1011,6 +1101,9 @@ export default function ChatRoom() {
             onToggleAttachment={() =>
               setIsAttachmentOpen((prevOpen) => !prevOpen)
             }
+            onCameraPress={() => void handlePickPhoto("camera")}
+            onGalleryPress={() => void handlePickPhoto("gallery")}
+            isMediaSending={isUploadingPhoto}
           />
         )}
       </KeyboardAvoidingView>
@@ -1134,6 +1227,14 @@ function mapChatMessages(
           };
         }
 
+        if (item.type === "PHOTO" && item.mediaUrl) {
+          return {
+            ...base,
+            type: "photo" as const,
+            mediaUrl: item.mediaUrl,
+          };
+        }
+
         return {
           ...base,
           type: "text" as const,
@@ -1181,6 +1282,14 @@ function mapSocketMessage(
       duration: formatDuration(item.durationSec),
       mediaUrl: item.mediaUrl ?? undefined,
       isPlaying: false,
+    };
+  }
+
+  if (item.type === "PHOTO" && item.mediaUrl) {
+    return {
+      ...base,
+      type: "photo",
+      mediaUrl: item.mediaUrl,
     };
   }
 
@@ -1300,6 +1409,10 @@ function isSameChatMessage(
     return leftMessage.duration === rightMessage.duration;
   }
 
+  if (leftMessage.type === "photo" && rightMessage.type === "photo") {
+    return leftMessage.mediaUrl === rightMessage.mediaUrl;
+  }
+
   return false;
 }
 
@@ -1410,6 +1523,122 @@ function isChatMessageType(value: unknown): value is MessageNewData["type"] {
     value === "PHOTO" ||
     value === "VIDEO"
   );
+}
+
+async function pickChatImage(source: "camera" | "gallery") {
+  if (Platform.OS === "web" && source === "gallery") {
+    return getNextDefaultChatGalleryImage();
+  }
+
+  if (source === "gallery") {
+    let permissionResult = await ImagePicker.getMediaLibraryPermissionsAsync();
+
+    if (!permissionResult.granted && permissionResult.canAskAgain) {
+      permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    }
+
+    if (!permissionResult.granted) {
+      Alert.alert("갤러리 권한 필요", "사진을 첨부하려면 갤러리 접근 권한이 필요해요.");
+      if (Platform.OS === "web") {
+        return getNextDefaultChatGalleryImage();
+      }
+      return null;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      allowsEditing: false,
+      quality: 0.85,
+    });
+
+    return result.canceled ? null : (result.assets[0] ?? null);
+  }
+
+  const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
+  if (!permissionResult.granted) {
+    Alert.alert("카메라 권한 필요", "사진을 촬영하려면 카메라 권한이 필요해요.");
+    return null;
+  }
+
+  const result = await ImagePicker.launchCameraAsync({
+    mediaTypes: ["images"],
+    allowsEditing: false,
+    quality: 0.85,
+  });
+
+  return result.canceled ? null : (result.assets[0] ?? null);
+}
+
+function getNextDefaultChatGalleryImage() {
+  const uri =
+    DEFAULT_CHAT_GALLERY_IMAGE_URIS[
+      defaultGalleryImageIndex % DEFAULT_CHAT_GALLERY_IMAGE_URIS.length
+    ];
+  defaultGalleryImageIndex += 1;
+
+  return {
+    uri,
+    width: 512,
+    height: 512,
+  };
+}
+
+async function uploadChatPhotoMessage(chatRoomId: number, uri: string) {
+  const image = await normalizeImageForUpload(uri);
+  const contentType = image.contentType;
+  const fileName = `chat-photo-${Date.now()}.${image.extension}`;
+  const uploadFile = await getPhotoUploadFileInfo(image.uri, contentType);
+
+  const presignData = await postChatMediaPresign(chatRoomId, {
+    name: fileName,
+    type: contentType,
+    size: uploadFile.size,
+  });
+
+  if (Platform.OS !== "web" && isLocalFileUri(image.uri)) {
+    try {
+      await uploadChatFileUriToS3(presignData, image.uri, contentType);
+      return presignData.mediaRef;
+    } catch (nativeUploadError) {
+      console.log("[ChatPhoto] native s3 failed", nativeUploadError);
+      if (isTerminalS3UploadError(nativeUploadError)) {
+        throw nativeUploadError;
+      }
+    }
+  }
+
+  const blob = uploadFile.blob ?? (await getPhotoBlob(image.uri, contentType));
+  await uploadChatFileToS3(presignData, blob, contentType);
+
+  return presignData.mediaRef;
+}
+
+async function getPhotoUploadFileInfo(uri: string, contentType: string) {
+  if (Platform.OS !== "web" && isLocalFileUri(uri)) {
+    const fileInfo = await FileSystem.getInfoAsync(uri);
+
+    if (
+      fileInfo.exists &&
+      !fileInfo.isDirectory &&
+      typeof fileInfo.size === "number" &&
+      fileInfo.size > 0
+    ) {
+      return { size: fileInfo.size, blob: undefined as Blob | undefined };
+    }
+  }
+
+  const blob = await getPhotoBlob(uri, contentType);
+  return { size: blob.size, blob };
+}
+
+async function getPhotoBlob(uri: string, contentType: string) {
+  const response = await fetch(uri);
+  const blob = await response.blob();
+  if (blob.size <= 0) {
+    throw new Error("첨부할 사진 파일이 비어 있습니다.");
+  }
+
+  return blob.type ? blob : new Blob([blob], { type: contentType });
 }
 
 async function uploadChatVoiceMessage(chatRoomId: number, uri: string) {
