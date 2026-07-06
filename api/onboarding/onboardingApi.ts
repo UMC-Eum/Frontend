@@ -90,7 +90,13 @@ function normalizePresignResponse(
     (payload as PresignResponseCandidate).signedUrl ??
     (payload as PresignResponseCandidate).url ??
     "";
-  const fileRef = payload.fileRef ?? payload.key ?? "";
+  const uploadRef = uploadUrl ? normalizeS3ObjectRef(uploadUrl) : "";
+  const fileRef =
+    payload.fileRef ??
+    payload.key ??
+    (payload.fileUrl ? normalizeS3ObjectRef(payload.fileUrl) : undefined) ??
+    (payload.publicUrl ? normalizeS3ObjectRef(payload.publicUrl) : undefined) ??
+    (uploadRef !== uploadUrl ? uploadRef : "");
 
   return {
     uploadUrl,
