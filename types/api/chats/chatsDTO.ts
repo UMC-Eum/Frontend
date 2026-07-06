@@ -14,22 +14,37 @@ export interface IChatsRoomsPostResponse {
   peer: IPeer;
 }
 
+//v1/chats/clubs/{clubId}/room(post)
+export interface IChatsClubsClubIdRoomPostResponse {
+  chatRoomId: number;
+  clubId?: number;
+  created?: boolean;
+}
+
 //v1/chats/rooms(get)
-export type MessageType = "TEXT" | "AUDIO" | "PHOTO" | "VIDEO";
+export type MessageType = "TEXT" | "AUDIO" | "PHOTO" | "VIDEO" | "SYSTEM";
+export type ChatRoomType = "DM" | "CLUB" | (string & {});
 
 export interface ILastMessage {
-  type: MessageType;
+  type: MessageType | "SYSTEM";
   textPreview: string;
   sentAt: string;
 }
 export interface IChatsRoomItem {
   chatRoomId: number;
+  type?: ChatRoomType;
   peer: {
     userId: number;
     nickname: string;
     profileImageUrl: string;
     areaName: string;
-  };
+  } | null;
+  club?: {
+    clubId: number;
+    name: string;
+    thumbnailUrl: string | null;
+  } | null;
+  memberCount?: number;
   lastMessage: ILastMessage | null;
   unreadCount: number;
 }
@@ -42,13 +57,20 @@ export interface IChatsRoomsGetResponse {
 //v1/chats/rooms/{chatRoomId}(get)
 export interface IChatsRoomIdGetResponse {
   chatRoomId: number;
+  type?: ChatRoomType;
   peer: {
     userId: number;
     nickname: string;
     age: number;
     areaName: string;
     profileImageUrl: string;
-  };
+  } | null;
+  club?: {
+    clubId: number;
+    name: string;
+    thumbnailUrl: string | null;
+  } | null;
+  memberCount?: number;
 }
 
 //v1/chats/rooms/{chatRoomId}/messages(get)

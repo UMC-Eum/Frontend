@@ -44,6 +44,10 @@ import {
   useClubMembersInfiniteQuery,
   useDeleteClubMutation,
 } from "@/hooks/api/useHost";
+import {
+  useChatRoomsInfiniteQuery,
+  useClubChatRoomQuery,
+} from "@/hooks/api/useChats";
 import type { ApiFailResponse } from "@/types/api/api";
 import { IArticleListItem } from "@/types/api/articles/articlesDTO";
 import {
@@ -70,7 +74,10 @@ import type {
 } from "@/types/api/meetings/meetingsDTO";
 import { uniqueBy } from "@/utils/array";
 import { ClubViewer, getClubViewer } from "@/utils/clubViewer";
-import { getClubChatRoomId } from "@/utils/clubChat";
+import {
+  getClubChatRoomId,
+  getClubChatRoomIdFromRooms,
+} from "@/utils/clubChat";
 import ClubChatTab from "@/components/club/ClubChatTab";
 
 const PINK = "#FF3E70";
@@ -147,8 +154,33 @@ export default function ClubDetailScreen() {
   const isHost = detail?.myAuthority === "HOST";
   // 게스트/멤버/호스트 역할과 화면 권한을 한 곳에서 계산한다.
   const viewer = getClubViewer({ isJoined, isHost });
-  // 단체 채팅방 id (백엔드가 내려주면 실제 채팅 연결, 아직 없으면 null)
-  const clubChatRoomId = getClubChatRoomId(detail);
+  // 단체 채팅방 id: 상세 응답에 있으면 우선 사용하고, 없으면 lazy 입장 API로 가져옵니다.
+  const detailClubChatRoomId = getClubChatRoomId(detail);
+  const shouldUseClubChat =
+    activeTab === "chat" && viewer.canUseChat;
+  const chatRoomsQuery = useChatRoomsInfiniteQuery(30, {
+    enabled: shouldUseClubChat,
+    staleTime: 15 * 1000,
+    refetchOnMount: "always",
+  });
+  const existingClubChatRoomId = getClubChatRoomIdFromRooms(
+    chatRoomsQuery.data,
+    clubId,
+  );
+  const shouldResolveClubChatRoom =
+    shouldUseClubChat && !detailClubChatRoomId && !existingClubChatRoomId;
+  const clubChatRoomQuery = useClubChatRoomQuery(
+    clubId,
+    shouldResolveClubChatRoom,
+  );
+  const clubChatRoomId =
+    detailClubChatRoomId ??
+    existingClubChatRoomId ??
+    clubChatRoomQuery.data?.chatRoomId ??
+    null;
+  const clubChatRoomErrorText = getClubChatRoomErrorText(
+    clubChatRoomQuery.error,
+  );
   const bottomBarHeight = viewer.isParticipant
     ? insets.bottom + (activeTab === "board" ? 110 : 24)
     : insets.bottom + 96;
@@ -248,6 +280,11 @@ export default function ClubDetailScreen() {
         },
       ],
     );
+  };
+
+  const handleRetryClubChatRoom = () => {
+    void chatRoomsQuery.refetch();
+    void clubChatRoomQuery.refetch();
   };
 
   const settingsItems: ActionSheetItem[] = [
@@ -444,6 +481,28 @@ export default function ClubDetailScreen() {
           viewer.canUseChat ? (
             clubChatRoomId ? (
               <ClubChatTab chatRoomId={clubChatRoomId} bottomPadding={0} />
+            ) : clubChatRoomQuery.isLoading || clubChatRoomQuery.isFetching ? (
+              <View style={styles.preJoinChatPlaceholder}>
+                <ActivityIndicator color={PINK} />
+                <Text style={styles.preJoinChatText}>
+                  채팅방을 불러오는 중이에요.
+                </Text>
+              </View>
+            ) : clubChatRoomQuery.isError ? (
+              <Pressable
+                style={styles.preJoinChatPlaceholder}
+                onPress={handleRetryClubChatRoom}
+              >
+                <Ionicons
+                  name="alert-circle-outline"
+                  size={40}
+                  color="#C5CDD3"
+                />
+                <Text style={styles.preJoinChatText}>
+                  {clubChatRoomErrorText}
+                </Text>
+                <Text style={styles.preJoinChatRetryText}>다시 시도</Text>
+              </Pressable>
             ) : (
               <View style={styles.preJoinChatPlaceholder}>
                 <Ionicons
@@ -603,13 +662,56 @@ function IconClubSettings(props: SvgProps) {
 }
 
 function getApiErrorMessage(error: unknown) {
+  if (!error) return undefined;
+
   const apiError = error as { response?: { data?: ApiFailResponse } };
   return apiError.response?.data?.error?.message;
 }
 
 function getApiErrorCode(error: unknown) {
+  if (!error) return undefined;
+
   const apiError = error as { response?: { data?: ApiFailResponse } };
   return apiError.response?.data?.error?.code;
+}
+
+function getApiErrorStatus(error: unknown) {
+  if (!error) return undefined;
+
+  const apiError = error as { response?: { status?: number } };
+  return apiError.response?.status;
+}
+
+function getClubChatRoomErrorText(error: unknown) {
+  const status = getApiErrorStatus(error);
+  const code = getApiErrorCode(error);
+  const message = getApiErrorMessage(error);
+
+  if (__DEV__ && error) {
+    console.log("[ClubChat] room enter error", { status, code, message });
+  }
+
+  if (code === "CLUB_FORBIDDEN_NOT_MEMBER" || status === 403) {
+    return "가입 승인 후 채팅에 참여할 수 있어요.";
+  }
+
+  if (code === "SYS-001" && message?.includes("Cannot POST")) {
+    return "서버에 동호회 채팅방 API가 아직 배포되지 않았어요.";
+  }
+
+  if (code === "CLUB_NOT_FOUND") {
+    return "동호회를 찾을 수 없어요.";
+  }
+
+  if (status === 404) {
+    return "서버에서 동호회 채팅방을 찾지 못했어요.";
+  }
+
+  if (status && status >= 500) {
+    return "서버에서 채팅방을 준비하지 못했어요.";
+  }
+
+  return message || "채팅방을 열지 못했어요.";
 }
 
 function ClubHomeTab({
@@ -2434,6 +2536,11 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "500",
     textAlign: "center",
+  },
+  preJoinChatRetryText: {
+    color: PINK,
+    fontSize: 14,
+    fontWeight: "700",
   },
   chatContent: {
     paddingHorizontal: 20,

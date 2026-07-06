@@ -40,6 +40,7 @@ import ChatActionSheet from "@/components/chat/ChatActionSheet";
 import ChatInput from "@/components/chat/ChatInput";
 import ChatMessage, { ChatMessageData } from "@/components/chat/ChatMessage";
 import ConfirmModal from "@/components/chat/ConfirmModal";
+import ClubChatTab from "@/components/club/ClubChatTab";
 import MicRecorder from "@/components/MicRecorder";
 import {
   KEYBOARD_AVOIDING_BEHAVIOR,
@@ -74,6 +75,7 @@ import type {
   MessageDeletedData,
   MessageNewData,
   MessageReadData,
+  MessageSendAckData,
   SocketAckResponse,
 } from "@/types/api/socket";
 
@@ -94,12 +96,17 @@ export default function ChatRoom() {
   const chatRoomId = Number(id);
   const hasChatRoomId = Number.isFinite(chatRoomId);
   const roomDetailQuery = useChatRoomDetailQuery(chatRoomId, hasChatRoomId);
+  const roomDetail = roomDetailQuery.data;
+  const isClubRoom =
+    roomDetail?.type === "CLUB" || Boolean(roomDetail && !roomDetail.peer);
+  const shouldUseDirectChat =
+    hasChatRoomId && Boolean(roomDetail) && !isClubRoom;
   const messagesQuery = useChatMessagesInfiniteQuery(
     chatRoomId,
     30,
-    hasChatRoomId,
+    shouldUseDirectChat,
   );
-  const peerUserId = roomDetailQuery.data?.peer.userId;
+  const peerUserId = roomDetail?.peer?.userId;
   const blocksQuery = useBlocksInfiniteQuery(100, {
     enabled: typeof peerUserId === "number",
     staleTime: 10000,
@@ -117,16 +124,16 @@ export default function ChatRoom() {
   );
   const profile = useMemo(
     () =>
-      roomDetailQuery.data
+      roomDetail?.peer
         ? {
-            name: roomDetailQuery.data.peer.nickname,
-            age: roomDetailQuery.data.peer.age,
-            area: roomDetailQuery.data.peer.areaName,
-            image: roomDetailQuery.data.peer.profileImageUrl,
-            userId: roomDetailQuery.data.peer.userId,
+            name: roomDetail.peer.nickname,
+            age: roomDetail.peer.age,
+            area: roomDetail.peer.areaName,
+            image: roomDetail.peer.profileImageUrl,
+            userId: roomDetail.peer.userId,
           }
         : null,
-    [roomDetailQuery.data],
+    [roomDetail],
   );
   const activeBlock = useMemo(() => {
     if (typeof peerUserId !== "number") return null;
@@ -145,9 +152,9 @@ export default function ChatRoom() {
     () =>
       mapChatMessages(
         messagesQuery.data,
-        roomDetailQuery.data?.peer.profileImageUrl,
+        roomDetail?.peer?.profileImageUrl,
       ),
-    [messagesQuery.data, roomDetailQuery.data?.peer.profileImageUrl],
+    [messagesQuery.data, roomDetail?.peer?.profileImageUrl],
   );
   const [optimisticMessages, setOptimisticMessages] = useState<
     ChatMessageData[]
@@ -206,11 +213,11 @@ export default function ChatRoom() {
   }, [isBlocked]);
 
   useEffect(() => {
-    peerUserIdRef.current = roomDetailQuery.data?.peer.userId;
-    peerProfileImageUrlRef.current = roomDetailQuery.data?.peer.profileImageUrl;
+    peerUserIdRef.current = roomDetail?.peer?.userId;
+    peerProfileImageUrlRef.current = roomDetail?.peer?.profileImageUrl;
   }, [
-    roomDetailQuery.data?.peer.profileImageUrl,
-    roomDetailQuery.data?.peer.userId,
+    roomDetail?.peer?.profileImageUrl,
+    roomDetail?.peer?.userId,
   ]);
 
   const showToast = useCallback((message: string) => {
@@ -276,17 +283,17 @@ export default function ChatRoom() {
   }, [isRecording, recorderState.durationMillis]);
 
   useEffect(() => {
-    if (!hasChatRoomId || isChatRealtimeActive) return;
+    if (!shouldUseDirectChat || isChatRealtimeActive) return;
 
     const intervalId = setInterval(() => {
       void refetchMessages();
     }, 2500);
 
     return () => clearInterval(intervalId);
-  }, [hasChatRoomId, isChatRealtimeActive, refetchMessages]);
+  }, [isChatRealtimeActive, refetchMessages, shouldUseDirectChat]);
 
   useEffect(() => {
-    if (!hasChatRoomId) return;
+    if (!shouldUseDirectChat) return;
 
     const unreadMessageIds =
       messagesQuery.data?.pages.flatMap((page) =>
@@ -318,12 +325,12 @@ export default function ChatRoom() {
       .catch((error) => {
         console.log("[ChatSocket] read messages error", error);
       });
-  }, [chatRoomId, hasChatRoomId, messagesQuery.data, queryClient]);
+  }, [chatRoomId, messagesQuery.data, queryClient, shouldUseDirectChat]);
 
   useEffect(() => {
     setIsChatRealtimeActive(false);
 
-    if (!hasChatRoomId) return;
+    if (!shouldUseDirectChat) return;
 
     const socket = connectChatSocket();
     let isActive = true;
@@ -343,7 +350,9 @@ export default function ChatRoom() {
           if (!isActive) return;
 
           if (!isSocketSuccess(response)) {
-            showToast(`채팅방 입장 실패: ${response.error.message}`);
+            showToast(
+              `채팅방 입장 실패: ${getSocketErrorMessage(response) ?? "잠시 후 다시 시도해주세요."}`,
+            );
             return;
           }
 
@@ -446,15 +455,14 @@ export default function ChatRoom() {
     }
 
     const unsubscribeMessageNew = onMessageNew((payload) => {
-      if (payload.resultType !== "SUCCESS") return;
-
-      const nextMessage = payload.success.data;
+      const nextMessage = getSocketMessageData(payload);
+      if (!nextMessage) return;
       appendIncomingMessage(nextMessage);
     }, socket);
 
     const unsubscribeMessageRead = onMessageRead((payload) => {
-      if (payload.resultType !== "SUCCESS") return;
-      const readEvent = payload.success.data;
+      const readEvent = getSocketReadData(payload);
+      if (!readEvent) return;
       if (readEvent.chatRoomId !== chatRoomId) return;
 
       console.log("[ChatSocket] message.read", readEvent);
@@ -469,8 +477,8 @@ export default function ChatRoom() {
     }, socket);
 
     const unsubscribeMessageDeleted = onMessageDeleted((payload) => {
-      if (payload.resultType !== "SUCCESS") return;
-      const deletedEvent = payload.success.data;
+      const deletedEvent = getSocketDeletedData(payload);
+      if (!deletedEvent) return;
       if (deletedEvent.chatRoomId !== chatRoomId) return;
 
       queryClient.invalidateQueries({
@@ -496,10 +504,10 @@ export default function ChatRoom() {
     };
   }, [
     chatRoomId,
-    hasChatRoomId,
     myUserId,
     queryClient,
     scrollToLatestMessage,
+    shouldUseDirectChat,
     showToast,
   ]);
 
@@ -595,25 +603,29 @@ export default function ChatRoom() {
     })
       .then((response) => {
         console.log("[ChatSocket] message.send", response);
-        if (!isSocketSuccess(response)) {
-          throw new Error(response.error.message);
+        const sentMessage = getMessageSendAckData(response);
+        if (!isSocketSuccess(response) && !sentMessage) {
+          throw new Error(
+            getSocketErrorMessage(response) ?? "메시지를 보내지 못했습니다.",
+          );
         }
 
-        const sentMessage = response.success.data;
-        const confirmedMessage: ChatMessageData = {
-          ...nextMessage,
-          id: `message-${sentMessage.messageId}`,
-          time: formatChatTime(sentMessage.sentAt),
-          sentAt: sentMessage.sentAt,
-        };
+        if (sentMessage) {
+          const confirmedMessage: ChatMessageData = {
+            ...nextMessage,
+            id: `message-${sentMessage.messageId}`,
+            time: formatChatTime(sentMessage.sentAt),
+            sentAt: sentMessage.sentAt,
+          };
 
-        setOptimisticMessages((prevMessages) =>
-          replaceOptimisticMessage(
-            prevMessages,
-            nextMessage.id,
-            confirmedMessage,
-          ),
-        );
+          setOptimisticMessages((prevMessages) =>
+            replaceOptimisticMessage(
+              prevMessages,
+              nextMessage.id,
+              confirmedMessage,
+            ),
+          );
+        }
         syncSentMessage(nextMessage.id);
       })
       .catch((error) => {
@@ -761,13 +773,13 @@ export default function ChatRoom() {
         });
 
         console.log("[ChatSocket] voice.message.send", response);
-        if (isSocketSuccess(response)) {
-          const sentMessage = response.success.data;
+        const sentMessage = getMessageSendAckData(response);
+        if (isSocketSuccess(response) || sentMessage) {
           const confirmedMessage: ChatMessageData = {
             ...nextMessage,
-            id: `message-${sentMessage.messageId}`,
-            time: formatChatTime(sentMessage.sentAt),
-            sentAt: sentMessage.sentAt,
+            id: sentMessage ? `message-${sentMessage.messageId}` : nextMessage.id,
+            time: sentMessage ? formatChatTime(sentMessage.sentAt) : nextMessage.time,
+            sentAt: sentMessage?.sentAt ?? nextMessage.sentAt,
           };
 
           setOptimisticMessages((prevMessages) =>
@@ -778,7 +790,7 @@ export default function ChatRoom() {
             ),
           );
         } else {
-          console.log("[ChatVoice] send fail ack", response.error);
+          console.log("[ChatVoice] send fail ack", getSocketErrorMessage(response));
         }
       } catch (sendError) {
         console.log("[ChatVoice] socket send error", sendError);
@@ -899,13 +911,13 @@ export default function ChatRoom() {
         });
 
         console.log("[ChatSocket] photo.message.send", response);
-        if (isSocketSuccess(response)) {
-          const sentMessage = response.success.data;
+        const sentMessage = getMessageSendAckData(response);
+        if (isSocketSuccess(response) || sentMessage) {
           const confirmedMessage: ChatMessageData = {
             ...nextMessage,
-            id: `message-${sentMessage.messageId}`,
-            time: formatChatTime(sentMessage.sentAt),
-            sentAt: sentMessage.sentAt,
+            id: sentMessage ? `message-${sentMessage.messageId}` : nextMessage.id,
+            time: sentMessage ? formatChatTime(sentMessage.sentAt) : nextMessage.time,
+            sentAt: sentMessage?.sentAt ?? nextMessage.sentAt,
           };
 
           setOptimisticMessages((prevMessages) =>
@@ -916,7 +928,7 @@ export default function ChatRoom() {
             ),
           );
         } else {
-          console.log("[ChatPhoto] send fail ack", response.error);
+          console.log("[ChatPhoto] send fail ack", getSocketErrorMessage(response));
         }
       } catch (sendError) {
         console.log("[ChatPhoto] socket send error", sendError);
@@ -932,6 +944,34 @@ export default function ChatRoom() {
       setIsUploadingPhoto(false);
     }
   };
+
+  if (isClubRoom) {
+    const title = roomDetail?.club?.name ?? "동호회 채팅";
+
+    return (
+      <SafeAreaView style={styles.safeArea} edges={["top"]}>
+        <View style={styles.header}>
+          <Pressable
+            style={styles.headerButton}
+            onPress={() => router.back()}
+            hitSlop={10}
+          >
+            <Ionicons name="chevron-back" size={24} color="#A6AFB6" />
+          </Pressable>
+          <Text style={styles.headerTitle}>{title}</Text>
+          <View style={[styles.headerButton, styles.headerButtonDisabled]} />
+        </View>
+
+        <KeyboardAvoidingView
+          style={styles.container}
+          behavior={KEYBOARD_AVOIDING_BEHAVIOR}
+          keyboardVerticalOffset={KEYBOARD_VERTICAL_OFFSET}
+        >
+          <ClubChatTab chatRoomId={chatRoomId} bottomPadding={0} />
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    );
+  }
 
   const renderProfileInfo = () => (
     <View style={styles.profileHeader}>
@@ -1185,7 +1225,7 @@ function mapChatMessages(
         pages: {
           items: {
             messageId: number;
-            type: "TEXT" | "AUDIO" | "PHOTO" | "VIDEO";
+            type: "TEXT" | "AUDIO" | "PHOTO" | "VIDEO" | "SYSTEM";
             text: string | null;
             mediaUrl: string | null;
             durationSec: number;
@@ -1235,6 +1275,14 @@ function mapChatMessages(
           };
         }
 
+        if (item.type === "SYSTEM") {
+          return {
+            ...base,
+            type: "text" as const,
+            text: item.text ?? "",
+          };
+        }
+
         return {
           ...base,
           type: "text" as const,
@@ -1251,8 +1299,54 @@ function mapChatMessages(
 
 function isSocketSuccess<TData>(
   response: SocketAckResponse<TData>,
-): response is Extract<SocketAckResponse<TData>, { resultType: "SUCCESS" }> {
-  return response.resultType === "SUCCESS";
+) {
+  if (response.resultType === "SUCCESS") return true;
+  const record = response as unknown;
+  if (!isRecord(record)) return false;
+  if (isRecord(record.error)) return false;
+  return record.ok === true;
+}
+
+function getSocketSuccessData<TData>(
+  response: SocketAckResponse<TData> | unknown,
+): TData | null {
+  if (!isRecord(response)) return null;
+
+  const success = response.success;
+  if (response.resultType === "SUCCESS" && isRecord(success)) {
+    return success.data as TData;
+  }
+
+  const data = response.data;
+  if (isRecord(data)) {
+    return data as TData;
+  }
+
+  if (response.ok === true) {
+    return response as TData;
+  }
+
+  if (!isRecord(response.error) && response.resultType !== "FAIL") {
+    return response as TData;
+  }
+
+  return null;
+}
+
+function getMessageSendAckData(response: unknown): MessageSendAckData | null {
+  const data = getSocketSuccessData<MessageSendAckData>(response);
+  if (!isRecord(data)) return null;
+
+  return typeof data.messageId === "number" && typeof data.sentAt === "string"
+    ? { messageId: data.messageId, sentAt: data.sentAt }
+    : null;
+}
+
+function getSocketErrorMessage(response: unknown) {
+  if (!isRecord(response)) return undefined;
+  const error = response.error;
+  if (!isRecord(error)) return undefined;
+  return typeof error.message === "string" ? error.message : undefined;
 }
 
 function mapSocketMessage(
@@ -1462,19 +1556,23 @@ function markSocketMessageRead(
 function getSocketMessageData(payload: unknown): MessageNewData | null {
   const data = unwrapSocketPayloadData(payload);
   if (!isRecord(data)) return null;
+  const sender = isRecord(data.sender) ? data.sender : null;
 
   const {
     messageId,
     chatRoomId,
-    senderUserId,
     type,
     text,
     mediaUrl,
     durationSec,
     sentAt,
-    senderName,
-    senderProfileImage,
   } = data;
+  const senderUserId = data.senderUserId ?? data.senderId ?? sender?.userId;
+  const senderName = data.senderName ?? sender?.nickname ?? sender?.name;
+  const senderProfileImage =
+    data.senderProfileImage ??
+    data.senderProfileImageUrl ??
+    sender?.profileImageUrl;
 
   if (
     typeof messageId !== "number" ||
@@ -1501,6 +1599,51 @@ function getSocketMessageData(payload: unknown): MessageNewData | null {
   };
 }
 
+function getSocketReadData(payload: unknown): MessageReadData | null {
+  const data = unwrapSocketPayloadData(payload);
+  if (!isRecord(data)) return null;
+
+  const { messageId, chatRoomId, readerUserId, readAt, unreadCount } = data;
+  if (
+    typeof messageId !== "number" ||
+    typeof chatRoomId !== "number" ||
+    typeof readerUserId !== "number" ||
+    typeof readAt !== "string"
+  ) {
+    return null;
+  }
+
+  return {
+    messageId,
+    chatRoomId,
+    readerUserId,
+    readAt,
+    unreadCount: typeof unreadCount === "number" ? unreadCount : undefined,
+  };
+}
+
+function getSocketDeletedData(payload: unknown): MessageDeletedData | null {
+  const data = unwrapSocketPayloadData(payload);
+  if (!isRecord(data)) return null;
+
+  const { messageId, chatRoomId, deletedByUserId, deletedAt } = data;
+  if (
+    typeof messageId !== "number" ||
+    typeof chatRoomId !== "number" ||
+    typeof deletedByUserId !== "number" ||
+    typeof deletedAt !== "string"
+  ) {
+    return null;
+  }
+
+  return {
+    messageId,
+    chatRoomId,
+    deletedByUserId,
+    deletedAt,
+  };
+}
+
 function unwrapSocketPayloadData(payload: unknown) {
   if (!isRecord(payload)) return payload;
 
@@ -1509,7 +1652,7 @@ function unwrapSocketPayloadData(payload: unknown) {
     return success.data;
   }
 
-  return payload.data ?? payload;
+  return payload.data ?? payload.message ?? payload.payload ?? payload;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

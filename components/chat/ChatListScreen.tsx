@@ -25,6 +25,7 @@ type ChatPreview = {
   timeLabel: string;
   unreadCount: number;
   image?: string;
+  isClub?: boolean;
 };
 
 type ActiveMember = {
@@ -78,7 +79,9 @@ export default function ChatListScreen({
       style={styles.chatItem}
       onPress={() => openChatRoom(item.id)}
       accessibilityRole="button"
-      accessibilityLabel={`${item.name}님과의 대화`}
+      accessibilityLabel={
+        item.isClub ? `${item.name} 동호회 대화` : `${item.name}님과의 대화`
+      }
     >
       {item.image ? (
         <Image source={{ uri: item.image }} style={styles.avatarPlaceholder} />
@@ -207,11 +210,17 @@ function mapChatRooms(data?: {
   pages: {
     items: {
       chatRoomId?: number | null;
+      type?: string | null;
       peer?: {
         nickname?: string | null;
         profileImageUrl?: string | null;
         areaName?: string | null;
       } | null;
+      club?: {
+        name?: string | null;
+        thumbnailUrl?: string | null;
+      } | null;
+      memberCount?: number | null;
       lastMessage?: {
         textPreview?: string | null;
         sentAt?: string | null;
@@ -225,17 +234,25 @@ function mapChatRooms(data?: {
       data?.pages.flatMap((page) =>
         (page.items ?? []).flatMap((room) => {
           if (!room?.chatRoomId) return [];
+          const isClub = room.type === "CLUB";
 
           return {
             id: String(room.chatRoomId),
-            name: room.peer?.nickname?.trim() || "이름 없는 사용자",
-            location: room.peer?.areaName?.trim() || "지역 정보 없음",
+            name: isClub
+              ? room.club?.name?.trim() || "동호회 채팅"
+              : room.peer?.nickname?.trim() || "이름 없는 사용자",
+            location: isClub
+              ? `${room.memberCount ?? 0}명 참여중`
+              : room.peer?.areaName?.trim() || "지역 정보 없음",
             lastMessage:
               room.lastMessage?.textPreview?.trim() ||
               "새로운 대화를 시작해보세요.",
             timeLabel: formatRelativeTime(room.lastMessage?.sentAt),
             unreadCount: room.unreadCount ?? 0,
-            image: room.peer?.profileImageUrl ?? undefined,
+            image: isClub
+              ? room.club?.thumbnailUrl ?? undefined
+              : room.peer?.profileImageUrl ?? undefined,
+            isClub,
           };
         }),
       ) ?? [],
@@ -246,6 +263,7 @@ function mapChatRooms(data?: {
 
 function mapActiveMembers(items: ChatPreview[]): ActiveMember[] {
   const fromChats = items
+    .filter((item) => !item.isClub)
     .filter((item) => item.image)
     .map((item) => ({
       id: `active-${item.id}`,

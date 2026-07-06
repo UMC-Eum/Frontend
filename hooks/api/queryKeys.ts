@@ -47,6 +47,8 @@ export const queryKeys = {
     all: ["chats"] as const,
     rooms: (size: number) => [...queryKeys.chats.all, "rooms", { size }] as const,
     room: (chatRoomId: number) => [...queryKeys.chats.all, "rooms", chatRoomId] as const,
+    clubRoom: (clubId: number) =>
+      [...queryKeys.chats.all, "clubs", clubId, "room"] as const,
     messages: (chatRoomId: number, size: number) =>
       [...queryKeys.chats.room(chatRoomId), "messages", { size }] as const,
   },
