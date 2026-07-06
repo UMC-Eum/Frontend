@@ -24,7 +24,7 @@ import { CLUB_CREATE_CATEGORIES } from "@/constants/club";
 import { KEYBOARD_AVOIDING_BEHAVIOR } from "@/constants/keyboard";
 import { useCreateClubMutation } from "@/hooks/api/useClub";
 import { useFastInputScroll } from "@/hooks/useFastInputScroll";
-import { useClubCreateAreaStore, useClubLocationStore } from "@/stores/clubLocationStore";
+import { useClubCreateAreaStore } from "@/stores/clubLocationStore";
 import type { ApiFailResponse } from "@/types/api/api";
 import {
   normalizeImageForUpload,
@@ -57,8 +57,8 @@ export default function ClubCreateScreen() {
   const [boardScope, setBoardScope] = useState<BoardScope>("member");
   const [coverImages, setCoverImages] = useState<CoverImage[]>([]);
   const [isUploadingCover, setUploadingCover] = useState(false);
-  const areaCode = useClubLocationStore((state) => state.areaCode);
-  const areaName = useClubLocationStore((state) => state.areaName);
+  const areaCode = useClubCreateAreaStore((state) => state.areaCode);
+  const areaName = useClubCreateAreaStore((state) => state.areaName);
 
   // 이전 생성 시도에서 고른 지역이 남지 않도록 화면 진입 시 초기화한다.
   useEffect(() => {
@@ -282,7 +282,7 @@ export default function ClubCreateScreen() {
               onPress={() =>
                 router.push({
                   pathname: "/profile/location",
-                  params: { mode: "club" },
+                  params: { mode: "club-create" },
                 } as never)
               }
             >

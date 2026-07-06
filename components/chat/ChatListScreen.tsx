@@ -1,10 +1,10 @@
 import { Ionicons } from "@expo/vector-icons";
+import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import React, { useMemo } from "react";
 import {
   ActivityIndicator,
   FlatList,
-  Image,
   ListRenderItem,
   Pressable,
   StyleSheet,
@@ -13,6 +13,9 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import {
+  ChatPreviewListSkeleton,
+} from "@/components/skeletons";
 import { TAB_SCREEN_BOTTOM_PADDING } from "@/constants/layout";
 import { useChatRoomsInfiniteQuery } from "@/hooks/api/useChats";
 import { uniqueBy } from "@/utils/array";
@@ -28,40 +31,17 @@ type ChatPreview = {
   isClub?: boolean;
 };
 
-type ActiveMember = {
-  id: string;
-  name: string;
-  age: number;
-  image: string;
-};
-
-const ACTIVE_MEMBER_PLACEHOLDERS = Array.from({ length: 4 }, (_, index) =>
-  `active-member-placeholder-${index}`,
-);
-
-interface ChatListScreenProps {
-  showActiveMembers?: boolean;
-}
-
-export default function ChatListScreen({
-  showActiveMembers = true,
-}: ChatListScreenProps) {
+export default function ChatListScreen() {
   const router = useRouter();
   const chatRoomsQuery = useChatRoomsInfiniteQuery(undefined, {
-    staleTime: 0,
-    refetchOnMount: "always",
+    staleTime: 30_000,
   });
   const apiChatPreviews = useMemo(
     () => mapChatRooms(chatRoomsQuery.data),
     [chatRoomsQuery.data],
   );
   const chatPreviews = apiChatPreviews;
-  const activeMembers = showActiveMembers
-    ? mapActiveMembers(chatPreviews).slice(0, 8)
-    : [];
   const isInitialLoading = chatRoomsQuery.isLoading && chatPreviews.length === 0;
-  const shouldShowActiveSection =
-    showActiveMembers && (isInitialLoading || activeMembers.length > 0);
 
   const openChatRoom = (chatId: string) => {
     router.push({
@@ -84,7 +64,12 @@ export default function ChatListScreen({
       }
     >
       {item.image ? (
-        <Image source={{ uri: item.image }} style={styles.avatarPlaceholder} />
+        <Image
+          source={{ uri: item.image }}
+          style={styles.avatarPlaceholder}
+          contentFit="cover"
+          cachePolicy="memory-disk"
+        />
       ) : (
         <View style={styles.avatarPlaceholder} />
       )}
@@ -109,15 +94,6 @@ export default function ChatListScreen({
     </Pressable>
   );
 
-  const renderActiveMember: ListRenderItem<ActiveMember> = ({ item }) => (
-    <View style={styles.activeMember}>
-      <Image source={{ uri: item.image }} style={styles.activeImage} />
-      <Text style={styles.activeName} numberOfLines={1}>
-        {item.age > 0 ? `${item.name} · ${item.age}` : item.name}
-      </Text>
-    </View>
-  );
-
   const renderHeader = () => (
     <View>
       <View style={styles.header}>
@@ -129,36 +105,9 @@ export default function ChatListScreen({
           accessibilityRole="button"
           accessibilityLabel="알림 보기"
         >
-          <Ionicons name="notifications-outline" size={25} color="#202020" />
+          <Ionicons name="notifications-outline" size={23} color="#202020" />
         </Pressable>
       </View>
-
-      {/* 첫 응답 전후로 헤더 높이가 튀지 않도록 활동중 섹션 자리를 유지합니다. */}
-      {shouldShowActiveSection ? (
-        <View style={styles.activeSection}>
-          <Text style={styles.activeTitle}>현재 활동중인 사람들이에요!</Text>
-          <Text style={styles.activeSubtitle}>편하게 소통해봐요!</Text>
-          {isInitialLoading ? (
-            <View style={styles.activePlaceholderList}>
-              {ACTIVE_MEMBER_PLACEHOLDERS.map((id) => (
-                <View key={id} style={styles.activeMember}>
-                  <View style={styles.activeImagePlaceholder} />
-                  <View style={styles.activeNamePlaceholder} />
-                </View>
-              ))}
-            </View>
-          ) : (
-            <FlatList
-              data={activeMembers}
-              keyExtractor={(item) => item.id}
-              renderItem={renderActiveMember}
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.activeList}
-            />
-          )}
-        </View>
-      ) : null}
     </View>
   );
 
@@ -171,9 +120,7 @@ export default function ChatListScreen({
         ListHeaderComponent={renderHeader}
         ListEmptyComponent={
           isInitialLoading ? (
-            <View style={styles.loadingWrap}>
-              <ActivityIndicator color="#FF3E70" />
-            </View>
+            <ChatPreviewListSkeleton />
           ) : (
             <View style={styles.emptyWrap}>
               <Ionicons name="chatbubble-ellipses-outline" size={34} color="#CBD5E1" />
@@ -303,11 +250,6 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     paddingBottom: TAB_SCREEN_BOTTOM_PADDING,
   },
-  loadingWrap: {
-    minHeight: 180,
-    alignItems: "center",
-    justifyContent: "center",
-  },
   emptyWrap: {
     minHeight: 180,
     alignItems: "center",
@@ -336,79 +278,24 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   header: {
-    height: 92,
+    height: 56,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 28,
+    paddingHorizontal: 20,
     backgroundColor: "#FFFFFF",
   },
   title: {
-    fontSize: 25,
-    lineHeight: 32,
+    fontSize: 22,
+    lineHeight: 30,
     fontWeight: "800",
     color: "#202020",
   },
   notificationButton: {
     width: 44,
     height: 44,
-    alignItems: "flex-end",
+    alignItems: "center",
     justifyContent: "center",
-  },
-  activeSection: {
-    paddingHorizontal: 28,
-    paddingBottom: 24,
-    backgroundColor: "#FFFFFF",
-  },
-  activeTitle: {
-    fontSize: 18,
-    lineHeight: 24,
-    fontWeight: "800",
-    color: "#202020",
-    marginBottom: 6,
-  },
-  activeSubtitle: {
-    fontSize: 13,
-    lineHeight: 18,
-    fontWeight: "600",
-    color: "#6F7780",
-    marginBottom: 16,
-  },
-  activeList: {
-    gap: 12,
-  },
-  activePlaceholderList: {
-    flexDirection: "row",
-    gap: 12,
-  },
-  activeMember: {
-    width: 86,
-  },
-  activeImage: {
-    width: 86,
-    height: 80,
-    borderRadius: 10,
-    backgroundColor: "#D9D9D9",
-    marginBottom: 8,
-  },
-  activeName: {
-    fontSize: 13,
-    lineHeight: 18,
-    fontWeight: "700",
-    color: "#202020",
-  },
-  activeImagePlaceholder: {
-    width: 86,
-    height: 80,
-    borderRadius: 10,
-    backgroundColor: "#EEF1F4",
-    marginBottom: 8,
-  },
-  activeNamePlaceholder: {
-    width: 58,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: "#EEF1F4",
   },
   chatItem: {
     minHeight: 84,

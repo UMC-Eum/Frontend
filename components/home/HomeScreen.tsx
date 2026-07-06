@@ -3,7 +3,6 @@ import { Image, ImageBackground } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
-  ActivityIndicator,
   Animated,
   FlatList,
   NativeScrollEvent,
@@ -31,6 +30,13 @@ import {
 import { DEFAULT_PROFILE_IMAGE_URI } from "@/constants/defaultProfileImage";
 import { TAB_SCREEN_BOTTOM_PADDING } from "@/constants/layout";
 import ClubRow, { ClubRowItem } from "@/components/search/ClubRow";
+import {
+  ClubRowListSkeleton,
+  HomeInitialSkeleton,
+  MyClubCardListSkeleton,
+  RecommendCardSkeleton,
+  ViewerListSkeleton,
+} from "@/components/skeletons";
 import {
   useClubsInfiniteQuery,
   useMyClubsQuery,
@@ -144,7 +150,7 @@ export default function HomePage() {
     (state) => state.enabled,
   );
   const myProfileQuery = useMyProfileQuery();
-  const visitorsQuery = useMyProfileVisitorsQuery({ limit: 12 });
+  const visitorsQuery = useMyProfileVisitorsQuery({ size: 12 });
   const recommendationsQuery = useRecommendationsInfiniteQuery();
   const refetchRecommendations = recommendationsQuery.refetch;
   const heartNotificationsQuery = useNotificationsInfiniteQuery(
@@ -164,7 +170,7 @@ export default function HomePage() {
     () => mapRecommendationProfiles(recommendationsQuery.data),
     [recommendationsQuery.data],
   );
-  const visitors = visitorsQuery.data?.visitors ?? [];
+  const visitors = visitorsQuery.data?.items ?? [];
   const heartUnreadCount = useMemo(
     () => countUnreadNotifications(heartNotificationsQuery.data),
     [heartNotificationsQuery.data],
@@ -312,9 +318,8 @@ export default function HomePage() {
   if (isWaitingForMyProfile) {
     return (
       <SafeAreaView style={styles.safeArea} edges={["top"]}>
-        <View style={[styles.screen, styles.initialLoading]}>
-          <ActivityIndicator color={PINK} />
-          <Text style={styles.initialLoadingText}>내 정보를 불러오는 중이에요</Text>
+        <View style={styles.screen}>
+          <HomeInitialSkeleton />
         </View>
       </SafeAreaView>
     );
@@ -383,12 +388,7 @@ export default function HomePage() {
               </View>
 
               {recommendationsQuery.isLoading && profiles.length === 0 ? (
-                <View style={styles.recommendEmptyCard}>
-                  <Ionicons name="sparkles-outline" size={34} color="#CBD5E1" />
-                  <Text style={styles.recommendEmptyTitle}>
-                    추천 인연을 불러오는 중이에요
-                  </Text>
-                </View>
+                <RecommendCardSkeleton />
               ) : profile ? (
                 <>
                   {recommendationsQuery.isError ? (
@@ -443,12 +443,7 @@ export default function HomePage() {
               <View style={styles.viewerSection}>
                 <Text style={styles.viewerTitle}>내 프로필을 본 인연들</Text>
                 {visitorsQuery.isLoading ? (
-                  <View style={styles.viewerEmptyBox}>
-                    <ActivityIndicator color={PINK} />
-                    <Text style={styles.viewerEmptyText}>
-                      방문한 인연을 불러오는 중이에요
-                    </Text>
-                  </View>
+                  <ViewerListSkeleton />
                 ) : visitors.length > 0 ? (
                   <ScrollView
                     horizontal
@@ -496,6 +491,7 @@ export default function HomePage() {
           ) : (
             <ClubHomeContent
               nickname={nickname}
+              defaultAreaCode={myProfileQuery.data?.area?.code ?? undefined}
               defaultAreaName={myProfileQuery.data?.area?.name ?? undefined}
               onOpenClub={(clubId) =>
                 router.push({
@@ -642,19 +638,26 @@ function HomeTabButton({ label, isActive, onPress }: HomeTabButtonProps) {
 
 function ClubHomeContent({
   nickname,
+  defaultAreaCode,
   defaultAreaName,
   onOpenClub,
 }: {
   nickname: string;
+  defaultAreaCode?: string;
   defaultAreaName?: string;
   onOpenClub: (clubId: string) => void;
 }) {
   const router = useRouter();
+  const clubAreaCode = useClubLocationStore((state) => state.areaCode);
   const clubAreaName = useClubLocationStore((state) => state.areaName);
+  const areaCode = clubAreaCode || defaultAreaCode;
   const locationLabel = clubAreaName || defaultAreaName || "지역 선택";
   const [showAllMyClubs, setShowAllMyClubs] = useState(false);
   const myClubsQuery = useMyClubsQuery();
-  const clubsQuery = useClubsInfiniteQuery({ limit: 3 });
+  const clubsQuery = useClubsInfiniteQuery({
+    limit: 3,
+    ...(areaCode ? { areaCode } : {}),
+  });
   const recommendedQuery = useRecommendedClubsQuery();
 
   const myClubs = uniqueBy(
@@ -682,7 +685,7 @@ function ClubHomeContent({
 
   return (
     <View style={styles.clubHomeContent}>
-      {/* 지역 선택 — 온보딩식 picker로 조회 지역을 고릅니다. ponytail: 표시만, 실제 지역 필터는 /v1/clubs에 areaCode 파라미터 생기면 clubsQuery에 연결 */}
+      {/* 지역 선택 — 온보딩식 picker로 조회 지역을 고릅니다. */}
       <Pressable
         style={styles.clubLocationButton}
         onPress={() => router.push("/profile/location?mode=club" as never)}
@@ -703,7 +706,9 @@ function ClubHomeContent({
       </View>
 
       {/* ponytail: my-clubs API에 가입대기(PENDING) 정보가 없어 status 배지 미표시 — 서버 추가 시 복원 */}
-      {showAllMyClubs ? (
+      {myClubsQuery.isLoading ? (
+        <MyClubCardListSkeleton />
+      ) : showAllMyClubs ? (
         <View style={styles.myClubGrid}>
           {myClubs.map((club) => (
             <MyClubCard
@@ -766,6 +771,7 @@ function ClubHomeContent({
         accent={nickname}
         icon="sparkles"
         clubs={localClubs}
+        isLoading={clubsQuery.isLoading}
         showMore
         onClubPress={onOpenClub}
       />
@@ -774,6 +780,7 @@ function ClubHomeContent({
         title="오늘의 추천 동호회"
         icon="sparkles"
         clubs={todayClubs}
+        isLoading={recommendedQuery.isLoading}
         onClubPress={onOpenClub}
       />
     </View>
@@ -844,6 +851,7 @@ function ClubSection({
   accent,
   icon,
   clubs,
+  isLoading = false,
   showMore = false,
   onClubPress,
 }: {
@@ -851,6 +859,7 @@ function ClubSection({
   accent?: string;
   icon?: "sparkles";
   clubs: ClubRowItem[];
+  isLoading?: boolean;
   showMore?: boolean;
   onClubPress: (clubId: string) => void;
 }) {
@@ -864,15 +873,19 @@ function ClubSection({
         </Text>
       </View>
 
-      <View style={styles.clubList}>
-        {clubs.map((club) => (
-          <ClubRow
-            key={club.id}
-            club={club}
-            onPress={() => onClubPress(club.id)}
-          />
-        ))}
-      </View>
+      {isLoading && clubs.length === 0 ? (
+        <ClubRowListSkeleton />
+      ) : (
+        <View style={styles.clubList}>
+          {clubs.map((club) => (
+            <ClubRow
+              key={club.id}
+              club={club}
+              onPress={() => onClubPress(club.id)}
+            />
+          ))}
+        </View>
+      )}
 
       {showMore ? (
         <Pressable style={styles.clubMoreButton}>
@@ -978,16 +991,6 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingBottom: TAB_SCREEN_BOTTOM_PADDING,
-  },
-  initialLoading: {
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 12,
-  },
-  initialLoadingText: {
-    color: GRAY,
-    fontSize: 15,
-    fontWeight: "700",
   },
   header: {
     height: 56,

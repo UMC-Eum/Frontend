@@ -22,6 +22,7 @@ import {
   useDeleteClubMutation,
   useUpdateClubMutation,
 } from "@/hooks/api/useHost";
+import { useClubCreateAreaStore } from "@/stores/clubLocationStore";
 import type { ClubCategory } from "@/types/api/club/clubDTO";
 
 const COLORS = {
@@ -56,6 +57,10 @@ export default function ClubManageSettingsScreen() {
   const detail = detailQuery.data;
   const updateMutation = useUpdateClubMutation(clubId);
   const deleteMutation = useDeleteClubMutation();
+  const areaCode = useClubCreateAreaStore((state) => state.areaCode);
+  const areaName = useClubCreateAreaStore((state) => state.areaName);
+  const setArea = useClubCreateAreaStore((state) => state.setArea);
+  const clearArea = useClubCreateAreaStore((state) => state.clear);
 
   // 서버가 내려주는 커버 이미지 목록 필드가 없어 썸네일 1장만 초기값으로 사용한다.
   const [photos, setPhotos] = useState<string[]>([]);
@@ -63,7 +68,7 @@ export default function ClubManageSettingsScreen() {
   const [intro, setIntro] = useState("");
   const [category, setCategory] = useState<ClubCategory | null>(null);
   const [capacity, setCapacity] = useState(1);
-  // 활동지역/가입방식/게시판 공개범위는 조회·수정 API에 필드가 없어 비워둔다.
+  // 가입방식/게시판 공개범위는 조회·수정 API에 필드가 없어 비워둔다.
   const [approvalRequired, setApprovalRequired] = useState<boolean | null>(null);
   const [memberOnlyBoard, setMemberOnlyBoard] = useState<boolean | null>(null);
   const [deleteVisible, setDeleteVisible] = useState(false);
@@ -79,7 +84,16 @@ export default function ClubManageSettingsScreen() {
     setCategory(detail.category);
     setCapacity(Math.max(detail.capacity, detail.memberCount, 1));
     setPhotos(detail.thumbnailUrl ? [detail.thumbnailUrl] : []);
-  }, [detail]);
+    const detailAreaCode = detail.areaCode ?? detail.addressCode;
+    const detailAreaName = detail.areaName ?? detail.addressName;
+    if (detailAreaCode && detailAreaName) {
+      setArea(detailAreaCode, detailAreaName);
+    } else {
+      clearArea();
+    }
+  }, [clearArea, detail, setArea]);
+
+  useEffect(() => clearArea, [clearArea]);
 
   const removePhoto = (index: number) => {
     setPhotos((prev) => prev.filter((_, i) => i !== index));
@@ -104,6 +118,7 @@ export default function ClubManageSettingsScreen() {
         introText: intro.trim(),
         category,
         capacity,
+        ...(areaCode ? { areaCode } : {}),
       },
       {
         onSuccess: () => {
@@ -252,8 +267,18 @@ export default function ClubManageSettingsScreen() {
 
         <View style={styles.field}>
           <FieldLabel label="활동 지역" />
-          <Pressable style={styles.listItem}>
-            <Text style={styles.listItemPlaceholder}>지역을 선택해주세요</Text>
+          <Pressable
+            style={styles.listItem}
+            onPress={() =>
+              router.push({
+                pathname: "/profile/location",
+                params: { mode: "club-edit" },
+              } as never)
+            }
+          >
+            <Text style={areaName ? styles.listItemText : styles.listItemPlaceholder}>
+              {areaName || "지역을 선택해주세요"}
+            </Text>
             <Ionicons name="chevron-forward" size={22} color={COLORS.gray700} />
           </Pressable>
         </View>

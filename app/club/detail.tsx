@@ -25,6 +25,7 @@ import {
 import Svg, { Path, type SvgProps } from "react-native-svg";
 
 import ClubActionSheet, { type ActionSheetItem } from "@/components/club/ClubActionSheet";
+import { AlbumGridSkeleton, BoardPostListSkeleton } from "@/components/skeletons";
 import { CLUB_CATEGORY_LABELS } from "@/constants/club";
 import { KEYBOARD_AVOIDING_BEHAVIOR } from "@/constants/keyboard";
 import {
@@ -1440,9 +1441,7 @@ function BoardTab({
       ) : null}
 
       {articlesQuery.isLoading ? (
-        <View style={styles.statusBox}>
-          <ActivityIndicator color={PINK} />
-        </View>
+        <BoardPostListSkeleton />
       ) : articles.length === 0 ? (
         <View style={styles.statusBox}>
           <Text style={styles.emptyStateText}>
@@ -1585,11 +1584,7 @@ function AlbumTab({
   const hasArchives = archives.length > 0;
 
   if (isLoading && !hasArchives) {
-    return (
-      <View style={styles.statusBox}>
-        <ActivityIndicator color={PINK} />
-      </View>
-    );
+    return <AlbumGridSkeleton itemSize={itemSize} />;
   }
 
   if (!hasArchives) {

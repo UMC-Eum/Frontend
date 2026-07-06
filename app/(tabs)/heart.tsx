@@ -16,6 +16,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
 
+import { HeartCardGridSkeleton } from "@/components/skeletons";
 import {
   usePatchHeartMutation,
   useReceivedHeartsInfiniteQuery,
@@ -302,29 +303,27 @@ export default function HeartScreen() {
           ) : null
         }
         ListEmptyComponent={
-          <View style={styles.emptyWrap}>
-            {isInitialLoading ? (
-              <ActivityIndicator color={PINK} />
-            ) : (
-              <>
-                <Ionicons
-                  name={activeTab === "received" ? "heart-outline" : "send-outline"}
-                  size={34}
-                  color="#CBD5E1"
-                />
-                <Text style={styles.emptyTitle}>
-                  {activeTab === "received"
-                    ? "아직 받은 마음이 없어요"
-                    : "아직 보낸 마음이 없어요"}
-                </Text>
-                <Text style={styles.emptyDescription}>
-                  {activeQuery.isError
-                    ? "마음 목록을 불러오지 못했습니다. 잠시 후 다시 시도해주세요."
-                    : "새로운 인연이 생기면 이곳에서 확인할 수 있어요."}
-                </Text>
-              </>
-            )}
-          </View>
+          isInitialLoading ? (
+            <HeartCardGridSkeleton cardWidth={cardWidth} />
+          ) : (
+            <View style={styles.emptyWrap}>
+              <Ionicons
+                name={activeTab === "received" ? "heart-outline" : "send-outline"}
+                size={34}
+                color="#CBD5E1"
+              />
+              <Text style={styles.emptyTitle}>
+                {activeTab === "received"
+                  ? "아직 받은 마음이 없어요"
+                  : "아직 보낸 마음이 없어요"}
+              </Text>
+              <Text style={styles.emptyDescription}>
+                {activeQuery.isError
+                  ? "마음 목록을 불러오지 못했습니다. 잠시 후 다시 시도해주세요."
+                  : "새로운 인연이 생기면 이곳에서 확인할 수 있어요."}
+              </Text>
+            </View>
+          )
         }
         ListHeaderComponent={
           activeTab === "received" ? (

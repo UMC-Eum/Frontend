@@ -5,7 +5,6 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
-  ActivityIndicator,
   Alert,
   ImageBackground,
   Keyboard,
@@ -26,6 +25,7 @@ import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 import Svg, { ClipPath, Defs, G, Path, Rect } from "react-native-svg";
 
 import { Chip } from "@/components/Chip";
+import { ProfileDetailSkeleton } from "@/components/skeletons";
 import Cta from "@/components/Cta";
 import { HeaderBackOnly } from "@/components/header";
 import { DEFAULT_PROFILE_IMAGE_URI } from "@/constants/defaultProfileImage";
@@ -348,11 +348,8 @@ export default function ProfileDetailScreen() {
 
   if (!profile && profileQuery.isLoading) {
     return (
-      <SafeAreaView style={styles.safeArea}>
-        <View style={styles.stateWrap}>
-          <ActivityIndicator color="#FF3E70" />
-          <Text style={styles.stateText}>프로필을 불러오는 중이에요</Text>
-        </View>
+      <SafeAreaView style={styles.safeArea} edges={["left", "right", "bottom"]}>
+        <ProfileDetailSkeleton heroHeight={Math.round(windowHeight * 0.665)} />
       </SafeAreaView>
     );
   }
