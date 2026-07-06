@@ -63,6 +63,8 @@ export const queryKeys = {
     list: (params: object) => [...queryKeys.club.all, "list", params] as const,
     detail: (clubId: number) => [...queryKeys.club.all, "detail", clubId] as const,
     recommended: () => [...queryKeys.club.all, "recommended"] as const,
+    todayRecommended: () =>
+      [...queryKeys.club.all, "todayRecommended"] as const,
     topHosts: (limit: number) => [...queryKeys.club.all, "topHosts", { limit }] as const,
     my: () => [...queryKeys.club.all, "my"] as const,
     archives: (clubId: number, params: object) =>

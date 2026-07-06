@@ -37,10 +37,12 @@ import {
 import { KEYBOARD_AVOIDING_BEHAVIOR } from "@/constants/keyboard";
 import {
   createClubPostComment,
+  deleteClubPostComment,
   deleteClubPost,
   getClubPostComments,
   getClubPostDetail,
   likeClubPost,
+  toggleClubPostPin,
   unlikeClubPost,
 } from "@/api/clubs/clubPostsApi";
 import { queryKeys } from "@/hooks/api/queryKeys";
@@ -50,6 +52,7 @@ import type {
   IClubPostDetailResponse,
 } from "@/types/api/clubs/clubPostsDTO";
 import { uniqueBy } from "@/utils/array";
+import { sharePost } from "@/utils/shareLinks";
 
 const CATEGORY_LABELS: Record<ClubPostCategory, string> = {
   NOTICE: "공지",
@@ -71,8 +74,17 @@ export default function ClubPostDetailScreen() {
     mode?: ClubActionSheetMode;
     postId?: string;
     clubId?: string;
+    canPin?: string;
   }>();
   const [isActionSheetVisible, setActionSheetVisible] = useState(false);
+  const [selectedComment, setSelectedComment] = useState<{
+    commentId: number;
+    isMine?: boolean;
+  } | null>(null);
+  const [replyTarget, setReplyTarget] = useState<{
+    commentId: number;
+    nickname: string;
+  } | null>(null);
   const [comment, setComment] = useState("");
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
 
@@ -80,6 +92,7 @@ export default function ClubPostDetailScreen() {
   const clubId = Number(params.clubId);
   const activeClubId = Number.isFinite(clubId) ? clubId : undefined;
   const hasPostId = Number.isFinite(postId) && activeClubId !== undefined;
+  const canPinPost = params.canPin === "true";
   const postQuery = useQuery({
     queryKey: queryKeys.clubs.post(postId),
     queryFn: () => getClubPostDetail(activeClubId!, postId),
@@ -116,11 +129,16 @@ export default function ClubPostDetailScreen() {
       );
       return { previousPost };
     },
-    onError: (_error, _nextLiked, context) => {
+    onError: (error, _nextLiked, context) => {
       if (context?.previousPost) {
         queryClient.setQueryData(queryKeys.clubs.post(postId), context.previousPost);
       }
-      Alert.alert("좋아요 실패", "잠시 후 다시 시도해주세요.");
+      Alert.alert(
+        "좋아요 실패",
+        getApiErrorStatus(error) === 403
+          ? "클럽 회원만 이용할 수 있는 기능이에요"
+          : "잠시 후 다시 시도해주세요.",
+      );
     },
     onSuccess: (data) => {
       queryClient.setQueryData<IClubPostDetailResponse>(
@@ -137,19 +155,58 @@ export default function ClubPostDetailScreen() {
       }
     },
   });
+  const pinMutation = useMutation({
+    mutationFn: (nextPinned: boolean) =>
+      toggleClubPostPin(activeClubId!, postId, nextPinned),
+    onMutate: async (nextPinned) => {
+      await queryClient.cancelQueries({ queryKey: queryKeys.clubs.post(postId) });
+      const previousPost = queryClient.getQueryData<IClubPostDetailResponse>(
+        queryKeys.clubs.post(postId),
+      );
+      queryClient.setQueryData<IClubPostDetailResponse>(
+        queryKeys.clubs.post(postId),
+        (current) => (current ? { ...current, isPinned: nextPinned } : current),
+      );
+      return { previousPost };
+    },
+    onError: (_error, _nextPinned, context) => {
+      if (context?.previousPost) {
+        queryClient.setQueryData(queryKeys.clubs.post(postId), context.previousPost);
+      }
+      Alert.alert("고정 실패", "게시글 고정 상태를 바꾸지 못했습니다.");
+    },
+    onSuccess: (data) => {
+      queryClient.setQueryData<IClubPostDetailResponse>(
+        queryKeys.clubs.post(postId),
+        (current) => (current ? { ...current, isPinned: data.isPinned } : current),
+      );
+      if (activeClubId) {
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.articles.all(activeClubId),
+        });
+      }
+    },
+  });
   const createCommentMutation = useMutation({
     mutationFn: () =>
       createClubPostComment(activeClubId!, postId, {
         content: comment.trim(),
+        parentCommentId: replyTarget?.commentId ?? null,
       }),
     onSuccess: () => {
       setComment("");
+      setReplyTarget(null);
       Keyboard.dismiss();
       queryClient.invalidateQueries({ queryKey: queryKeys.clubs.post(postId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.clubs.comments(postId) });
     },
-    onError: () => {
-      Alert.alert("댓글 등록 실패", "댓글을 등록하는 중 문제가 발생했습니다.");
+    onError: (error) => {
+      Alert.alert(
+        "댓글 등록 실패",
+        getApiErrorStatus(error) === 403
+          ? "클럽 회원만 이용할 수 있는 기능이에요"
+          : "댓글을 등록하는 중 문제가 발생했습니다.",
+      );
     },
   });
   const deletePostMutation = useMutation({
@@ -169,6 +226,23 @@ export default function ClubPostDetailScreen() {
       Alert.alert("삭제 실패", "게시글을 삭제하는 중 문제가 발생했습니다.");
     },
   });
+  const deleteCommentMutation = useMutation({
+    mutationFn: (commentId: number) =>
+      deleteClubPostComment(activeClubId!, postId, commentId),
+    onSuccess: () => {
+      setSelectedComment(null);
+      queryClient.invalidateQueries({ queryKey: queryKeys.clubs.post(postId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.clubs.comments(postId) });
+    },
+    onError: (error) => {
+      Alert.alert(
+        "댓글 삭제 실패",
+        getApiErrorStatus(error) === 403
+          ? "클럽 회원만 이용할 수 있는 기능이에요"
+          : "댓글을 삭제하는 중 문제가 발생했습니다.",
+      );
+    },
+  });
 
   const post = postQuery.data;
   const comments = uniqueBy(
@@ -179,6 +253,8 @@ export default function ClubPostDetailScreen() {
     post?.isMine === true
       ? "owner"
       : "guest";
+  const commentActionSheetMode: ClubActionSheetMode =
+    selectedComment?.isMine === true ? "owner" : "guest";
 
   const handleSendComment = () => {
     if (!hasPostId || comment.trim().length === 0 || createCommentMutation.isPending) {
@@ -192,6 +268,12 @@ export default function ClubPostDetailScreen() {
     if (!post || likeMutation.isPending) return;
 
     likeMutation.mutate(!post.isLiked);
+  };
+
+  const handleTogglePin = () => {
+    if (!post || pinMutation.isPending) return;
+
+    pinMutation.mutate(!post.isPinned);
   };
 
   const handlePrimaryAction = () => {
@@ -223,6 +305,41 @@ export default function ClubPostDetailScreen() {
     Alert.alert("준비 중", "사용자 차단 API 명세 확인 후 연결 예정입니다.");
   };
 
+  const handleCommentPrimaryAction = () => {
+    if (!selectedComment) return;
+
+    if (commentActionSheetMode === "owner") {
+      setSelectedComment(null);
+      Alert.alert("준비 중", "댓글 수정 화면은 추후 연결 예정입니다.");
+      return;
+    }
+
+    setSelectedComment(null);
+    Alert.alert("준비 중", "댓글 신고 API 명세 확인 후 연결 예정입니다.");
+  };
+
+  const handleCommentSecondaryAction = () => {
+    if (!selectedComment) return;
+
+    if (commentActionSheetMode === "owner") {
+      const commentId = selectedComment.commentId;
+
+      setSelectedComment(null);
+      Alert.alert("댓글 삭제", "댓글을 삭제하시겠어요?", [
+        { text: "취소", style: "cancel" },
+        {
+          text: "삭제",
+          style: "destructive",
+          onPress: () => deleteCommentMutation.mutate(commentId),
+        },
+      ]);
+      return;
+    }
+
+    setSelectedComment(null);
+    Alert.alert("준비 중", "사용자 차단 API 명세 확인 후 연결 예정입니다.");
+  };
+
   return (
     <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
       <StatusBar style="dark" />
@@ -235,7 +352,27 @@ export default function ClubPostDetailScreen() {
           style={styles.header}
           rightActions={
             <View style={styles.headerActions}>
-              <Pressable style={styles.headerIconButton} hitSlop={12}>
+              {canPinPost && post ? (
+                <Pressable
+                  style={styles.headerIconButton}
+                  onPress={handleTogglePin}
+                  disabled={pinMutation.isPending}
+                  hitSlop={12}
+                  accessibilityRole="button"
+                  accessibilityLabel={post.isPinned ? "게시글 고정 해제" : "게시글 고정"}
+                >
+                  <Ionicons
+                    name={post.isPinned ? "bookmark" : "bookmark-outline"}
+                    size={23}
+                    color={post.isPinned ? CLUB_COLORS.pink : CLUB_COLORS.black}
+                  />
+                </Pressable>
+              ) : null}
+              <Pressable
+                style={styles.headerIconButton}
+                onPress={() => sharePost(clubId, postId, post?.title)}
+                hitSlop={12}
+              >
                 <Ionicons name="share-outline" size={24} color={CLUB_COLORS.black} />
               </Pressable>
               <Pressable
@@ -307,7 +444,20 @@ export default function ClubPostDetailScreen() {
                   name={item.author.nickname}
                   time={formatRelativeTime(item.createdAt)}
                   text={item.content}
+                  isReply={item.parentCommentId !== null}
                   avatarUri={item.author.profileImageUrl ?? undefined}
+                  onReplyPress={() => {
+                    setReplyTarget({
+                      commentId: item.parentCommentId ?? item.commentId,
+                      nickname: item.author.nickname,
+                    });
+                  }}
+                  onMorePress={() =>
+                    setSelectedComment({
+                      commentId: item.commentId,
+                      isMine: item.isMine,
+                    })
+                  }
                 />
               ))}
               {comments.length === 0 ? (
@@ -333,6 +483,12 @@ export default function ClubPostDetailScreen() {
           onChangeText={setComment}
           bottomPadding={insets.bottom + 12}
           onSend={handleSendComment}
+          placeholder={
+            replyTarget
+              ? `${replyTarget.nickname}님에게 답글 작성`
+              : undefined
+          }
+          onCancelReply={replyTarget ? () => setReplyTarget(null) : undefined}
         />
 
         <ClubPostActionSheet
@@ -341,6 +497,14 @@ export default function ClubPostDetailScreen() {
           onClose={() => setActionSheetVisible(false)}
           onPrimaryPress={handlePrimaryAction}
           onSecondaryPress={handleSecondaryAction}
+        />
+
+        <ClubPostActionSheet
+          visible={selectedComment !== null}
+          mode={commentActionSheetMode}
+          onClose={() => setSelectedComment(null)}
+          onPrimaryPress={handleCommentPrimaryAction}
+          onSecondaryPress={handleCommentSecondaryAction}
         />
 
         <ClubImageLightbox
@@ -357,6 +521,11 @@ export default function ClubPostDetailScreen() {
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
+}
+
+function getApiErrorStatus(error: unknown) {
+  const apiError = error as { response?: { status?: number } };
+  return apiError.response?.status;
 }
 
 function removeDeletedArticleFromLists(

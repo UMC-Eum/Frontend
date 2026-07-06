@@ -121,7 +121,7 @@ export function useMeetingCreateForm(clubId: number) {
 
     const trimmedCost = cost.trim();
     const joinPolicy: ClubJoinPolicy =
-      joinType === "free" ? "AUTO" : "APPROVAL";
+      joinType === "free" ? "AUTO" : "APPROVAL_REQUIRED";
 
     const meetingCreateBody: IMeetingCreateRequest = {
       name: title.trim(),

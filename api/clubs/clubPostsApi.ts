@@ -59,6 +59,7 @@ function mapArticleToClubPostDetail(
     commentCount: article.commentCount,
     createdAt: article.createdAt,
     isLiked: article.isLiked ?? false,
+    isPinned: article.isPinned,
     isMine: article.isMine,
   };
 }
@@ -94,7 +95,7 @@ export const createClubPostComment = async (
     ApiSuccessResponse<DTO.IClubPostCommentCreateResponse>
   >(`/v1/clubs/${clubId}/articles/${postId}/comments`, {
     contents: body.content,
-    parentCommentId: null,
+    parentCommentId: body.parentCommentId ?? null,
   });
   return data.success.data;
 };
@@ -117,6 +118,7 @@ function mapCommentsToClubPostComments(
   const flatten = (comment: ICommentItem): DTO.IClubPostCommentItem[] => [
     {
       commentId: comment.commentId,
+      parentCommentId: comment.parentCommentId,
       author: comment.author,
       content: comment.contents,
       createdAt: comment.createdAt,
@@ -169,9 +171,19 @@ export const unlikeClubPost = async (clubId: number, postId: number) => {
   return data.success.data;
 };
 
-export const toggleClubPostPin = async (clubId: number, postId: number) => {
-  const { data } = await api.patch<ApiSuccessResponse<null>>(
+export const toggleClubPostPin = async (
+  clubId: number,
+  postId: number,
+  isPinned: boolean,
+) => {
+  const { data } = await api.patch<
+    ApiSuccessResponse<DTO.IClubPostPinResponse>
+  >(
     `/v1/clubs/${clubId}/articles/${postId}/pin`,
+    { isPinned },
   );
-  return data.success.data;
+  return {
+    postId: data.success.data.postId ?? data.success.data.articleId ?? postId,
+    isPinned: data.success.data.isPinned,
+  };
 };

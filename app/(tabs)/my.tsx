@@ -88,7 +88,7 @@ export default function MyTabScreen() {
         style: "destructive",
         onPress: () =>
           deactivateUserMutation.mutate(undefined, {
-            onSuccess: () => Alert.alert("탈퇴 완료", "계정이 비활성화되었습니다."),
+            onSuccess: () => router.replace("/onboarding/login" as never),
             onError: () => Alert.alert("탈퇴 실패", "다시 시도해주세요."),
           }),
       },
@@ -281,8 +281,11 @@ export default function MyTabScreen() {
           style={styles.withdrawCard}
           activeOpacity={0.7}
           onPress={handleDeactivate}
+          disabled={deactivateUserMutation.isPending}
         >
-          <Text style={styles.withdrawText}>탈퇴하기</Text>
+          <Text style={styles.withdrawText}>
+            {deactivateUserMutation.isPending ? "탈퇴 처리 중..." : "탈퇴하기"}
+          </Text>
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>

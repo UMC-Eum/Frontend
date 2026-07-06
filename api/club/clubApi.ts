@@ -91,11 +91,17 @@ export const unlikeClub = async (clubId: number) => {
   return data.success.data;
 };
 
-// ponytail: cursor/size 생략 — 홈은 3개만 노출, 전체 목록 화면 생기면 페이지네이션 추가
 export const getRecommendedClubs = async () => {
   const { data } = await api.get<
     ApiSuccessResponse<DTO.IRecommendedClubsResponse>
   >("/v1/matches/club/recommended");
+  return data.success.data;
+};
+
+export const getTodayRecommendedClubs = async () => {
+  const { data } = await api.get<
+    ApiSuccessResponse<DTO.IRecommendedClubsResponse>
+  >("/v1/clubs/today-recommended");
   return data.success.data;
 };
 

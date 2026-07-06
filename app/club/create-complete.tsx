@@ -2,11 +2,12 @@ import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import React from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import React, { useCallback, useEffect } from "react";
+import { BackHandler, Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import Cta from "@/components/Cta";
+import { shareClub } from "@/utils/shareLinks";
 
 const COLORS = {
   pink: "#FF3E70",
@@ -30,6 +31,32 @@ export default function ClubCreateCompleteScreen() {
   const clubId = Number(params.clubId);
   const metaText = [params.location, params.host].filter(Boolean).join(" · ");
 
+  const handleShare = useCallback(
+    () => shareClub(clubId, params.name),
+    [clubId, params.name],
+  );
+
+  const handleClose = useCallback(() => {
+    if (Number.isFinite(clubId)) {
+      router.replace({
+        pathname: "/club/detail",
+        params: { clubId: String(clubId) },
+      } as never);
+      return;
+    }
+
+    router.replace("/(tabs)?tab=club" as never);
+  }, [clubId, router]);
+
+  useEffect(() => {
+    const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
+      handleClose();
+      return true;
+    });
+
+    return () => subscription.remove();
+  }, [handleClose]);
+
   return (
     <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
       <StatusBar style="dark" />
@@ -37,7 +64,7 @@ export default function ClubCreateCompleteScreen() {
       <View style={styles.header}>
         <Pressable
           style={styles.closeButton}
-          onPress={() => router.back()}
+          onPress={handleClose}
           hitSlop={12}
         >
           <Ionicons name="close" size={30} color={COLORS.gray500} />
@@ -92,26 +119,31 @@ export default function ClubCreateCompleteScreen() {
             </Text>
           </View>
           <View style={styles.shareRow}>
-            <ShareAction label="카카오톡" icon="chatbubble" variant="kakao" />
-            <ShareAction label="링크 복사" icon="copy" variant="copy" />
-            <ShareAction label="외부 공유" icon="share-outline" variant="share" />
+            <ShareAction
+              label="카카오톡"
+              icon="chatbubble"
+              variant="kakao"
+              onPress={handleShare}
+            />
+            <ShareAction
+              label="링크 복사"
+              icon="copy"
+              variant="copy"
+              onPress={handleShare}
+            />
+            <ShareAction
+              label="외부 공유"
+              icon="share-outline"
+              variant="share"
+              onPress={handleShare}
+            />
           </View>
         </View>
       </View>
 
       <Cta
         label="동호회 바로가기"
-        onPress={() => {
-          if (Number.isFinite(clubId)) {
-            router.replace({
-              pathname: "/club/detail",
-              params: { clubId: String(clubId) },
-            } as never);
-            return;
-          }
-
-          router.replace("/(tabs)?tab=club" as never);
-        }}
+        onPress={handleClose}
         containerStyle={styles.ctaContainer}
         buttonStyle={styles.ctaButton}
         labelStyle={styles.ctaLabel}
@@ -124,13 +156,15 @@ function ShareAction({
   label,
   icon,
   variant,
+  onPress,
 }: {
   label: string;
   icon: keyof typeof Ionicons.glyphMap;
   variant: "kakao" | "copy" | "share";
+  onPress?: () => void;
 }) {
   return (
-    <Pressable style={styles.shareAction}>
+    <Pressable style={styles.shareAction} onPress={onPress}>
       <View style={[styles.shareIconCircle, styles[`${variant}Circle`]]}>
         <Ionicons
           name={icon}

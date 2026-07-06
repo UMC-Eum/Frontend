@@ -36,6 +36,7 @@ import {
   useClubDetailQuery,
   useJoinClubMutation,
   useLeaveClubMutation,
+  useMyClubsQuery,
 } from "@/hooks/api/useClub";
 import {
   useAttendMeetingMutation,
@@ -74,6 +75,7 @@ import type {
   IMeetingListItem,
 } from "@/types/api/meetings/meetingsDTO";
 import { uniqueBy } from "@/utils/array";
+import { shareClub } from "@/utils/shareLinks";
 import { ClubViewer, getClubViewer } from "@/utils/clubViewer";
 import {
   getClubChatRoomId,
@@ -138,6 +140,7 @@ export default function ClubDetailScreen() {
   const [isGuestSheetVisible, setGuestSheetVisible] = useState(false);
 
   const detailQuery = useClubDetailQuery(clubId);
+  const myClubsQuery = useMyClubsQuery();
   const joinMutation = useJoinClubMutation(clubId);
   const leaveMutation = useLeaveClubMutation();
   const deleteClubMutation = useDeleteClubMutation();
@@ -147,11 +150,15 @@ export default function ClubDetailScreen() {
     activeTab === "album",
   );
   const detail = detailQuery.data;
+  const myClubStatus = myClubsQuery.data?.items.find(
+    (item) => item.clubId === clubId,
+  )?.status;
+  const currentJoinStatus = joinStatus ?? myClubStatus ?? null;
 
   const isJoined =
-    joinStatus === "ACTIVE" ||
-    Boolean(detail?.isJoined && joinStatus !== "LEFT");
-  const isJoinPending = joinStatus === "PENDING";
+    currentJoinStatus === "ACTIVE" ||
+    Boolean(detail?.isJoined && currentJoinStatus !== "LEFT");
+  const isJoinPending = currentJoinStatus === "PENDING";
   const isHost = detail?.myAuthority === "HOST";
   // 게스트/멤버/호스트 역할과 화면 권한을 한 곳에서 계산한다.
   const viewer = getClubViewer({ isJoined, isHost });
@@ -349,7 +356,11 @@ export default function ClubDetailScreen() {
         </Pressable>
 
         <View style={styles.headerActions}>
-          <Pressable style={styles.headerIconButton} hitSlop={12}>
+          <Pressable
+            style={styles.headerIconButton}
+            onPress={() => shareClub(clubId, clubTitle)}
+            hitSlop={12}
+          >
             <Ionicons name="share-outline" size={24} color={BLACK} />
           </Pressable>
           {/* 동호회장은 설정(너트), 그 외(가입 전 게스트·일반 멤버)는 더보기(⋮) */}
@@ -466,7 +477,11 @@ export default function ClubDetailScreen() {
             onPostPress={(postId) =>
               router.push({
                 pathname: "/club/post-detail",
-                params: { postId: String(postId), clubId: String(clubId) },
+                params: {
+                  postId: String(postId),
+                  clubId: String(clubId),
+                  canPin: viewer.isHost ? "true" : "false",
+                },
               } as never)
             }
           />
@@ -537,7 +552,10 @@ export default function ClubDetailScreen() {
           onPress={() =>
             router.push({
               pathname: "/club/post-create",
-              params: { clubId: String(clubId) },
+              params: {
+                clubId: String(clubId),
+                canPin: viewer.isHost ? "true" : "false",
+              },
             } as never)
           }
         >
@@ -570,7 +588,7 @@ export default function ClubDetailScreen() {
             }}
           >
             <Text style={styles.joinButtonText}>
-              {isJoinPending ? "가입 대기중" : "가입"}
+              {isJoinPending ? "가입신청됨" : "가입"}
             </Text>
           </Pressable>
         </View>
@@ -732,8 +750,6 @@ function ClubHomeTab({
   onPressMeetingManage: (meetingId: number) => void;
   onPressPendingMembers: () => void;
 }) {
-  // 동호회 상세 응답의 정기모임 요약(meetings)으로 카드를 구성한다.
-  // 개별 위치/비용/참석자 등 상세는 카드 탭 시 useMeetingDetailQuery로 조회한다.
   const meetingCardItems = buildMeetingCardItems([], meetings);
   const [selectedMeetingId, setSelectedMeetingId] = useState<number | null>(
     null,
@@ -885,15 +901,41 @@ function MeetingCard({
     clubId,
     meeting.meetingId,
   );
-  const isAttending = meeting.isAttending ?? false;
-  const attendeeCount = meeting.attendeeCount ?? 0;
+  const shouldLoadDetail =
+    !meeting.spot ||
+    meeting.cost === undefined ||
+    meeting.capacity === undefined ||
+    meeting.attendeeCount === undefined ||
+    meeting.isAttending === undefined;
+  const meetingDetailQuery = useMeetingDetailQuery(
+    clubId,
+    meeting.meetingId,
+    shouldLoadDetail,
+  );
+  const detail = meetingDetailQuery.data;
+  const displayMeeting: MeetingCardItem = detail
+    ? {
+        meetingId: detail.meetingId,
+        name: detail.name,
+        dateLabel: detail.dateLabel,
+        nextOccurrenceAt: detail.nextOccurrenceAt,
+        spot: detail.spot,
+        capacity: detail.capacity,
+        cost: detail.cost,
+        attendeeCount: detail.attendeeCount,
+        isAttending: detail.isAttending,
+        attendeesPreview: detail.attendeesPreview,
+      }
+    : meeting;
+  const isAttending = displayMeeting.isAttending ?? false;
+  const attendeeCount = displayMeeting.attendeeCount ?? 0;
   const attendeeCountText =
-    typeof meeting.capacity === "number"
-      ? `${attendeeCount}명 참석중 (${attendeeCount}/${meeting.capacity})`
+    typeof displayMeeting.capacity === "number"
+      ? `${attendeeCount}명 참석중 (${attendeeCount}/${displayMeeting.capacity})`
       : `${attendeeCount}명 참석중`;
-  const ddayText = getMeetingCardDdayText(meeting);
-  const dateText = getMeetingCardDateText(meeting);
-  const attendeesPreview = meeting.attendeesPreview ?? [];
+  const ddayText = getMeetingCardDdayText(displayMeeting);
+  const dateText = getMeetingCardDateText(displayMeeting);
+  const attendeesPreview = displayMeeting.attendeesPreview ?? [];
 
   const handleAttendMeeting = () => {
     if (isAttending || attendMeetingMutation.isPending) return;
@@ -915,11 +957,11 @@ function MeetingCard({
             </View>
           ) : null}
           <Text style={styles.meetingTitle} numberOfLines={1}>
-            {meeting.name}
+            {displayMeeting.name}
           </Text>
         </View>
-        {/* 가입 전 게스트에게는 모임 관리(⋮) 메뉴를 노출하지 않는다. */}
-        {viewer.canActOnMeeting ? (
+        {/* 호스트에게만 모임 관리(⋮) 메뉴를 노출한다. */}
+        {viewer.canManageMeeting ? (
           <Pressable
             style={styles.meetingMenuButton}
             hitSlop={8}
@@ -932,8 +974,8 @@ function MeetingCard({
 
       <View style={styles.meetingInfoList}>
         <MeetingInfo label="일시" value={dateText || "-"} />
-        <MeetingInfo label="위치" value={meeting.spot || "-"} />
-        <MeetingInfo label="비용" value={meeting.cost || "-"} />
+        <MeetingInfo label="위치" value={displayMeeting.spot || "-"} />
+        <MeetingInfo label="비용" value={displayMeeting.cost || "-"} />
       </View>
 
       <View style={styles.attendeeRow}>
@@ -1259,27 +1301,40 @@ function buildMeetingCardItems(
   listItems: IMeetingListItem[],
   summaries: IClubMeetingSummary[],
 ): MeetingCardItem[] {
-  const listCardItems: MeetingCardItem[] = listItems.map((meeting) => ({
-    meetingId: meeting.meetingId,
-    name: meeting.name,
-    date: meeting.date,
-    spot: meeting.spot,
-    capacity: meeting.capacity,
-    cost: meeting.cost,
-    attendeeCount: meeting.attendeeCount,
-    isAttending: meeting.isAttending,
-  }));
+  const listCardItems: MeetingCardItem[] = listItems.flatMap((meeting) => {
+    const meetingId = normalizeMeetingId(meeting.meetingId);
+    if (!meetingId) return [];
+
+    return [{
+      meetingId,
+      name: meeting.name,
+      date: meeting.date,
+      spot: meeting.spot,
+      capacity: meeting.capacity,
+      cost: meeting.cost,
+      attendeeCount: meeting.attendeeCount,
+      isAttending: meeting.isAttending,
+    }];
+  });
   const listIds = new Set(listCardItems.map((meeting) => meeting.meetingId));
-  const summaryCardItems: MeetingCardItem[] = summaries
-    .filter((meeting) => !listIds.has(meeting.meetingId))
-    .map((meeting) => ({
-      meetingId: meeting.meetingId,
+  const summaryCardItems: MeetingCardItem[] = summaries.flatMap((meeting) => {
+    const meetingId = normalizeMeetingId(meeting.meetingId);
+    if (!meetingId || listIds.has(meetingId)) return [];
+
+    return [{
+      meetingId,
       name: meeting.name,
       day: meeting.day,
       time: meeting.time,
-    }));
+    }];
+  });
 
   return [...listCardItems, ...summaryCardItems];
+}
+
+function normalizeMeetingId(value: number | string) {
+  const meetingId = Number(value);
+  return Number.isFinite(meetingId) && meetingId > 0 ? meetingId : null;
 }
 
 function getMeetingCardDdayText(meeting?: MeetingCardItem) {
@@ -1433,7 +1488,7 @@ function BoardTab({
           {pinnedArticles.map((article) => (
             <PinnedPost
               key={`pinned-${article.articleId}`}
-              text={`[필독] ${article.title ?? article.preview}`}
+              text={`[필독] ${getArticleTitle(article)}`}
               onPress={() => onPostPress(article.articleId)}
             />
           ))}
@@ -1500,6 +1555,7 @@ function BoardPostItem({
   const hasImage = Boolean(article.thumbnailUrl);
   const categoryLabel =
     CATEGORY_LABELS[article.category as ClubPostCategory] ?? article.category;
+  const title = getArticleTitle(article);
 
   return (
     <Pressable style={styles.boardPost} onPress={onPress}>
@@ -1529,7 +1585,7 @@ function BoardPostItem({
           ]}
           numberOfLines={hasImage ? 3 : 4}
         >
-          {article.preview}
+          {title}
         </Text>
         {article.thumbnailUrl ? (
           <Image
@@ -1550,6 +1606,10 @@ function BoardPostItem({
       ) : null}
     </Pressable>
   );
+}
+
+function getArticleTitle(article: Pick<IArticleListItem, "title" | "preview">) {
+  return article.title?.trim() || article.preview;
 }
 
 function formatRelativeTime(value: string) {

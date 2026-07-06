@@ -38,9 +38,9 @@ import {
   ViewerListSkeleton,
 } from "@/components/skeletons";
 import {
-  useClubsInfiniteQuery,
   useMyClubsQuery,
   useRecommendedClubsQuery,
+  useTodayRecommendedClubsQuery,
 } from "@/hooks/api/useClub";
 import { useAuthStore } from "@/stores/authStore";
 import { useClubLocationStore } from "@/stores/clubLocationStore";
@@ -132,10 +132,14 @@ export default function HomePage() {
   const router = useRouter();
   const { width } = useWindowDimensions();
   const fabAnimation = useRef(new Animated.Value(1)).current;
+  const scrollViewRef = useRef<ScrollView>(null);
   const lastScrollY = useRef(0);
   const profileListRef = useRef<FlatList<Profile>>(null);
   const countdownEndAt = useRef(Date.now() + RECOMMENDATION_COUNTDOWN_MS);
-  const { tab: tabParam } = useLocalSearchParams<{ tab?: string }>();
+  const { tab: tabParam, tabPressAt } = useLocalSearchParams<{
+    tab?: string;
+    tabPressAt?: string;
+  }>();
   const [activeHomeTab, setActiveHomeTab] = useState<HomeTab>(
     tabParam === "club" ? "club" : "home",
   );
@@ -196,6 +200,16 @@ export default function HomePage() {
   useEffect(() => {
     if (tabParam === "club") setActiveHomeTab("club");
   }, [tabParam]);
+
+  useEffect(() => {
+    if (!tabPressAt) return;
+
+    lastScrollY.current = 0;
+    setProfileIndex(0);
+    scrollViewRef.current?.scrollTo({ y: 0, animated: false });
+    profileListRef.current?.scrollToOffset({ offset: 0, animated: false });
+    fabAnimation.setValue(1);
+  }, [fabAnimation, tabPressAt]);
 
   // 추천 마감 카운트다운이 끝나면 추천 목록을 새로 받아옵니다.
   useEffect(() => {
@@ -329,6 +343,7 @@ export default function HomePage() {
     <SafeAreaView style={styles.safeArea} edges={["top"]}>
       <View style={styles.screen}>
         <ScrollView
+          ref={scrollViewRef}
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
@@ -491,7 +506,6 @@ export default function HomePage() {
           ) : (
             <ClubHomeContent
               nickname={nickname}
-              defaultAreaCode={myProfileQuery.data?.area?.code ?? undefined}
               defaultAreaName={myProfileQuery.data?.area?.name ?? undefined}
               onOpenClub={(clubId) =>
                 router.push({
@@ -638,42 +652,35 @@ function HomeTabButton({ label, isActive, onPress }: HomeTabButtonProps) {
 
 function ClubHomeContent({
   nickname,
-  defaultAreaCode,
   defaultAreaName,
   onOpenClub,
 }: {
   nickname: string;
-  defaultAreaCode?: string;
   defaultAreaName?: string;
   onOpenClub: (clubId: string) => void;
 }) {
   const router = useRouter();
-  const clubAreaCode = useClubLocationStore((state) => state.areaCode);
   const clubAreaName = useClubLocationStore((state) => state.areaName);
-  const areaCode = clubAreaCode || defaultAreaCode;
   const locationLabel = clubAreaName || defaultAreaName || "지역 선택";
   const [showAllMyClubs, setShowAllMyClubs] = useState(false);
   const myClubsQuery = useMyClubsQuery();
-  const clubsQuery = useClubsInfiniteQuery({
-    limit: 3,
-    ...(areaCode ? { areaCode } : {}),
-  });
   const recommendedQuery = useRecommendedClubsQuery();
+  const todayRecommendedQuery = useTodayRecommendedClubsQuery();
 
   const myClubs = uniqueBy(
     myClubsQuery.data?.items ?? [],
     (item) => item.clubId,
   );
-  const localClubs: ClubRowItem[] = (clubsQuery.data?.pages[0]?.items ?? [])
+  const recommendedClubs: ClubRowItem[] = (recommendedQuery.data?.items ?? [])
     .slice(0, 3)
     .map((club) => ({
       id: String(club.clubId),
       title: club.name,
-      description: club.introText,
-      members: club.memberCount,
+      description: club.introText ?? undefined,
+      district: club.addressName,
       thumbnailUrl: club.thumbnailUrl,
     }));
-  const todayClubs: ClubRowItem[] = (recommendedQuery.data?.items ?? [])
+  const todayClubs: ClubRowItem[] = (todayRecommendedQuery.data?.items ?? [])
     .slice(0, 3)
     .map((club) => ({
       id: String(club.clubId),
@@ -770,8 +777,8 @@ function ClubHomeContent({
         title={`${nickname} 님을 위한 동호회`}
         accent={nickname}
         icon="sparkles"
-        clubs={localClubs}
-        isLoading={clubsQuery.isLoading}
+        clubs={recommendedClubs}
+        isLoading={recommendedQuery.isLoading}
         showMore
         onClubPress={onOpenClub}
       />
@@ -780,7 +787,7 @@ function ClubHomeContent({
         title="오늘의 추천 동호회"
         icon="sparkles"
         clubs={todayClubs}
-        isLoading={recommendedQuery.isLoading}
+        isLoading={todayRecommendedQuery.isLoading}
         onClubPress={onOpenClub}
       />
     </View>

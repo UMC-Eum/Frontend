@@ -1,9 +1,13 @@
 import React from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { TAB_BAR_HEIGHT } from "@/constants/layout";
 import { IconChat, IconHeart, IconHome, IconPerson } from "./SvgIcons";
 
 export type IconName = "home" | "heart" | "chat" | "person";
+
+// 탭바 콘텐츠 하단 기본 여백. safe-area inset은 여기에 더해진다.
+const TAB_BAR_BASE_PADDING_BOTTOM = 10;
 
 export interface TabItem {
   id: string; // 탭을 구분하는 고유 식별자
@@ -31,8 +35,20 @@ export const Navbar: React.FC<NavbarProps> = ({
   activeColor = "#000000",
   inactiveColor = "#B0B0B0",
 }) => {
+  // 홈 인디케이터/제스처 영역만큼 하단 여백을 확보해, 탭 터치 영역이
+  // OS 제스처 영역과 겹쳐 간헐적으로 터치가 먹히는 문제를 방지한다.
+  const insets = useSafeAreaInsets();
+
   return (
-    <View style={styles.container}>
+    <View
+      style={[
+        styles.container,
+        {
+          height: TAB_BAR_HEIGHT + insets.bottom,
+          paddingBottom: TAB_BAR_BASE_PADDING_BOTTOM + insets.bottom,
+        },
+      ]}
+    >
       {/* 배열을 순회하며(.map) 각각의 탭 요소를 렌더링합니다 */}
       {tabs.map((tab) => {
         const isActive = activeTabId === tab.id; // 현재 탭이 켜져있는지 여부
@@ -89,7 +105,7 @@ const styles = StyleSheet.create({
     height: TAB_BAR_HEIGHT,
     backgroundColor: "#FFFFFF",
     paddingTop: 8,
-    paddingBottom: 10,
+    paddingBottom: TAB_BAR_BASE_PADDING_BOTTOM,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: "#E5E7EB",
     // 그림자 속성 (iOS 전용)

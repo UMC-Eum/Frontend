@@ -66,7 +66,7 @@ export class ClubViewer {
     return this.role === "host";
   }
 
-  /** 정기모임 카드의 참석/관리 버튼 및 ⋮ 메뉴 — 가입한 사람만 */
+  /** 정기모임 카드/시트의 참석 액션 — 가입한 사람만 */
   get canActOnMeeting() {
     return this.role !== "guest";
   }

@@ -216,17 +216,21 @@ export function ClubCommentItem({
   name,
   time,
   text,
+  isReply = false,
   onMorePress,
+  onReplyPress,
   avatarUri,
 }: {
   name: string;
   time: string;
   text: string;
+  isReply?: boolean;
   onMorePress?: () => void;
+  onReplyPress?: () => void;
   avatarUri?: string | null;
 }) {
   return (
-    <View style={styles.commentRow}>
+    <View style={[styles.commentRow, isReply && styles.replyCommentRow]}>
       {avatarUri ? (
         <Image source={{ uri: avatarUri }} style={styles.commentAvatar} contentFit="cover" />
       ) : (
@@ -249,7 +253,9 @@ export function ClubCommentItem({
           )}
         </View>
         <Text style={styles.commentText}>{text}</Text>
-        <Text style={styles.replyText}>답글 달기</Text>
+        <Pressable onPress={onReplyPress} disabled={!onReplyPress} hitSlop={8}>
+          <Text style={styles.replyText}>답글 달기</Text>
+        </Pressable>
       </View>
     </View>
   );
@@ -260,19 +266,28 @@ export function ClubCommentInputBar({
   onChangeText,
   bottomPadding,
   onSend,
+  placeholder = "따뜻한 댓글을 작성해주세요.",
+  onCancelReply,
 }: {
   value: string;
   onChangeText: (value: string) => void;
   bottomPadding: number;
   onSend?: () => void;
+  placeholder?: string;
+  onCancelReply?: () => void;
 }) {
   const canSend = value.trim().length > 0 && !!onSend;
 
   return (
     <View style={[styles.inputBar, { paddingBottom: bottomPadding }]}>
+      {onCancelReply ? (
+        <Pressable onPress={onCancelReply} hitSlop={10}>
+          <Ionicons name="close-circle" size={22} color={CLUB_COLORS.gray500} />
+        </Pressable>
+      ) : null}
       <TextInput
         style={styles.commentInput}
-        placeholder="따뜻한 댓글을 작성해주세요."
+        placeholder={placeholder}
         placeholderTextColor={CLUB_COLORS.gray500}
         value={value}
         onChangeText={onChangeText}
@@ -598,6 +613,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-start",
     gap: 10,
+  },
+  replyCommentRow: {
+    paddingLeft: 56,
   },
   commentAvatar: {
     width: 36,
