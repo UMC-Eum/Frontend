@@ -3,10 +3,14 @@ import { useMemo } from "react";
 import { useChatRoomsInfiniteQuery } from "@/hooks/api/useChats";
 import { useReceivedHeartsInfiniteQuery } from "@/hooks/api/useSocials";
 import { useHeartBadgeStore } from "@/stores/heartBadgeStore";
+import { useNotificationSettingsStore } from "@/stores/notificationSettingsStore";
 
 export function useNavbarBadges({ suppressHeartBadge = false } = {}) {
+  const notificationEnabled = useNotificationSettingsStore(
+    (state) => state.enabled,
+  );
   const queryOptions = {
-    enabled: !suppressHeartBadge,
+    enabled: notificationEnabled && !suppressHeartBadge,
     staleTime: 0,
     refetchInterval: 2500,
     refetchOnMount: false,
@@ -53,7 +57,10 @@ export function useNavbarBadges({ suppressHeartBadge = false } = {}) {
     // 마음함에서 아직 확인하지 않은 새 마음이 있을 때만 dot을 켠다.
     // 저장소 복원 전에는 lastSeenHeartId가 0이라 dot이 잘못 깜빡일 수 있어 보류한다.
     hasHeartBadge:
-      !suppressHeartBadge && hasHydratedHeartBadge && latestHeartId > lastSeenHeartId,
-    unreadChatCount,
+      notificationEnabled &&
+      !suppressHeartBadge &&
+      hasHydratedHeartBadge &&
+      latestHeartId > lastSeenHeartId,
+    unreadChatCount: notificationEnabled ? unreadChatCount : 0,
   };
 }

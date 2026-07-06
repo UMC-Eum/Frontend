@@ -19,6 +19,7 @@ import { connectChatSocket, onMessageNew } from "@/api/chats/chatSocketApi";
 import { useChatRoomsInfiniteQuery } from "@/hooks/api/useChats";
 import { queryKeys } from "@/hooks/api/queryKeys";
 import { useAuthStore } from "@/stores/authStore";
+import { useNotificationSettingsStore } from "@/stores/notificationSettingsStore";
 import type { MessageNewData } from "@/types/api/socket";
 
 type ChatNotification = {
@@ -64,6 +65,9 @@ export default function ChatNotificationBanner() {
   const isAuthInitialized = useAuthStore((state) => state.isAuthInitialized);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const myUserId = useAuthStore((state) => state.user?.userId);
+  const notificationEnabled = useNotificationSettingsStore(
+    (state) => state.enabled,
+  );
   const [notification, setNotification] = useState<ChatNotification | null>(
     null,
   );
@@ -77,13 +81,19 @@ export default function ChatNotificationBanner() {
     return Number.isFinite(parsedId) ? parsedId : null;
   }, [params.id, pathname]);
   const chatRoomsQuery = useChatRoomsInfiniteQuery(undefined, {
-    enabled: isAuthInitialized && isAuthenticated,
+    enabled: notificationEnabled && isAuthInitialized && isAuthenticated,
     staleTime: 0,
     refetchInterval: CHAT_NOTIFICATION_POLL_MS,
     refetchOnMount: false,
   });
 
   useEffect(() => {
+    if (!notificationEnabled) {
+      setNotification(null);
+      unreadCountsRef.current = null;
+      return;
+    }
+
     if (!isAuthInitialized || !isAuthenticated) return;
 
     const socket = connectChatSocket();
@@ -105,10 +115,13 @@ export default function ChatNotificationBanner() {
     isAuthInitialized,
     isAuthenticated,
     myUserId,
+    notificationEnabled,
     queryClient,
   ]);
 
   useEffect(() => {
+    if (!notificationEnabled) return;
+
     const rooms = mapChatRoomPreviews(chatRoomsQuery.data);
     if (rooms.length === 0) return;
 
@@ -142,7 +155,7 @@ export default function ChatNotificationBanner() {
       body: updatedRoom.body,
       receivedAt: updatedRoom.sentAt ? new Date(updatedRoom.sentAt) : new Date(),
     });
-  }, [chatRoomsQuery.data, currentChatRoomId]);
+  }, [chatRoomsQuery.data, currentChatRoomId, notificationEnabled]);
 
   useEffect(() => {
     if (hideTimerRef.current) {

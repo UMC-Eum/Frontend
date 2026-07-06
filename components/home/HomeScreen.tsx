@@ -38,6 +38,7 @@ import {
 } from "@/hooks/api/useClub";
 import { useAuthStore } from "@/stores/authStore";
 import { useClubLocationStore } from "@/stores/clubLocationStore";
+import { useNotificationSettingsStore } from "@/stores/notificationSettingsStore";
 import { uniqueBy } from "@/utils/array";
 
 const PINK = "#FF1B4D";
@@ -139,12 +140,23 @@ export default function HomePage() {
   const [, setLikedCount] = useState(0);
   const isAuthInitialized = useAuthStore((state) => state.isAuthInitialized);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const notificationEnabled = useNotificationSettingsStore(
+    (state) => state.enabled,
+  );
   const myProfileQuery = useMyProfileQuery();
   const visitorsQuery = useMyProfileVisitorsQuery({ limit: 12 });
   const recommendationsQuery = useRecommendationsInfiniteQuery();
   const refetchRecommendations = recommendationsQuery.refetch;
-  const heartNotificationsQuery = useNotificationsInfiniteQuery("heart");
-  const chatNotificationsQuery = useNotificationsInfiniteQuery("chat");
+  const heartNotificationsQuery = useNotificationsInfiniteQuery(
+    "heart",
+    undefined,
+    notificationEnabled,
+  );
+  const chatNotificationsQuery = useNotificationsInfiniteQuery(
+    "chat",
+    undefined,
+    notificationEnabled,
+  );
   const sendHeartMutation = useSendRecommendationHeartMutation();
   const createProfileVisitMutation = useCreateProfileVisitMutation();
 
@@ -171,7 +183,8 @@ export default function HomePage() {
     !isAuthInitialized ||
     (isAuthenticated && !myProfileQuery.data && !myProfileQuery.isError);
   const cardWidth = width - 40;
-  const hasNotificationBadge = heartUnreadCount + chatUnreadCount > 0;
+  const hasNotificationBadge =
+    notificationEnabled && heartUnreadCount + chatUnreadCount > 0;
 
   // 마이페이지 등에서 ?tab=club 으로 진입하면 동호회 탭을 엽니다.
   useEffect(() => {
