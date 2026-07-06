@@ -1,6 +1,7 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
+  createClubChatRoom,
   createChatRoom,
   getChatMessages,
   getChatRoomDetail,
@@ -49,6 +50,24 @@ export function useChatRoomDetailQuery(chatRoomId: number, enabled = true) {
     queryKey: queryKeys.chats.room(chatRoomId),
     queryFn: () => getChatRoomDetail(chatRoomId),
     enabled: queryEnabled,
+  });
+}
+
+export function useClubChatRoomQuery(clubId: number, enabled = true) {
+  const queryEnabled = useProtectedQueryEnabled(
+    enabled && Number.isFinite(clubId),
+  );
+
+  return useQuery({
+    queryKey: queryKeys.chats.clubRoom(clubId),
+    queryFn: () => createClubChatRoom(clubId),
+    enabled: queryEnabled,
+    retry: (failureCount, error) => {
+      const status = getQueryErrorStatus(error);
+      if (status === 403 || status === 404) return false;
+      return failureCount < 2;
+    },
+    staleTime: 5 * 60 * 1000,
   });
 }
 
@@ -110,4 +129,9 @@ export function useLeaveChatRoomMutation(chatRoomId: number) {
       queryClient.invalidateQueries({ queryKey: queryKeys.chats.all });
     },
   });
+}
+
+function getQueryErrorStatus(error: unknown) {
+  const apiError = error as { response?: { status?: number } };
+  return apiError.response?.status;
 }

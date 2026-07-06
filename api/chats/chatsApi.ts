@@ -52,6 +52,13 @@ export const createChatRoom = async (body: DTO.IChatsRoomsPostRequest) => {
   return data.success.data;
 };
 
+export const createClubChatRoom = async (clubId: number) => {
+  const { data } = await api.post<
+    ApiSuccessResponse<DTO.IChatsClubsClubIdRoomPostResponse>
+  >(`/v1/chats/clubs/${clubId}/room`);
+  return data.success.data;
+};
+
 export const getChatRooms = async (params: {
   cursor?: string | null;
   size: number;
