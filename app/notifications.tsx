@@ -19,6 +19,7 @@ import {
   useNotificationsInfiniteQuery,
   useReadNotificationMutation,
 } from "@/hooks/api/useNotifications";
+import { useNotificationSettingsStore } from "@/stores/notificationSettingsStore";
 import type { INotification } from "@/types/api/notifications/notificationsDTO";
 import { uniqueBy } from "@/utils/array";
 
@@ -43,8 +44,19 @@ export default function NotificationsScreen() {
   const { width } = useWindowDimensions();
   const [activeTab, setActiveTab] = useState<NotificationTab>("heart");
   const [readIds, setReadIds] = useState<Set<string>>(() => new Set());
-  const heartQuery = useNotificationsInfiniteQuery("heart");
-  const clubQuery = useNotificationsInfiniteQuery("chat");
+  const notificationEnabled = useNotificationSettingsStore(
+    (state) => state.enabled,
+  );
+  const heartQuery = useNotificationsInfiniteQuery(
+    "heart",
+    undefined,
+    notificationEnabled,
+  );
+  const clubQuery = useNotificationsInfiniteQuery(
+    "chat",
+    undefined,
+    notificationEnabled,
+  );
   const readNotificationMutation = useReadNotificationMutation();
 
   const heartNotifications = useMemo(
@@ -68,8 +80,10 @@ export default function NotificationsScreen() {
       ? heartNotifications
       : clubNotifications;
   const activeQuery = activeTab === "heart" ? heartQuery : clubQuery;
-  const hasUnreadHeart = heartNotifications.some((item) => !item.isRead);
-  const hasUnreadClub = clubNotifications.some((item) => !item.isRead);
+  const hasUnreadHeart =
+    notificationEnabled && heartNotifications.some((item) => !item.isRead);
+  const hasUnreadClub =
+    notificationEnabled && clubNotifications.some((item) => !item.isRead);
   const isInitialLoading =
     activeQuery.isLoading && notifications.length === 0;
   const isRefreshing =
