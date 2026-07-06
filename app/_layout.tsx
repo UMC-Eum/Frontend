@@ -19,6 +19,7 @@ import { clearAccessToken, markAuthInitialized, refreshAccessToken } from "@/api
 import { getMyProfile } from "@/api/users/usersApi";
 import GlobalUiOverlay from "@/components/GlobalUiOverlay";
 import { useColorScheme } from "@/hooks/use-color-scheme";
+import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { useStableQueryClient } from "@/hooks/use-query-client";
 import { useAuthStore } from "@/stores/authStore";
 
@@ -29,6 +30,8 @@ export const unstable_settings = {
 export default function RootLayout() {
   const colorScheme = useColorScheme();
   const queryClient = useStableQueryClient();
+
+  usePushNotifications();
 
   useEffect(() => {
     const initializeAuth = async () => {
