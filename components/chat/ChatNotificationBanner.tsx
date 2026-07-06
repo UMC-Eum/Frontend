@@ -11,16 +11,14 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import {
-  getChatMessages,
-  readChatMessage,
-} from "@/api/chats/chatsApi";
 import { connectChatSocket, onMessageNew } from "@/api/chats/chatSocketApi";
 import { useChatRoomsInfiniteQuery } from "@/hooks/api/useChats";
 import { queryKeys } from "@/hooks/api/queryKeys";
 import { useAuthStore } from "@/stores/authStore";
 import { useNotificationSettingsStore } from "@/stores/notificationSettingsStore";
 import type { MessageNewData } from "@/types/api/socket";
+import { readUnreadMessagesInChatRoom } from "@/utils/chatRead";
+import { markChatRoomUnreadCountInCache } from "@/utils/chatUnreadCache";
 
 type ChatNotification = {
   chatRoomId: number;
@@ -42,6 +40,7 @@ type ChatRoomPreview = {
 };
 
 const DISPLAY_DURATION_MS = 5000;
+const CHAT_NOTIFICATION_POLL_MS = 3000;
 const COLORS = {
   primary: "#FF3E70",
   primarySoft: "#FFE2EA",
@@ -72,6 +71,8 @@ export default function ChatNotificationBanner() {
   );
   const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const unreadCountsRef = useRef<Map<number, number> | null>(null);
+  // 방별로 마지막으로 배너를 띄운 메시지 시각. 같은 메시지에 대한 폴링 중복 배너를 막는다.
+  const lastNotifiedSentAtRef = useRef<Map<number, string>>(new Map());
 
   const currentChatRoomId = useMemo(() => {
     if (!pathname.startsWith("/chat/")) return null;
@@ -82,6 +83,7 @@ export default function ChatNotificationBanner() {
   const chatRoomsQuery = useChatRoomsInfiniteQuery(undefined, {
     enabled: notificationEnabled && isAuthInitialized && isAuthenticated,
     staleTime: 0,
+    refetchInterval: CHAT_NOTIFICATION_POLL_MS,
     refetchOnMount: false,
   });
 
@@ -89,6 +91,7 @@ export default function ChatNotificationBanner() {
     if (!notificationEnabled) {
       setNotification(null);
       unreadCountsRef.current = null;
+      lastNotifiedSentAtRef.current.clear();
       return;
     }
 
@@ -96,9 +99,8 @@ export default function ChatNotificationBanner() {
 
     const socket = connectChatSocket();
     const unsubscribe = onMessageNew((payload) => {
-      if (payload.resultType !== "SUCCESS") return;
-
-      const nextMessage = payload.success.data;
+      const nextMessage = getSocketMessageData(payload);
+      if (!nextMessage) return;
       if (nextMessage.senderUserId === myUserId) return;
       if (nextMessage.chatRoomId === currentChatRoomId) return;
 
@@ -144,6 +146,18 @@ export default function ChatNotificationBanner() {
 
     if (!updatedRoom) return;
 
+    // 같은 마지막 메시지에 대해서는 폴링 주기마다 배너가 반복해서 뜨지 않도록 dedupe.
+    const roomSentAt = updatedRoom.sentAt ?? null;
+    if (
+      roomSentAt &&
+      lastNotifiedSentAtRef.current.get(updatedRoom.chatRoomId) === roomSentAt
+    ) {
+      return;
+    }
+    if (roomSentAt) {
+      lastNotifiedSentAtRef.current.set(updatedRoom.chatRoomId, roomSentAt);
+    }
+
     setNotification({
       chatRoomId: updatedRoom.chatRoomId,
       messageId: 0,
@@ -182,20 +196,17 @@ export default function ChatNotificationBanner() {
 
   const handleRead = async () => {
     const chatRoomId = notification.chatRoomId;
-    const messageId = notification.messageId;
     dismiss();
 
-    if (messageId > 0) {
-      await readChatMessage(messageId).catch(() => undefined);
-    } else {
-      await readLatestUnreadMessages(chatRoomId).catch(() => undefined);
-    }
+    // 방 단위 읽음 커서 전진(메시지 단위 읽음 API는 폐지됨).
+    await readUnreadMessagesInChatRoom(chatRoomId).catch(() => undefined);
 
+    markChatRoomUnreadCountInCache(queryClient, chatRoomId, 0);
     queryClient.invalidateQueries({
       queryKey: queryKeys.chats.messages(chatRoomId, 30),
     });
-    queryClient.invalidateQueries({ queryKey: queryKeys.chats.all });
     queryClient.invalidateQueries({ queryKey: queryKeys.notifications.all });
+    markChatRoomUnreadCountInCache(queryClient, chatRoomId, 0);
   };
 
   const handleReply = () => {
@@ -265,9 +276,14 @@ function mapChatRoomPreviews(data?: {
   pages: {
     items?: {
       chatRoomId?: number | null;
+      type?: string | null;
       peer?: {
         nickname?: string | null;
         profileImageUrl?: string | null;
+      } | null;
+      club?: {
+        name?: string | null;
+        thumbnailUrl?: string | null;
       } | null;
       lastMessage?: {
         textPreview?: string | null;
@@ -281,29 +297,23 @@ function mapChatRoomPreviews(data?: {
     data?.pages.flatMap((page) =>
       (page.items ?? []).flatMap((room) => {
         if (!room.chatRoomId) return [];
+        const isClub = room.type === "CLUB";
 
         return {
           chatRoomId: room.chatRoomId,
           unreadCount: room.unreadCount ?? 0,
-          senderName: room.peer?.nickname?.trim() || "새로운 인연",
-          senderProfileImage: room.peer?.profileImageUrl ?? undefined,
+          senderName: isClub
+            ? room.club?.name?.trim() || "동호회 채팅"
+            : room.peer?.nickname?.trim() || "새로운 인연",
+          senderProfileImage: isClub
+            ? room.club?.thumbnailUrl ?? undefined
+            : room.peer?.profileImageUrl ?? undefined,
           body:
             room.lastMessage?.textPreview?.trim() || "새 메시지가 도착했어요",
           sentAt: room.lastMessage?.sentAt,
         };
       }),
     ) ?? []
-  );
-}
-
-async function readLatestUnreadMessages(chatRoomId: number) {
-  const messages = await getChatMessages(chatRoomId, { size: 30 });
-  const unreadMessageIds = messages.items
-    .filter((message) => !message.isMine && !message.readAt)
-    .map((message) => message.messageId);
-
-  await Promise.all(
-    unreadMessageIds.map((messageId) => readChatMessage(messageId)),
   );
 }
 
@@ -324,6 +334,76 @@ function formatMessagePreview(message: MessageNewData) {
   if (message.type === "PHOTO") return message.text || "사진을 보냈어요";
   if (message.type === "VIDEO") return message.text || "동영상을 보냈어요";
   return message.text?.trim() || "새 메시지가 도착했어요";
+}
+
+function getSocketMessageData(payload: unknown): MessageNewData | null {
+  const data = unwrapSocketPayloadData(payload);
+  if (!isRecord(data)) return null;
+  const sender = isRecord(data.sender) ? data.sender : null;
+
+  const {
+    messageId,
+    chatRoomId,
+    type,
+    text,
+    mediaUrl,
+    durationSec,
+    sentAt,
+  } = data;
+  const senderUserId = data.senderUserId ?? data.senderId ?? sender?.userId;
+  const senderName = data.senderName ?? sender?.nickname ?? sender?.name;
+  const senderProfileImage =
+    data.senderProfileImage ??
+    data.senderProfileImageUrl ??
+    sender?.profileImageUrl;
+
+  if (
+    typeof messageId !== "number" ||
+    typeof chatRoomId !== "number" ||
+    typeof senderUserId !== "number" ||
+    !isChatMessageType(type) ||
+    typeof sentAt !== "string"
+  ) {
+    return null;
+  }
+
+  return {
+    messageId,
+    chatRoomId,
+    senderUserId,
+    type,
+    text: typeof text === "string" ? text : null,
+    mediaUrl: typeof mediaUrl === "string" ? mediaUrl : null,
+    durationSec: typeof durationSec === "number" ? durationSec : 0,
+    sentAt,
+    senderName: typeof senderName === "string" ? senderName : undefined,
+    senderProfileImage:
+      typeof senderProfileImage === "string" ? senderProfileImage : undefined,
+  };
+}
+
+function unwrapSocketPayloadData(payload: unknown) {
+  if (!isRecord(payload)) return payload;
+
+  const success = payload.success;
+  if (payload.resultType === "SUCCESS" && isRecord(success)) {
+    return success.data;
+  }
+
+  return payload.data ?? payload.message ?? payload.payload ?? payload;
+}
+
+function isChatMessageType(value: unknown): value is MessageNewData["type"] {
+  return (
+    value === "TEXT" ||
+    value === "AUDIO" ||
+    value === "PHOTO" ||
+    value === "VIDEO"
+  );
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
 }
 
 function formatNotificationTime(date: Date) {

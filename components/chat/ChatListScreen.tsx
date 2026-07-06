@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import { useQueryClient } from "@tanstack/react-query";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import React, { useMemo } from "react";
@@ -17,8 +18,11 @@ import {
   ChatPreviewListSkeleton,
 } from "@/components/skeletons";
 import { TAB_SCREEN_BOTTOM_PADDING } from "@/constants/layout";
+import { queryKeys } from "@/hooks/api/queryKeys";
 import { useChatRoomsInfiniteQuery } from "@/hooks/api/useChats";
 import { uniqueBy } from "@/utils/array";
+import { readUnreadMessagesInChatRoom } from "@/utils/chatRead";
+import { markChatRoomUnreadCountInCache } from "@/utils/chatUnreadCache";
 
 type ChatPreview = {
   id: string;
@@ -33,6 +37,7 @@ type ChatPreview = {
 
 export default function ChatListScreen() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const chatRoomsQuery = useChatRoomsInfiniteQuery(undefined, {
     staleTime: 30_000,
   });
@@ -43,10 +48,26 @@ export default function ChatListScreen() {
   const chatPreviews = apiChatPreviews;
   const isInitialLoading = chatRoomsQuery.isLoading && chatPreviews.length === 0;
 
-  const openChatRoom = (chatId: string) => {
+  const openChatRoom = (item: ChatPreview) => {
+    const chatRoomId = Number(item.id);
+    if (Number.isFinite(chatRoomId) && item.unreadCount > 0) {
+      void queryClient.cancelQueries({ queryKey: queryKeys.chats.all });
+      markChatRoomUnreadCountInCache(queryClient, chatRoomId, 0);
+      void readUnreadMessagesInChatRoom(chatRoomId)
+        .catch((error) => {
+          console.log("[ChatList] read unread messages error", error);
+        })
+        .finally(() => {
+          markChatRoomUnreadCountInCache(queryClient, chatRoomId, 0);
+          queryClient.invalidateQueries({
+            queryKey: queryKeys.chats.messages(chatRoomId, 30),
+          });
+        });
+    }
+
     router.push({
       pathname: "/chat/[id]",
-      params: { id: chatId },
+      params: { id: item.id },
     });
   };
 
@@ -57,7 +78,7 @@ export default function ChatListScreen() {
   const renderChatPreview: ListRenderItem<ChatPreview> = ({ item }) => (
     <Pressable
       style={styles.chatItem}
-      onPress={() => openChatRoom(item.id)}
+      onPress={() => openChatRoom(item)}
       accessibilityRole="button"
       accessibilityLabel={
         item.isClub ? `${item.name} 동호회 대화` : `${item.name}님과의 대화`
@@ -206,20 +227,6 @@ function mapChatRooms(data?: {
       (item) => item.id,
     )
   );
-}
-
-function mapActiveMembers(items: ChatPreview[]): ActiveMember[] {
-  const fromChats = items
-    .filter((item) => !item.isClub)
-    .filter((item) => item.image)
-    .map((item) => ({
-      id: `active-${item.id}`,
-      name: item.name,
-      age: 0,
-      image: item.image ?? "",
-    }));
-
-  return fromChats;
 }
 
 function formatRelativeTime(value?: string | null) {

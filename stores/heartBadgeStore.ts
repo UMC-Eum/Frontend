@@ -1,6 +1,7 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
+
+import { safeAsyncStorage } from "@/utils/safeAsyncStorage";
 
 interface HeartBadgeState {
   // 마음함에서 마지막으로 확인한 받은 마음의 heartId (앱 재시작 후에도 유지)
@@ -24,7 +25,7 @@ export const useHeartBadgeStore = create<HeartBadgeState>()(
     }),
     {
       name: "heart-badge",
-      storage: createJSONStorage(() => AsyncStorage),
+      storage: createJSONStorage(() => safeAsyncStorage),
       partialize: (state) => ({ lastSeenHeartId: state.lastSeenHeartId }),
       onRehydrateStorage: () => (state) => {
         state?.setHasHydrated(true);

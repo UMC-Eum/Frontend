@@ -124,7 +124,7 @@ export default function ClubDetailScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ clubId?: string }>();
   const insets = useSafeAreaInsets();
-  const { width } = useWindowDimensions();
+  const { width, height } = useWindowDimensions();
   const clubId = parseClubId(params.clubId);
   const [activeTab, setActiveTab] = useState<ClubDetailTab>("home");
   const [isFavorite, setFavorite] = useState(false);
@@ -157,10 +157,9 @@ export default function ClubDetailScreen() {
   const viewer = getClubViewer({ isJoined, isHost });
   // 단체 채팅방 id: 상세 응답에 있으면 우선 사용하고, 없으면 lazy 입장 API로 가져옵니다.
   const detailClubChatRoomId = getClubChatRoomId(detail);
-  const shouldUseClubChat =
-    activeTab === "chat" && viewer.canUseChat;
+  const shouldUseClubChat = activeTab === "chat" && viewer.canUseChat;
   const chatRoomsQuery = useChatRoomsInfiniteQuery(30, {
-    enabled: shouldUseClubChat,
+    enabled: viewer.canUseChat,
     staleTime: 15 * 1000,
     refetchOnMount: "always",
   });
@@ -179,6 +178,13 @@ export default function ClubDetailScreen() {
     existingClubChatRoomId ??
     clubChatRoomQuery.data?.chatRoomId ??
     null;
+  const clubChatUnreadCount =
+    chatRoomsQuery.data?.pages
+      .flatMap((page) => page.items)
+      .find(
+        (item) =>
+          item.type === "CLUB" && Number(item.club?.clubId) === clubId,
+      )?.unreadCount ?? 0;
   const clubChatRoomErrorText = getClubChatRoomErrorText(
     clubChatRoomQuery.error,
   );
@@ -186,6 +192,10 @@ export default function ClubDetailScreen() {
     ? insets.bottom + (activeTab === "board" ? 110 : 24)
     : insets.bottom + 96;
   const albumItemSize = width / 3;
+  const clubChatHeight = Math.max(
+    320,
+    height - insets.top - insets.bottom - 48 - 264 - 112 - 8 - 56,
+  );
   const trimmedJoinMessage = joinMessage.trim();
   const meetings = detail?.meetings ?? [];
   const archives =
@@ -335,6 +345,110 @@ export default function ClubDetailScreen() {
     },
   ];
 
+  const renderTopSection = () => (
+    <>
+      <Image
+        source={{ uri: heroImage }}
+        style={styles.heroImage}
+        contentFit="cover"
+      />
+
+      <View style={styles.summary}>
+        <View style={styles.categoryChip}>
+          <Text style={styles.categoryText}>{categoryText}</Text>
+        </View>
+        <Text style={styles.clubTitle}>{clubTitle}</Text>
+        <View style={styles.metaRow}>
+          <Text style={styles.metaText}>{hostName}</Text>
+          <Text style={styles.metaDot}>·</Text>
+          <Ionicons name="person" size={16} color={GRAY} />
+          <Text style={styles.memberText}>
+            {memberCount}명 참석중 ({memberCount}/{maxMemberCount})
+          </Text>
+        </View>
+      </View>
+
+      <View style={styles.dividerBand} />
+
+      <View style={styles.tabBar}>
+        {CLUB_TABS.map((tab) => (
+          <Pressable
+            key={tab.id}
+            style={styles.tabButton}
+            onPress={() => setActiveTab(tab.id)}
+          >
+            <View style={styles.tabLabelRow}>
+              <Text
+                style={[
+                  styles.tabText,
+                  activeTab === tab.id && styles.tabTextActive,
+                ]}
+              >
+                {tab.label}
+              </Text>
+              {viewer.canUseChat &&
+              tab.id === "chat" &&
+              clubChatUnreadCount > 0 ? (
+                <View style={styles.chatDot} />
+              ) : null}
+            </View>
+            {activeTab === tab.id ? <View style={styles.tabUnderline} /> : null}
+          </Pressable>
+        ))}
+      </View>
+    </>
+  );
+
+  const renderChatTab = () =>
+    viewer.canUseChat ? (
+      clubChatRoomId ? (
+        <ClubChatTab
+          chatRoomId={clubChatRoomId}
+          memberCount={memberCount}
+          bottomPadding={8}
+          style={{ height: clubChatHeight }}
+        />
+      ) : clubChatRoomQuery.isLoading || clubChatRoomQuery.isFetching ? (
+        <View style={styles.preJoinChatPlaceholder}>
+          <ActivityIndicator color={PINK} />
+          <Text style={styles.preJoinChatText}>
+            채팅방을 불러오는 중이에요.
+          </Text>
+        </View>
+      ) : clubChatRoomQuery.isError ? (
+        <Pressable
+          style={styles.preJoinChatPlaceholder}
+          onPress={handleRetryClubChatRoom}
+        >
+          <Ionicons name="alert-circle-outline" size={40} color="#C5CDD3" />
+          <Text style={styles.preJoinChatText}>{clubChatRoomErrorText}</Text>
+          <Text style={styles.preJoinChatRetryText}>다시 시도</Text>
+        </Pressable>
+      ) : (
+        <View style={styles.preJoinChatPlaceholder}>
+          <Ionicons
+            name="chatbubble-ellipses-outline"
+            size={40}
+            color="#C5CDD3"
+          />
+          <Text style={styles.preJoinChatText}>
+            채팅방을 준비하고 있어요.
+          </Text>
+        </View>
+      )
+    ) : (
+      <View style={styles.preJoinChatPlaceholder}>
+        <Ionicons
+          name="chatbubble-ellipses-outline"
+          size={40}
+          color="#C5CDD3"
+        />
+        <Text style={styles.preJoinChatText}>
+          가입하면 채팅을 볼 수 있어요!
+        </Text>
+      </View>
+    );
+
   return (
     <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
       <StatusBar style="dark" />
@@ -375,62 +489,19 @@ export default function ClubDetailScreen() {
         </View>
       </View>
 
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={{ paddingBottom: bottomBarHeight }}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-      >
-        <Image
-          source={{ uri: heroImage }}
-          style={styles.heroImage}
-          contentFit="cover"
-        />
-
-        <View style={styles.summary}>
-          <View style={styles.categoryChip}>
-            <Text style={styles.categoryText}>{categoryText}</Text>
-          </View>
-          <Text style={styles.clubTitle}>{clubTitle}</Text>
-          <View style={styles.metaRow}>
-            <Text style={styles.metaText}>{hostName}</Text>
-            <Text style={styles.metaDot}>·</Text>
-            <Ionicons name="person" size={16} color={GRAY} />
-            <Text style={styles.memberText}>
-              {memberCount}명 참석중 ({memberCount}/{maxMemberCount})
-            </Text>
-          </View>
+      {activeTab === "chat" ? (
+        <View style={styles.scrollView}>
+          {renderTopSection()}
+          {renderChatTab()}
         </View>
-
-        <View style={styles.dividerBand} />
-
-        <View style={styles.tabBar}>
-          {CLUB_TABS.map((tab) => (
-            <Pressable
-              key={tab.id}
-              style={styles.tabButton}
-              onPress={() => setActiveTab(tab.id)}
-            >
-              <View style={styles.tabLabelRow}>
-                <Text
-                  style={[
-                    styles.tabText,
-                    activeTab === tab.id && styles.tabTextActive,
-                  ]}
-                >
-                  {tab.label}
-                </Text>
-                {viewer.canUseChat && tab.id === "chat" ? (
-                  <View style={styles.chatDot} />
-                ) : null}
-              </View>
-              {activeTab === tab.id ? (
-                <View style={styles.tabUnderline} />
-              ) : null}
-            </Pressable>
-          ))}
-        </View>
-
+      ) : (
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={{ paddingBottom: bottomBarHeight }}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          {renderTopSection()}
         {activeTab === "home" ? (
           <ClubHomeTab
             clubId={clubId}
@@ -478,58 +549,8 @@ export default function ClubDetailScreen() {
             itemSize={albumItemSize}
           />
         ) : null}
-        {activeTab === "chat" ? (
-          viewer.canUseChat ? (
-            clubChatRoomId ? (
-              <ClubChatTab chatRoomId={clubChatRoomId} bottomPadding={0} />
-            ) : clubChatRoomQuery.isLoading || clubChatRoomQuery.isFetching ? (
-              <View style={styles.preJoinChatPlaceholder}>
-                <ActivityIndicator color={PINK} />
-                <Text style={styles.preJoinChatText}>
-                  채팅방을 불러오는 중이에요.
-                </Text>
-              </View>
-            ) : clubChatRoomQuery.isError ? (
-              <Pressable
-                style={styles.preJoinChatPlaceholder}
-                onPress={handleRetryClubChatRoom}
-              >
-                <Ionicons
-                  name="alert-circle-outline"
-                  size={40}
-                  color="#C5CDD3"
-                />
-                <Text style={styles.preJoinChatText}>
-                  {clubChatRoomErrorText}
-                </Text>
-                <Text style={styles.preJoinChatRetryText}>다시 시도</Text>
-              </Pressable>
-            ) : (
-              <View style={styles.preJoinChatPlaceholder}>
-                <Ionicons
-                  name="chatbubble-ellipses-outline"
-                  size={40}
-                  color="#C5CDD3"
-                />
-                <Text style={styles.preJoinChatText}>
-                  채팅방을 준비하고 있어요.
-                </Text>
-              </View>
-            )
-          ) : (
-            <View style={styles.preJoinChatPlaceholder}>
-              <Ionicons
-                name="chatbubble-ellipses-outline"
-                size={40}
-                color="#C5CDD3"
-              />
-              <Text style={styles.preJoinChatText}>
-                가입하면 채팅을 볼 수 있어요!
-              </Text>
-            </View>
-          )
-        ) : null}
-      </ScrollView>
+        </ScrollView>
+      )}
 
       {viewer.canWritePost && activeTab === "board" ? (
         <Pressable

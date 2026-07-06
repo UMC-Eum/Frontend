@@ -1,6 +1,7 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
+
+import { safeAsyncStorage } from "@/utils/safeAsyncStorage";
 
 interface NotificationSettingsState {
   enabled: boolean;
@@ -20,7 +21,7 @@ export const useNotificationSettingsStore =
       }),
       {
         name: "notification-settings",
-        storage: createJSONStorage(() => AsyncStorage),
+        storage: createJSONStorage(() => safeAsyncStorage),
         partialize: (state) => ({ enabled: state.enabled }),
         onRehydrateStorage: () => (state) => {
           state?.setHasHydrated(true);

@@ -31,8 +31,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import {
   isChatS3UploadError,
+  markChatRoomRead,
   postChatMediaPresign,
-  readChatMessage,
   uploadChatFileToS3,
   uploadChatFileUriToS3,
 } from "@/api/chats/chatsApi";
@@ -60,6 +60,7 @@ import {
 import {
   useChatMessagesInfiniteQuery,
   useChatRoomDetailQuery,
+  useChatRoomsInfiniteQuery,
   useLeaveChatRoomMutation,
 } from "@/hooks/api/useChats";
 import { queryKeys } from "@/hooks/api/queryKeys";
@@ -71,6 +72,7 @@ import {
 } from "@/hooks/api/useSocials";
 import { useAuthStore } from "@/stores/authStore";
 import { uniqueBy } from "@/utils/array";
+import { markChatRoomUnreadCountInCache } from "@/utils/chatUnreadCache";
 import type {
   MessageDeletedData,
   MessageNewData,
@@ -99,6 +101,19 @@ export default function ChatRoom() {
   const roomDetail = roomDetailQuery.data;
   const isClubRoom =
     roomDetail?.type === "CLUB" || Boolean(roomDetail && !roomDetail.peer);
+  const clubRoomsQuery = useChatRoomsInfiniteQuery(30, {
+    enabled: hasChatRoomId && isClubRoom,
+    staleTime: 15 * 1000,
+  });
+  const clubRoomListItem = useMemo(
+    () =>
+      clubRoomsQuery.data?.pages
+        .flatMap((page) => page.items)
+        .find((room) => room.chatRoomId === chatRoomId) ?? null,
+    [chatRoomId, clubRoomsQuery.data],
+  );
+  const clubMemberCount =
+    roomDetail?.memberCount ?? clubRoomListItem?.memberCount ?? null;
   const shouldUseDirectChat =
     hasChatRoomId && Boolean(roomDetail) && !isClubRoom;
   const messagesQuery = useChatMessagesInfiniteQuery(
@@ -148,6 +163,8 @@ export default function ChatRoom() {
         ) ?? null
     );
   }, [blocksQuery.data, peerUserId]);
+  // 상대방의 방 단위 읽음 커서(lastReadAt). 내가 보낸 메시지 중 sentAt <= peerReadAt 인 것은 읽음.
+  const [peerReadAt, setPeerReadAt] = useState<string | null>(null);
   const apiMessages = useMemo(
     () =>
       mapChatMessages(
@@ -181,11 +198,12 @@ export default function ChatRoom() {
     : recordingTime;
   const messages = useMemo(() => {
     const apiMessageIds = new Set(apiMessages.map((message) => message.id));
-    return [
+    const merged = [
       ...apiMessages,
       ...optimisticMessages.filter((message) => !apiMessageIds.has(message.id)),
     ];
-  }, [apiMessages, optimisticMessages]);
+    return applyPeerReadCursor(merged, peerReadAt);
+  }, [apiMessages, optimisticMessages, peerReadAt]);
   const visibleMessages = useMemo(
     () => withGroupedMessageTimes(withDateSeparators(messages)),
     [messages],
@@ -197,7 +215,8 @@ export default function ChatRoom() {
   const peerUserIdRef = useRef<number | undefined>(undefined);
   const peerProfileImageUrlRef = useRef<string | undefined>(undefined);
   const isBlockedRef = useRef(false);
-  const readMessageIdsRef = useRef<Set<number>>(new Set());
+  const roomReadInFlightRef = useRef(false);
+  const lastReadTriggerIdRef = useRef(0);
   const blockId = activeBlock?.blockId ?? localBlockId;
   const isBlockSubmitting =
     blockUserMutation.isPending || patchBlockMutation.isPending;
@@ -266,6 +285,33 @@ export default function ChatRoom() {
     setPlayingVoiceMessageId(null);
   }, []);
 
+  // 방 단위 읽음 처리: 내 읽음 커서를 서버에서 전진시키고 목록/미읽음 배지를 갱신한다.
+  const markRoomRead = useCallback(() => {
+    if (!hasChatRoomId) return;
+
+    markChatRoomUnreadCountInCache(queryClient, chatRoomId, 0);
+    if (roomReadInFlightRef.current) return;
+    roomReadInFlightRef.current = true;
+
+    void markChatRoomRead(chatRoomId)
+      .then((res) => {
+        if (__DEV__) {
+          console.log("[ChatSocket] room read ok", chatRoomId, res?.lastReadAt);
+        }
+        markChatRoomUnreadCountInCache(queryClient, chatRoomId, 0);
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.chats.messages(chatRoomId, 30),
+        });
+        void queryClient.invalidateQueries({ queryKey: queryKeys.chats.all });
+      })
+      .catch((error) => {
+        console.log("[ChatSocket] mark room read error", error);
+      })
+      .finally(() => {
+        roomReadInFlightRef.current = false;
+      });
+  }, [chatRoomId, hasChatRoomId, queryClient]);
+
   useEffect(() => {
     return () => {
       if (toastTimeoutRef.current) {
@@ -283,6 +329,13 @@ export default function ChatRoom() {
   }, [isRecording, recorderState.durationMillis]);
 
   useEffect(() => {
+    if (!hasChatRoomId) return;
+
+    void queryClient.cancelQueries({ queryKey: queryKeys.chats.all });
+    markChatRoomUnreadCountInCache(queryClient, chatRoomId, 0);
+  }, [chatRoomId, hasChatRoomId, queryClient]);
+
+  useEffect(() => {
     if (!shouldUseDirectChat || isChatRealtimeActive) return;
 
     const intervalId = setInterval(() => {
@@ -295,37 +348,31 @@ export default function ChatRoom() {
   useEffect(() => {
     if (!shouldUseDirectChat) return;
 
-    const unreadMessageIds =
-      messagesQuery.data?.pages.flatMap((page) =>
-        page.items
-          .filter(
-            (message) =>
-              !message.isMine &&
-              !message.readAt &&
-              !readMessageIdsRef.current.has(message.messageId),
-          )
-          .map((message) => message.messageId),
-      ) ?? [];
+    const items =
+      messagesQuery.data?.pages.flatMap((page) => page.items) ?? [];
 
-    if (unreadMessageIds.length === 0) return;
+    // 상대가 보낸(내가 받은) 최신 메시지가 새로 생기면 방 전체를 읽음 처리한다.
+    const latestIncomingId = items.reduce(
+      (max, message) =>
+        !message.isMine && message.messageId > max ? message.messageId : max,
+      0,
+    );
+    if (latestIncomingId > lastReadTriggerIdRef.current) {
+      lastReadTriggerIdRef.current = latestIncomingId;
+      markRoomRead();
+    }
 
-    unreadMessageIds.forEach((messageId) => {
-      readMessageIdsRef.current.add(messageId);
-    });
-
-    void Promise.all(
-      unreadMessageIds.map((messageId) => readChatMessage(messageId)),
-    )
-      .then(() => {
-        queryClient.invalidateQueries({ queryKey: queryKeys.chats.all });
-        queryClient.invalidateQueries({
-          queryKey: queryKeys.chats.messages(chatRoomId, 30),
-        });
-      })
-      .catch((error) => {
-        console.log("[ChatSocket] read messages error", error);
-      });
-  }, [chatRoomId, messagesQuery.data, queryClient, shouldUseDirectChat]);
+    // 내가 보낸 메시지의 서버 readAt(=상대 읽음 커서)을 커서에 반영한다.
+    const maxMineReadAt = items.reduce<string | null>((max, message) => {
+      if (!message.isMine || !message.readAt) return max;
+      return !max || message.readAt > max ? message.readAt : max;
+    }, null);
+    if (maxMineReadAt) {
+      setPeerReadAt((prev) =>
+        !prev || maxMineReadAt > prev ? maxMineReadAt : prev,
+      );
+    }
+  }, [markRoomRead, messagesQuery.data, shouldUseDirectChat]);
 
   useEffect(() => {
     setIsChatRealtimeActive(false);
@@ -422,7 +469,11 @@ export default function ChatRoom() {
       queryClient.invalidateQueries({
         queryKey: queryKeys.chats.messages(chatRoomId, 30),
       });
-      queryClient.invalidateQueries({ queryKey: queryKeys.chats.all });
+      if (nextMessage.senderUserId !== myUserId) {
+        markRoomRead();
+      } else {
+        markChatRoomUnreadCountInCache(queryClient, chatRoomId, 0);
+      }
 
       setOptimisticMessages((prevMessages) =>
         appendSocketMessage(
@@ -464,16 +515,16 @@ export default function ChatRoom() {
       const readEvent = getSocketReadData(payload);
       if (!readEvent) return;
       if (readEvent.chatRoomId !== chatRoomId) return;
+      // 내 읽음 이벤트는 상대 읽음 커서에 영향 없음(상대가 읽은 경우만 "1"을 지운다).
+      if (readEvent.readerUserId === myUserId) return;
 
       console.log("[ChatSocket] message.read", readEvent);
+      setPeerReadAt((prev) =>
+        !prev || readEvent.lastReadAt > prev ? readEvent.lastReadAt : prev,
+      );
       queryClient.invalidateQueries({
         queryKey: queryKeys.chats.messages(chatRoomId, 30),
       });
-      queryClient.invalidateQueries({ queryKey: queryKeys.chats.all });
-
-      setOptimisticMessages((prevMessages) =>
-        markSocketMessageRead(prevMessages, readEvent),
-      );
     }, socket);
 
     const unsubscribeMessageDeleted = onMessageDeleted((payload) => {
@@ -484,7 +535,11 @@ export default function ChatRoom() {
       queryClient.invalidateQueries({
         queryKey: queryKeys.chats.messages(chatRoomId, 30),
       });
-      queryClient.invalidateQueries({ queryKey: queryKeys.chats.all });
+      void queryClient
+        .invalidateQueries({ queryKey: queryKeys.chats.all })
+        .finally(() => {
+          markChatRoomUnreadCountInCache(queryClient, chatRoomId, 0);
+        });
 
       setOptimisticMessages((prevMessages) =>
         removeSocketMessage(prevMessages, deletedEvent),
@@ -505,6 +560,7 @@ export default function ChatRoom() {
   }, [
     chatRoomId,
     myUserId,
+    markRoomRead,
     queryClient,
     scrollToLatestMessage,
     shouldUseDirectChat,
@@ -542,7 +598,11 @@ export default function ChatRoom() {
         onSuccess: () => {
           setIsBlocked(false);
           setLocalBlockId(null);
-          queryClient.invalidateQueries({ queryKey: queryKeys.chats.all });
+          void queryClient
+            .invalidateQueries({ queryKey: queryKeys.chats.all })
+            .finally(() => {
+              markChatRoomUnreadCountInCache(queryClient, chatRoomId, 0);
+            });
           showToast(`${profile.name}님을 차단 해제했습니다`);
         },
         onError: () => {
@@ -565,7 +625,11 @@ export default function ChatRoom() {
       queryClient.invalidateQueries({
         queryKey: queryKeys.chats.messages(chatRoomId, 30),
       });
-      queryClient.invalidateQueries({ queryKey: queryKeys.chats.all });
+      void queryClient
+        .invalidateQueries({ queryKey: queryKeys.chats.all })
+        .finally(() => {
+          markChatRoomUnreadCountInCache(queryClient, chatRoomId, 0);
+        });
 
       setTimeout(() => {
         void refetchMessages().finally(() => {
@@ -658,6 +722,7 @@ export default function ChatRoom() {
     if (isUploadingVoice) return;
 
     try {
+      stopVoicePlayback();
       const permission = await AudioModule.requestRecordingPermissionsAsync();
       if (!permission.granted) {
         showToast("마이크 권한이 필요해요.");
@@ -866,6 +931,23 @@ export default function ChatRoom() {
     }
   };
 
+  const handleRecordedVoicePlay = () => {
+    if (!recordingUri || recordingTime <= 0) {
+      showToast("재생할 녹음 파일을 찾지 못했습니다.");
+      return;
+    }
+
+    void handleVoicePlay({
+      id: "recorded-voice-preview",
+      type: "voice",
+      duration: formatVoiceDuration(recordingTime),
+      mediaUrl: recordingUri,
+      isMine: true,
+      time: "",
+      isPlaying: playingVoiceMessageId === "recorded-voice-preview",
+    });
+  };
+
   const handlePickPhoto = async (source: "camera" | "gallery") => {
     if (isUploadingPhoto || !hasChatRoomId) return;
 
@@ -967,7 +1049,11 @@ export default function ChatRoom() {
           behavior={KEYBOARD_AVOIDING_BEHAVIOR}
           keyboardVerticalOffset={KEYBOARD_VERTICAL_OFFSET}
         >
-          <ClubChatTab chatRoomId={chatRoomId} bottomPadding={0} />
+          <ClubChatTab
+            chatRoomId={chatRoomId}
+            memberCount={clubMemberCount}
+            bottomPadding={8}
+          />
         </KeyboardAvoidingView>
       </SafeAreaView>
     );
@@ -1110,6 +1196,7 @@ export default function ChatRoom() {
                 onCancelPress={handleVoiceCancel}
                 onSendPress={handleVoiceSend}
                 onResetPress={resetVoiceRecorder}
+                onPlayPress={handleRecordedVoicePlay}
                 containerStyle={styles.voiceRecorder}
               />
             </View>
@@ -1205,7 +1292,11 @@ export default function ChatRoom() {
               onSuccess: (block) => {
                 setIsBlocked(true);
                 setLocalBlockId(block.blockId);
-                queryClient.invalidateQueries({ queryKey: queryKeys.chats.all });
+                void queryClient
+                  .invalidateQueries({ queryKey: queryKeys.chats.all })
+                  .finally(() => {
+                    markChatRoomUnreadCountInCache(queryClient, chatRoomId, 0);
+                  });
                 showToast(`${profile.name}님을 차단했습니다`);
               },
               onError: () => {
@@ -1232,6 +1323,7 @@ function mapChatMessages(
             isMine: boolean;
             sentAt: string;
             readAt?: string | null;
+            unreadCount?: number | null;
           }[];
         }[];
       }
@@ -1248,13 +1340,16 @@ function mapChatMessages(
           new Date(left.sentAt).getTime() - new Date(right.sentAt).getTime(),
       )
       .map((item) => {
+        const messageId = `message-${item.messageId}`;
+        const unreadCount = resolveUnreadCount(item);
         const base = {
-          id: `message-${item.messageId}`,
+          id: messageId,
           isMine: item.isMine,
           time: formatChatTime(item.sentAt),
           sentAt: item.sentAt,
           avatar: item.isMine ? undefined : peerAvatar,
-          showUnreadIndicator: item.isMine && !item.readAt,
+          unreadCount,
+          showUnreadIndicator: unreadCount > 0,
         };
 
         if (item.type === "AUDIO") {
@@ -1295,6 +1390,18 @@ function mapChatMessages(
         };
       })
   );
+}
+
+function resolveUnreadCount(item: {
+  isMine: boolean;
+  readAt?: string | null;
+  unreadCount?: number | null;
+}) {
+  if (!item.isMine) return 0;
+  if (typeof item.unreadCount === "number") {
+    return Math.max(0, item.unreadCount);
+  }
+  return item.readAt ? 0 : 1;
 }
 
 function isSocketSuccess<TData>(
@@ -1366,6 +1473,7 @@ function mapSocketMessage(
     time: formatChatTime(item.sentAt),
     sentAt: item.sentAt,
     avatar: isMine ? undefined : item.senderProfileImage ?? peerAvatar,
+    unreadCount: isMine ? 1 : 0,
     showUnreadIndicator: isMine,
   };
 
@@ -1533,21 +1641,24 @@ function removeSocketMessage(
   );
 }
 
-function markSocketMessageRead(
+// 상대 읽음 커서(peerReadAt)를 적용해, 내가 보낸 메시지 중 sentAt <= peerReadAt 인 것의 "1"을 제거한다.
+// (ISO-8601 UTC 문자열이므로 사전식 비교가 시간순 비교와 일치)
+function applyPeerReadCursor(
   messages: ChatMessageData[],
-  readEvent: MessageReadData,
-) {
-  return messages.map((message) => {
-    if (message.id !== `message-${readEvent.messageId}`) {
-      return message;
-    }
+  peerReadAt: string | null,
+): ChatMessageData[] {
+  if (!peerReadAt) return messages;
 
-    if (message.type === "date") {
+  return messages.map((message) => {
+    if (message.type === "date" || !message.isMine) return message;
+    if (!message.sentAt || message.sentAt > peerReadAt) return message;
+    if (message.unreadCount === 0 && message.showUnreadIndicator === false) {
       return message;
     }
 
     return {
       ...message,
+      unreadCount: 0,
       showUnreadIndicator: false,
     };
   });
@@ -1603,23 +1714,16 @@ function getSocketReadData(payload: unknown): MessageReadData | null {
   const data = unwrapSocketPayloadData(payload);
   if (!isRecord(data)) return null;
 
-  const { messageId, chatRoomId, readerUserId, readAt, unreadCount } = data;
+  const { chatRoomId, readerUserId, lastReadAt } = data;
   if (
-    typeof messageId !== "number" ||
     typeof chatRoomId !== "number" ||
     typeof readerUserId !== "number" ||
-    typeof readAt !== "string"
+    typeof lastReadAt !== "string"
   ) {
     return null;
   }
 
-  return {
-    messageId,
-    chatRoomId,
-    readerUserId,
-    readAt,
-    unreadCount: typeof unreadCount === "number" ? unreadCount : undefined,
-  };
+  return { chatRoomId, readerUserId, lastReadAt };
 }
 
 function getSocketDeletedData(payload: unknown): MessageDeletedData | null {

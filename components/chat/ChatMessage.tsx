@@ -17,6 +17,7 @@ export type ChatMessageData =
       sentAt?: string;
       showTime?: boolean;
       showUnreadIndicator?: boolean;
+      unreadCount?: number;
       compactSpacing?: boolean;
       groupTopSpacing?: boolean;
       showAvatar?: boolean;
@@ -31,6 +32,7 @@ export type ChatMessageData =
       sentAt?: string;
       showTime?: boolean;
       showUnreadIndicator?: boolean;
+      unreadCount?: number;
       compactSpacing?: boolean;
       groupTopSpacing?: boolean;
       showAvatar?: boolean;
@@ -47,6 +49,7 @@ export type ChatMessageData =
       sentAt?: string;
       showTime?: boolean;
       showUnreadIndicator?: boolean;
+      unreadCount?: number;
       compactSpacing?: boolean;
       groupTopSpacing?: boolean;
       showAvatar?: boolean;
@@ -67,6 +70,12 @@ export default function ChatMessage({
       </View>
     );
   }
+  const unreadCount =
+    typeof message.unreadCount === "number"
+      ? message.unreadCount
+      : message.showUnreadIndicator
+        ? 1
+        : 0;
 
   return (
     <View
@@ -94,11 +103,10 @@ export default function ChatMessage({
         ]}
       >
         <View style={styles.bubbleRow}>
-          {message.isMine &&
-          (message.showUnreadIndicator || message.showTime !== false) ? (
+          {message.isMine && (unreadCount > 0 || message.showTime !== false) ? (
             <View style={styles.myMeta}>
-              {message.showUnreadIndicator ? (
-                <Text style={styles.unreadCount}>1</Text>
+              {unreadCount > 0 ? (
+                <Text style={styles.unreadCount}>{unreadCount}</Text>
               ) : null}
               {message.showTime !== false ? (
                 <Text style={[styles.time, styles.myTime]}>
