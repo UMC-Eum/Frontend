@@ -75,6 +75,7 @@ import type {
 } from "@/types/api/meetings/meetingsDTO";
 import { uniqueBy } from "@/utils/array";
 import { ClubViewer, getClubViewer } from "@/utils/clubViewer";
+import { shareClub } from "@/utils/shareLinks";
 import {
   getClubChatRoomId,
   getClubChatRoomIdFromRooms,
@@ -463,7 +464,11 @@ export default function ClubDetailScreen() {
         </Pressable>
 
         <View style={styles.headerActions}>
-          <Pressable style={styles.headerIconButton} hitSlop={12}>
+          <Pressable
+            style={styles.headerIconButton}
+            hitSlop={12}
+            onPress={() => void shareClub(clubId, detail?.name)}
+          >
             <Ionicons name="share-outline" size={24} color={BLACK} />
           </Pressable>
           {/* 동호회장은 설정(너트), 그 외(가입 전 게스트·일반 멤버)는 더보기(⋮) */}

@@ -32,7 +32,6 @@ const DEFAULT_PROFILE_IMAGE_ASSET = require("@/assets/images/default-profile.png
 const DEFAULT_PROFILE_IMAGE_URI = RNImage.resolveAssetSource(
   DEFAULT_PROFILE_IMAGE_ASSET,
 ).uri;
-const MIN_CROP_ZOOM = 1;
 const MAX_CROP_ZOOM = 3;
 
 type PreviewAsset = {
@@ -193,6 +192,8 @@ export default function PhotoScreen() {
       imageScale,
       displayWidth,
       displayHeight,
+      // 초기 배율(1)은 화면 전체 cover 기준이라, 크롭 원만 덮으면 되는 수준까지 축소를 허용한다.
+      minZoom: CROP_CIRCLE_SIZE / Math.min(displayWidth, displayHeight),
       imageLeft: (SCREEN_WIDTH - displayWidth) / 2,
       imageTop: (SCREEN_HEIGHT - displayHeight) / 2,
       circleLeft: (SCREEN_WIDTH - CROP_CIRCLE_SIZE) / 2,
@@ -246,7 +247,7 @@ export default function PhotoScreen() {
             nextZoom = clamp(
               cropStartZoomRef.current *
                 (pinchDistance / cropPinchDistanceRef.current),
-              MIN_CROP_ZOOM,
+              cropMetrics?.minZoom ?? 1,
               MAX_CROP_ZOOM,
             );
             cropZoomRef.current = nextZoom;
@@ -276,7 +277,7 @@ export default function PhotoScreen() {
           cropTranslate.setValue(nextOffset);
         },
       }),
-    [clampCropOffset, cropScale, cropTranslate],
+    [clampCropOffset, cropMetrics, cropScale, cropTranslate],
   );
 
   const resetCropOffset = () => {

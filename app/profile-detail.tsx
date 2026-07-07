@@ -1,18 +1,17 @@
 import { Ionicons } from "@expo/vector-icons";
 import { isAxiosError } from "axios";
-import Constants from "expo-constants";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
+  Image,
   ImageBackground,
   Keyboard,
   LayoutChangeEvent,
   Modal,
   Pressable,
   ScrollView,
-  Share,
   StyleSheet,
   Text,
   TextInput,
@@ -25,6 +24,7 @@ import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 import Svg, { ClipPath, Defs, G, Path, Rect } from "react-native-svg";
 
 import { Chip } from "@/components/Chip";
+import { IconVerifiedBadge } from "@/components/SvgIcons";
 import { ProfileDetailSkeleton } from "@/components/skeletons";
 import Cta from "@/components/Cta";
 import { HeaderBackOnly } from "@/components/header";
@@ -43,11 +43,7 @@ import {
 import { useUserProfileQuery } from "@/hooks/api/useUsers";
 import type { ReportCategory } from "@/types/api/socials/socialsDTO";
 import type { IProfileClubSummary, IUserPublicProfile } from "@/types/user";
-
-const expoScheme = Constants.expoConfig?.scheme;
-const APP_SCHEME = Array.isArray(expoScheme)
-  ? expoScheme[0]
-  : expoScheme ?? "eummobile";
+import { shareProfile } from "@/utils/shareLinks";
 
 type ProfileDetailParams = {
   userId?: string | string[];
@@ -80,6 +76,7 @@ type ProfileClub = {
   location: string;
   category: string;
   memberLabel: string;
+  thumbnailUrl: string | null;
 };
 
 const ENABLE_PROFILE_DETAIL_QUERY = true;
@@ -213,18 +210,7 @@ export default function ProfileDetailScreen() {
     const targetUserId = getTargetUserId();
     if (!targetUserId) return;
 
-    const profileUrl = createProfileShareUrl(targetUserId);
-    const profileName = profile?.name ?? "상대";
-
-    try {
-      await Share.share({
-        title: `${profileName}님의 프로필`,
-        message: `${profileName}님의 프로필을 확인해보세요.\n${profileUrl}`,
-        url: profileUrl,
-      });
-    } catch {
-      Alert.alert("공유 실패", "프로필을 공유하지 못했어요.");
-    }
+    await shareProfile(targetUserId, profile?.name);
   };
 
   const handleStartChat = async () => {
@@ -506,9 +492,11 @@ function ProfileHeroMeta({ profile }: { profile: ProfileViewData }) {
     <View style={styles.heroMeta}>
       <View style={styles.nameRow}>
         <Text style={styles.profileName}>{profile.name}</Text>
-        {profile.age ? <Text style={styles.profileName}>{profile.age}세</Text> : null}
+        {profile.age ? (
+          <Text style={styles.profileName}>{profile.age}</Text>
+        ) : null}
         <View style={styles.verifiedIconWrap}>
-          <VerifiedBadgeIcon />
+          <IconVerifiedBadge />
         </View>
       </View>
 
@@ -531,17 +519,6 @@ function ProfileHeroMeta({ profile }: { profile: ProfileViewData }) {
         </View>
       ) : null}
     </View>
-  );
-}
-
-function VerifiedBadgeIcon() {
-  return (
-    <Svg width={20} height={20} viewBox="0 0 20 20" fill="none">
-      <Path
-        d="M8.82134 0.358948C9.26152 -0.119656 10.0169 -0.119643 10.4571 0.358948L11.4698 1.45953C11.7482 1.76226 12.1715 1.88692 12.5694 1.78278L14.0167 1.40387C14.6455 1.2394 15.2809 1.64731 15.3926 2.28766L15.6495 3.76227C15.7202 4.16722 16.0086 4.50006 16.3995 4.6275L17.8213 5.09137C18.4394 5.2929 18.7532 5.97956 18.501 6.57867L17.92 7.95758C17.7603 8.33654 17.8231 8.77272 18.0831 9.09137L19.0284 10.2505C19.4395 10.7544 19.3323 11.5021 18.796 11.8697L17.5616 12.7154C17.2225 12.9479 17.0396 13.3489 17.086 13.7574L17.2549 15.2437C17.3284 15.8898 16.8336 16.4608 16.1836 16.48L14.6885 16.524C14.2776 16.5362 13.9065 16.7744 13.7247 17.1431L13.0635 18.4849C12.776 19.0682 12.0514 19.2811 11.4942 18.9459L10.212 18.1754C9.85955 17.9634 9.41886 17.9633 9.06646 18.1754L7.78521 18.9459C7.22802 19.2811 6.50338 19.0682 6.21588 18.4849L5.55377 17.1431C5.37184 16.7745 5.00085 16.5362 4.5899 16.524L3.09478 16.48C2.44497 16.4606 1.95007 15.8897 2.02349 15.2437L2.19341 13.7574C2.23986 13.3487 2.05611 12.9479 1.71685 12.7154L0.483454 11.8697C-0.0529125 11.5021 -0.160995 10.7544 0.250055 10.2505L1.19634 9.09137C1.45616 8.77273 1.51908 8.33647 1.35943 7.95758L0.778375 6.57867C0.526138 5.97953 0.839965 5.29291 1.45806 5.09137L2.87994 4.6275C3.27079 4.50004 3.55924 4.16723 3.62994 3.76227L3.88677 2.28766C3.99851 1.64727 4.63382 1.23925 5.26275 1.40387L6.71002 1.78278C7.10782 1.88683 7.53027 1.76217 7.80865 1.45953L8.82134 0.358948ZM13.3858 7.29742C13.0605 6.97209 12.5325 6.97229 12.2071 7.29742L8.58697 10.9156L7.07232 9.40094C6.74708 9.07609 6.21995 9.07629 5.89459 9.40094C5.56915 9.72638 5.56915 10.2542 5.89459 10.5797L7.9981 12.6841C8.3235 13.0095 8.85138 13.0094 9.17681 12.6841L13.3858 8.47516C13.7104 8.1498 13.7106 7.62267 13.3858 7.29742Z"
-        fill="#FFFFFF"
-      />
-    </Svg>
   );
 }
 
@@ -649,7 +626,14 @@ function ProfileClubSection({
       <SectionTitle title={title} />
       {clubs.map((club) => (
         <View key={club.id} style={styles.clubCard}>
-          <View style={styles.clubThumbnail} />
+          {club.thumbnailUrl ? (
+            <Image
+              source={{ uri: club.thumbnailUrl }}
+              style={styles.clubThumbnail}
+            />
+          ) : (
+            <View style={styles.clubThumbnail} />
+          )}
           <View style={styles.clubInfo}>
             <Text style={styles.clubTitle} numberOfLines={1}>
               {club.title}
@@ -731,6 +715,7 @@ function mapProfileClubs(clubs?: IProfileClubSummary[]): ProfileClub[] {
     location: "",
     category: club.category,
     memberLabel: "",
+    thumbnailUrl: club.thumbnailUrl,
   }));
 }
 
@@ -836,12 +821,6 @@ function isApiErrorPayload(
     typeof (error as { code?: unknown }).code === "string" &&
     typeof (error as { message?: unknown }).message === "string"
   );
-}
-
-function createProfileShareUrl(userId: number) {
-  const query = new URLSearchParams({ userId: String(userId) }).toString();
-
-  return `${APP_SCHEME}://profile-detail?${query}`;
 }
 
 function ActionSheetModal({

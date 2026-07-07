@@ -63,7 +63,9 @@ export default function ProfileEditScreen() {
     null,
   );
   const [showActionSheet, setShowActionSheet] = useState(false);
-  const [pendingAction, setPendingAction] = useState<"gallery" | null>(null);
+  const [pendingAction, setPendingAction] = useState<
+    "camera" | "gallery" | null
+  >(null);
 
   useEffect(() => {
     if (!profile) return;
@@ -94,31 +96,56 @@ export default function ProfileEditScreen() {
     setShowActionSheet(true);
   };
 
+  const handleTakePhoto = () => {
+    handleImageAction("camera");
+  };
+
   const handlePickFromGallery = () => {
+    handleImageAction("gallery");
+  };
+
+  // iOS는 액션시트 모달이 닫힌 뒤에 카메라/앨범을 띄워야 해서 pendingAction으로 미룬다.
+  const handleImageAction = (action: "camera" | "gallery") => {
     setShowActionSheet(false);
 
     if (Platform.OS === "ios") {
-      setPendingAction("gallery");
+      setPendingAction(action);
       return;
     }
 
-    void runGalleryPicker();
+    void runImageAction(action);
   };
 
   const onModalDismiss = async () => {
-    if (pendingAction !== "gallery") return;
+    const action = pendingAction;
+    if (!action) return;
 
     setPendingAction(null);
-    await runGalleryPicker();
+    await runImageAction(action);
   };
 
-  const runGalleryPicker = async () => {
+  const runImageAction = async (action: "camera" | "gallery") => {
     try {
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ["images"],
-        allowsEditing: false,
-        quality: 0.85,
-      });
+      if (action === "camera") {
+        const permission = await ImagePicker.requestCameraPermissionsAsync();
+        if (permission.status !== "granted") {
+          Alert.alert("카메라 권한 필요", "설정에서 카메라 접근 권한을 허용해주세요.");
+          return;
+        }
+      }
+
+      const result =
+        action === "camera"
+          ? await ImagePicker.launchCameraAsync({
+              mediaTypes: ["images"],
+              allowsEditing: false,
+              quality: 0.85,
+            })
+          : await ImagePicker.launchImageLibraryAsync({
+              mediaTypes: ["images"],
+              allowsEditing: false,
+              quality: 0.85,
+            });
 
       if (result.canceled || result.assets.length === 0) return;
 
@@ -313,11 +340,19 @@ export default function ProfileEditScreen() {
                   styles.modalOption,
                   pressed && styles.modalOptionPressed,
                 ]}
+                onPress={handleTakePhoto}
+              >
+                <Text style={styles.modalOptionText}>카메라로 촬영</Text>
+              </Pressable>
+              <View style={styles.modalDivider} />
+              <Pressable
+                style={({ pressed }) => [
+                  styles.modalOption,
+                  pressed && styles.modalOptionPressed,
+                ]}
                 onPress={handlePickFromGallery}
               >
-                <Text style={styles.modalOptionText}>
-                  촬영 또는 앨범에서 선택
-                </Text>
+                <Text style={styles.modalOptionText}>앨범에서 선택</Text>
               </Pressable>
               <View style={styles.modalDivider} />
               <Pressable
