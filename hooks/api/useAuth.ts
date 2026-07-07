@@ -13,6 +13,7 @@ import {
   IKakaoLoginRequest,
   ITestLoginRequest,
 } from "@/types/api/auth/authDTO";
+import { removePushTokenFromServer } from "@/utils/pushNotifications";
 
 import { queryKeys } from "./queryKeys";
 
@@ -55,7 +56,11 @@ export function useLogoutMutation() {
   const clearAuth = useAuthStore((state) => state.clearAuth);
 
   return useMutation({
-    mutationFn: logout,
+    // 인증이 남아있을 때 푸시 토큰 먼저 해제한 뒤 로그아웃
+    mutationFn: async () => {
+      await removePushTokenFromServer();
+      return logout();
+    },
     onSettled: () => {
       clearAuth();
       queryClient.clear();

@@ -11,14 +11,17 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.eum-dating.app",
-      "buildNumber": "4",
+      "buildNumber": "8",
       "usesAppleSignIn": true,
+      "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "CFBundleAllowMixedLocalizations": true
       }
     },
     "android": {
+      "package": "com.eumdating.app",
+      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -57,7 +60,18 @@
         }
       ],
       "expo-audio",
-      "expo-apple-authentication"
+      "expo-apple-authentication",
+      "@react-native-firebase/app",
+      "@react-native-firebase/messaging",
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "useFrameworks": "static",
+            "forceStaticLinking": ["RNFBApp", "RNFBMessaging"]
+          }
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

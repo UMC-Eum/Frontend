@@ -18,6 +18,7 @@ import {
   updateMyProfile,
 } from "@/api/users/usersApi";
 import { useAuthStore } from "@/stores/authStore";
+import { removePushTokenFromServer } from "@/utils/pushNotifications";
 import {
   IKeywordsRequest,
   ILikedClubsParams,
@@ -106,7 +107,11 @@ export function useDeactivateUserMutation() {
   const clearAuth = useAuthStore((state) => state.clearAuth);
 
   return useMutation({
-    mutationFn: deactivateUser,
+    // 인증이 남아있을 때 푸시 토큰 먼저 해제한 뒤 탈퇴
+    mutationFn: async () => {
+      await removePushTokenFromServer();
+      return deactivateUser();
+    },
     onSuccess: () => {
       clearAuth();
       queryClient.clear();
