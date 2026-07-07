@@ -41,8 +41,14 @@ export function useNotificationsInfiniteQuery(
 }
 
 export function useReadNotificationMutation() {
+  const queryClient = useQueryClient();
+
   return useMutation({
     mutationFn: (notificationId: number) => readNotification(notificationId),
+    onSuccess: () => {
+      // 홈 상단 알림 dot 등 다른 화면의 unread 계산이 즉시 갱신되도록 무효화한다.
+      queryClient.invalidateQueries({ queryKey: queryKeys.notifications.all });
+    },
   });
 }
 

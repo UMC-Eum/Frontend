@@ -169,7 +169,7 @@ export default function PermissionsScreen() {
           return (
             <Pressable
               key={item.id}
-              style={styles.card}
+              style={[styles.card, isActive && styles.cardActive]}
               onPress={() => requestPermission(item.id)}
               disabled={isRequesting}
             >
@@ -270,6 +270,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 19,
     borderRadius: 14,
     borderWidth: 2,
+    borderColor: "#202020",
+    backgroundColor: "#FFFFFF",
+  },
+  // 권한이 허용된 카드만 핑크로 강조한다.
+  cardActive: {
     borderColor: "#FC3367",
     backgroundColor: "#FFE2E9",
   },

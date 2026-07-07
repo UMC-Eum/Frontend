@@ -72,7 +72,11 @@ export interface IItemRecommendation {
   //profileImageUrl: string;//필요함
   //isHearted: boolean;//필요함
   age: number;
-  areaName: string;
+  // 서버가 평면(areaName) 또는 중첩(area.name) 형태로 지역을 내려준다.
+  areaName?: string | null;
+  area?: { name?: string | null } | null;
+  addressName?: string | null;
+  address?: { fullName?: string | null; name?: string | null } | null;
   keywords: string[];
   introText: string;
   introAudioUrl: string;

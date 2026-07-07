@@ -1,9 +1,12 @@
-import messaging from "@react-native-firebase/messaging";
 import { useEffect } from "react";
 
 import { useAuthStore } from "@/stores/authStore";
 import { useNotificationSettingsStore } from "@/stores/notificationSettingsStore";
 import {
+  getInitialPushNotification,
+  onForegroundMessage,
+  onNotificationOpened,
+  onPushTokenRefresh,
   presentForegroundMessage,
   removePushTokenFromServer,
   syncPushTokenToServer,
@@ -18,26 +21,24 @@ export function usePushNotifications() {
 
   useEffect(() => {
     // 포그라운드 수신 → 로컬 알림으로 표시
-    const unsubscribeMessage = messaging().onMessage((remoteMessage) => {
+    const unsubscribeMessage = onForegroundMessage((remoteMessage) => {
       void presentForegroundMessage(remoteMessage);
     });
     // 백그라운드에서 알림 탭 → 앱 열림
-    const unsubscribeOpened = messaging().onNotificationOpenedApp((message) => {
+    const unsubscribeOpened = onNotificationOpened((message) => {
       console.log("[push] 알림 탭:", message.notification);
       // TODO: 알림 payload(data.type 등) 기준 딥링크 라우팅
     });
     // 앱이 완전히 종료된 상태에서 알림으로 실행된 경우
-    void messaging()
-      .getInitialNotification()
-      .then((message) => {
-        if (!message) return;
-        console.log("[push] 종료상태에서 알림으로 열림:", message.notification);
-        // TODO: 딥링크 라우팅
-      });
+    void getInitialPushNotification().then((message) => {
+      if (!message) return;
+      console.log("[push] 종료상태에서 알림으로 열림:", message.notification);
+      // TODO: 딥링크 라우팅
+    });
 
     return () => {
-      unsubscribeMessage();
-      unsubscribeOpened();
+      unsubscribeMessage?.();
+      unsubscribeOpened?.();
     };
   }, []);
 
@@ -56,9 +57,9 @@ export function usePushNotifications() {
   useEffect(() => {
     if (!isAuthenticated || !notificationEnabled) return;
 
-    const unsubscribeRefresh = messaging().onTokenRefresh(() => {
+    const unsubscribeRefresh = onPushTokenRefresh(() => {
       void syncPushTokenToServer();
     });
-    return () => unsubscribeRefresh();
+    return () => unsubscribeRefresh?.();
   }, [isAuthenticated, notificationEnabled]);
 }

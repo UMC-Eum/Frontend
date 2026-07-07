@@ -1,6 +1,6 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { Tabs } from "expo-router";
-import React from "react";
+import React, { useRef } from "react";
 import { StyleSheet, View } from "react-native";
 
 import { AppNavbar } from "@/components/AppNavbar";
@@ -23,8 +23,12 @@ const TAB_REFRESH_QUERY_KEYS = {
   ],
 } as const;
 
+// 같은 탭을 이 간격 안에 다시 눌러도 refetch하지 않는다. 강제 최신화는 각 화면의 pull-to-refresh가 담당.
+const TAB_REFRESH_MIN_INTERVAL_MS = 30_000;
+
 export default function TabLayout() {
   const queryClient = useQueryClient();
+  const lastTabRefreshAtRef = useRef<Partial<Record<string, number>>>({});
 
   return (
     <Tabs
@@ -37,7 +41,12 @@ export default function TabLayout() {
             <AppNavbar
               activeTabId={currentRouteName}
               onTabPress={(id) => {
-                if (id !== currentRouteName) {
+                const lastRefreshAt = lastTabRefreshAtRef.current[id] ?? 0;
+                if (
+                  id !== currentRouteName &&
+                  Date.now() - lastRefreshAt >= TAB_REFRESH_MIN_INTERVAL_MS
+                ) {
+                  lastTabRefreshAtRef.current[id] = Date.now();
                   TAB_REFRESH_QUERY_KEYS[
                     id as keyof typeof TAB_REFRESH_QUERY_KEYS
                   ]?.forEach((queryKey) => {

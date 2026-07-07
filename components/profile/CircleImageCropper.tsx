@@ -17,6 +17,7 @@ import Svg, { Circle, Defs, Mask, Rect } from "react-native-svg";
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 const CROP_CIRCLE_SIZE = Math.min(SCREEN_WIDTH - 40, 372);
 const CROP_CIRCLE_TOP = SCREEN_HEIGHT * 0.306;
+const MAX_CROP_ZOOM = 3;
 
 export type CircleCropAsset = {
   uri: string;
@@ -49,8 +50,12 @@ export default function CircleImageCropper({
 }: CircleImageCropperProps) {
   const insets = useSafeAreaInsets();
   const cropTranslate = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current;
+  const cropScale = useRef(new Animated.Value(1)).current;
   const cropOffsetRef = useRef({ x: 0, y: 0 });
   const cropStartOffsetRef = useRef({ x: 0, y: 0 });
+  const cropZoomRef = useRef(1);
+  const cropStartZoomRef = useRef(1);
+  const cropPinchDistanceRef = useRef<number | null>(null);
 
   const cropMetrics = useMemo(() => {
     const imageScale = Math.max(
@@ -64,6 +69,8 @@ export default function CircleImageCropper({
       imageScale,
       displayWidth,
       displayHeight,
+      // 초기 배율(1)은 화면 전체 cover 기준이라, 크롭 원만 덮으면 되는 수준까지 축소를 허용한다.
+      minZoom: CROP_CIRCLE_SIZE / Math.min(displayWidth, displayHeight),
       imageLeft: (SCREEN_WIDTH - displayWidth) / 2,
       imageTop: (SCREEN_HEIGHT - displayHeight) / 2,
       circleLeft: (SCREEN_WIDTH - CROP_CIRCLE_SIZE) / 2,
@@ -72,15 +79,19 @@ export default function CircleImageCropper({
   }, [asset.height, asset.width]);
 
   const clampCropOffset = useCallback(
-    (x: number, y: number) => {
+    (x: number, y: number, zoom = cropZoomRef.current) => {
       const circleRight = cropMetrics.circleLeft + CROP_CIRCLE_SIZE;
       const circleBottom = cropMetrics.circleTop + CROP_CIRCLE_SIZE;
+      const scaledWidth = cropMetrics.displayWidth * zoom;
+      const scaledHeight = cropMetrics.displayHeight * zoom;
+      const scaleInsetX = (scaledWidth - cropMetrics.displayWidth) / 2;
+      const scaleInsetY = (scaledHeight - cropMetrics.displayHeight) / 2;
       const minX =
-        circleRight - cropMetrics.imageLeft - cropMetrics.displayWidth;
-      const maxX = cropMetrics.circleLeft - cropMetrics.imageLeft;
+        circleRight - cropMetrics.imageLeft - scaledWidth + scaleInsetX;
+      const maxX = cropMetrics.circleLeft - cropMetrics.imageLeft + scaleInsetX;
       const minY =
-        circleBottom - cropMetrics.imageTop - cropMetrics.displayHeight;
-      const maxY = cropMetrics.circleTop - cropMetrics.imageTop;
+        circleBottom - cropMetrics.imageTop - scaledHeight + scaleInsetY;
+      const maxY = cropMetrics.circleTop - cropMetrics.imageTop + scaleInsetY;
 
       return {
         x: clamp(x, minX, maxX),
@@ -95,34 +106,92 @@ export default function CircleImageCropper({
       PanResponder.create({
         onStartShouldSetPanResponder: () => true,
         onMoveShouldSetPanResponder: () => true,
-        onPanResponderGrant: () => {
+        onPanResponderTerminationRequest: () => false,
+        onPanResponderGrant: (event) => {
           cropStartOffsetRef.current = cropOffsetRef.current;
+          cropStartZoomRef.current = cropZoomRef.current;
+          cropPinchDistanceRef.current = getTouchDistance(
+            event.nativeEvent.touches,
+          );
         },
-        onPanResponderMove: (_, gestureState) => {
+        onPanResponderMove: (event, gestureState) => {
+          let nextZoom = cropZoomRef.current;
+          const pinchDistance = getTouchDistance(event.nativeEvent.touches);
+
+          if (pinchDistance && !cropPinchDistanceRef.current) {
+            cropPinchDistanceRef.current = pinchDistance;
+            cropStartZoomRef.current = cropZoomRef.current;
+          }
+
+          if (pinchDistance && cropPinchDistanceRef.current) {
+            nextZoom = clamp(
+              cropStartZoomRef.current *
+                (pinchDistance / cropPinchDistanceRef.current),
+              cropMetrics.minZoom,
+              MAX_CROP_ZOOM,
+            );
+            cropZoomRef.current = nextZoom;
+            cropScale.setValue(nextZoom);
+          }
+
           const nextOffset = clampCropOffset(
             cropStartOffsetRef.current.x + gestureState.dx,
             cropStartOffsetRef.current.y + gestureState.dy,
+            nextZoom,
           );
 
           cropOffsetRef.current = nextOffset;
           cropTranslate.setValue(nextOffset);
         },
         onPanResponderRelease: () => {
-          cropStartOffsetRef.current = cropOffsetRef.current;
+          const nextOffset = clampCropOffset(
+            cropOffsetRef.current.x,
+            cropOffsetRef.current.y,
+            cropZoomRef.current,
+          );
+
+          cropOffsetRef.current = nextOffset;
+          cropStartOffsetRef.current = nextOffset;
+          cropStartZoomRef.current = cropZoomRef.current;
+          cropPinchDistanceRef.current = null;
+          cropTranslate.setValue(nextOffset);
         },
       }),
-    [clampCropOffset, cropTranslate],
+    [clampCropOffset, cropMetrics, cropScale, cropTranslate],
   );
 
   const handleConfirm = async () => {
     const cropOffset = cropOffsetRef.current;
-    const imageScreenLeft = cropMetrics.imageLeft + cropOffset.x;
-    const imageScreenTop = cropMetrics.imageTop + cropOffset.y;
+    const cropZoom = cropZoomRef.current;
+    const scaledWidth = cropMetrics.displayWidth * cropZoom;
+    const scaledHeight = cropMetrics.displayHeight * cropZoom;
+    const imageScreenLeft =
+      cropMetrics.imageLeft +
+      cropOffset.x -
+      (scaledWidth - cropMetrics.displayWidth) / 2;
+    const imageScreenTop =
+      cropMetrics.imageTop +
+      cropOffset.y -
+      (scaledHeight - cropMetrics.displayHeight) / 2;
     const originX =
-      (cropMetrics.circleLeft - imageScreenLeft) / cropMetrics.imageScale;
+      (cropMetrics.circleLeft - imageScreenLeft) /
+      (cropMetrics.imageScale * cropZoom);
     const originY =
-      (cropMetrics.circleTop - imageScreenTop) / cropMetrics.imageScale;
-    const cropSize = CROP_CIRCLE_SIZE / cropMetrics.imageScale;
+      (cropMetrics.circleTop - imageScreenTop) /
+      (cropMetrics.imageScale * cropZoom);
+    const cropSize = CROP_CIRCLE_SIZE / (cropMetrics.imageScale * cropZoom);
+    const roundedOriginX = Math.round(
+      clamp(originX, 0, Math.max(asset.width - cropSize, 0)),
+    );
+    const roundedOriginY = Math.round(
+      clamp(originY, 0, Math.max(asset.height - cropSize, 0)),
+    );
+    const roundedWidth = Math.round(
+      Math.min(cropSize, asset.width - roundedOriginX),
+    );
+    const roundedHeight = Math.round(
+      Math.min(cropSize, asset.height - roundedOriginY),
+    );
 
     try {
       const croppedImage = await ImageManipulator.manipulateAsync(
@@ -130,10 +199,10 @@ export default function CircleImageCropper({
         [
           {
             crop: {
-              originX: Math.round(clamp(originX, 0, asset.width - cropSize)),
-              originY: Math.round(clamp(originY, 0, asset.height - cropSize)),
-              width: Math.round(Math.min(cropSize, asset.width)),
-              height: Math.round(Math.min(cropSize, asset.height)),
+              originX: roundedOriginX,
+              originY: roundedOriginY,
+              width: roundedWidth,
+              height: roundedHeight,
             },
           },
         ],
@@ -169,6 +238,7 @@ export default function CircleImageCropper({
               transform: [
                 { translateX: cropTranslate.x },
                 { translateY: cropTranslate.y },
+                { scale: cropScale },
               ],
             },
           ]}
@@ -233,6 +303,16 @@ function CropOverlay() {
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
+}
+
+function getTouchDistance(touches: { pageX: number; pageY: number }[]) {
+  if (touches.length < 2) return null;
+
+  const [first, second] = touches;
+  const dx = first.pageX - second.pageX;
+  const dy = first.pageY - second.pageY;
+
+  return Math.hypot(dx, dy);
 }
 
 const styles = StyleSheet.create({

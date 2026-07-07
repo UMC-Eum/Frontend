@@ -30,6 +30,7 @@ import {
 import { DEFAULT_PROFILE_IMAGE_URI } from "@/constants/defaultProfileImage";
 import { TAB_SCREEN_BOTTOM_PADDING } from "@/constants/layout";
 import ClubRow, { ClubRowItem } from "@/components/search/ClubRow";
+import { IconVerifiedBadge } from "@/components/SvgIcons";
 import {
   ClubRowListSkeleton,
   HomeInitialSkeleton,
@@ -45,7 +46,7 @@ import {
 import { useAuthStore } from "@/stores/authStore";
 import { useClubLocationStore } from "@/stores/clubLocationStore";
 import { useNotificationSettingsStore } from "@/stores/notificationSettingsStore";
-import { uniqueBy } from "@/utils/array";
+import { chunk, uniqueBy } from "@/utils/array";
 
 const PINK = "#FF1B4D";
 const BLACK = "#202020";
@@ -68,6 +69,8 @@ type Profile = {
 
 const USER_NICKNAME = "루씨";
 const RECOMMENDATION_COUNTDOWN_MS = 60 * 60 * 1000;
+// 내 동호회 펼침 그리드(3열)의 최소 열 간격
+const MY_CLUB_GRID_MIN_GAP = 12;
 const CLUB_CATEGORIES = [
   {
     label: "운동 / 스포츠",
@@ -167,8 +170,10 @@ export default function HomePage() {
     undefined,
     notificationEnabled,
   );
-  const chatNotificationsQuery = useNotificationsInfiniteQuery(
-    "chat",
+  // 알림 화면(app/notifications.tsx)이 마음/동호회 탭만 제공하므로 dot 기준도 heart+club로 맞춘다.
+  // (chat unread는 하단 navbar 채팅 badge가 별도로 표시)
+  const clubNotificationsQuery = useNotificationsInfiniteQuery(
+    "club",
     undefined,
     notificationEnabled,
   );
@@ -191,9 +196,9 @@ export default function HomePage() {
     () => countUnreadNotifications(heartNotificationsQuery.data),
     [heartNotificationsQuery.data],
   );
-  const chatUnreadCount = useMemo(
-    () => countUnreadNotifications(chatNotificationsQuery.data),
-    [chatNotificationsQuery.data],
+  const clubUnreadCount = useMemo(
+    () => countUnreadNotifications(clubNotificationsQuery.data),
+    [clubNotificationsQuery.data],
   );
   const profiles = recommendedProfiles;
   const profile =
@@ -206,7 +211,7 @@ export default function HomePage() {
     (isAuthenticated && !myProfileQuery.data && !myProfileQuery.isError);
   const cardWidth = width - 40;
   const hasNotificationBadge =
-    notificationEnabled && heartUnreadCount + chatUnreadCount > 0;
+    notificationEnabled && heartUnreadCount + clubUnreadCount > 0;
 
   // 마이페이지 등에서 ?tab=club 으로 진입하면 동호회 탭을 엽니다.
   useEffect(() => {
@@ -612,7 +617,11 @@ function mapRecommendationProfiles(data?: {
       userId: number;
       nickname: string;
       age: number;
-      areaName: string;
+      // 서버가 평면(areaName)과 중첩(area.name) 두 형태로 지역을 내려줘 둘 다 지원한다.
+      areaName?: string | null;
+      area?: { name?: string | null } | null;
+      addressName?: string | null;
+      address?: { fullName?: string | null; name?: string | null } | null;
       introText: string;
       profileImageUrl: string;
       isLiked: boolean;
@@ -628,7 +637,7 @@ function mapRecommendationProfiles(data?: {
           targetUserId: item.userId,
           name: item.nickname,
           age: item.age,
-          location: item.areaName,
+          location: getProfileLocation(item),
           intro: item.introText,
           isLiked: item.isLiked,
           likedHeartId: item.likedHeartId,
@@ -637,6 +646,22 @@ function mapRecommendationProfiles(data?: {
       ) ?? [],
       (item) => item.id,
     )
+  );
+}
+
+function getProfileLocation(profile: {
+  areaName?: string | null;
+  area?: { name?: string | null } | null;
+  addressName?: string | null;
+  address?: { fullName?: string | null; name?: string | null } | null;
+}) {
+  return (
+    profile.areaName?.trim() ||
+    profile.area?.name?.trim() ||
+    profile.addressName?.trim() ||
+    profile.address?.fullName?.trim() ||
+    profile.address?.name?.trim() ||
+    ""
   );
 }
 
@@ -685,6 +710,7 @@ function ClubHomeContent({
   onOpenClub: (clubId: string) => void;
 }) {
   const router = useRouter();
+  const { width } = useWindowDimensions();
   const [showAllMyClubs, setShowAllMyClubs] = useState(false);
   const myClubsQuery = useMyClubsQuery();
   const todayRecommendedQuery = useTodayRecommendedClubsQuery(10);
@@ -692,6 +718,17 @@ function ClubHomeContent({
   const myClubs = uniqueBy(
     myClubsQuery.data?.items ?? [],
     (item) => item.clubId,
+  );
+  // 펼친 그리드: 3열 고정. 작은 화면에서는 카드 폭을 줄이고, 남는 폭은 열 간격으로 배분해
+  // 마지막 행이 1~2개여도 왼쪽부터 같은 간격으로 정렬되게 한다.
+  const gridAvailableWidth = width - 40; // styles.myClubGrid paddingHorizontal(20) * 2
+  const myClubCardWidth = Math.min(
+    108,
+    Math.floor((gridAvailableWidth - MY_CLUB_GRID_MIN_GAP * 2) / 3),
+  );
+  const myClubColumnGap = Math.max(
+    MY_CLUB_GRID_MIN_GAP,
+    Math.floor((gridAvailableWidth - myClubCardWidth * 3) / 2),
   );
   const recommendedClubs = mapClubRows(recommendedData, activeAreaCode);
   const todayClubs = mapClubRows(todayRecommendedQuery.data, activeAreaCode);
@@ -711,11 +748,14 @@ function ClubHomeContent({
 
       <View style={styles.clubSectionHeader}>
         <Text style={styles.clubSectionTitle}>내 동호회</Text>
-        <Pressable onPress={() => setShowAllMyClubs((current) => !current)}>
-          <Text style={styles.clubSectionLink}>
-            {showAllMyClubs ? "접기" : "전체보기"}
-          </Text>
-        </Pressable>
+        {/* 3개 이하면 접힌 미리보기로 전부 보이므로 전체보기를 숨긴다. */}
+        {myClubs.length > 3 ? (
+          <Pressable onPress={() => setShowAllMyClubs((current) => !current)}>
+            <Text style={styles.clubSectionLink}>
+              {showAllMyClubs ? "접기" : "전체보기"}
+            </Text>
+          </Pressable>
+        ) : null}
       </View>
 
       {/* ponytail: my-clubs API에 가입대기(PENDING) 정보가 없어 status 배지 미표시 — 서버 추가 시 복원 */}
@@ -723,13 +763,22 @@ function ClubHomeContent({
         <MyClubCardListSkeleton />
       ) : showAllMyClubs ? (
         <View style={styles.myClubGrid}>
-          {myClubs.map((club) => (
-            <MyClubCard
-              key={club.clubId}
-              title={club.name}
-              image={club.thumbnailUrl}
-              onPress={() => onOpenClub(String(club.clubId))}
-            />
+          {/* API items 순서 그대로 3개씩 끊어 row-major(1 2 3 / 4 5 6)로 렌더링 */}
+          {chunk(myClubs, 3).map((row) => (
+            <View
+              key={row[0].clubId}
+              style={[styles.myClubGridRow, { columnGap: myClubColumnGap }]}
+            >
+              {row.map((club) => (
+                <MyClubCard
+                  key={club.clubId}
+                  title={club.name}
+                  image={club.thumbnailUrl}
+                  cardWidth={myClubCardWidth}
+                  onPress={() => onOpenClub(String(club.clubId))}
+                />
+              ))}
+            </View>
           ))}
         </View>
       ) : (
@@ -863,19 +912,26 @@ function MyClubCard({
   image,
   status,
   onPress,
+  cardWidth = 108,
 }: {
   title: string;
   image?: string | null;
   status?: string;
   onPress: () => void;
+  cardWidth?: number;
 }) {
   return (
     <Pressable
-      style={styles.myClubCard}
+      style={[styles.myClubCard, { width: cardWidth }]}
       onPress={onPress}
       accessibilityRole="button"
     >
-      <View style={styles.myClubImageWrap}>
+      <View
+        style={[
+          styles.myClubImageWrap,
+          { width: cardWidth, height: cardWidth },
+        ]}
+      >
         {image ? (
           <Image source={{ uri: image }} style={styles.myClubImage} contentFit="cover" />
         ) : null}
@@ -1009,12 +1065,14 @@ function ProfileCard({
             <Text style={styles.profileName}>
               {profile.name} {profile.age}
             </Text>
-            <Ionicons name="checkmark-circle" size={17} color="#FFFFFF" />
+            <IconVerifiedBadge width={17} height={17} />
           </View>
-          <View style={styles.locationRow}>
-            <Ionicons name="location-sharp" size={18} color="#FFFFFF" />
-            <Text style={styles.locationText}>{profile.location}</Text>
-          </View>
+          {profile.location ? (
+            <View style={styles.locationRow}>
+              <Ionicons name="location-sharp" size={18} color="#FFFFFF" />
+              <Text style={styles.locationText}>{profile.location}</Text>
+            </View>
+          ) : null}
           <Text style={styles.introText}>{profile.intro}</Text>
         </Pressable>
       </View>
@@ -1438,10 +1496,10 @@ const styles = StyleSheet.create({
   myClubGrid: {
     paddingHorizontal: 20,
     paddingTop: 16,
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "space-between",
     rowGap: 18,
+  },
+  myClubGridRow: {
+    flexDirection: "row",
   },
   myClubCard: {
     width: 108,
