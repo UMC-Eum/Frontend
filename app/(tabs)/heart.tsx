@@ -1,4 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
+import { useQueryClient } from "@tanstack/react-query";
+import { isAxiosError } from "axios";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
@@ -17,6 +19,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
 
 import { HeartCardGridSkeleton } from "@/components/skeletons";
+import { queryKeys } from "@/hooks/api/queryKeys";
 import {
   usePatchHeartMutation,
   useReceivedHeartsInfiniteQuery,
@@ -32,6 +35,7 @@ import type {
   IHeartsentResponse,
   IProfileSummary,
 } from "@/types/api/socials/socialsDTO";
+import type { IUserPublicProfile } from "@/types/user";
 import { uniqueBy } from "@/utils/array";
 
 const PINK = "#FF3E70";
@@ -64,6 +68,7 @@ type OptimisticHeartState = {
 
 export default function HeartScreen() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { tab } = useLocalSearchParams<{ tab?: string }>();
   const { width } = useWindowDimensions();
   const [activeTab, setActiveTab] = useState<HeartTab>(
@@ -149,6 +154,23 @@ export default function HeartScreen() {
     });
   }, [activeQuery]);
 
+  const updateProfileHeartCache = useCallback(
+    (targetUserId: number, nextLiked: boolean, nextHeartId?: number) => {
+      queryClient.setQueryData<IUserPublicProfile | undefined>(
+        queryKeys.users.detail(targetUserId),
+        (current) =>
+          current
+            ? {
+                ...current,
+                hasSentHeart: nextLiked,
+                sentHeartId: nextHeartId ?? null,
+              }
+            : current,
+      );
+    },
+    [queryClient],
+  );
+
   useEffect(() => {
     setOptimisticHeartState((prev) => {
       const profilesByUserId = new Map<number, ScreenHeartProfile>();
@@ -215,7 +237,17 @@ export default function HeartScreen() {
           ...prev,
           [targetUserId]: previousState,
         }));
+        updateProfileHeartCache(
+          targetUserId,
+          previousState.isLiked,
+          previousState.likedHeartId,
+        );
       };
+      updateProfileHeartCache(
+        targetUserId,
+        nextLiked,
+        nextLiked ? profile.likedHeartId : undefined,
+      );
 
       if (profile.isLiked) {
         if (profile.likedHeartId == null) {
@@ -225,7 +257,16 @@ export default function HeartScreen() {
         }
 
         patchHeartMutation.mutate(profile.likedHeartId, {
-          onError: rollbackHeartState,
+          onError: (error) => {
+            if (isMissingHeartError(error)) {
+              void queryClient.invalidateQueries({
+                queryKey: queryKeys.socials.hearts.all(),
+              });
+              return;
+            }
+
+            rollbackHeartState();
+          },
           onSettled: resetPending,
         });
         return;
@@ -240,12 +281,19 @@ export default function HeartScreen() {
               likedHeartId: response.heartId,
             },
           }));
+          updateProfileHeartCache(targetUserId, true, response.heartId);
         },
         onError: rollbackHeartState,
         onSettled: resetPending,
       });
     },
-    [patchHeartMutation, pendingUserIds, sendHeartMutation],
+    [
+      patchHeartMutation,
+      pendingUserIds,
+      queryClient,
+      sendHeartMutation,
+      updateProfileHeartCache,
+    ],
   );
 
   return (
@@ -432,6 +480,14 @@ function mapSentHeartProfiles(
 
 function isPositiveUserId(userId: number | null): userId is number {
   return typeof userId === "number" && Number.isFinite(userId) && userId > 0;
+}
+
+function isMissingHeartError(error: unknown) {
+  return (
+    isAxiosError(error) &&
+    error.response?.status === 404 &&
+    error.response.data?.error?.code === "SOCIAL-005"
+  );
 }
 
 function getProfileAge(profile: IProfileSummary): number | null {
