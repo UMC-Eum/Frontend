@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import { useQueryClient, type InfiniteData } from "@tanstack/react-query";
 import { isAxiosError } from "axios";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
@@ -32,6 +33,7 @@ import { DEFAULT_PROFILE_IMAGE_URI } from "@/constants/defaultProfileImage";
 import { KEYBOARD_AVOIDING_BEHAVIOR } from "@/constants/keyboard";
 import { useCreateChatRoomMutation } from "@/hooks/api/useChats";
 import { useFastInputScroll } from "@/hooks/useFastInputScroll";
+import { queryKeys } from "@/hooks/api/queryKeys";
 import {
   useBlockUserMutation,
   useBlocksInfiniteQuery,
@@ -41,7 +43,10 @@ import {
   useSendHeartMutation,
 } from "@/hooks/api/useSocials";
 import { useUserProfileQuery } from "@/hooks/api/useUsers";
-import type { ReportCategory } from "@/types/api/socials/socialsDTO";
+import type {
+  IHeartsentResponse,
+  ReportCategory,
+} from "@/types/api/socials/socialsDTO";
 import type { IProfileClubSummary, IUserPublicProfile } from "@/types/user";
 import { shareProfile } from "@/utils/shareLinks";
 
@@ -81,6 +86,9 @@ type ProfileClub = {
 
 const ENABLE_PROFILE_DETAIL_QUERY = true;
 const REPORT_MAX_LENGTH = 300;
+const SENT_HEARTS_QUERY_KEY = [...queryKeys.socials.hearts.all(), "sent"] as const;
+
+type SentHeartsInfiniteData = InfiniteData<IHeartsentResponse, string | null>;
 
 type ReportReason = {
   label: string;
@@ -123,6 +131,7 @@ const REPORT_REASONS: ReportReason[] = [
 
 export default function ProfileDetailScreen() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const params = useLocalSearchParams<ProfileDetailParams>();
   const insets = useSafeAreaInsets();
   const { height: windowHeight } = useWindowDimensions();
@@ -162,11 +171,55 @@ export default function ProfileDetailScreen() {
   );
 
   useEffect(() => {
-    // 공개 프로필 응답은 하트 발송 여부(hasSentHeart)만 제공 — heartId는 마음함 경유 params로만 확보
     if (typeof profileQuery.data?.hasSentHeart === "boolean") {
       setLiked(profileQuery.data.hasSentHeart);
+      setCurrentHeartId(profileQuery.data.sentHeartId ?? null);
     }
-  }, [profileQuery.data?.hasSentHeart]);
+  }, [profileQuery.data?.hasSentHeart, profileQuery.data?.sentHeartId]);
+
+  const updateProfileHeartCache = (nextLiked: boolean, nextHeartId: number | null) => {
+    if (!userId) return;
+
+    queryClient.setQueryData<IUserPublicProfile | undefined>(
+      queryKeys.users.detail(userId),
+      (current) =>
+        current
+          ? {
+              ...current,
+              hasSentHeart: nextLiked,
+              sentHeartId: nextHeartId,
+            }
+          : current,
+    );
+  };
+
+  const removeSentHeartFromCache = (targetUserId: number) => {
+    queryClient.setQueriesData<SentHeartsInfiniteData>(
+      { queryKey: SENT_HEARTS_QUERY_KEY },
+      (current) => {
+        if (!current) return current;
+
+        return {
+          ...current,
+          pages: current.pages.map((page) => {
+            const items = page.items.filter(
+              (item) => item.targetUserId !== targetUserId,
+            );
+            const removedCount = page.items.length - items.length;
+
+            return {
+              ...page,
+              items,
+              totalCount:
+                typeof page.totalCount === "number"
+                  ? Math.max(0, page.totalCount - removedCount)
+                  : page.totalCount,
+            };
+          }),
+        };
+      },
+    );
+  };
 
   const getTargetUserId = () => {
     if (userId) return userId;
@@ -187,22 +240,52 @@ export default function ProfileDetailScreen() {
         return;
       }
 
-      patchHeartMutation.mutate(currentHeartId, {
-        onSuccess: () => {
-          setLiked(false);
-          setCurrentHeartId(null);
+      const previousHeartId = currentHeartId;
+      const previousSentHearts =
+        queryClient.getQueriesData<SentHeartsInfiniteData>({
+          queryKey: SENT_HEARTS_QUERY_KEY,
+        });
+      setLiked(false);
+      setCurrentHeartId(null);
+      updateProfileHeartCache(false, null);
+      removeSentHeartFromCache(targetUserId);
+
+      patchHeartMutation.mutate(previousHeartId, {
+        onError: (error) => {
+          if (isMissingHeartError(error)) {
+            void queryClient.invalidateQueries({
+              queryKey: queryKeys.socials.hearts.all(),
+            });
+            return;
+          }
+
+          setLiked(true);
+          setCurrentHeartId(previousHeartId);
+          updateProfileHeartCache(true, previousHeartId);
+          previousSentHearts.forEach(([queryKey, data]) => {
+            queryClient.setQueryData(queryKey, data);
+          });
+          Alert.alert("처리 실패", "마음 상태를 변경하지 못했어요.");
         },
-        onError: () => Alert.alert("처리 실패", "마음 상태를 변경하지 못했어요."),
       });
       return;
     }
 
+    setLiked(true);
+    setCurrentHeartId(null);
+    updateProfileHeartCache(true, null);
+
     sendHeartMutation.mutate(targetUserId, {
       onSuccess: (response) => {
-        setLiked(true);
         setCurrentHeartId(response.heartId);
+        updateProfileHeartCache(true, response.heartId);
       },
-      onError: () => Alert.alert("처리 실패", "마음을 보내지 못했어요."),
+      onError: () => {
+        setLiked(false);
+        setCurrentHeartId(null);
+        updateProfileHeartCache(false, null);
+        Alert.alert("처리 실패", "마음을 보내지 못했어요.");
+      },
     });
   };
 
@@ -804,6 +887,11 @@ function getApiErrorDetail(error: unknown) {
     code: error.code ?? "",
     message: error.message,
   };
+}
+
+function isMissingHeartError(error: unknown) {
+  const apiError = getApiErrorDetail(error);
+  return apiError.code === "SOCIAL-005";
 }
 
 function isApiErrorPayload(

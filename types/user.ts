@@ -40,5 +40,6 @@ export interface IUserPublicProfile {
   participatingClubs: IProfileClubSummary[];
   hostingClubs: IProfileClubSummary[];
   hasSentHeart: boolean;
+  sentHeartId: number | null;
   profileImageUrl: string;
 }
