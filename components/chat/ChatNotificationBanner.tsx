@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useQueryClient } from "@tanstack/react-query";
 import { useGlobalSearchParams, usePathname, useRouter } from "expo-router";
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Image,
   Pressable,
@@ -9,6 +9,17 @@ import {
   Text,
   View,
 } from "react-native";
+import {
+  Gesture,
+  GestureDetector,
+  GestureHandlerRootView,
+} from "react-native-gesture-handler";
+import Reanimated, {
+  runOnJS,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { connectChatSocket, onMessageNew } from "@/api/chats/chatSocketApi";
@@ -169,6 +180,13 @@ export default function ChatNotificationBanner() {
     });
   }, [chatRoomsQuery.data, currentChatRoomId, notificationEnabled]);
 
+  // 위로 스와이프해서 배너를 닫기 위한 세로 이동값(0 = 표시, 음수 = 위로 사라짐).
+  const translateY = useSharedValue(0);
+
+  const clearNotification = useCallback(() => {
+    setNotification(null);
+  }, []);
+
   useEffect(() => {
     if (hideTimerRef.current) {
       clearTimeout(hideTimerRef.current);
@@ -176,6 +194,9 @@ export default function ChatNotificationBanner() {
     }
 
     if (!notification) return;
+
+    // 새 알림이 뜰 때마다 위치를 초기화한다.
+    translateY.value = 0;
 
     hideTimerRef.current = setTimeout(() => {
       setNotification(null);
@@ -188,7 +209,33 @@ export default function ChatNotificationBanner() {
         hideTimerRef.current = null;
       }
     };
-  }, [notification]);
+  }, [notification, translateY]);
+
+  const swipeGesture = useMemo(
+    () =>
+      Gesture.Pan()
+        .onUpdate((event) => {
+          // 위로는 그대로 따라오고, 아래로는 고무줄 저항을 준다.
+          translateY.value =
+            event.translationY < 0
+              ? event.translationY
+              : event.translationY / 6;
+        })
+        .onEnd((event) => {
+          if (event.translationY < -40 || event.velocityY < -500) {
+            translateY.value = withTiming(-260, { duration: 180 }, () => {
+              runOnJS(clearNotification)();
+            });
+            return;
+          }
+          translateY.value = withTiming(0, { duration: 160 });
+        }),
+    [translateY, clearNotification],
+  );
+
+  const cardAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: translateY.value }],
+  }));
 
   if (!notification) return null;
 
@@ -219,8 +266,12 @@ export default function ChatNotificationBanner() {
   };
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top + 8 }]}>
-      <View style={styles.card}>
+    <GestureHandlerRootView
+      style={[styles.container, { paddingTop: insets.top + 8 }]}
+      pointerEvents="box-none"
+    >
+      <GestureDetector gesture={swipeGesture}>
+        <Reanimated.View style={[styles.card, cardAnimatedStyle]}>
         <View style={styles.contentRow}>
           {notification.senderProfileImage ? (
             <Image
@@ -267,8 +318,9 @@ export default function ChatNotificationBanner() {
             <Text style={styles.actionText}>답장</Text>
           </Pressable>
         </View>
-      </View>
-    </View>
+        </Reanimated.View>
+      </GestureDetector>
+    </GestureHandlerRootView>
   );
 }
 

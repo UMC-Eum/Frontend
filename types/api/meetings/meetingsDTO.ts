@@ -132,7 +132,7 @@ export interface IMeetingDeleteResponse {
 
 export interface IMeetingAttendeesGetParams {
   cursor?: string | null;
-  limit?: number;
+  size?: number;
 }
 
 export interface IMeetingAttendeeUser extends IClubUserSummary {

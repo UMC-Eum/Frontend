@@ -758,7 +758,6 @@ function ClubHomeContent({
         ) : null}
       </View>
 
-      {/* ponytail: my-clubs API에 가입대기(PENDING) 정보가 없어 status 배지 미표시 — 서버 추가 시 복원 */}
       {myClubsQuery.isLoading ? (
         <MyClubCardListSkeleton />
       ) : showAllMyClubs ? (

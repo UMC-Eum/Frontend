@@ -9,7 +9,7 @@ import {
 } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -18,6 +18,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from "react-native";
 import { KeyboardAvoidingView } from "@/components/KeyboardCompat";
@@ -87,6 +88,7 @@ export default function ClubPostDetailScreen() {
   } | null>(null);
   const [comment, setComment] = useState("");
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  const commentInputRef = useRef<TextInput>(null);
 
   const postId = Number(params.postId);
   const clubId = Number(params.clubId);
@@ -254,7 +256,7 @@ export default function ClubPostDetailScreen() {
       ? "owner"
       : "guest";
   const commentActionSheetMode: ClubActionSheetMode =
-    selectedComment?.isMine === true ? "owner" : "guest";
+    selectedComment?.isMine === true ? "commentOwner" : "guest";
 
   const handleSendComment = () => {
     if (!hasPostId || comment.trim().length === 0 || createCommentMutation.isPending) {
@@ -280,7 +282,14 @@ export default function ClubPostDetailScreen() {
     setActionSheetVisible(false);
 
     if (actionSheetMode === "owner") {
-      Alert.alert("준비 중", "게시글 수정 화면은 추후 연결 예정입니다.");
+      router.push({
+        pathname: "/club/post-create",
+        params: {
+          clubId: String(clubId),
+          postId: String(postId),
+          canPin: params.canPin === "true" ? "true" : "false",
+        },
+      } as never);
       return;
     }
 
@@ -308,9 +317,22 @@ export default function ClubPostDetailScreen() {
   const handleCommentPrimaryAction = () => {
     if (!selectedComment) return;
 
-    if (commentActionSheetMode === "owner") {
+    if (commentActionSheetMode === "commentOwner") {
+      const commentId = selectedComment.commentId;
+
       setSelectedComment(null);
-      Alert.alert("준비 중", "댓글 수정 화면은 추후 연결 예정입니다.");
+      Alert.alert(
+        "댓글 삭제",
+        "댓글을 삭제하시겠어요? 달린 답글은 삭제되지 않아요.",
+        [
+          { text: "취소", style: "cancel" },
+          {
+            text: "삭제",
+            style: "destructive",
+            onPress: () => deleteCommentMutation.mutate(commentId),
+          },
+        ],
+      );
       return;
     }
 
@@ -320,21 +342,6 @@ export default function ClubPostDetailScreen() {
 
   const handleCommentSecondaryAction = () => {
     if (!selectedComment) return;
-
-    if (commentActionSheetMode === "owner") {
-      const commentId = selectedComment.commentId;
-
-      setSelectedComment(null);
-      Alert.alert("댓글 삭제", "댓글을 삭제하시겠어요?", [
-        { text: "취소", style: "cancel" },
-        {
-          text: "삭제",
-          style: "destructive",
-          onPress: () => deleteCommentMutation.mutate(commentId),
-        },
-      ]);
-      return;
-    }
 
     setSelectedComment(null);
     Alert.alert("준비 중", "사용자 차단 API 명세 확인 후 연결 예정입니다.");
@@ -451,6 +458,7 @@ export default function ClubPostDetailScreen() {
                       commentId: item.parentCommentId ?? item.commentId,
                       nickname: item.author.nickname,
                     });
+                    commentInputRef.current?.focus();
                   }}
                   onMorePress={() =>
                     setSelectedComment({
@@ -479,6 +487,7 @@ export default function ClubPostDetailScreen() {
         </ScrollView>
 
         <ClubCommentInputBar
+          inputRef={commentInputRef}
           value={comment}
           onChangeText={setComment}
           bottomPadding={insets.bottom + 12}

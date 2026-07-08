@@ -28,6 +28,13 @@ type InfiniteParams<T extends { cursor?: string | null; limit?: number }> = Omit
   limit?: number;
 };
 
+type AttendeesInfiniteParams = Omit<
+  DTO.IMeetingAttendeesGetParams,
+  "cursor" | "size"
+> & {
+  size?: number;
+};
+
 export function useMeetingsInfiniteQuery(
   clubId: number,
   params: InfiniteParams<DTO.IMeetingsGetParams> = {},
@@ -60,21 +67,21 @@ export function useMeetingDetailQuery(
 export function useMeetingAttendeesInfiniteQuery(
   clubId: number,
   meetingId: number,
-  params: InfiniteParams<DTO.IMeetingAttendeesGetParams> = {},
+  params: AttendeesInfiniteParams = {},
   enabled = true,
 ) {
-  const { limit = DEFAULT_PAGE_LIMIT, ...restParams } = params;
+  const { size = DEFAULT_PAGE_LIMIT, ...restParams } = params;
 
   return useInfiniteQuery({
     queryKey: queryKeys.meetings.attendees(clubId, meetingId, {
       ...restParams,
-      limit,
+      size,
     }),
     queryFn: ({ pageParam }) =>
       getMeetingAttendees(clubId, meetingId, {
         ...restParams,
         cursor: pageParam,
-        limit,
+        size,
       }),
     initialPageParam: null as string | null,
     getNextPageParam: (lastPage) => lastPage.nextCursor,

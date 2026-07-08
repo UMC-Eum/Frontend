@@ -3,7 +3,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -39,7 +39,9 @@ import {
 } from "@/hooks/api/useClub";
 import {
   useAttendMeetingMutation,
+  useMeetingAttendeesInfiniteQuery,
   useMeetingDetailQuery,
+  useMeetingsInfiniteQuery,
 } from "@/hooks/api/useMeetings";
 import {
   useClubMembersInfiniteQuery,
@@ -445,7 +447,7 @@ export default function ClubDetailScreen() {
           color="#C5CDD3"
         />
         <Text style={styles.preJoinChatText}>
-          가입하면 채팅을 볼 수 있어요!
+          가입해야 채팅을 볼 수 있어요
         </Text>
       </View>
     );
@@ -537,22 +539,30 @@ export default function ClubDetailScreen() {
           />
         ) : null}
         {activeTab === "board" ? (
-          <BoardTab
-            clubId={clubId}
-            onPostPress={(postId) =>
-              router.push({
-                pathname: "/club/post-detail",
-                params: { postId: String(postId), clubId: String(clubId) },
-              } as never)
-            }
-          />
+          viewer.isParticipant ? (
+            <BoardTab
+              clubId={clubId}
+              onPostPress={(postId) =>
+                router.push({
+                  pathname: "/club/post-detail",
+                  params: { postId: String(postId), clubId: String(clubId) },
+                } as never)
+              }
+            />
+          ) : (
+            <ClubLockedTab icon="document-text-outline" label="게시판" />
+          )
         ) : null}
         {activeTab === "album" ? (
-          <AlbumTab
-            archives={archives}
-            isLoading={archivesQuery.isLoading}
-            itemSize={albumItemSize}
-          />
+          viewer.isParticipant ? (
+            <AlbumTab
+              archives={archives}
+              isLoading={archivesQuery.isLoading}
+              itemSize={albumItemSize}
+            />
+          ) : (
+            <ClubLockedTab icon="images-outline" label="사진첩" />
+          )
         ) : null}
         </ScrollView>
       )}
@@ -758,9 +768,19 @@ function ClubHomeTab({
   onPressMeetingManage: (meetingId: number) => void;
   onPressPendingMembers: () => void;
 }) {
-  // 동호회 상세 응답의 정기모임 요약(meetings)으로 카드를 구성한다.
-  // 개별 위치/비용/참석자 등 상세는 카드 탭 시 useMeetingDetailQuery로 조회한다.
-  const meetingCardItems = buildMeetingCardItems([], meetings);
+  // 정기모임 카드는 전용 모임 목록 API를 우선 사용하고, 상세 응답의 요약(meetings)으로 보완한다.
+  // 상세 응답의 meetings가 비어 오는 경우에도 목록 API 결과로 카드가 표시된다.
+  const meetingsListQuery = useMeetingsInfiniteQuery(
+    clubId,
+    {},
+    Number.isFinite(clubId),
+  );
+  const meetingListItems = useMemo(
+    () => meetingsListQuery.data?.pages.flatMap((page) => page.meetings) ?? [],
+    [meetingsListQuery.data],
+  );
+
+  const meetingCardItems = buildMeetingCardItems(meetingListItems, meetings);
   const [selectedMeetingId, setSelectedMeetingId] = useState<number | null>(
     null,
   );
@@ -907,26 +927,57 @@ function MeetingCard({
   onPress: () => void;
   onPressManage: () => void;
 }) {
-  const attendMeetingMutation = useAttendMeetingMutation(
+  const shouldLoadDetail =
+    !meeting.spot ||
+    meeting.cost === undefined ||
+    meeting.capacity === undefined ||
+    meeting.attendeeCount === undefined ||
+    meeting.isAttending === undefined;
+  const meetingDetailQuery = useMeetingDetailQuery(
     clubId,
     meeting.meetingId,
+    shouldLoadDetail,
   );
-  const isAttending = meeting.isAttending ?? false;
-  const attendeeCount = meeting.attendeeCount ?? 0;
+  const detail = meetingDetailQuery.data;
+  const displayMeeting: MeetingCardItem = detail
+    ? {
+        meetingId: detail.meetingId,
+        name: detail.name,
+        dateLabel: detail.dateLabel,
+        nextOccurrenceAt: detail.nextOccurrenceAt,
+        spot: detail.spot,
+        cost: detail.cost,
+        capacity: detail.capacity,
+        attendeeCount: detail.attendeeCount,
+        isAttending: detail.isAttending,
+        attendeesPreview: detail.attendeesPreview,
+      }
+    : meeting;
+  const isLoadingDetail =
+    shouldLoadDetail && meetingDetailQuery.isLoading && !detail;
+  const attendMeetingMutation = useAttendMeetingMutation(
+    clubId,
+    displayMeeting.meetingId,
+  );
+  const isAttending = displayMeeting.isAttending ?? false;
+  const attendeeCount = displayMeeting.attendeeCount ?? 0;
   const attendeeCountText =
-    typeof meeting.capacity === "number"
-      ? `${attendeeCount}명 참석중 (${attendeeCount}/${meeting.capacity})`
+    typeof displayMeeting.capacity === "number"
+      ? `${attendeeCount}명 참석중 (${attendeeCount}/${displayMeeting.capacity})`
       : `${attendeeCount}명 참석중`;
-  const ddayText = getMeetingCardDdayText(meeting);
-  const dateText = getMeetingCardDateText(meeting);
-  const attendeesPreview = meeting.attendeesPreview ?? [];
+  const ddayText = getMeetingCardDdayText(displayMeeting);
+  const dateText = getMeetingCardDateText(displayMeeting);
+  const attendeesPreview = displayMeeting.attendeesPreview ?? [];
 
   const handleAttendMeeting = () => {
     if (isAttending || attendMeetingMutation.isPending) return;
 
     attendMeetingMutation.mutate(undefined, {
-      onError: () => {
-        Alert.alert("참석 실패", "잠시 후 다시 시도해주세요.");
+      onError: (error) => {
+        Alert.alert(
+          "참석 실패",
+          getApiErrorMessage(error) ?? "잠시 후 다시 시도해주세요.",
+        );
       },
     });
   };
@@ -941,7 +992,7 @@ function MeetingCard({
             </View>
           ) : null}
           <Text style={styles.meetingTitle} numberOfLines={1}>
-            {meeting.name}
+            {displayMeeting.name}
           </Text>
         </View>
         {/* 가입 전 게스트에게는 모임 관리(⋮) 메뉴를 노출하지 않는다. */}
@@ -956,36 +1007,44 @@ function MeetingCard({
         ) : null}
       </View>
 
-      <View style={styles.meetingInfoList}>
-        <MeetingInfo label="일시" value={dateText || "-"} />
-        <MeetingInfo label="위치" value={meeting.spot || "-"} />
-        <MeetingInfo label="비용" value={meeting.cost || "-"} />
-      </View>
+      {isLoadingDetail ? (
+        <View style={styles.meetingCardLoading}>
+          <ActivityIndicator size="small" color={PINK} />
+        </View>
+      ) : (
+        <>
+          <View style={styles.meetingInfoList}>
+            <MeetingInfo label="일시" value={dateText || "-"} />
+            <MeetingInfo label="위치" value={displayMeeting.spot || "-"} />
+            <MeetingInfo label="비용" value={displayMeeting.cost || "-"} />
+          </View>
 
-      <View style={styles.attendeeRow}>
-        {attendeesPreview.length > 0
-          ? attendeesPreview.slice(0, 3).map((attendee, index) => (
-              <Image
-                key={attendee.userId}
-                source={{ uri: attendee.profileImageUrl ?? undefined }}
-                style={[
-                  styles.attendeeAvatar,
-                  index > 0 && styles.attendeeOverlap,
-                ]}
-                contentFit="cover"
-              />
-            ))
-          : [0, 1, 2].map((index) => (
-              <View
-                key={index}
-                style={[
-                  styles.attendeeAvatar,
-                  index > 0 && styles.attendeeOverlap,
-                ]}
-              />
-            ))}
-        <Text style={styles.attendeeText}>{attendeeCountText}</Text>
-      </View>
+          <View style={styles.attendeeRow}>
+            {attendeesPreview.length > 0
+              ? attendeesPreview.slice(0, 3).map((attendee, index) => (
+                  <Image
+                    key={attendee.userId}
+                    source={{ uri: attendee.profileImageUrl ?? undefined }}
+                    style={[
+                      styles.attendeeAvatar,
+                      index > 0 && styles.attendeeOverlap,
+                    ]}
+                    contentFit="cover"
+                  />
+                ))
+              : [0, 1, 2].map((index) => (
+                  <View
+                    key={index}
+                    style={[
+                      styles.attendeeAvatar,
+                      index > 0 && styles.attendeeOverlap,
+                    ]}
+                  />
+                ))}
+            <Text style={styles.attendeeText}>{attendeeCountText}</Text>
+          </View>
+        </>
+      )}
 
       {/* 가입 전 게스트에게는 참석/관리 버튼을 노출하지 않는다. */}
       {viewer.canActOnMeeting ? (
@@ -1049,6 +1108,12 @@ function MeetingDetailSheet({
   const [isMounted, setIsMounted] = useState(visible);
   const meetingId = meeting?.meetingId ?? fallbackMeeting?.meetingId ?? 0;
   const attendMeetingMutation = useAttendMeetingMutation(clubId, meetingId);
+  const attendeesQuery = useMeetingAttendeesInfiniteQuery(
+    clubId,
+    meetingId,
+    { size: 20 },
+    visible && !!meetingId,
+  );
 
   useEffect(() => {
     if (visible) {
@@ -1096,7 +1161,11 @@ function MeetingDetailSheet({
     ? ""
     : formatOccurrenceDate(nextDate);
   const recurrenceText = meeting ? getRecurrenceText(meeting.recurrence.type) : "";
-  const attendeeCount = meeting?.attendeeCount ?? fallbackMeeting?.attendeeCount ?? 0;
+  const attendeeCount =
+    attendeesQuery.data?.pages[0]?.attendeeCount ??
+    meeting?.attendeeCount ??
+    fallbackMeeting?.attendeeCount ??
+    0;
   const capacity = meeting?.capacity ?? fallbackMeeting?.capacity;
   const attendeeCountText =
     typeof capacity === "number" ? `${attendeeCount}/${capacity}` : `${attendeeCount}`;
@@ -1107,14 +1176,23 @@ function MeetingDetailSheet({
     meeting?.dateLabel ?? getMeetingCardDateText(fallbackMeeting) ?? "-";
   const meetingSpot = meeting?.spot ?? fallbackMeeting?.spot ?? "-";
   const meetingCost = meeting?.cost ?? fallbackMeeting?.cost ?? "-";
-  const attendeesPreview = meeting?.attendeesPreview ?? fallbackMeeting?.attendeesPreview ?? [];
+  const attendeesPreview =
+    attendeesQuery.data?.pages.flatMap((page) =>
+      page.attendees.map((attendee) => attendee.user),
+    ) ??
+    meeting?.attendeesPreview ??
+    fallbackMeeting?.attendeesPreview ??
+    [];
 
   const handleAttend = () => {
     if (!meetingId || attendDisabled) return;
 
     attendMeetingMutation.mutate(undefined, {
-      onError: () => {
-        Alert.alert("참석 실패", "잠시 후 다시 시도해주세요.");
+      onError: (error) => {
+        Alert.alert(
+          "참석 실패",
+          getApiErrorMessage(error) ?? "잠시 후 다시 시도해주세요.",
+        );
       },
     });
   };
@@ -1285,27 +1363,44 @@ function buildMeetingCardItems(
   listItems: IMeetingListItem[],
   summaries: IClubMeetingSummary[],
 ): MeetingCardItem[] {
-  const listCardItems: MeetingCardItem[] = listItems.map((meeting) => ({
-    meetingId: meeting.meetingId,
-    name: meeting.name,
-    date: meeting.date,
-    spot: meeting.spot,
-    capacity: meeting.capacity,
-    cost: meeting.cost,
-    attendeeCount: meeting.attendeeCount,
-    isAttending: meeting.isAttending,
-  }));
+  const listCardItems: MeetingCardItem[] = listItems.flatMap((meeting) => {
+    const meetingId = normalizeMeetingId(meeting.meetingId);
+    if (!meetingId) return [];
+
+    return [
+      {
+        meetingId,
+        name: meeting.name,
+        date: meeting.date,
+        spot: meeting.spot,
+        capacity: meeting.capacity,
+        cost: meeting.cost,
+        attendeeCount: meeting.attendeeCount,
+        isAttending: meeting.isAttending,
+      },
+    ];
+  });
   const listIds = new Set(listCardItems.map((meeting) => meeting.meetingId));
-  const summaryCardItems: MeetingCardItem[] = summaries
-    .filter((meeting) => !listIds.has(Number(meeting.meetingId)))
-    .map((meeting) => ({
-      meetingId: Number(meeting.meetingId),
-      name: meeting.name,
-      day: meeting.day,
-      time: meeting.time,
-    }));
+  const summaryCardItems: MeetingCardItem[] = summaries.flatMap((meeting) => {
+    const meetingId = normalizeMeetingId(meeting.meetingId);
+    if (!meetingId || listIds.has(meetingId)) return [];
+
+    return [
+      {
+        meetingId,
+        name: meeting.name,
+        day: meeting.day,
+        time: meeting.time,
+      },
+    ];
+  });
 
   return [...listCardItems, ...summaryCardItems];
+}
+
+function normalizeMeetingId(value: number | string) {
+  const meetingId = Number(value);
+  return Number.isFinite(meetingId) && meetingId > 0 ? meetingId : null;
 }
 
 function getMeetingCardDdayText(meeting?: MeetingCardItem) {
@@ -1548,15 +1643,21 @@ function BoardPostItem({
       </View>
 
       <View style={styles.boardPostBody}>
-        <Text
+        <View
           style={[
-            styles.boardPostText,
+            styles.boardPostTextBlock,
             hasImage && styles.boardPostTextWithImage,
           ]}
-          numberOfLines={hasImage ? 3 : 4}
         >
-          {article.preview}
-        </Text>
+          {article.title ? (
+            <Text style={styles.boardPostTitle} numberOfLines={1}>
+              {article.title}
+            </Text>
+          ) : null}
+          <Text style={styles.boardPostText} numberOfLines={hasImage ? 2 : 3}>
+            {article.preview}
+          </Text>
+        </View>
         {article.thumbnailUrl ? (
           <Image
             source={{ uri: article.thumbnailUrl }}
@@ -1596,6 +1697,24 @@ function formatRelativeTime(value: string) {
   if (diffDays < 8) return `${diffDays}일전`;
 
   return `${date.getMonth() + 1}/${date.getDate()}`;
+}
+
+// 가입 전 게스트에게 게시판/사진첩 대신 보여주는 잠금 안내 화면입니다.
+function ClubLockedTab({
+  icon,
+  label,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+}) {
+  return (
+    <View style={styles.preJoinChatPlaceholder}>
+      <Ionicons name={icon} size={40} color="#C5CDD3" />
+      <Text style={styles.preJoinChatText}>
+        가입해야 {label}을 볼 수 있어요
+      </Text>
+    </View>
+  );
 }
 
 function AlbumTab({
@@ -2170,6 +2289,11 @@ const styles = StyleSheet.create({
     marginTop: 16,
     gap: 4,
   },
+  meetingCardLoading: {
+    height: 94,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   meetingInfoRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -2471,11 +2595,21 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 16,
   },
-  boardPostText: {
+  boardPostTextBlock: {
     flex: 1,
+    minWidth: 0,
+    gap: 4,
+  },
+  boardPostTitle: {
     color: BLACK,
+    fontSize: 16,
+    fontWeight: "700",
+    lineHeight: 22,
+  },
+  boardPostText: {
+    color: "#565F66",
     fontSize: 15,
-    fontWeight: "600",
+    fontWeight: "500",
     lineHeight: 23,
   },
   boardPostTextWithImage: {

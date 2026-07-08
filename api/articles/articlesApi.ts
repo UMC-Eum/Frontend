@@ -3,6 +3,22 @@ import { ApiSuccessResponse } from "../../types/api/api";
 import * as DTO from "../../types/api/articles/articlesDTO";
 import { normalizeS3ObjectRefs } from "@/utils/s3ObjectRef";
 
+// 서버 스펙상 author는 nullable(탈퇴 회원 등)이라 화면에서 바로 쓸 수 있게 보정한다.
+export const UNKNOWN_ARTICLE_AUTHOR: DTO.IArticleAuthor = {
+  userId: 0,
+  nickname: "알 수 없음",
+  profileImageUrl: null,
+};
+
+function withAuthorFallback<T extends { author: DTO.IArticleAuthor }>(
+  item: T,
+): T {
+  return {
+    ...item,
+    author: item.author ?? UNKNOWN_ARTICLE_AUTHOR,
+  };
+}
+
 export const getArticles = async (
   clubId: number,
   params: DTO.IArticlesGetParams = {},
@@ -11,7 +27,10 @@ export const getArticles = async (
     `/v1/clubs/${clubId}/articles`,
     { params },
   );
-  return data.success.data;
+  return {
+    ...data.success.data,
+    articles: data.success.data.articles.map(withAuthorFallback),
+  };
 };
 
 export const createArticle = async (
@@ -31,7 +50,7 @@ export const getArticleDetail = async (clubId: number, articleId: number) => {
   const { data } = await api.get<ApiSuccessResponse<DTO.IArticleResponse>>(
     `/v1/clubs/${clubId}/articles/${articleId}`,
   );
-  return data.success.data;
+  return withAuthorFallback(data.success.data);
 };
 
 export const updateArticle = async (
