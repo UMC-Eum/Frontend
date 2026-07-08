@@ -8,6 +8,7 @@ import {
 import {
   createProfileVisit,
   deactivateUser,
+  getActiveUsers,
   getLikedClubs,
   getMyProfile,
   getMyProfileVisitors,
@@ -20,6 +21,7 @@ import {
 import { useAuthStore } from "@/stores/authStore";
 import { removePushTokenFromServer } from "@/utils/pushNotifications";
 import {
+  IActiveUsersParams,
   IKeywordsRequest,
   ILikedClubsParams,
   IMyProfileVisitorsRequest,
@@ -70,6 +72,23 @@ export function useMyProfileVisitorsQuery(
   return useQuery({
     queryKey: queryKeys.users.visitors(params),
     queryFn: () => getMyProfileVisitors(params),
+    enabled: queryEnabled,
+  });
+}
+
+export function useActiveUsersInfiniteQuery(
+  params: Omit<IActiveUsersParams, "cursor"> = {},
+  enabled = true,
+) {
+  const { size = DEFAULT_PAGE_LIMIT, ...restParams } = params;
+  const queryEnabled = useProtectedQueryEnabled(enabled);
+
+  return useInfiniteQuery({
+    queryKey: queryKeys.users.active({ ...restParams, size }),
+    queryFn: ({ pageParam }) =>
+      getActiveUsers({ ...restParams, cursor: pageParam, size }),
+    initialPageParam: null as string | null,
+    getNextPageParam: (lastPage) => lastPage.page.nextCursor,
     enabled: queryEnabled,
   });
 }

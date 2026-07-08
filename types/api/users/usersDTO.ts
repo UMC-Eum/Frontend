@@ -47,6 +47,34 @@ export interface IMyProfileVisitorsResponse {
   nextCursor: string | null;
 }
 
+export interface IActiveUsersParams {
+  areaCode?: string;
+  cursor?: string | null;
+  size?: number;
+}
+
+export interface IActiveUserItem {
+  userId: number;
+  nickname: string;
+  gender: "M" | "F" | (string & {});
+  age: number;
+  areaName: string | null;
+  introText: string;
+  profileImageUrl: string;
+  lastActiveAt: string;
+}
+
+export interface IActiveUsersPage {
+  size: number;
+  hasNext: boolean;
+  nextCursor: string | null;
+}
+
+export interface IActiveUsersResponse {
+  items: IActiveUserItem[];
+  page: IActiveUsersPage;
+}
+
 export interface ILikedClubsParams {
   cursor?: string | null;
   limit?: number;

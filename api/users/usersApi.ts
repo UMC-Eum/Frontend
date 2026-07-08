@@ -4,6 +4,8 @@ import { normalizeS3ObjectRef } from "@/utils/s3ObjectRef";
 
 import { IUserProfile, IUserPublicProfile } from "../../types/user";
 import {
+  IActiveUsersParams,
+  IActiveUsersResponse,
   IKeywordsRequest,
   ILikedClubsParams,
   ILikedClubsResponse,
@@ -103,6 +105,16 @@ export const getMyProfileVisitors = async (
   const { data } = await api.get<
     ApiSuccessResponse<IMyProfileVisitorsResponse>
   >("/v1/users/me/visitors", { params });
+
+  return data.success.data;
+};
+
+//v1/users/active(get)
+export const getActiveUsers = async (params: IActiveUsersParams = {}) => {
+  const { data } = await api.get<ApiSuccessResponse<IActiveUsersResponse>>(
+    "/v1/users/active",
+    { params },
+  );
 
   return data.success.data;
 };

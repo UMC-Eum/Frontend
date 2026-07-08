@@ -8,6 +8,7 @@ export const queryKeys = {
     me: () => [...queryKeys.users.all, "me"] as const,
     detail: (userId: number) => [...queryKeys.users.all, "detail", userId] as const,
     visitors: (params: object) => [...queryKeys.users.me(), "visitors", params] as const,
+    active: (params: object) => [...queryKeys.users.all, "active", params] as const,
     likedClubs: (params: object) =>
       [...queryKeys.users.me(), "clubs", "liked", params] as const,
   },
