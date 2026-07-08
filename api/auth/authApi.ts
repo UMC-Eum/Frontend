@@ -15,6 +15,7 @@ export const kakaoLogin = async (body: IKakaoLoginRequest) => {
   const { data } = await api.post<ApiSuccessResponse<IKakaoLoginResponse>>(
     "/v1/auth/kakao/login",
     body,
+    { timeout: 15000 },
   );
 
   return data.success.data;

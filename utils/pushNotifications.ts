@@ -1,7 +1,7 @@
 import type { FirebaseMessagingTypes } from "@react-native-firebase/messaging";
 import * as Application from "expo-application";
 import * as Notifications from "expo-notifications";
-import { Platform } from "react-native";
+import { PermissionsAndroid, Platform } from "react-native";
 
 import {
   registerPushToken,
@@ -59,6 +59,15 @@ export async function getDeviceInfo(): Promise<DeviceInfo> {
   return { deviceId, appVersion };
 }
 
+async function requestAndroidNotificationPermission(): Promise<boolean> {
+  if (Platform.OS !== "android" || Number(Platform.Version) < 33) return true;
+
+  const result = await PermissionsAndroid.request(
+    PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS,
+  );
+  return result === PermissionsAndroid.RESULTS.GRANTED;
+}
+
 // 권한 요청 + (Android)채널 설정 후 FCM 등록 토큰을 반환한다. 실패/거부 시 null.
 // ponytail: 실기기 development build에서만 동작 — Expo Go/시뮬레이터는 토큰 못 받음
 export async function getFcmToken(): Promise<string | null> {
@@ -74,10 +83,13 @@ export async function getFcmToken(): Promise<string | null> {
     });
   }
 
-  const authStatus = await messaging().requestPermission();
-  const granted =
-    authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
-    authStatus === messaging.AuthorizationStatus.PROVISIONAL;
+  let granted = await requestAndroidNotificationPermission();
+  if (Platform.OS === "ios") {
+    const authStatus = await messaging().requestPermission();
+    granted =
+      authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
+      authStatus === messaging.AuthorizationStatus.PROVISIONAL;
+  }
   if (!granted) {
     console.log("[push] 알림 권한 거부됨");
     return null;

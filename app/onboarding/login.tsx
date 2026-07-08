@@ -23,9 +23,16 @@ import {
   KAKAO_REDIRECT_URI,
   KAKAO_REST_API_KEY,
 } from "@/constants/auth";
-import { useAppleLoginMutation } from "@/hooks/api/useAuth";
+import {
+  useAppleLoginMutation,
+  useKakaoLoginMutation,
+} from "@/hooks/api/useAuth";
 
 const isIos = Platform.OS === "ios";
+
+function getUrlParam(url: string, name: string) {
+  return new URL(url).searchParams.get(name);
+}
 
 /**
  * 로그인 화면
@@ -40,6 +47,7 @@ export default function LoginScreen() {
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
   const appleLoginMutation = useAppleLoginMutation();
+  const kakaoLoginMutation = useKakaoLoginMutation();
 
   const [showAgeModal, setShowAgeModal] = useState(false);
   const [showTermsSheet, setShowTermsSheet] = useState(false);
@@ -111,7 +119,9 @@ export default function LoginScreen() {
 
     try {
       setIsOpeningBrowser(true);
-      const appReturnUrl = Linking.createURL("/auth/kakao");
+      const appReturnUrl = Linking.createURL(
+        Platform.OS === "android" ? "/onboarding/login" : "/auth/kakao",
+      );
       const params = new URLSearchParams({
         response_type: "code",
         client_id: KAKAO_REST_API_KEY,
@@ -124,6 +134,35 @@ export default function LoginScreen() {
       if (__DEV__) {
         console.log("[Kakao Login] kakaoRedirectUri:", KAKAO_REDIRECT_URI);
         console.log("[Kakao Login] appReturnUrl:", appReturnUrl);
+      }
+
+      if (Platform.OS === "android") {
+        const result = await WebBrowser.openAuthSessionAsync(
+          authUrl,
+          appReturnUrl,
+        );
+        if (result.type !== "success") return;
+
+        const kakaoError =
+          getUrlParam(result.url, "error_description") ??
+          getUrlParam(result.url, "error");
+        if (kakaoError) {
+          setErrorMessage(kakaoError);
+          return;
+        }
+
+        const authorizationCode = getUrlParam(result.url, "code");
+        if (!authorizationCode) {
+          setErrorMessage("카카오 인가 코드를 가져오지 못했어요.");
+          return;
+        }
+
+        const auth = await kakaoLoginMutation.mutateAsync({
+          authorizationCode,
+          redirectUri: KAKAO_REDIRECT_URI,
+        });
+        await finishLogin(auth);
+        return;
       }
 
       await WebBrowser.openBrowserAsync(authUrl);
@@ -186,7 +225,10 @@ export default function LoginScreen() {
     router.replace("/onboarding/permissions" as any);
   };
 
-  const isLoginPending = isOpeningBrowser || appleLoginMutation.isPending;
+  const isLoginPending =
+    isOpeningBrowser ||
+    appleLoginMutation.isPending ||
+    kakaoLoginMutation.isPending;
 
   return (
     <View style={[styles.container, { paddingBottom: insets.bottom + 24 }]}>
