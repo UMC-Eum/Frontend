@@ -14,6 +14,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import ActiveUsersSection from "@/components/chat/ActiveUsersSection";
 import {
   ChatPreviewListSkeleton,
 } from "@/components/skeletons";
@@ -51,7 +52,10 @@ export default function ChatListScreen() {
   const openChatRoom = (item: ChatPreview) => {
     const chatRoomId = Number(item.id);
     if (Number.isFinite(chatRoomId) && item.unreadCount > 0) {
-      void queryClient.cancelQueries({ queryKey: queryKeys.chats.all });
+      void queryClient.cancelQueries({
+        queryKey: queryKeys.chats.rooms(30),
+        exact: true,
+      });
       markChatRoomUnreadCountInCache(queryClient, chatRoomId, 0);
       void readUnreadMessagesInChatRoom(chatRoomId)
         .catch((error) => {
@@ -129,6 +133,7 @@ export default function ChatListScreen() {
           <Ionicons name="notifications-outline" size={23} color="#202020" />
         </Pressable>
       </View>
+      <ActiveUsersSection />
     </View>
   );
 
