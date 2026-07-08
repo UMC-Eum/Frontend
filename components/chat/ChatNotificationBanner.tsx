@@ -41,6 +41,7 @@ type ChatRoomPreview = {
 
 const DISPLAY_DURATION_MS = 5000;
 const CHAT_NOTIFICATION_POLL_MS = 3000;
+const RECENT_UNREAD_NOTIFICATION_MS = 15_000;
 const COLORS = {
   primary: "#FF3E70",
   primarySoft: "#FFE2EA",
@@ -132,6 +133,26 @@ export default function ChatNotificationBanner() {
 
     if (!previousUnreadCounts) {
       unreadCountsRef.current = nextUnreadCounts;
+
+      const recentUnreadRoom = rooms.find((room) => {
+        if (room.chatRoomId === currentChatRoomId) return false;
+        if (room.unreadCount <= 0 || !room.sentAt) return false;
+
+        const sentAt = new Date(room.sentAt).getTime();
+        return (
+          !Number.isNaN(sentAt) &&
+          Date.now() - sentAt <= RECENT_UNREAD_NOTIFICATION_MS
+        );
+      });
+
+      if (recentUnreadRoom) {
+        lastNotifiedSentAtRef.current.set(
+          recentUnreadRoom.chatRoomId,
+          recentUnreadRoom.sentAt ?? "",
+        );
+        setNotification(mapChatRoomNotification(recentUnreadRoom));
+      }
+
       return;
     }
 
@@ -158,15 +179,7 @@ export default function ChatNotificationBanner() {
       lastNotifiedSentAtRef.current.set(updatedRoom.chatRoomId, roomSentAt);
     }
 
-    setNotification({
-      chatRoomId: updatedRoom.chatRoomId,
-      messageId: 0,
-      senderUserId: 0,
-      senderName: updatedRoom.senderName,
-      senderProfileImage: updatedRoom.senderProfileImage,
-      body: updatedRoom.body,
-      receivedAt: updatedRoom.sentAt ? new Date(updatedRoom.sentAt) : new Date(),
-    });
+    setNotification(mapChatRoomNotification(updatedRoom));
   }, [chatRoomsQuery.data, currentChatRoomId, notificationEnabled]);
 
   useEffect(() => {
@@ -329,6 +342,18 @@ function mapChatNotification(message: MessageNewData): ChatNotification {
   };
 }
 
+function mapChatRoomNotification(room: ChatRoomPreview): ChatNotification {
+  return {
+    chatRoomId: room.chatRoomId,
+    messageId: 0,
+    senderUserId: 0,
+    senderName: room.senderName,
+    senderProfileImage: room.senderProfileImage,
+    body: room.body,
+    receivedAt: room.sentAt ? new Date(room.sentAt) : new Date(),
+  };
+}
+
 function formatMessagePreview(message: MessageNewData) {
   if (message.type === "AUDIO") return "음성 메시지를 보냈어요";
   if (message.type === "PHOTO") return message.text || "사진을 보냈어요";
@@ -423,6 +448,8 @@ const styles = StyleSheet.create({
     right: 0,
     alignItems: "center",
     pointerEvents: "box-none",
+    zIndex: 1000,
+    elevation: 1000,
   },
   card: {
     width: "92%",
