@@ -6,7 +6,8 @@ export interface ICommentItem {
   depth: number;
   contents: string;
   isMine?: boolean;
-  author: IArticleAuthor;
+  // 서버 스펙상 탈퇴 회원 등의 댓글은 author가 null로 내려온다.
+  author: IArticleAuthor | null;
   createdAt: string;
   updatedAt?: string | null;
   replies?: ICommentItem[];

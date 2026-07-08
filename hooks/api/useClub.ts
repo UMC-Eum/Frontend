@@ -85,13 +85,22 @@ export function useTopHostsQuery(limit = 10) {
   });
 }
 
-export function useMyClubsQuery(enabled = true) {
+export function useMyClubsQuery(
+  enabled = true,
+  options: { includeInactive?: boolean } = {},
+) {
   const queryEnabled = useProtectedQueryEnabled(enabled);
 
   return useQuery({
     queryKey: queryKeys.club.my(),
     queryFn: getMyClubs,
     enabled: queryEnabled,
+    select: options.includeInactive
+      ? undefined
+      : (data) => ({
+          ...data,
+          items: data.items.filter((club) => club.status === "ACTIVE"),
+        }),
   });
 }
 

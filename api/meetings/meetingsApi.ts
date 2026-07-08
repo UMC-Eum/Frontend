@@ -50,9 +50,13 @@ export const deleteMeeting = async (clubId: number, meetingId: number) => {
 
 export const attendMeeting = async (clubId: number, meetingId: number) => {
   const { data } = await api.post<
-    ApiSuccessResponse<DTO.IMeetingAttendResponse>
+    ApiSuccessResponse<DTO.IMeetingAttendResponse> | DTO.IMeetingAttendResponse | null
   >(`/v1/clubs/${clubId}/meetings/${meetingId}/attendees/me`);
-  return data.success.data;
+  if (!data) return undefined;
+  if (typeof data === "object" && "success" in data) {
+    return data.success?.data;
+  }
+  return data;
 };
 
 export const getMeetingAttendees = async (

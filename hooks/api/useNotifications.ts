@@ -1,4 +1,9 @@
-import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  InfiniteData,
+  useInfiniteQuery,
+  useMutation,
+  useQueryClient,
+} from "@tanstack/react-query";
 
 import {
   deleteNotification,
@@ -9,9 +14,40 @@ import {
   readAllHeartNotifications,
   readNotification,
 } from "@/api/notifications/notificationsApi";
+import type { INotification } from "@/types/api/notifications/notificationsDTO";
 
 import { queryKeys } from "./queryKeys";
 import { useProtectedQueryEnabled } from "./useProtectedQueryEnabled";
+
+type NotificationPage = { items: INotification[]; nextCursor: string | null };
+
+// 알림 목록 캐시들을 refetch 없이 직접 수정한다(스크롤 위치 유지).
+// scope를 넘기면 해당 탭(예: "heart") 목록 캐시만, 없으면 전체 알림 목록을 갱신한다.
+function patchNotificationCaches(
+  queryClient: ReturnType<typeof useQueryClient>,
+  updateItem: (item: INotification) => INotification,
+  scope?: NotificationScope,
+) {
+  queryClient.setQueriesData<InfiniteData<NotificationPage>>(
+    {
+      predicate: (query) => {
+        const key = query.queryKey;
+        if (!Array.isArray(key) || key[0] !== "notifications") return false;
+        return scope ? key[1] === scope : true;
+      },
+    },
+    (current) =>
+      current
+        ? {
+            ...current,
+            pages: current.pages.map((page) => ({
+              ...page,
+              items: page.items.map(updateItem),
+            })),
+          }
+        : current,
+  );
+}
 
 const DEFAULT_PAGE_SIZE = 20;
 type NotificationScope = "all" | "heart" | "chat" | "club";
@@ -45,9 +81,13 @@ export function useReadNotificationMutation() {
 
   return useMutation({
     mutationFn: (notificationId: number) => readNotification(notificationId),
-    onSuccess: () => {
-      // 홈 상단 알림 dot 등 다른 화면의 unread 계산이 즉시 갱신되도록 무효화한다.
-      queryClient.invalidateQueries({ queryKey: queryKeys.notifications.all });
+    // refetch(무효화) 대신 캐시를 직접 갱신해 목록 스크롤이 튀지 않게 한다.
+    onMutate: (notificationId) => {
+      patchNotificationCaches(queryClient, (item) =>
+        item.notificationId === notificationId
+          ? { ...item, isRead: true }
+          : item,
+      );
     },
   });
 }
@@ -68,8 +108,13 @@ export function useReadAllHeartNotificationsMutation() {
 
   return useMutation({
     mutationFn: readAllHeartNotifications,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.notifications.all });
+    // 마음 탭 목록 캐시만 직접 갱신해 refetch로 인한 스크롤 튐을 막는다.
+    onMutate: () => {
+      patchNotificationCaches(
+        queryClient,
+        (item) => ({ ...item, isRead: true }),
+        "heart",
+      );
     },
   });
 }

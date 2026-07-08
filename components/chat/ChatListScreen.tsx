@@ -2,7 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useQueryClient } from "@tanstack/react-query";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -37,17 +37,37 @@ type ChatPreview = {
   isClub?: boolean;
 };
 
+type ChatFilter = "dm" | "club";
+
+const CHAT_FILTERS: { id: ChatFilter; label: string }[] = [
+  { id: "dm", label: "일반" },
+  { id: "club", label: "동호회" },
+];
+
 export default function ChatListScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const [activeFilter, setActiveFilter] = useState<ChatFilter>("dm");
   const chatRoomsQuery = useChatRoomsInfiniteQuery(undefined, {
     staleTime: 30_000,
   });
+  const {
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    isLoading,
+  } = chatRoomsQuery;
   const apiChatPreviews = useMemo(
     () => mapChatRooms(chatRoomsQuery.data),
     [chatRoomsQuery.data],
   );
-  const chatPreviews = apiChatPreviews;
+  const chatPreviews = useMemo(
+    () =>
+      apiChatPreviews.filter((item) =>
+        activeFilter === "club" ? item.isClub : !item.isClub,
+      ),
+    [activeFilter, apiChatPreviews],
+  );
   const isInitialLoading = chatRoomsQuery.isLoading && chatPreviews.length === 0;
   const [isPullRefreshing, setIsPullRefreshing] = useState(false);
 
@@ -57,6 +77,28 @@ export default function ChatListScreen() {
       setIsPullRefreshing(false);
     });
   }, [chatRoomsQuery]);
+
+  const isFilterLoading =
+    chatRoomsQuery.isFetchingNextPage && chatPreviews.length === 0;
+
+  useEffect(() => {
+    if (
+      isLoading ||
+      isFetchingNextPage ||
+      !hasNextPage ||
+      chatPreviews.length > 0
+    ) {
+      return;
+    }
+
+    fetchNextPage();
+  }, [
+    chatPreviews.length,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    isLoading,
+  ]);
 
   const openChatRoom = (item: ChatPreview) => {
     const chatRoomId = Number(item.id);
@@ -142,7 +184,31 @@ export default function ChatListScreen() {
           <Ionicons name="notifications-outline" size={23} color="#202020" />
         </Pressable>
       </View>
-      <ActiveUsersSection />
+      <View style={styles.filterTabs}>
+        {CHAT_FILTERS.map((filter) => {
+          const isActive = filter.id === activeFilter;
+
+          return (
+            <Pressable
+              key={filter.id}
+              style={[styles.filterTab, isActive && styles.filterTabActive]}
+              onPress={() => setActiveFilter(filter.id)}
+              accessibilityRole="button"
+              accessibilityState={{ selected: isActive }}
+            >
+              <Text
+                style={[
+                  styles.filterTabText,
+                  isActive && styles.filterTabTextActive,
+                ]}
+              >
+                {filter.label}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+      {activeFilter === "dm" ? <ActiveUsersSection /> : null}
     </View>
   );
 
@@ -162,7 +228,7 @@ export default function ChatListScreen() {
           />
         }
         ListEmptyComponent={
-          isInitialLoading ? (
+          isInitialLoading || isFilterLoading ? (
             <ChatPreviewListSkeleton />
           ) : (
             <View style={styles.emptyWrap}>
@@ -171,7 +237,9 @@ export default function ChatListScreen() {
               <Text style={styles.emptyText}>
                 {chatRoomsQuery.isError
                   ? "대화 목록을 불러오지 못했습니다. 잠시 후 다시 시도해주세요."
-                  : "매칭된 인연과 대화를 시작하면 이곳에 표시돼요."}
+                  : activeFilter === "club"
+                    ? "동호회 채팅방이 이곳에 표시돼요."
+                    : "매칭된 인연과 대화를 시작하면 이곳에 표시돼요."}
               </Text>
             </View>
           )
@@ -325,6 +393,34 @@ const styles = StyleSheet.create({
     height: 44,
     alignItems: "center",
     justifyContent: "center",
+  },
+  filterTabs: {
+    flexDirection: "row",
+    marginHorizontal: 20,
+    marginTop: 4,
+    marginBottom: 10,
+    padding: 3,
+    borderRadius: 8,
+    backgroundColor: "#F2F4F6",
+  },
+  filterTab: {
+    flex: 1,
+    height: 36,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 6,
+  },
+  filterTabActive: {
+    backgroundColor: "#FFFFFF",
+  },
+  filterTabText: {
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: "700",
+    color: "#8E9AA3",
+  },
+  filterTabTextActive: {
+    color: "#202020",
   },
   chatItem: {
     minHeight: 84,
