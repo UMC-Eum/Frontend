@@ -97,7 +97,7 @@ export function MeetingRequestCard({
 interface MeetingMemberRowProps {
   member: IClubMemberItem;
   disabled?: boolean;
-  onKick: (member: IClubMemberItem) => void;
+  onKick?: (member: IClubMemberItem) => void;
 }
 
 export function MeetingMemberRow({
@@ -106,7 +106,7 @@ export function MeetingMemberRow({
   onKick,
 }: MeetingMemberRowProps) {
   const joinedAt = formatJoinedDate(member.joinedAt);
-  const canKick = member.authority !== "HOST";
+  const canKick = !!onKick && member.authority !== "HOST";
 
   return (
     <View style={styles.memberRow}>

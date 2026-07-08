@@ -1,8 +1,8 @@
 import * as ImagePicker from "expo-image-picker";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
   LayoutChangeEvent,
@@ -23,7 +23,8 @@ import {
   RequiredLabel,
 } from "@/components/club/ClubPostParts";
 import { KEYBOARD_AVOIDING_BEHAVIOR } from "@/constants/keyboard";
-import { createArticle } from "@/api/articles/articlesApi";
+import { createArticle, updateArticle } from "@/api/articles/articlesApi";
+import { getClubPostDetail } from "@/api/clubs/clubPostsApi";
 import { postPresign } from "@/api/onboarding/onboardingApi";
 import {
   normalizeImageForUpload,
@@ -43,14 +44,19 @@ const CATEGORY_LABELS = CATEGORY_OPTIONS.map((category) => category.label);
 type InputField = "title" | "content";
 
 /**
- * 동호회 게시글 작성 화면
+ * 동호회 게시글 작성/수정 화면
  * - 카테고리, 제목, 내용, 사진 첨부 상태를 관리합니다.
+ * - postId 파라미터가 있으면 기존 게시글을 불러와 수정 모드로 동작합니다.
  * - 공통 헤더/칩/미디어바/이미지 미리보기는 components/club에서 재사용합니다.
  */
 export default function ClubPostCreateScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const params = useLocalSearchParams<{ clubId?: string; canPin?: string }>();
+  const params = useLocalSearchParams<{
+    clubId?: string;
+    canPin?: string;
+    postId?: string;
+  }>();
   const insets = useSafeAreaInsets();
   const inputScroll = useFastInputScroll();
   const inputOffsets = useRef<Record<InputField, number>>({
@@ -61,8 +67,34 @@ export default function ClubPostCreateScreen() {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [images, setImages] = useState<string[]>([]);
+  const hasPrefilled = useRef(false);
 
   const clubId = Number(params.clubId);
+  const postId = Number(params.postId);
+  const isEditMode = Number.isFinite(postId);
+
+  const editSourceQuery = useQuery({
+    queryKey: queryKeys.clubs.post(postId),
+    queryFn: () => getClubPostDetail(clubId, postId),
+    enabled: isEditMode && Number.isFinite(clubId),
+  });
+
+  // 수정 모드에서 기존 게시글 내용을 한 번만 폼에 채운다.
+  useEffect(() => {
+    const source = editSourceQuery.data;
+    if (!isEditMode || !source || hasPrefilled.current) return;
+
+    hasPrefilled.current = true;
+    setTitle(source.title ?? "");
+    setContent(source.content);
+    setImages(source.images.map((image) => image.imageUrl));
+    const categoryOption = CATEGORY_OPTIONS.find(
+      (option) => option.value === source.category,
+    );
+    if (categoryOption) {
+      setCategoryLabel(categoryOption.label);
+    }
+  }, [editSourceQuery.data, isEditMode]);
   const selectedCategory =
     CATEGORY_OPTIONS.find((category) => category.label === categoryLabel)?.value ??
     CATEGORY_OPTIONS[0].value;
@@ -87,13 +119,28 @@ export default function ClubPostCreateScreen() {
         category: selectedCategory,
         title: title.trim(),
         contents: content.trim(),
-        ...(imageUrls.length > 0 ? { photoUrls: imageUrls } : {}),
+        // 수정 모드에서는 사진을 모두 지운 상태도 반영되도록 빈 배열을 그대로 보낸다.
+        ...(isEditMode || imageUrls.length > 0 ? { photoUrls: imageUrls } : {}),
       };
+
+      if (isEditMode) {
+        await updateArticle(clubId, postId, body);
+        return { articleId: postId };
+      }
 
       return createArticle(clubId, body);
     },
     onSuccess: ({ articleId }) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.articles.all(clubId) });
+
+      if (isEditMode) {
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.clubs.post(postId),
+        });
+        router.back();
+        return;
+      }
+
       router.replace({
         pathname: "/club/post-detail",
         params: {
@@ -105,8 +152,12 @@ export default function ClubPostCreateScreen() {
     },
     onError: (error) => {
       const message =
-        error instanceof Error ? error.message : "게시글 등록 중 문제가 발생했습니다.";
-      Alert.alert("등록 실패", message);
+        error instanceof Error
+          ? error.message
+          : isEditMode
+            ? "게시글 수정 중 문제가 발생했습니다."
+            : "게시글 등록 중 문제가 발생했습니다.";
+      Alert.alert(isEditMode ? "수정 실패" : "등록 실패", message);
     },
   });
 
@@ -193,8 +244,8 @@ export default function ClubPostCreateScreen() {
         behavior={KEYBOARD_AVOIDING_BEHAVIOR}
       >
         <ClubHeader
-          title="글쓰기"
-          rightText="등록"
+          title={isEditMode ? "글 수정" : "글쓰기"}
+          rightText={isEditMode ? "완료" : "등록"}
           rightTextDisabled={!canSubmit || createPostMutation.isPending}
           onBack={() => router.back()}
           onRightPress={handleSubmit}

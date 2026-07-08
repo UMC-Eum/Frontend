@@ -4,6 +4,7 @@ import type {
   IArticleLikeResponse,
   IArticleResponse,
 } from "../../types/api/articles/articlesDTO";
+import { UNKNOWN_ARTICLE_AUTHOR } from "../articles/articlesApi";
 import { normalizeS3ObjectRefs } from "@/utils/s3ObjectRef";
 import type {
   ICommentItem,
@@ -50,7 +51,7 @@ function mapArticleToClubPostDetail(
     category: article.category as DTO.ClubPostCategory,
     title: article.title,
     content: article.contents,
-    author: article.author,
+    author: article.author ?? UNKNOWN_ARTICLE_AUTHOR,
     images: (article.photos ?? []).map((photo) => ({
       imageId: photo.photoId,
       imageUrl: photo.photoUrl,
@@ -119,7 +120,7 @@ function mapCommentsToClubPostComments(
     {
       commentId: comment.commentId,
       parentCommentId: comment.parentCommentId,
-      author: comment.author,
+      author: comment.author ?? UNKNOWN_ARTICLE_AUTHOR,
       content: comment.contents,
       createdAt: comment.createdAt,
       isMine: comment.isMine,

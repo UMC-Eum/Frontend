@@ -25,7 +25,8 @@ export const CLUB_COLORS = {
   white: "#FFFFFF",
 };
 
-export type ClubActionSheetMode = "owner" | "guest";
+// commentOwner: 내 댓글 — 수정 API가 없어 삭제 액션만 노출한다.
+export type ClubActionSheetMode = "owner" | "guest" | "commentOwner";
 
 interface ClubHeaderProps {
   title?: string;
@@ -268,6 +269,7 @@ export function ClubCommentInputBar({
   onSend,
   placeholder = "따뜻한 댓글을 작성해주세요.",
   onCancelReply,
+  inputRef,
 }: {
   value: string;
   onChangeText: (value: string) => void;
@@ -275,6 +277,7 @@ export function ClubCommentInputBar({
   onSend?: () => void;
   placeholder?: string;
   onCancelReply?: () => void;
+  inputRef?: React.RefObject<TextInput | null>;
 }) {
   const canSend = value.trim().length > 0 && !!onSend;
 
@@ -286,6 +289,7 @@ export function ClubCommentInputBar({
         </Pressable>
       ) : null}
       <TextInput
+        ref={inputRef}
         style={styles.commentInput}
         placeholder={placeholder}
         placeholderTextColor={CLUB_COLORS.gray500}
@@ -321,9 +325,11 @@ export function ClubPostActionSheet({
   onPrimaryPress?: () => void;
   onSecondaryPress?: () => void;
 }) {
-  const primaryLabel = mode === "owner" ? "수정하기" : "신고하기";
+  const isSingleAction = mode === "commentOwner";
+  const primaryLabel =
+    mode === "owner" ? "수정하기" : mode === "commentOwner" ? "삭제하기" : "신고하기";
   const secondaryLabel = mode === "owner" ? "삭제하기" : "차단하기";
-  const primaryDanger = mode === "guest";
+  const primaryDanger = mode !== "owner";
   const secondaryDanger = mode === "owner";
 
   return (
@@ -335,15 +341,17 @@ export function ClubPostActionSheet({
             <SheetButton
               label={primaryLabel}
               danger={primaryDanger}
-              position="top"
+              position={isSingleAction ? "single" : "top"}
               onPress={onPrimaryPress ?? onClose}
             />
-            <SheetButton
-              label={secondaryLabel}
-              danger={secondaryDanger}
-              position="bottom"
-              onPress={onSecondaryPress ?? onClose}
-            />
+            {!isSingleAction ? (
+              <SheetButton
+                label={secondaryLabel}
+                danger={secondaryDanger}
+                position="bottom"
+                onPress={onSecondaryPress ?? onClose}
+              />
+            ) : null}
           </View>
           <SheetButton label="취소" position="single" onPress={onClose} />
         </View>

@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -17,6 +17,7 @@ import NotificationItem from "@/components/NotificationItem";
 import { NotificationListSkeleton } from "@/components/skeletons";
 import {
   useNotificationsInfiniteQuery,
+  useReadAllHeartNotificationsMutation,
   useReadNotificationMutation,
 } from "@/hooks/api/useNotifications";
 import { useNotificationSettingsStore } from "@/stores/notificationSettingsStore";
@@ -58,6 +59,8 @@ export default function NotificationsScreen() {
     notificationEnabled,
   );
   const readNotificationMutation = useReadNotificationMutation();
+  const readAllHeartsMutation = useReadAllHeartNotificationsMutation();
+  const hasMarkedHeartsRef = useRef(false);
 
   const heartNotifications = useMemo(
     () =>
@@ -88,6 +91,27 @@ export default function NotificationsScreen() {
     activeQuery.isLoading && notifications.length === 0;
   const isRefreshing =
     activeQuery.isRefetching && !activeQuery.isFetchingNextPage;
+
+  // 알림 화면에 들어오면 마음 알림을 한 번에 읽음 처리한다(항목을 개별 탭할 필요 없음).
+  useEffect(() => {
+    if (!notificationEnabled || hasMarkedHeartsRef.current) return;
+    if (heartQuery.isLoading || !hasUnreadHeart) return;
+
+    hasMarkedHeartsRef.current = true;
+    // 서버 응답 전에도 마음 탭의 안읽음 표시가 사라지도록 로컬 상태를 먼저 갱신한다.
+    setReadIds((prev) => {
+      const next = new Set(prev);
+      heartNotifications.forEach((item) => next.add(item.id));
+      return next;
+    });
+    readAllHeartsMutation.mutate();
+  }, [
+    notificationEnabled,
+    heartQuery.isLoading,
+    hasUnreadHeart,
+    heartNotifications,
+    readAllHeartsMutation,
+  ]);
 
   const handleRefresh = useCallback(() => {
     void activeQuery.refetch();

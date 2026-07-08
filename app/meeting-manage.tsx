@@ -28,15 +28,16 @@ import { formatDday } from "@/components/meeting/meetingSchedule";
 import { useClubDetailQuery } from "@/hooks/api/useClub";
 import {
   useClubMembersInfiniteQuery,
-  useKickClubMemberMutation,
   useUpdateClubMemberStatusMutation,
 } from "@/hooks/api/useHost";
-import { useMeetingDetailQuery } from "@/hooks/api/useMeetings";
+import {
+  useMeetingAttendeesInfiniteQuery,
+  useMeetingDetailQuery,
+} from "@/hooks/api/useMeetings";
 import type { IClubMemberItem } from "@/types/api/host/hostDTO";
+import type { IMeetingAttendee } from "@/types/api/meetings/meetingsDTO";
 
-type ManageAction =
-  | { type: "reject"; member: IClubMemberItem }
-  | { type: "kick"; member: IClubMemberItem };
+type ManageAction = { type: "reject"; member: IClubMemberItem };
 
 export default function MeetingManageScreen() {
   const router = useRouter();
@@ -60,15 +61,14 @@ export default function MeetingManageScreen() {
     { status: "PENDING", limit: 20 },
     canLoadManagement,
   );
-  const activeMembersQuery = useClubMembersInfiniteQuery(
+  const attendeesQuery = useMeetingAttendeesInfiniteQuery(
     clubId,
-    { status: "ACTIVE", limit: 20 },
+    meetingId,
+    { size: 20 },
     canLoadManagement,
   );
   const updateMemberStatusMutation = useUpdateClubMemberStatusMutation(clubId);
-  const kickMemberMutation = useKickClubMemberMutation(clubId);
-  const isMutating =
-    updateMemberStatusMutation.isPending || kickMemberMutation.isPending;
+  const isMutating = updateMemberStatusMutation.isPending;
 
   const pendingMembers = useMemo(
     () =>
@@ -78,13 +78,13 @@ export default function MeetingManageScreen() {
       ).filter(isClubMemberItem),
     [pendingMembersQuery.data],
   );
-  const activeMembers = useMemo(
+  const attendees = useMemo(
     () =>
       (
-        activeMembersQuery.data?.pages.flatMap((page) => page.members ?? []) ??
+        attendeesQuery.data?.pages.flatMap((page) => page.attendees ?? []) ??
         []
-      ).filter(isClubMemberItem),
-    [activeMembersQuery.data],
+      ).map(mapMeetingAttendeeToMember),
+    [attendeesQuery.data],
   );
 
   const meeting = meetingQuery.data;
@@ -99,7 +99,7 @@ export default function MeetingManageScreen() {
           nextDate.getHours(),
         ).padStart(2, "0")}:${String(nextDate.getMinutes()).padStart(2, "0")}`
       : "일정 정보 없음");
-  const attendanceCount = activeMembers.length;
+  const attendanceCount = meeting?.attendeeCount ?? attendees.length;
   const capacity = meeting?.capacity ?? 0;
 
   const approveMember = async (member: IClubMemberItem) => {
@@ -125,18 +125,10 @@ export default function MeetingManageScreen() {
           userId: pendingAction.member.userId,
           body: { status: "REJECTED" },
         });
-      } else {
-        await kickMemberMutation.mutateAsync({
-          userId: pendingAction.member.userId,
-        });
       }
       setPendingAction(null);
     } catch {
-      setActionError(
-        pendingAction.type === "reject"
-          ? "신청 거절에 실패했어요. 잠시 후 다시 시도해주세요."
-          : "멤버 퇴장 처리에 실패했어요. 잠시 후 다시 시도해주세요.",
-      );
+      setActionError("신청 거절에 실패했어요. 잠시 후 다시 시도해주세요.");
     }
   };
 
@@ -240,26 +232,23 @@ export default function MeetingManageScreen() {
               }
             />
 
-            {activeMembersQuery.isLoading ? (
+            {attendeesQuery.isLoading ? (
               <View style={styles.loadingCard}>
                 <ActivityIndicator color={MEETING_COLORS.pink} />
               </View>
-            ) : activeMembers.length > 0 ? (
+            ) : attendees.length > 0 ? (
               <View style={styles.memberList}>
-                {activeMembers.map((member) => (
+                {attendees.map((member) => (
                   <MeetingMemberRow
                     key={member.clubUserId || member.userId}
                     member={member}
                     disabled={isMutating}
-                    onKick={(nextMember) =>
-                      setPendingAction({ type: "kick", member: nextMember })
-                    }
                   />
                 ))}
-                {activeMembersQuery.hasNextPage ? (
+                {attendeesQuery.hasNextPage ? (
                   <MeetingLoadMoreButton
-                    isLoading={activeMembersQuery.isFetchingNextPage}
-                    onPress={() => activeMembersQuery.fetchNextPage()}
+                    isLoading={attendeesQuery.isFetchingNextPage}
+                    onPress={() => attendeesQuery.fetchNextPage()}
                   />
                 ) : null}
               </View>
@@ -278,15 +267,13 @@ export default function MeetingManageScreen() {
 
       <MeetingConfirmDialog
         visible={!!pendingAction}
-        title={pendingAction?.type === "kick" ? "멤버 퇴장" : "신청 거절"}
+        title="신청 거절"
         description={
           pendingAction
-            ? pendingAction.type === "kick"
-              ? `${pendingAction.member.nickname}님을 모임에서 퇴장 처리할까요?`
-              : `거절 시 ${pendingAction.member.nickname}님의 모임참가가 불가능합니다.`
+            ? `거절 시 ${pendingAction.member.nickname}님의 모임참가가 불가능합니다.`
             : ""
         }
-        confirmLabel={pendingAction?.type === "kick" ? "퇴장" : "거절"}
+        confirmLabel="거절"
         confirmVariant="danger"
         isSubmitting={isMutating}
         onCancel={() => setPendingAction(null)}
@@ -302,6 +289,17 @@ function isClubMemberItem(member: unknown): member is IClubMemberItem {
     typeof member === "object" &&
     typeof (member as IClubMemberItem).userId === "number"
   );
+}
+
+function mapMeetingAttendeeToMember(attendee: IMeetingAttendee): IClubMemberItem {
+  return {
+    clubUserId: attendee.clubUserId,
+    userId: attendee.user.userId,
+    nickname: attendee.user.nickname,
+    profileImageUrl: attendee.user.profileImageUrl,
+    authority: attendee.user.authority,
+    joinedAt: attendee.joinedAt,
+  };
 }
 
 const styles = StyleSheet.create({
