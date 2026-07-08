@@ -2,12 +2,13 @@ import { Ionicons } from "@expo/vector-icons";
 import { useQueryClient } from "@tanstack/react-query";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
-import React, { useMemo } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
   ListRenderItem,
   Pressable,
+  RefreshControl,
   StyleSheet,
   Text,
   View,
@@ -48,6 +49,14 @@ export default function ChatListScreen() {
   );
   const chatPreviews = apiChatPreviews;
   const isInitialLoading = chatRoomsQuery.isLoading && chatPreviews.length === 0;
+  const [isPullRefreshing, setIsPullRefreshing] = useState(false);
+
+  const handleRefresh = useCallback(() => {
+    setIsPullRefreshing(true);
+    void chatRoomsQuery.refetch().finally(() => {
+      setIsPullRefreshing(false);
+    });
+  }, [chatRoomsQuery]);
 
   const openChatRoom = (item: ChatPreview) => {
     const chatRoomId = Number(item.id);
@@ -144,6 +153,14 @@ export default function ChatListScreen() {
         keyExtractor={(item) => item.id}
         renderItem={renderChatPreview}
         ListHeaderComponent={renderHeader}
+        refreshControl={
+          <RefreshControl
+            refreshing={isPullRefreshing}
+            onRefresh={handleRefresh}
+            tintColor="#FF3E70"
+            colors={["#FF3E70"]}
+          />
+        }
         ListEmptyComponent={
           isInitialLoading ? (
             <ChatPreviewListSkeleton />
