@@ -592,6 +592,24 @@ export default function ChatRoom() {
     } as never);
   };
 
+  const openPeerProfile = () => {
+    if (!profile || typeof profile.userId !== "number") {
+      showToast("대화방 정보를 불러온 뒤 다시 시도해주세요.");
+      return;
+    }
+
+    router.push({
+      pathname: "/profile-detail",
+      params: {
+        userId: String(profile.userId),
+        name: profile.name,
+        image: profile.image ?? "",
+        location: profile.area ?? "",
+        age: profile.age != null ? String(profile.age) : "",
+      },
+    } as never);
+  };
+
   const handleBlockToggle = () => {
     setShowActionSheet(false);
     if (!profile) {
@@ -1073,7 +1091,13 @@ export default function ChatRoom() {
     }
 
     return (
-      <View style={styles.profileHeader}>
+      <Pressable
+        style={styles.profileHeader}
+        onPress={openPeerProfile}
+        accessibilityRole="button"
+        accessibilityLabel={`${profile?.name ?? "상대방"} 프로필 상세 보기`}
+        disabled={!profile}
+      >
         {profile ? (
           <>
             {profile.image ? (
@@ -1095,7 +1119,7 @@ export default function ChatRoom() {
         ) : (
           <ActivityIndicator color="#FF3E70" />
         )}
-      </View>
+      </Pressable>
     );
   };
 
@@ -1109,7 +1133,9 @@ export default function ChatRoom() {
         >
           <Ionicons name="chevron-back" size={24} color="#A6AFB6" />
         </Pressable>
-        <Text style={styles.headerTitle}>{profile?.name ?? "대화"}</Text>
+        <Text style={styles.headerTitle} numberOfLines={1}>
+          {profile?.name ?? "대화"}
+        </Text>
         <Pressable
           style={[
             styles.headerButton,
@@ -1147,6 +1173,7 @@ export default function ChatRoom() {
                     : item
                 }
                 onVoicePress={handleVoicePlay}
+                onAvatarPress={openPeerProfile}
               />
             )}
             ListFooterComponent={
@@ -2300,6 +2327,9 @@ const styles = StyleSheet.create({
     alignItems: "flex-end",
   },
   headerTitle: {
+    flex: 1,
+    minWidth: 0,
+    textAlign: "center",
     fontSize: 17,
     lineHeight: 22,
     fontWeight: "800",

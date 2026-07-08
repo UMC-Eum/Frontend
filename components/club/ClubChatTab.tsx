@@ -10,6 +10,7 @@ import {
   useAudioRecorderState,
 } from "expo-audio";
 import type { AudioPlayer } from "expo-audio";
+import { useRouter } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -81,6 +82,7 @@ export default function ClubChatTab({
   bottomPadding = 0,
   style,
 }: Props) {
+  const router = useRouter();
   const queryClient = useQueryClient();
   const myUserId = useAuthStore((state) => state.user?.userId);
   const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
@@ -802,6 +804,21 @@ export default function ClubChatTab({
     }
   };
 
+  const openMemberProfile = useCallback(
+    (userId?: number, nickname?: string) => {
+      if (!userId) return;
+
+      router.push({
+        pathname: "/profile-detail",
+        params: {
+          userId: String(userId),
+          name: nickname ?? "",
+        },
+      } as never);
+    },
+    [router],
+  );
+
   const handleRecordedVoicePlay = () => {
     if (!recordingUri || recordingTime <= 0) {
       setErrorText("재생할 녹음 파일을 찾지 못했어요.");
@@ -842,6 +859,11 @@ export default function ClubChatTab({
                 : item
             }
             onVoicePress={handleVoicePlay}
+            onAvatarPress={
+              item.type !== "date" && item.type !== "system" && !item.isMine
+                ? () => openMemberProfile(item.senderUserId, item.senderName)
+                : undefined
+            }
           />
         )}
         ListFooterComponent={
@@ -927,9 +949,11 @@ export default function ClubChatTab({
 function ClubChatRow({
   message,
   onVoicePress,
+  onAvatarPress,
 }: {
   message: ClubChatMessage;
   onVoicePress?: (message: Extract<ChatMessageData, { type: "voice" }>) => void;
+  onAvatarPress?: () => void;
 }) {
   if (message.type === "system") {
     return (
@@ -947,7 +971,11 @@ function ClubChatRow({
       message.showAvatar !== false ? (
         <Text style={styles.senderName}>{message.senderName}</Text>
       ) : null}
-      <ChatMessage message={message} onVoicePress={onVoicePress} />
+      <ChatMessage
+        message={message}
+        onVoicePress={onVoicePress}
+        onAvatarPress={onAvatarPress}
+      />
     </View>
   );
 }

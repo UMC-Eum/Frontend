@@ -59,9 +59,11 @@ export type ChatMessageData =
 export default function ChatMessage({
   message,
   onVoicePress,
+  onAvatarPress,
 }: {
   message: ChatMessageData;
   onVoicePress?: (message: Extract<ChatMessageData, { type: "voice" }>) => void;
+  onAvatarPress?: () => void;
 }) {
   if (message.type === "date") {
     return (
@@ -89,10 +91,19 @@ export default function ChatMessage({
       {!message.isMine ? (
         message.showAvatar === false ? (
           <View style={[styles.avatar, styles.avatarSpacer]} />
-        ) : message.avatar ? (
-          <Image source={{ uri: message.avatar }} style={styles.avatar} />
         ) : (
-          <View style={styles.avatar} />
+          <Pressable
+            onPress={onAvatarPress}
+            disabled={!onAvatarPress}
+            accessibilityRole={onAvatarPress ? "button" : undefined}
+            accessibilityLabel="상대방 프로필 상세 보기"
+          >
+            {message.avatar ? (
+              <Image source={{ uri: message.avatar }} style={styles.avatar} />
+            ) : (
+              <View style={styles.avatar} />
+            )}
+          </Pressable>
         )
       ) : null}
 
