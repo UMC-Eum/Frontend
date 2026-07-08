@@ -80,11 +80,11 @@ export function useReadNotificationMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (notificationId: number) => readNotification(notificationId),
+    mutationFn: (notificationId: number | string) => readNotification(notificationId),
     // refetch(무효화) 대신 캐시를 직접 갱신해 목록 스크롤이 튀지 않게 한다.
     onMutate: (notificationId) => {
       patchNotificationCaches(queryClient, (item) =>
-        item.notificationId === notificationId
+        String(item.notificationId) === String(notificationId)
           ? { ...item, isRead: true }
           : item,
       );
