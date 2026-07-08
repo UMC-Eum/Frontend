@@ -6,10 +6,11 @@ import { StyleSheet, View } from "react-native";
 import { AppNavbar } from "@/components/AppNavbar";
 import { queryKeys } from "@/hooks/api/queryKeys";
 
+// 홈 추천(recommendations)은 1시간 유지 정책이라 탭 전환 invalidate 대상에서 제외한다.
+// (홈의 카운트다운 만료와 하트 전송 뮤테이션만 추천을 갱신한다)
 const TAB_REFRESH_QUERY_KEYS = {
   index: [
     queryKeys.users.me(),
-    queryKeys.recommendations.all,
     queryKeys.notifications.all,
     queryKeys.club.all,
   ],
@@ -18,7 +19,6 @@ const TAB_REFRESH_QUERY_KEYS = {
   my: [
     queryKeys.users.me(),
     queryKeys.socials.hearts.all(),
-    queryKeys.recommendations.all,
     queryKeys.club.my(),
   ],
 } as const;

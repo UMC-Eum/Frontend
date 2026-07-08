@@ -1,8 +1,10 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
+import { useCallback, useState } from "react";
 import {
   Alert,
   Image,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Switch,
@@ -45,6 +47,20 @@ export default function MyTabScreen() {
   const myClubsQuery = useMyClubsQuery();
   const logoutMutation = useLogoutMutation();
   const deactivateUserMutation = useDeactivateUserMutation();
+  const [isPullRefreshing, setIsPullRefreshing] = useState(false);
+
+  // 홈 추천(recommendations)은 1시간 유지 정책이라 수동 새로고침 대상에서 제외한다.
+  const handleRefresh = useCallback(() => {
+    setIsPullRefreshing(true);
+    void Promise.allSettled([
+      myProfileQuery.refetch(),
+      receivedHeartsQuery.refetch(),
+      myClubsQuery.refetch(),
+    ]).finally(() => {
+      setIsPullRefreshing(false);
+    });
+  }, [myClubsQuery, myProfileQuery, receivedHeartsQuery]);
+
   const profile = myProfileQuery.data;
   const receivedHeartCount =
     receivedHeartsQuery.data?.pages.reduce(
@@ -59,10 +75,13 @@ export default function MyTabScreen() {
       0,
     ) ?? (recommendationsQuery.isSuccess ? 0 : undefined);
   // ponytail: 엔드포인트에 페이지네이션이 없어 slice로 기존 5개 노출 유지
+  // 마이페이지는 가입 확정(ACTIVE)만 표시. status가 없는 응답(구버전)은 확정으로 간주.
   const myClubs = uniqueBy(
     myClubsQuery.data?.items ?? [],
     (item) => item.clubId,
-  ).slice(0, 5);
+  )
+    .filter((item) => !item.status || item.status === "ACTIVE")
+    .slice(0, 5);
 
   const handleNotificationToggle = (enabled: boolean) => {
     setNotificationEnabled(enabled);
@@ -104,6 +123,14 @@ export default function MyTabScreen() {
         contentInsetAdjustmentBehavior="automatic"
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={styles.content}
+        refreshControl={
+          <RefreshControl
+            refreshing={isPullRefreshing}
+            onRefresh={handleRefresh}
+            tintColor={ACCENT}
+            colors={[ACCENT]}
+          />
+        }
       >
         <Text style={styles.screenTitle}>마이페이지</Text>
 
@@ -228,6 +255,7 @@ export default function MyTabScreen() {
                 key={club.clubId}
                 title={club.name || "이름 없는 동호회"}
                 subtitle={`${club.authority === "HOST" ? "동호회장" : "멤버"} · 멤버 ${club.memberCount ?? 0}명`}
+                image={club.thumbnailUrl}
                 variant={index % 2 === 0 ? "running" : "mountain"}
                 onPress={() =>
                   router.push({
@@ -295,11 +323,13 @@ export default function MyTabScreen() {
 function ClubRow({
   title,
   subtitle,
+  image,
   variant,
   onPress,
 }: {
   title: string;
   subtitle: string;
+  image?: string | null;
   variant: "running" | "mountain";
   onPress: () => void;
 }) {
@@ -311,7 +341,10 @@ function ClubRow({
           variant === "running" ? styles.runningThumb : styles.mountainThumb,
         ]}
       >
-        {variant === "running" ? (
+        {/* API 썸네일 우선, 없을 때만 기존 일러스트 fallback */}
+        {image ? (
+          <Image source={{ uri: image }} style={styles.clubThumbImage} />
+        ) : variant === "running" ? (
           <>
             <Ionicons name="walk" size={16} color="#5E321E" />
             <View style={styles.runnerDot} />
@@ -578,6 +611,10 @@ const styles = StyleSheet.create({
     marginRight: 12,
     overflow: "hidden",
     borderRadius: 6,
+  },
+  clubThumbImage: {
+    width: "100%",
+    height: "100%",
   },
   runningThumb: {
     backgroundColor: "#EFD7BA",

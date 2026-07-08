@@ -8,6 +8,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
   LayoutChangeEvent,
+  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -57,6 +58,8 @@ export default function ClubCreateScreen() {
   const [boardScope, setBoardScope] = useState<BoardScope>("member");
   const [coverImages, setCoverImages] = useState<CoverImage[]>([]);
   const [isUploadingCover, setUploadingCover] = useState(false);
+  // 정치·종교·포교 금지 안내 — 화면 진입 시 1회만 노출 (영구 저장 없이 컴포넌트 state 기준)
+  const [showPolicyNotice, setShowPolicyNotice] = useState(true);
   const areaCode = useClubCreateAreaStore((state) => state.areaCode);
   const areaName = useClubCreateAreaStore((state) => state.areaName);
 
@@ -372,6 +375,33 @@ export default function ClubCreateScreen() {
           labelStyle={styles.ctaLabel}
         />
       </KeyboardAvoidingView>
+
+      {/* 정치·종교·포교 금지 경고 모달 */}
+      <Modal
+        visible={showPolicyNotice}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowPolicyNotice(false)}
+      >
+        <View style={styles.noticeOverlay}>
+          <View style={styles.noticeCard}>
+            <Text style={styles.noticeTitle}>동호회 운영 안내</Text>
+            <Text style={styles.noticeDescription}>
+              정치·종교·포교 목적의 동호회 생성 및 활동이 적발될 경우 서비스
+              이용 제한 및 손해배상 청구 대상이 될 수 있습니다.
+            </Text>
+            <Pressable
+              style={({ pressed }) => [
+                styles.noticeButton,
+                pressed && styles.noticeButtonPressed,
+              ]}
+              onPress={() => setShowPolicyNotice(false)}
+            >
+              <Text style={styles.noticeButtonText}>확인</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -746,5 +776,52 @@ const styles = StyleSheet.create({
     fontSize: 18,
     lineHeight: 23,
     fontWeight: "600",
+  },
+  // 정치·종교·포교 금지 경고 모달 (AgeRestrictionModal 톤)
+  noticeOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 40,
+  },
+  noticeCard: {
+    width: "100%",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
+    paddingHorizontal: 24,
+    paddingTop: 32,
+    paddingBottom: 24,
+    alignItems: "center",
+  },
+  noticeTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#1F2937",
+    marginBottom: 12,
+    textAlign: "center",
+  },
+  noticeDescription: {
+    fontSize: 14,
+    color: "#6B7280",
+    lineHeight: 20,
+    textAlign: "center",
+    marginBottom: 24,
+  },
+  noticeButton: {
+    width: "100%",
+    height: 52,
+    backgroundColor: "#FF3E70",
+    borderRadius: 14,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  noticeButtonPressed: {
+    opacity: 0.85,
+  },
+  noticeButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#FFFFFF",
   },
 });

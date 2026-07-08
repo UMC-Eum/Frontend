@@ -724,9 +724,14 @@ function ClubHomeContent({
   const myClubsQuery = useMyClubsQuery();
   const todayRecommendedQuery = useTodayRecommendedClubsQuery(10);
 
+  // 가입 확정(ACTIVE) + 가입 대기(PENDING)만 내 동호회로 표시.
+  // 거절/강퇴/탈퇴(REJECTED/KICKED/LEFT)는 제외하고, status 없는 응답(구버전)은 포함한다.
   const myClubs = uniqueBy(
     myClubsQuery.data?.items ?? [],
     (item) => item.clubId,
+  ).filter(
+    (item) =>
+      !item.status || item.status === "ACTIVE" || item.status === "PENDING",
   );
   // 펼친 그리드: 3열 고정. 작은 화면에서는 카드 폭을 줄이고, 남는 폭은 열 간격으로 배분해
   // 마지막 행이 1~2개여도 왼쪽부터 같은 간격으로 정렬되게 한다.
@@ -782,6 +787,7 @@ function ClubHomeContent({
                   key={club.clubId}
                   title={club.name}
                   image={club.thumbnailUrl}
+                  status={club.status === "PENDING" ? "가입 대기중" : undefined}
                   cardWidth={myClubCardWidth}
                   onPress={() => onOpenClub(String(club.clubId))}
                 />
@@ -800,6 +806,7 @@ function ClubHomeContent({
               key={club.clubId}
               title={club.name}
               image={club.thumbnailUrl}
+              status={club.status === "PENDING" ? "가입 대기중" : undefined}
               onPress={() => onOpenClub(String(club.clubId))}
             />
           ))}
