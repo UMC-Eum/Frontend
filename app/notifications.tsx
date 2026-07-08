@@ -20,6 +20,7 @@ import {
   useReadAllHeartNotificationsMutation,
   useReadNotificationMutation,
 } from "@/hooks/api/useNotifications";
+import { useMyClubsQuery } from "@/hooks/api/useClub";
 import { useNotificationSettingsStore } from "@/stores/notificationSettingsStore";
 import type { INotification } from "@/types/api/notifications/notificationsDTO";
 import { uniqueBy } from "@/utils/array";
@@ -30,11 +31,14 @@ type NotificationTab = "heart" | "club";
 
 type NotificationData = {
   id: string;
-  apiId?: number;
+  apiId?: number | string;
   isRead: boolean;
   userId: string;
   userName: string;
   userProfileImage?: string;
+  clubId?: string;
+  articleId?: string;
+  chatRoomId?: string;
   notificationContent: string;
   timeLabel?: string;
   timestamp: Date;
@@ -58,6 +62,9 @@ export default function NotificationsScreen() {
     undefined,
     notificationEnabled,
   );
+  const myClubsQuery = useMyClubsQuery(notificationEnabled, {
+    includeInactive: true,
+  });
   const readNotificationMutation = useReadNotificationMutation();
   const readAllHeartsMutation = useReadAllHeartNotificationsMutation();
   const hasMarkedHeartsRef = useRef(false);
@@ -72,11 +79,13 @@ export default function NotificationsScreen() {
   );
   const clubNotifications = useMemo(
     () =>
-      mapNotificationPages(clubQuery.data).map((item) => ({
-        ...item,
-        isRead: item.isRead || readIds.has(item.id),
-      })),
-    [clubQuery.data, readIds],
+      mapNotificationPages(clubQuery.data, myClubsQuery.data?.items).map(
+        (item) => ({
+          ...item,
+          isRead: item.isRead || readIds.has(item.id),
+        }),
+      ),
+    [clubQuery.data, myClubsQuery.data?.items, readIds],
   );
   const notifications =
     activeTab === "heart"
@@ -125,10 +134,60 @@ export default function NotificationsScreen() {
     }
   };
 
+  const openNotificationDetail = (item: NotificationData) => {
+    markNotificationAsRead(item);
+
+    const targetChatRoomId = Number(item.chatRoomId);
+    if (Number.isFinite(targetChatRoomId) && targetChatRoomId > 0) {
+      router.push({
+        pathname: "/chat/[id]",
+        params: { id: String(targetChatRoomId) },
+      } as never);
+      return;
+    }
+
+    if (activeTab === "club") {
+      const targetClubId = Number(item.clubId);
+      if (!Number.isFinite(targetClubId) || targetClubId <= 0) return;
+
+      const targetArticleId = Number(item.articleId);
+      if (Number.isFinite(targetArticleId) && targetArticleId > 0) {
+        router.push({
+          pathname: "/club/post-detail",
+          params: {
+            clubId: String(targetClubId),
+            postId: String(targetArticleId),
+          },
+        } as never);
+        return;
+      }
+
+      router.push({
+        pathname: "/club/detail",
+        params: { clubId: String(targetClubId) },
+      } as never);
+      return;
+    }
+
+    if (activeTab !== "heart") return;
+
+    const targetUserId = Number(item.userId);
+    if (!Number.isFinite(targetUserId) || targetUserId <= 0) return;
+
+    router.push({
+      pathname: "/profile-detail",
+      params: {
+        userId: String(targetUserId),
+        name: item.userName,
+        image: item.userProfileImage ?? "",
+      },
+    } as never);
+  };
+
   const renderNotification = ({ item }: { item: NotificationData }) => (
     <NotificationItem
       isRead={item.isRead}
-      onPress={() => markNotificationAsRead(item)}
+      onPress={() => openNotificationDetail(item)}
       userId={item.userId}
       userName={item.userName}
       userProfileImage={item.userProfileImage}
@@ -233,24 +292,114 @@ export default function NotificationsScreen() {
   );
 }
 
-function mapNotificationPages(data?: { pages: { items: INotification[] }[] }) {
+function mapNotificationPages(
+  data?: { pages: { items: INotification[] }[] },
+  clubs: { clubId: number | string; name: string }[] = [],
+) {
   return (
     uniqueBy(
       data?.pages.flatMap((page) =>
-        page.items.map((item) => ({
-          id: String(item.notificationId),
-          apiId: item.notificationId,
-          isRead: item.isRead,
-          userId: String(item.sender?.id ?? item.notificationId),
-          userName: item.sender?.nickname ?? "EUM",
-          userProfileImage: item.sender?.profileImageUrl ?? undefined,
-          notificationContent: item.body || item.title,
-          timestamp: new Date(item.createdAt),
-        })),
+        page.items.map((item) => {
+          const clubId =
+            resolveNotificationClubId(item) ??
+            resolveNotificationClubIdByName(item, clubs);
+          const articleId = resolveNotificationArticleId(item);
+          const chatRoomId = resolveNotificationChatRoomId(item);
+
+          return {
+            id: String(item.notificationId),
+            apiId: item.notificationId,
+            isRead: item.isRead,
+            userId: String(item.sender?.id ?? item.notificationId),
+            userName: item.sender?.nickname ?? "EUM",
+            userProfileImage: item.sender?.profileImageUrl ?? undefined,
+            clubId,
+            articleId,
+            chatRoomId,
+            notificationContent: item.body || item.title,
+            timestamp: new Date(item.createdAt),
+          };
+        }),
       ) ?? [],
       (item) => item.id,
     )
   );
+}
+
+function resolveNotificationClubId(item: INotification) {
+  const candidates = [
+    item.target?.clubId,
+    item.clubId,
+    item.club?.clubId,
+    item.club?.id,
+    item.data?.clubId,
+    item.data?.club?.clubId,
+    item.data?.club?.id,
+    item.payload?.clubId,
+    item.payload?.club?.clubId,
+    item.payload?.club?.id,
+  ];
+
+  const clubId = candidates.find((value) => {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) && parsed > 0;
+  });
+
+  return clubId ? String(clubId) : undefined;
+}
+
+function resolveNotificationArticleId(item: INotification) {
+  const candidates = [
+    item.target?.articleId,
+    item.data?.articleId,
+    item.data?.postId,
+    item.payload?.articleId,
+    item.payload?.postId,
+  ];
+
+  const articleId = candidates.find((value) => {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) && parsed > 0;
+  });
+
+  return articleId ? String(articleId) : undefined;
+}
+
+function resolveNotificationChatRoomId(item: INotification) {
+  const candidates = [
+    item.target?.chatRoomId,
+    item.target?.roomId,
+    item.chatRoomId,
+    item.roomId,
+    item.data?.chatRoomId,
+    item.data?.roomId,
+    item.payload?.chatRoomId,
+    item.payload?.roomId,
+  ];
+
+  const chatRoomId = candidates.find((value) => {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) && parsed > 0;
+  });
+
+  return chatRoomId ? String(chatRoomId) : undefined;
+}
+
+function resolveNotificationClubIdByName(
+  item: INotification,
+  clubs: { clubId: number | string; name: string }[],
+) {
+  const clubName =
+    extractBracketedClubName(item.body) ?? extractBracketedClubName(item.title);
+  if (!clubName) return undefined;
+
+  const matchedClub = clubs.find((club) => club.name.trim() === clubName);
+  return matchedClub ? String(matchedClub.clubId) : undefined;
+}
+
+function extractBracketedClubName(value?: string | null) {
+  const match = value?.match(/^\s*\[([^\]]+)\]/);
+  return match?.[1]?.trim();
 }
 
 interface NotificationTabButtonProps {

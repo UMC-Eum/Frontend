@@ -40,7 +40,7 @@ export const getNotifications = async (params: {
 };
 
 /** 알림 읽음 처리 (PATCH) */
-export const readNotification = async (notificationId: number) => {
+export const readNotification = async (notificationId: number | string) => {
   const { data } = await api.patch<ApiSuccessResponse<null>>(
     `/v1/notifications/${notificationId}/read`,
   );
