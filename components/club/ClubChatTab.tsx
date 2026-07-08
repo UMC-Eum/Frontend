@@ -216,7 +216,10 @@ export default function ClubChatTab({
   useEffect(() => {
     if (!hasRoom) return;
 
-    void queryClient.cancelQueries({ queryKey: queryKeys.chats.all });
+    void queryClient.cancelQueries({
+      queryKey: queryKeys.chats.rooms(PAGE_SIZE),
+      exact: true,
+    });
     markChatRoomUnreadCountInCache(queryClient, chatRoomId, 0);
   }, [chatRoomId, hasRoom, queryClient]);
 

@@ -116,10 +116,11 @@ export default function ChatRoom() {
     roomDetail?.memberCount ?? clubRoomListItem?.memberCount ?? null;
   const shouldUseDirectChat =
     hasChatRoomId && Boolean(roomDetail) && !isClubRoom;
+  const shouldFetchMessages = hasChatRoomId && !isClubRoom;
   const messagesQuery = useChatMessagesInfiniteQuery(
     chatRoomId,
     30,
-    shouldUseDirectChat,
+    shouldFetchMessages,
   );
   const peerUserId = roomDetail?.peer?.userId;
   const blocksQuery = useBlocksInfiniteQuery(100, {
@@ -212,6 +213,10 @@ export default function ChatRoom() {
     () => [...visibleMessages].reverse(),
     [visibleMessages],
   );
+  const isMessageListPreparing =
+    roomDetailQuery.isLoading ||
+    (shouldFetchMessages && messagesQuery.isLoading);
+  const hasMessageListError = roomDetailQuery.isError || messagesQuery.isError;
   const peerUserIdRef = useRef<number | undefined>(undefined);
   const peerProfileImageUrlRef = useRef<string | undefined>(undefined);
   const isBlockedRef = useRef(false);
@@ -331,7 +336,10 @@ export default function ChatRoom() {
   useEffect(() => {
     if (!hasChatRoomId) return;
 
-    void queryClient.cancelQueries({ queryKey: queryKeys.chats.all });
+    void queryClient.cancelQueries({
+      queryKey: queryKeys.chats.rooms(30),
+      exact: true,
+    });
     markChatRoomUnreadCountInCache(queryClient, chatRoomId, 0);
   }, [chatRoomId, hasChatRoomId, queryClient]);
 
@@ -1059,35 +1067,37 @@ export default function ChatRoom() {
     );
   }
 
-  const renderProfileInfo = () => (
-    <View style={styles.profileHeader}>
-      {profile ? (
-        <>
-          {profile.image ? (
-            <Image
-              source={{ uri: profile.image }}
-              style={styles.profileAvatar}
-            />
-          ) : (
-            <View style={styles.profileAvatar} />
-          )}
-          <Text style={styles.profileName}>{profile.name}</Text>
-          <Text style={styles.profileInfo}>
-            {profile.age}세 · {profile.area}
-          </Text>
-          <Text style={styles.profileWelcomeText}>
-            서로를 알아가는 첫 이야기,{"\n"}편하게 시작해볼까요?
-          </Text>
-        </>
-      ) : roomDetailQuery.isLoading ? (
-        <ActivityIndicator color="#FF3E70" />
-      ) : (
-        <Text style={styles.profileWelcomeText}>
-          대화방 정보를 불러오지 못했습니다.
-        </Text>
-      )}
-    </View>
-  );
+  const renderProfileInfo = () => {
+    if (!profile && !roomDetailQuery.isLoading) {
+      return null;
+    }
+
+    return (
+      <View style={styles.profileHeader}>
+        {profile ? (
+          <>
+            {profile.image ? (
+              <Image
+                source={{ uri: profile.image }}
+                style={styles.profileAvatar}
+              />
+            ) : (
+              <View style={styles.profileAvatar} />
+            )}
+            <Text style={styles.profileName}>{profile.name}</Text>
+            <Text style={styles.profileInfo}>
+              {profile.age}세 · {profile.area}
+            </Text>
+            <Text style={styles.profileWelcomeText}>
+              서로를 알아가는 첫 이야기,{"\n"}편하게 시작해볼까요?
+            </Text>
+          </>
+        ) : (
+          <ActivityIndicator color="#FF3E70" />
+        )}
+      </View>
+    );
+  };
 
   return (
     <SafeAreaView style={styles.safeArea} edges={["top"]}>
@@ -1152,9 +1162,18 @@ export default function ChatRoom() {
               </>
             }
             ListEmptyComponent={
-              messagesQuery.isLoading ? (
+              isMessageListPreparing ? (
                 <View style={styles.emptyMessages}>
                   <ActivityIndicator color="#FF3E70" />
+                </View>
+              ) : hasMessageListError ? (
+                <View style={styles.emptyMessages}>
+                  <Text style={styles.emptyMessagesTitle}>
+                    대화 내역을 불러오지 못했어요
+                  </Text>
+                  <Text style={styles.emptyMessagesText}>
+                    잠시 후 다시 시도해주세요.
+                  </Text>
                 </View>
               ) : (
                 <View style={styles.emptyMessages}>
@@ -1162,9 +1181,7 @@ export default function ChatRoom() {
                     아직 주고받은 메시지가 없어요
                   </Text>
                   <Text style={styles.emptyMessagesText}>
-                    {messagesQuery.isError
-                      ? "대화 내역을 불러오지 못했습니다. 잠시 후 다시 시도해주세요."
-                      : "첫 메시지를 보내 대화를 시작해보세요."}
+                    첫 메시지를 보내 대화를 시작해보세요.
                   </Text>
                 </View>
               )

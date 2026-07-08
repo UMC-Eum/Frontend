@@ -16,7 +16,15 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
+import type { SvgProps } from "react-native-svg";
 
+import FoodCategoryIcon from "@/assets/images/club-categories/figma-food.svg";
+import HobbyCategoryIcon from "@/assets/images/club-categories/figma-hobby.svg";
+import OthersCategoryIcon from "@/assets/images/club-categories/figma-others.svg";
+import SocialCategoryIcon from "@/assets/images/club-categories/figma-social.svg";
+import SportsCategoryIcon from "@/assets/images/club-categories/figma-sports.svg";
+import StudyCategoryIcon from "@/assets/images/club-categories/figma-study.svg";
+import VolunteerCategoryIcon from "@/assets/images/club-categories/figma-volunteer.svg";
 import {
   useRecommendationsInfiniteQuery,
   useSendRecommendationHeartMutation,
@@ -54,6 +62,7 @@ const GRAY = "#A0A0A0";
 const LIGHT_GRAY = "#E8E8E8";
 
 type HomeTab = "home" | "club";
+type ClubCategoryIcon = React.ComponentType<SvgProps>;
 
 type Profile = {
   id: string;
@@ -76,43 +85,43 @@ const CLUB_CATEGORIES = [
     label: "운동 / 스포츠",
     searchLabel: "운동 / 스포츠",
     value: "SPORTS",
-    image: require("../../assets/images/club-categories/figma-sports.png"),
+    Icon: SportsCategoryIcon,
   },
   {
     label: "봉사활동",
     searchLabel: "봉사활동",
     value: "VOLUNTEER",
-    image: require("../../assets/images/club-categories/figma-volunteer.png"),
+    Icon: VolunteerCategoryIcon,
   },
   {
     label: "독서 / 공부",
     searchLabel: "독서 / 공부",
     value: "STUDY",
-    image: require("../../assets/images/club-categories/figma-study.png"),
+    Icon: StudyCategoryIcon,
   },
   {
     label: "취미 / 여가",
     searchLabel: "취미 / 여가",
     value: "HOBBY",
-    image: require("../../assets/images/club-categories/figma-hobby.png"),
+    Icon: HobbyCategoryIcon,
   },
   {
     label: "음식 / 맛집",
     searchLabel: "음식 / 맛집",
     value: "FOOD",
-    image: require("../../assets/images/club-categories/figma-food.png"),
+    Icon: FoodCategoryIcon,
   },
   {
     label: "문화/예술",
     searchLabel: "문화/예술",
     value: "CULTURE_ART",
-    image: require("../../assets/images/club-categories/figma-culture-art.png"),
+    Icon: SocialCategoryIcon,
   },
   {
     label: "기타",
     searchLabel: "기타",
     value: "OTHERS",
-    image: require("../../assets/images/club-categories/figma-others.png"),
+    Icon: OthersCategoryIcon,
   },
 ] as const;
 
@@ -811,7 +820,7 @@ function ClubHomeContent({
             <ClubCategoryButton
               key={category.label}
               label={category.label}
-              image={category.image}
+              Icon={category.Icon}
               onPress={() =>
                 router.push({
                   pathname: "/search",
@@ -950,11 +959,11 @@ function MyClubCard({
 
 function ClubCategoryButton({
   label,
-  image,
+  Icon,
   onPress,
 }: {
   label: string;
-  image: (typeof CLUB_CATEGORIES)[number]["image"];
+  Icon: ClubCategoryIcon;
   onPress: () => void;
 }) {
   return (
@@ -964,7 +973,7 @@ function ClubCategoryButton({
       accessibilityRole="button"
     >
       <View style={styles.clubCategoryIconBox}>
-        <Image source={image} style={styles.clubCategoryIcon} contentFit="contain" />
+        <Icon width="100%" height="100%" />
       </View>
       <Text style={styles.clubCategoryLabel} numberOfLines={1}>
         {label}
@@ -1562,10 +1571,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "#F7F7F8",
-  },
-  clubCategoryIcon: {
-    width: 62,
-    height: 62,
   },
   clubCategoryLabel: {
     width: 76,
