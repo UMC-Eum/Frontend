@@ -296,6 +296,13 @@ export default function ProfileDetailScreen() {
     await shareProfile(targetUserId, profile?.name);
   };
 
+  const openClubDetail = (clubId: string) => {
+    router.push({
+      pathname: "/club/detail",
+      params: { clubId },
+    } as never);
+  };
+
   const handleStartChat = async () => {
     const targetUserId = getTargetUserId();
     if (!targetUserId || createChatRoomMutation.isPending) return;
@@ -521,10 +528,12 @@ export default function ProfileDetailScreen() {
           <ProfileClubSection
             title="이런 동호회를 참여하고있어요"
             clubs={profile.joinedClubs}
+            onClubPress={openClubDetail}
           />
           <ProfileClubSection
             title="이런 동호회를 운영해요"
             clubs={profile.hostedClubs}
+            onClubPress={openClubDetail}
           />
         </View>
       </ScrollView>
@@ -698,9 +707,11 @@ function ProfileChipSection({
 function ProfileClubSection({
   title,
   clubs,
+  onClubPress,
 }: {
   title: string;
   clubs: ProfileClub[];
+  onClubPress: (clubId: string) => void;
 }) {
   if (clubs.length === 0) return null;
 
@@ -708,7 +719,13 @@ function ProfileClubSection({
     <View style={styles.clubSection}>
       <SectionTitle title={title} />
       {clubs.map((club) => (
-        <View key={club.id} style={styles.clubCard}>
+        <Pressable
+          key={club.id}
+          style={styles.clubCard}
+          onPress={() => onClubPress(club.id)}
+          accessibilityRole="button"
+          accessibilityLabel={`${club.title} 동호회 상세 보기`}
+        >
           {club.thumbnailUrl ? (
             <Image
               source={{ uri: club.thumbnailUrl }}
@@ -732,7 +749,7 @@ function ProfileClubSection({
               </View>
             ) : null}
           </View>
-        </View>
+        </Pressable>
       ))}
     </View>
   );
