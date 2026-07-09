@@ -3,7 +3,9 @@ import {
   DefaultTheme,
   ThemeProvider,
 } from "@react-navigation/native";
-import { QueryClientProvider } from "@tanstack/react-query";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { createAsyncStoragePersister } from "@tanstack/query-async-storage-persister";
+import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
@@ -20,6 +22,7 @@ import { getMyProfile } from "@/api/users/usersApi";
 import GlobalUiOverlay from "@/components/GlobalUiOverlay";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
+import { usePrefetchAppData } from "@/hooks/usePrefetchAppData";
 import { useStableQueryClient } from "@/hooks/use-query-client";
 import { useAuthStore } from "@/stores/authStore";
 
@@ -27,11 +30,18 @@ export const unstable_settings = {
   anchor: "(tabs)",
 };
 
+// 쿼리 캐시를 디스크에 보관해 앱 재시작 직후에도 마지막 데이터가 즉시 뜬다.
+// (이미지는 expo-image가 자체 디스크 캐시로 이미 보관 중)
+// maxAge(1시간)가 지난 캐시는 복원하지 않고, 복원된 stale 데이터는 백그라운드에서 자동 갱신된다.
+const queryPersister = createAsyncStoragePersister({ storage: AsyncStorage });
+const QUERY_PERSIST_MAX_AGE_MS = 60 * 60_000;
+
 export default function RootLayout() {
   const colorScheme = useColorScheme();
   const queryClient = useStableQueryClient();
 
   usePushNotifications();
+  usePrefetchAppData(queryClient);
 
   useEffect(() => {
     const initializeAuth = async () => {
@@ -62,7 +72,14 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider initialMetrics={initialWindowMetrics}>
       <KeyboardProvider>
-        <QueryClientProvider client={queryClient}>
+        <PersistQueryClientProvider
+          client={queryClient}
+          persistOptions={{
+            persister: queryPersister,
+            maxAge: QUERY_PERSIST_MAX_AGE_MS,
+            buster: "v1",
+          }}
+        >
           <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
             <Stack screenOptions={{ animation: "none" }}>
               <Stack.Screen name="onboarding" options={{ headerShown: false }} />
@@ -98,7 +115,7 @@ export default function RootLayout() {
             <GlobalUiOverlay />
             <StatusBar style="auto" />
           </ThemeProvider>
-        </QueryClientProvider>
+        </PersistQueryClientProvider>
       </KeyboardProvider>
     </SafeAreaProvider>
   );

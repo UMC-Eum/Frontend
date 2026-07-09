@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { Image } from "expo-image";
+import { Image } from "@/components/Image";
 import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import React, { useState } from "react";

@@ -3,7 +3,6 @@ import { useRouter } from "expo-router";
 import { useCallback, useState } from "react";
 import {
   Alert,
-  Image,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -12,6 +11,8 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+
+import { Image } from "@/components/Image";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { MyClubRowListSkeleton } from "@/components/skeletons";
@@ -145,7 +146,6 @@ export default function MyTabScreen() {
                 <Image
                   source={{ uri: profile?.profileImageUrl || PROFILE_IMAGE }}
                   style={styles.avatarImage}
-                  resizeMode="cover"
                 />
               </View>
               <View style={styles.editBadge}>

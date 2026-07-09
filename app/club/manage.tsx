@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { Image } from "expo-image";
+import { Image } from "@/components/Image";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import React, { useMemo, useState } from "react";

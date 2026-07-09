@@ -26,6 +26,7 @@ import {
   View,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
+import { Image as CachedImage } from "@/components/Image";
 import { KeyboardAvoidingView } from "@/components/KeyboardCompat";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -1101,7 +1102,7 @@ export default function ChatRoom() {
         {profile ? (
           <>
             {profile.image ? (
-              <Image
+              <CachedImage
                 source={{ uri: profile.image }}
                 style={styles.profileAvatar}
               />

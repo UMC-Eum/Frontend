@@ -1,6 +1,6 @@
 import { KeyboardAvoidingView } from "@/components/KeyboardCompat";
 import { Ionicons } from "@expo/vector-icons";
-import { Image } from "expo-image";
+import { Image } from "@/components/Image";
 import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
