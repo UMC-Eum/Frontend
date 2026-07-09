@@ -5,7 +5,6 @@ import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  Image,
   Modal,
   Platform,
   Pressable,
@@ -15,6 +14,8 @@ import {
   TextInput,
   View,
 } from "react-native";
+
+import { Image } from "@/components/Image";
 import { KeyboardAvoidingView } from "@/components/KeyboardCompat";
 import {
   SafeAreaView,
@@ -281,7 +282,6 @@ export default function ProfileEditScreen() {
               <Image
                 source={{ uri: imageUri || DEFAULT_PROFILE_IMAGE_URI }}
                 style={styles.avatarImage}
-                resizeMode="cover"
               />
             </View>
             <View style={styles.cameraBadge}>

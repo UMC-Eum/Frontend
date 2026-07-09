@@ -1,6 +1,6 @@
 import { KeyboardAvoidingView } from "@/components/KeyboardCompat";
 import { Ionicons } from "@expo/vector-icons";
-import { Image } from "expo-image";
+import { Image } from "@/components/Image";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import React, { useEffect, useMemo, useRef, useState } from "react";
@@ -33,6 +33,7 @@ import {
   useArticlesInfiniteQuery,
 } from "@/hooks/api/useArticles";
 import {
+  useCachedClubThumbnail,
   useClubDetailQuery,
   useJoinClubMutation,
   useLeaveClubMutation,
@@ -143,6 +144,7 @@ export default function ClubDetailScreen() {
   const [isGuestSheetVisible, setGuestSheetVisible] = useState(false);
 
   const detailQuery = useClubDetailQuery(clubId);
+  const cachedThumbnail = useCachedClubThumbnail(clubId);
   const joinMutation = useJoinClubMutation(clubId);
   const leaveMutation = useLeaveClubMutation();
   const deleteClubMutation = useDeleteClubMutation();
@@ -211,7 +213,8 @@ export default function ClubDetailScreen() {
       })),
     ) ?? [];
   // ponytail: 서버 썸네일이 없을 때만 placeholder 유지
-  const heroImage = detail?.thumbnailUrl ?? HERO_IMAGE;
+  // 상세 응답 전에는 목록 캐시의 썸네일을 먼저 보여줘 회색 폴백 깜빡임을 없앤다
+  const heroImage = detail?.thumbnailUrl ?? cachedThumbnail ?? HERO_IMAGE;
   const clubTitle = detail?.name ?? "";
   const categoryText = detail
     ? (CLUB_CATEGORY_LABELS[detail.category] ?? detail.category)
@@ -375,6 +378,8 @@ export default function ClubDetailScreen() {
         source={{ uri: heroImage }}
         style={styles.heroImage}
         contentFit="cover"
+        cachePolicy="memory-disk"
+        transition={100}
       />
 
       <View style={styles.summary}>

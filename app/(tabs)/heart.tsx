@@ -6,7 +6,6 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
-  ImageBackground,
   InteractionManager,
   Pressable,
   RefreshControl,
@@ -15,6 +14,8 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
+
+import { ImageBackground } from "@/components/Image";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
 
