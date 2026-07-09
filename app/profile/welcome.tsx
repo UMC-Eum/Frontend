@@ -10,11 +10,13 @@ import {
 import { isAxiosError } from "axios";
 import type { AudioPlayer } from "expo-audio";
 import { useRouter } from "expo-router";
+import { useQueryClient } from "@tanstack/react-query";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Alert, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { postPresign } from "@/api/onboarding/onboardingApi";
+import { getMyProfile } from "@/api/users/usersApi";
 import {
   AnalyzingView,
   CompletePreviewView,
@@ -32,10 +34,8 @@ import {
   PROFILE_INTEREST_KEYWORDS,
   PROFILE_PERSONALITY_KEYWORDS,
 } from "@/constants/profileKeywords";
-import {
-  usePostProfileMutation,
-  usePostVoiceAnalyzeMutation,
-} from "@/hooks/api/useOnboarding";
+import { usePostVoiceAnalyzeMutation } from "@/hooks/api/useOnboarding";
+import { queryKeys } from "@/hooks/api/queryKeys";
 import { useUpdateMyProfileMutation } from "@/hooks/api/useUsers";
 import { useAuthStore } from "@/stores/authStore";
 import { useOnboardingDraftStore } from "@/stores/onboardingDraftStore";
@@ -88,8 +88,10 @@ const MORE_INTEREST_KEYWORDS: VoiceKeyword[] = [
 
 export default function WelcomeScreen() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const authNickname = useAuthStore((state) => state.user?.nickname);
   const completeOnboarding = useAuthStore((state) => state.completeOnboarding);
+  const setAuthUser = useAuthStore((state) => state.setUser);
   const draftNickname = useOnboardingDraftStore((state) => state.nickname);
   const draftAge = useOnboardingDraftStore((state) => state.age);
   const draftGender = useOnboardingDraftStore((state) => state.gender);
@@ -121,7 +123,6 @@ export default function WelcomeScreen() {
   );
   const setVibeVector = useOnboardingDraftStore((state) => state.setVibeVector);
   const voiceAnalyzeMutation = usePostVoiceAnalyzeMutation();
-  const postProfileMutation = usePostProfileMutation();
   const updateMyProfileMutation = useUpdateMyProfileMutation();
   const [step, setStep] = useState<VoiceStep>("idle");
   const [recordingSeconds, setRecordingSeconds] = useState(0);
@@ -571,21 +572,17 @@ export default function WelcomeScreen() {
         console.log("[Profile Update] submit", profileUpdatePayload);
       }
 
-      // 온보딩 프로필 등록(POST /v1/onboarding/profile)이 nickname을 확정하고
-      // 서버측 온보딩 완료를 처리한다. introAudioUrl이 필수라 음성이 있을 때만 호출한다.
-      if (safeIntroAudioUrl) {
-        await postProfileMutation.mutateAsync({
-          nickname: userName,
-          gender: draftGender ?? DEFAULT_GENDER,
-          birthDate: resolveBirthDate(draftBirthDate, draftAge),
-          areaCode: draftAreaCode ?? DEFAULT_AREA_CODE,
-          introText: introText || generatedIntro,
-          introAudioUrl: safeIntroAudioUrl,
-        });
-      }
-
-      // 키워드/성격/이상형 등 나머지 프로필 필드는 PATCH로 이어서 반영한다.
+      // 음성 분석 단계에서 POST /v1/onboarding/profile로 프로필 생성이 끝난다.
+      // 마지막 단계에서는 사진/소개/키워드 등 나머지 필드를 PATCH로 보강한다.
       await updateMyProfileMutation.mutateAsync(profileUpdatePayload);
+      const profile = await queryClient.fetchQuery({
+        queryKey: queryKeys.users.me(),
+        queryFn: getMyProfile,
+      });
+      setAuthUser({
+        userId: profile.userId,
+        nickname: profile.nickname,
+      });
       completeOnboarding();
     };
 
@@ -603,6 +600,8 @@ export default function WelcomeScreen() {
           "Profile Update Error:",
           isAxiosError(error) ? error.response?.data : error,
         );
+        Alert.alert("프로필 저장 실패", "프로필 정보를 다시 저장해주세요.");
+        return;
       }
 
       setSelectedKeywords(keywords);
@@ -619,9 +618,7 @@ export default function WelcomeScreen() {
         "Profile Update Error:",
         isAxiosError(error) ? error.response?.data : error,
       );
-
-      setSelectedKeywords(keywords);
-      router.replace("/(tabs)" as any);
+      Alert.alert("프로필 저장 실패", "프로필 정보를 다시 저장해주세요.");
     }
   };
 
@@ -662,9 +659,7 @@ export default function WelcomeScreen() {
           locationName={draftAreaName ?? "거주지 미선택"}
           profileImageUri={profileImageUri}
           selectedKeywords={displayKeywords}
-          isSubmitting={
-            postProfileMutation.isPending || updateMyProfileMutation.isPending
-          }
+          isSubmitting={updateMyProfileMutation.isPending}
           onStart={handleStartApp}
         />
       </SafeAreaView>
