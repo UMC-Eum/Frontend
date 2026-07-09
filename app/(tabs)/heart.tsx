@@ -69,7 +69,10 @@ type OptimisticHeartState = {
 export default function HeartScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { tab } = useLocalSearchParams<{ tab?: string }>();
+  const { tab, tabPressAt } = useLocalSearchParams<{
+    tab?: string;
+    tabPressAt?: string;
+  }>();
   const { width } = useWindowDimensions();
   const [activeTab, setActiveTab] = useState<HeartTab>(
     tab === "sent" ? "sent" : "received",
@@ -122,9 +125,11 @@ export default function HeartScreen() {
   const isInitialLoading = activeQuery.isLoading && profiles.length === 0;
   const receivedCount = receivedProfiles.length;
 
+  // 화면이 이미 mount된 상태에서 같은 tab 값으로 재진입해도(연속 "마음에들어요")
+  // tabPressAt이 매번 바뀌므로 다시 적용된다. navbar 탭 클릭은 tab 없이 와서 통과.
   useEffect(() => {
     if (tab === "sent" || tab === "received") setActiveTab(tab);
-  }, [tab]);
+  }, [tab, tabPressAt]);
 
   // 마음함이 포커스되면 현재까지 받은 마음을 읽음 처리해 navbar dot을 끈다.
   const markHeartsSeen = useHeartBadgeStore((state) => state.markHeartsSeen);
