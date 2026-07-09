@@ -70,6 +70,25 @@ export const getMeetingAttendees = async (
   return data.success.data;
 };
 
+export const getMeetingRequests = async (clubId: number, meetingId: number) => {
+  const { data } = await api.get<
+    ApiSuccessResponse<DTO.IMeetingRequestsResponse>
+  >(`/v1/clubs/${clubId}/meetings/${meetingId}/attendees/requests`);
+  return data.success.data;
+};
+
+export const updateMeetingAttendeeStatus = async (
+  clubId: number,
+  meetingId: number,
+  userId: number,
+  body: DTO.IMeetingAttendeeStatusUpdateRequest,
+) => {
+  const { data } = await api.patch<
+    ApiSuccessResponse<DTO.IMeetingAttendeeStatusUpdateResponse>
+  >(`/v1/clubs/${clubId}/meetings/${meetingId}/attendees/${userId}`, body);
+  return data.success.data;
+};
+
 export const cancelMeetingAttendance = async (
   clubId: number,
   meetingId: number,

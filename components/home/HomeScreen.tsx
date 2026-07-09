@@ -745,7 +745,8 @@ function ClubHomeContent({
     Math.floor((gridAvailableWidth - myClubCardWidth * 3) / 2),
   );
   const recommendedClubs = mapClubRows(recommendedData, activeAreaCode);
-  const todayClubs = mapClubRows(todayRecommendedQuery.data, activeAreaCode);
+  // ponytail: today-recommended는 지역 무관 전국 큐레이션이라 activeAreaCode로 거르지 않는다.
+  const todayClubs = mapClubRows(todayRecommendedQuery.data);
 
   return (
     <View style={styles.clubHomeContent}>

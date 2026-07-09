@@ -59,6 +59,7 @@ import {
   IClubMeetingSummary,
 } from "@/types/api/club/clubDTO";
 import { ClubPostCategory } from "@/types/api/clubs/clubPostsDTO";
+import { MeetingLoadMoreButton } from "@/components/meeting/MeetingManageParts";
 import {
   formatDday,
   formatOccurrenceDate,
@@ -72,6 +73,7 @@ import {
   IconWrite,
 } from "@/components/SvgIcons";
 import type {
+  MeetingAttendanceStatus,
   IMeetingDetailResponse,
   IMeetingListItem,
 } from "@/types/api/meetings/meetingsDTO";
@@ -334,17 +336,36 @@ export default function ClubDetailScreen() {
     },
   ];
 
+  // 신고는 가입 여부와 관계없이 누구나 할 수 있어야 한다.
+  const reportClubItem: ActionSheetItem = {
+    key: "report",
+    renderIcon: () => (
+      <Ionicons name="alert-circle-outline" size={28} color="#636970" />
+    ),
+    title: "동호회 신고",
+    description: "부적절한 동호회를 신고해요",
+    onPress: () =>
+      router.push({
+        pathname: "/club/report",
+        params: { clubId: String(clubId) },
+      } as never),
+  };
+
   // 가입 전 게스트용 더보기 메뉴: 아직 관리 권한이 없어 신고만 제공한다.
-  const guestSheetItems: ActionSheetItem[] = [
+  const guestSheetItems: ActionSheetItem[] = [reportClubItem];
+
+  // 가입한 일반 멤버용 더보기 메뉴: 신고와 탈퇴를 함께 제공한다.
+  const memberSheetItems: ActionSheetItem[] = [
+    reportClubItem,
     {
-      key: "report",
+      key: "leave",
       renderIcon: () => (
-        <Ionicons name="alert-circle-outline" size={28} color="#636970" />
+        <Ionicons name="exit-outline" size={28} color="#F03F40" />
       ),
-      title: "동호회 신고",
-      description: "부적절한 동호회를 신고해요",
-      onPress: () =>
-        Alert.alert("신고 접수", "신고가 접수되었어요. 검토 후 조치할게요."),
+      title: "동호회 탈퇴",
+      description: "탈퇴 후 복구가 불가능해요",
+      danger: true,
+      onPress: () => setLeaveConfirmVisible(true),
     },
   ];
 
@@ -545,7 +566,11 @@ export default function ClubDetailScreen() {
               onPostPress={(postId) =>
                 router.push({
                   pathname: "/club/post-detail",
-                  params: { postId: String(postId), clubId: String(clubId) },
+                  params: {
+                    postId: String(postId),
+                    clubId: String(clubId),
+                    canPin: String(viewer.isHost),
+                  },
                 } as never)
               }
             />
@@ -573,7 +598,7 @@ export default function ClubDetailScreen() {
           onPress={() =>
             router.push({
               pathname: "/club/post-create",
-              params: { clubId: String(clubId) },
+              params: { clubId: String(clubId), canPin: String(viewer.isHost) },
             } as never)
           }
         >
@@ -634,13 +659,10 @@ export default function ClubDetailScreen() {
         onSubmit={handleJoinSubmit}
       />
 
-      <LeaveActionSheet
+      <ClubActionSheet
         visible={isLeaveSheetVisible}
+        items={memberSheetItems}
         onClose={() => setLeaveSheetVisible(false)}
-        onPressLeave={() => {
-          setLeaveSheetVisible(false);
-          setLeaveConfirmVisible(true);
-        }}
       />
 
       <LeaveConfirmModal
@@ -927,6 +949,9 @@ function MeetingCard({
   onPress: () => void;
   onPressManage: () => void;
 }) {
+  const [joinStatus, setJoinStatus] = useState<MeetingAttendanceStatus | null>(
+    null,
+  );
   const shouldLoadDetail =
     !meeting.spot ||
     meeting.cost === undefined ||
@@ -959,7 +984,9 @@ function MeetingCard({
     clubId,
     displayMeeting.meetingId,
   );
-  const isAttending = displayMeeting.isAttending ?? false;
+  const isJoinPending = joinStatus === "PENDING";
+  const isAttending =
+    joinStatus === "ACTIVE" || (displayMeeting.isAttending ?? false);
   const attendeeCount = displayMeeting.attendeeCount ?? 0;
   const attendeeCountText =
     typeof displayMeeting.capacity === "number"
@@ -970,9 +997,12 @@ function MeetingCard({
   const attendeesPreview = displayMeeting.attendeesPreview ?? [];
 
   const handleAttendMeeting = () => {
-    if (isAttending || attendMeetingMutation.isPending) return;
+    if (isAttending || isJoinPending || attendMeetingMutation.isPending) return;
 
     attendMeetingMutation.mutate(undefined, {
+      onSuccess: (response) => {
+        setJoinStatus(response?.status ?? "ACTIVE");
+      },
       onError: (error) => {
         Alert.alert(
           "참석 실패",
@@ -1052,26 +1082,28 @@ function MeetingCard({
           style={[
             styles.attendanceButton,
             !viewer.canManageMeeting &&
-              isAttending &&
+              (isAttending || isJoinPending) &&
               styles.attendanceButtonDisabled,
           ]}
           onPress={viewer.canManageMeeting ? onPressManage : handleAttendMeeting}
           disabled={
             !viewer.canManageMeeting &&
-            (isAttending || attendMeetingMutation.isPending)
+            (isAttending || isJoinPending || attendMeetingMutation.isPending)
           }
         >
           <Text
             style={[
               styles.attendanceButtonText,
               !viewer.canManageMeeting &&
-                isAttending &&
+                (isAttending || isJoinPending) &&
                 styles.attendanceButtonTextDisabled,
             ]}
           >
             {viewer.canManageMeeting
               ? "참석 현황 확인"
-              : isAttending
+              : isJoinPending
+                ? "참석 신청됨"
+                : isAttending
                 ? "참석 중"
                 : attendMeetingMutation.isPending
                   ? "처리 중..."
@@ -1106,6 +1138,9 @@ function MeetingDetailSheet({
   const translateY = useRef(new Animated.Value(screenHeight)).current;
   const backdropOpacity = useRef(new Animated.Value(0)).current;
   const [isMounted, setIsMounted] = useState(visible);
+  const [joinStatus, setJoinStatus] = useState<MeetingAttendanceStatus | null>(
+    null,
+  );
   const meetingId = meeting?.meetingId ?? fallbackMeeting?.meetingId ?? 0;
   const attendMeetingMutation = useAttendMeetingMutation(clubId, meetingId);
   const attendeesQuery = useMeetingAttendeesInfiniteQuery(
@@ -1152,6 +1187,10 @@ function MeetingDetailSheet({
     });
   }, [visible, screenHeight, translateY, backdropOpacity]);
 
+  useEffect(() => {
+    setJoinStatus(null);
+  }, [meetingId]);
+
   if (!isMounted || (!meeting && !fallbackMeeting)) return null;
 
   const nextOccurrenceAt =
@@ -1169,8 +1208,12 @@ function MeetingDetailSheet({
   const capacity = meeting?.capacity ?? fallbackMeeting?.capacity;
   const attendeeCountText =
     typeof capacity === "number" ? `${attendeeCount}/${capacity}` : `${attendeeCount}`;
-  const isAttending = meeting?.isAttending ?? fallbackMeeting?.isAttending ?? false;
-  const attendDisabled = isAttending || attendMeetingMutation.isPending;
+  const isJoinPending = joinStatus === "PENDING";
+  const isAttending =
+    joinStatus === "ACTIVE" ||
+    (meeting?.isAttending ?? fallbackMeeting?.isAttending ?? false);
+  const attendDisabled =
+    isAttending || isJoinPending || attendMeetingMutation.isPending;
   const meetingTitle = meeting?.name ?? fallbackMeeting?.name ?? "";
   const meetingDateTitle =
     meeting?.dateLabel ?? getMeetingCardDateText(fallbackMeeting) ?? "-";
@@ -1188,6 +1231,9 @@ function MeetingDetailSheet({
     if (!meetingId || attendDisabled) return;
 
     attendMeetingMutation.mutate(undefined, {
+      onSuccess: (response) => {
+        setJoinStatus(response?.status ?? "ACTIVE");
+      },
       onError: (error) => {
         Alert.alert(
           "참석 실패",
@@ -1264,11 +1310,22 @@ function MeetingDetailSheet({
             <Text style={styles.meetingSheetSectionTitle}>참석자</Text>
             <Text style={styles.meetingAttendeeCount}>{attendeeCountText}</Text>
           </View>
-          <View style={styles.meetingAttendeeList}>
-            {attendeesPreview.slice(0, 4).map((attendee) => (
-              <MeetingSheetAttendee key={attendee.userId} attendee={attendee} />
-            ))}
-          </View>
+          <ScrollView
+            style={styles.meetingAttendeeScroll}
+            nestedScrollEnabled
+          >
+            <View style={styles.meetingAttendeeList}>
+              {attendeesPreview.map((attendee) => (
+                <MeetingSheetAttendee key={attendee.userId} attendee={attendee} />
+              ))}
+            </View>
+            {attendeesQuery.hasNextPage ? (
+              <MeetingLoadMoreButton
+                isLoading={attendeesQuery.isFetchingNextPage}
+                onPress={() => attendeesQuery.fetchNextPage()}
+              />
+            ) : null}
+          </ScrollView>
 
           {/* 가입 전 게스트에게는 참석/관리 버튼을 노출하지 않는다. */}
           {viewer.canActOnMeeting ? (
@@ -1285,7 +1342,9 @@ function MeetingDetailSheet({
               <Text style={styles.meetingAttendButtonText}>
                 {viewer.canManageMeeting
                   ? "참석 현황 확인"
-                  : isAttending
+                  : isJoinPending
+                    ? "참석 신청됨"
+                    : isAttending
                     ? "참석 중"
                     : attendMeetingMutation.isPending
                       ? "처리 중..."
@@ -1876,74 +1935,6 @@ function JoinRequestModal({
   );
 }
 
-function LeaveActionSheet({
-  visible,
-  onClose,
-  onPressLeave,
-}: {
-  visible: boolean;
-  onClose: () => void;
-  onPressLeave: () => void;
-}) {
-  const sheetProgress = useRef(new Animated.Value(1)).current;
-
-  // 배경은 고정하고 탈퇴 액션 시트만 올라오게 합니다.
-  useEffect(() => {
-    if (!visible) return;
-
-    sheetProgress.setValue(1);
-    Animated.timing(sheetProgress, {
-      toValue: 0,
-      duration: 200,
-      easing: Easing.out(Easing.cubic),
-      useNativeDriver: true,
-    }).start();
-  }, [sheetProgress, visible]);
-
-  const sheetTranslateY = sheetProgress.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, 180],
-  });
-
-  return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="none"
-      statusBarTranslucent
-      onRequestClose={onClose}
-    >
-      <Pressable style={styles.modalBackdrop} onPress={onClose}>
-        <Animated.View
-          style={[
-            styles.sheetAnimation,
-            { transform: [{ translateY: sheetTranslateY }] },
-          ]}
-        >
-          <Pressable
-            style={styles.leaveSheet}
-            onPress={(event) => event.stopPropagation()}
-          >
-            <View style={styles.sheetHandle} />
-            <Pressable style={styles.leaveActionRow} onPress={onPressLeave}>
-              <View style={styles.leaveActionIconBox}>
-                <Ionicons name="exit-outline" size={28} color="#F03F40" />
-              </View>
-              <View style={styles.leaveActionTextBox}>
-                <Text style={styles.leaveActionTitle}>동호회 탈퇴</Text>
-                <Text style={styles.leaveActionDescription}>
-                  탈퇴 후 복구가 불가능해요
-                </Text>
-              </View>
-              <Ionicons name="chevron-forward" size={26} color={GRAY} />
-            </Pressable>
-          </Pressable>
-        </Animated.View>
-      </Pressable>
-    </Modal>
-  );
-}
-
 function LeaveConfirmModal({
   visible,
   isSubmitting,
@@ -2463,10 +2454,15 @@ const styles = StyleSheet.create({
     fontWeight: "500",
     lineHeight: 23,
   },
+  meetingAttendeeScroll: {
+    maxHeight: 260,
+  },
   meetingAttendeeList: {
     marginTop: 16,
     flexDirection: "row",
-    gap: 16,
+    flexWrap: "wrap",
+    rowGap: 20,
+    columnGap: 16,
   },
   meetingSheetAttendee: {
     width: 65,
@@ -3003,42 +2999,6 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 17,
     fontWeight: "800",
-  },
-  leaveSheet: {
-    paddingHorizontal: 20,
-    paddingTop: 24,
-    paddingBottom: 36,
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    backgroundColor: "#FFFFFF",
-  },
-  leaveActionRow: {
-    minHeight: 72,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 14,
-  },
-  leaveActionIconBox: {
-    width: 52,
-    height: 52,
-    borderRadius: 10,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#FFE8EE",
-  },
-  leaveActionTextBox: {
-    flex: 1,
-  },
-  leaveActionTitle: {
-    color: "#F03F40",
-    fontSize: 16,
-    fontWeight: "800",
-  },
-  leaveActionDescription: {
-    marginTop: 6,
-    color: "#FF7A8D",
-    fontSize: 13,
-    fontWeight: "700",
   },
   confirmBackdrop: {
     flex: 1,

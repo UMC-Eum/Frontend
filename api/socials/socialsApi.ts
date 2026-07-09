@@ -130,3 +130,26 @@ export const createReport = async (body: DTO.IReportsRequest) => {
   );
   return data.success.data;
 };
+
+// 동호회 신고하기 (POST)
+export const createClubReport = async (
+  clubId: number,
+  body: DTO.IClubReportRequest,
+) => {
+  const { data } = await api.post<
+    ApiSuccessResponse<DTO.IClubReportResponse>
+  >(`/v1/report/clubs/${clubId}`, body);
+  return data.success.data;
+};
+
+// 동호회 게시글 신고하기 (POST)
+export const createArticleReport = async (
+  clubId: number,
+  articleId: number,
+  body: DTO.IClubReportRequest,
+) => {
+  const { data } = await api.post<
+    ApiSuccessResponse<DTO.IClubReportResponse>
+  >(`/v1/report/clubs/${clubId}/articles/${articleId}`, body);
+  return data.success.data;
+};

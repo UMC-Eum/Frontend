@@ -55,7 +55,7 @@ export function MeetingRequestCard({
   onApprove,
   onReject,
 }: MeetingRequestCardProps) {
-  const requestedAt = formatCompactDate(member.joinedAt);
+  const requestedAt = formatCompactDate(member.requestedAt ?? member.joinedAt);
 
   return (
     <View style={styles.requestCard}>

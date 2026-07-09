@@ -27,15 +27,16 @@ import {
 import { formatDday } from "@/components/meeting/meetingSchedule";
 import { useClubDetailQuery } from "@/hooks/api/useClub";
 import {
-  useClubMembersInfiniteQuery,
-  useUpdateClubMemberStatusMutation,
-} from "@/hooks/api/useHost";
-import {
   useMeetingAttendeesInfiniteQuery,
   useMeetingDetailQuery,
+  useMeetingRequestsQuery,
+  useUpdateMeetingAttendeeStatusMutation,
 } from "@/hooks/api/useMeetings";
 import type { IClubMemberItem } from "@/types/api/host/hostDTO";
-import type { IMeetingAttendee } from "@/types/api/meetings/meetingsDTO";
+import type {
+  IMeetingAttendee,
+  IMeetingRequestItem,
+} from "@/types/api/meetings/meetingsDTO";
 
 type ManageAction = { type: "reject"; member: IClubMemberItem };
 
@@ -56,9 +57,9 @@ export default function MeetingManageScreen() {
     meetingId,
     canLoadManagement,
   );
-  const pendingMembersQuery = useClubMembersInfiniteQuery(
+  const requestsQuery = useMeetingRequestsQuery(
     clubId,
-    { status: "PENDING", limit: 20 },
+    meetingId,
     canLoadManagement,
   );
   const attendeesQuery = useMeetingAttendeesInfiniteQuery(
@@ -67,16 +68,16 @@ export default function MeetingManageScreen() {
     { size: 20 },
     canLoadManagement,
   );
-  const updateMemberStatusMutation = useUpdateClubMemberStatusMutation(clubId);
-  const isMutating = updateMemberStatusMutation.isPending;
+  const updateAttendeeStatusMutation = useUpdateMeetingAttendeeStatusMutation(
+    clubId,
+    meetingId,
+  );
+  const isMutating = updateAttendeeStatusMutation.isPending;
 
   const pendingMembers = useMemo(
     () =>
-      (
-        pendingMembersQuery.data?.pages.flatMap((page) => page.members ?? []) ??
-        []
-      ).filter(isClubMemberItem),
-    [pendingMembersQuery.data],
+      (requestsQuery.data?.requests ?? []).map(mapMeetingRequestToMember),
+    [requestsQuery.data],
   );
   const attendees = useMemo(
     () =>
@@ -105,7 +106,7 @@ export default function MeetingManageScreen() {
   const approveMember = async (member: IClubMemberItem) => {
     setActionError("");
     try {
-      await updateMemberStatusMutation.mutateAsync({
+      await updateAttendeeStatusMutation.mutateAsync({
         userId: member.userId,
         body: { status: "ACTIVE" },
       });
@@ -121,7 +122,7 @@ export default function MeetingManageScreen() {
 
     try {
       if (pendingAction.type === "reject") {
-        await updateMemberStatusMutation.mutateAsync({
+        await updateAttendeeStatusMutation.mutateAsync({
           userId: pendingAction.member.userId,
           body: { status: "REJECTED" },
         });
@@ -190,7 +191,7 @@ export default function MeetingManageScreen() {
               countLabel={String(pendingMembers.length)}
             />
 
-            {pendingMembersQuery.isLoading ? (
+            {requestsQuery.isLoading ? (
               <View style={styles.loadingCard}>
                 <ActivityIndicator color={MEETING_COLORS.pink} />
               </View>
@@ -207,12 +208,6 @@ export default function MeetingManageScreen() {
                     }
                   />
                 ))}
-                {pendingMembersQuery.hasNextPage ? (
-                  <MeetingLoadMoreButton
-                    isLoading={pendingMembersQuery.isFetchingNextPage}
-                    onPress={() => pendingMembersQuery.fetchNextPage()}
-                  />
-                ) : null}
               </View>
             ) : (
               <MeetingEmptyState label="승인을 기다리는 신청이 없어요." />
@@ -283,14 +278,6 @@ export default function MeetingManageScreen() {
   );
 }
 
-function isClubMemberItem(member: unknown): member is IClubMemberItem {
-  return (
-    !!member &&
-    typeof member === "object" &&
-    typeof (member as IClubMemberItem).userId === "number"
-  );
-}
-
 function mapMeetingAttendeeToMember(attendee: IMeetingAttendee): IClubMemberItem {
   return {
     clubUserId: attendee.clubUserId,
@@ -299,6 +286,20 @@ function mapMeetingAttendeeToMember(attendee: IMeetingAttendee): IClubMemberItem
     profileImageUrl: attendee.user.profileImageUrl,
     authority: attendee.user.authority,
     joinedAt: attendee.joinedAt,
+  };
+}
+
+function mapMeetingRequestToMember(request: IMeetingRequestItem): IClubMemberItem {
+  return {
+    clubUserId: request.clubUserId,
+    userId: request.user.userId,
+    nickname: request.user.nickname,
+    profileImageUrl: request.user.profileImageUrl,
+    authority: request.user.authority,
+    status: "PENDING",
+    message: request.joinMessage,
+    requestedAt: request.requestedAt,
+    joinedAt: null,
   };
 }
 
