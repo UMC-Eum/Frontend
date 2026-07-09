@@ -196,9 +196,11 @@ export default function HomePage() {
   const sendHeartMutation = useSendRecommendationHeartMutation();
   const createProfileVisitMutation = useCreateProfileVisitMutation();
 
+  // 추천 스코프가 "나와 같은 지역"이라, 추천 응답에 지역이 없으면 내 지역을 fallback으로 쓴다.
+  const myAreaName = myProfileQuery.data?.area?.name?.trim() ?? "";
   const recommendedProfiles = useMemo(
-    () => mapRecommendationProfiles(recommendationsQuery.data),
-    [recommendationsQuery.data],
+    () => mapRecommendationProfiles(recommendationsQuery.data, myAreaName),
+    [recommendationsQuery.data, myAreaName],
   );
   const visitors = visitorsQuery.data?.items ?? [];
   const heartUnreadCount = useMemo(
@@ -325,9 +327,10 @@ export default function HomePage() {
     if (selectedProfile.targetUserId && !selectedProfile.isLiked) {
       sendHeartMutation.mutate(selectedProfile.targetUserId);
     }
+    // 같은 tab=sent로 재진입해도 전환되게, navbar와 같은 tabPressAt(매번 변경) param을 함께 넘긴다.
     router.replace({
       pathname: "/(tabs)/heart",
-      params: { tab: "sent" },
+      params: { tab: "sent", tabPressAt: String(Date.now()) },
     } as never);
   };
 
@@ -620,24 +623,27 @@ function countUnreadNotifications(data?: {
   );
 }
 
-function mapRecommendationProfiles(data?: {
-  pages?: {
-    items: {
-      userId: number;
-      nickname: string;
-      age: number;
-      // 서버가 평면(areaName)과 중첩(area.name) 두 형태로 지역을 내려줘 둘 다 지원한다.
-      areaName?: string | null;
-      area?: { name?: string | null } | null;
-      addressName?: string | null;
-      address?: { fullName?: string | null; name?: string | null } | null;
-      introText: string;
-      profileImageUrl: string;
-      isLiked: boolean;
-      likedHeartId: number | null;
+function mapRecommendationProfiles(
+  data?: {
+    pages?: {
+      items: {
+        userId: number;
+        nickname: string;
+        age: number;
+        // 서버가 평면(areaName)과 중첩(area.name) 두 형태로 지역을 내려줘 둘 다 지원한다.
+        areaName?: string | null;
+        area?: { name?: string | null } | null;
+        addressName?: string | null;
+        address?: { fullName?: string | null; name?: string | null } | null;
+        introText: string;
+        profileImageUrl: string;
+        isLiked: boolean;
+        likedHeartId: number | null;
+      }[];
     }[];
-  }[];
-}): Profile[] {
+  },
+  fallbackLocation = "",
+): Profile[] {
   return (
     uniqueBy(
       data?.pages?.flatMap((page) =>
@@ -646,7 +652,7 @@ function mapRecommendationProfiles(data?: {
           targetUserId: item.userId,
           name: item.nickname,
           age: item.age,
-          location: getProfileLocation(item),
+          location: getProfileLocation(item) || fallbackLocation,
           intro: item.introText,
           isLiked: item.isLiked,
           likedHeartId: item.likedHeartId,
