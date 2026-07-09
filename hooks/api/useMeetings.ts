@@ -12,8 +12,10 @@ import {
   deleteMeeting,
   getMeetingAttendees,
   getMeetingDetail,
+  getMeetingRequests,
   getMeetings,
   updateMeeting,
+  updateMeetingAttendeeStatus,
 } from "@/api/meetings/meetingsApi";
 import * as DTO from "@/types/api/meetings/meetingsDTO";
 
@@ -89,6 +91,18 @@ export function useMeetingAttendeesInfiniteQuery(
   });
 }
 
+export function useMeetingRequestsQuery(
+  clubId: number,
+  meetingId: number,
+  enabled = true,
+) {
+  return useQuery({
+    queryKey: queryKeys.meetings.requests(clubId, meetingId),
+    queryFn: () => getMeetingRequests(clubId, meetingId),
+    enabled: enabled && Number.isFinite(clubId) && Number.isFinite(meetingId),
+  });
+}
+
 export function useCreateMeetingMutation(clubId: number) {
   const queryClient = useQueryClient();
 
@@ -149,6 +163,31 @@ export function useCancelMeetingAttendanceMutation(
     mutationFn: () => cancelMeetingAttendance(clubId, meetingId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.meetings.all(clubId) });
+    },
+  });
+}
+
+export function useUpdateMeetingAttendeeStatusMutation(
+  clubId: number,
+  meetingId: number,
+) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      userId,
+      body,
+    }: {
+      userId: number;
+      body: DTO.IMeetingAttendeeStatusUpdateRequest;
+    }) => updateMeetingAttendeeStatus(clubId, meetingId, userId, body),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.meetings.detail(clubId, meetingId),
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.meetings.requests(clubId, meetingId),
+      });
     },
   });
 }

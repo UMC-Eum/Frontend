@@ -7,6 +7,7 @@ import type {
 export type MeetingFilter = "upcoming" | "past" | "all";
 export type MeetingSort = "date_asc" | "date_desc";
 export type MeetingRecurrenceType = "DAILY" | "WEEKLY" | "MONTHLY";
+export type MeetingAttendanceStatus = "PENDING" | "ACTIVE" | "REJECTED";
 export type MeetingWeekday =
   | "MON"
   | "TUE"
@@ -146,6 +147,19 @@ export interface IMeetingAttendee {
   joinedAt: string;
 }
 
+export interface IMeetingRequestItem {
+  meetingMemberId: number;
+  clubUserId: number;
+  user: IMeetingAttendeeUser;
+  joinMessage: string;
+  requestedAt: string;
+}
+
+export interface IMeetingRequestsResponse {
+  meetingId: number;
+  requests: IMeetingRequestItem[];
+}
+
 export interface IMeetingAttendeesGetResponse {
   meetingId: number;
   attendeeCount: number;
@@ -159,8 +173,15 @@ export interface IMeetingAttendResponse {
   meetingId: number;
   clubUserId: number;
   userId: number;
-  joinedAt: string;
+  status: MeetingAttendanceStatus;
+  joinedAt: string | null;
 }
+
+export interface IMeetingAttendeeStatusUpdateRequest {
+  status: Extract<MeetingAttendanceStatus, "ACTIVE" | "REJECTED">;
+}
+
+export type IMeetingAttendeeStatusUpdateResponse = IMeetingAttendResponse;
 
 export interface IMeetingCancelAttendanceResponse {
   meetingId: number;

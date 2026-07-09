@@ -91,3 +91,16 @@ export interface IReportsRequest {
 export interface IReportsResponse {
   reportId: { reportId: number };
 }
+
+//v1/report/clubs/{clubId}(post), v1/report/clubs/{clubId}/articles/{articleId}(post)
+export interface IClubReportRequest {
+  category: ReportCategory;
+  reason: string;
+}
+export interface IClubReportResponse {
+  reportId: number;
+  category: ReportCategory;
+  reason: string;
+  clubId: number;
+  articleId?: number;
+}

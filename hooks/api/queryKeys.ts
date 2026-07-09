@@ -96,6 +96,8 @@ export const queryKeys = {
       [...queryKeys.meetings.all(clubId), meetingId] as const,
     attendees: (clubId: number, meetingId: number, params: object) =>
       [...queryKeys.meetings.detail(clubId, meetingId), "attendees", params] as const,
+    requests: (clubId: number, meetingId: number) =>
+      [...queryKeys.meetings.detail(clubId, meetingId), "requests"] as const,
   },
   host: {
     all: ["host"] as const,
