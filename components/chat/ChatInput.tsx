@@ -8,6 +8,7 @@ interface ChatInputProps {
   onToggleAttachment?: () => void;
   onCameraPress?: () => void;
   onGalleryPress?: () => void;
+  onVoicePress?: () => void;
   isMediaSending?: boolean;
 }
 
@@ -17,6 +18,7 @@ export default function ChatInput({
   onToggleAttachment,
   onCameraPress,
   onGalleryPress,
+  onVoicePress,
   isMediaSending = false,
 }: ChatInputProps) {
   const [text, setText] = useState("");
@@ -76,6 +78,12 @@ export default function ChatInput({
             iconName="image"
             label="갤러리"
             onPress={onGalleryPress}
+            disabled={isMediaSending}
+          />
+          <AttachmentAction
+            iconName="mic"
+            label="음성"
+            onPress={onVoicePress}
             disabled={isMediaSending}
           />
         </View>
@@ -151,7 +159,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-start",
     justifyContent: "center",
-    gap: 28,
+    gap: 24,
     paddingTop: 14,
     backgroundColor: "#FFFFFF",
   },

@@ -14,6 +14,7 @@ export type MicRecorderStatus = "idle" | "recording" | "recorded";
 interface MicRecorderProps {
   status?: MicRecorderStatus;
   isRecording?: boolean;
+  isPlaying?: boolean;
   recordingTime: number;
   onRecordPress: () => void;
   onCancelPress: () => void;
@@ -120,6 +121,7 @@ function RecordedDots() {
 export default function MicRecorder({
   status,
   isRecording,
+  isPlaying = false,
   recordingTime,
   onRecordPress,
   onCancelPress,
@@ -155,7 +157,11 @@ export default function MicRecorder({
               ]}
               onPress={onPlayPress}
             >
-              <Ionicons name="play" size={22} color={TEXT} />
+              <Ionicons
+                name={isPlaying ? "pause" : "play"}
+                size={22}
+                color={TEXT}
+              />
             </Pressable>
           ) : (
             <Pressable
