@@ -14,7 +14,6 @@ import { useRouter } from "expo-router";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
-  Animated,
   Modal,
   Pressable,
   ScrollView,
@@ -25,8 +24,12 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { postPresign } from "@/api/onboarding/onboardingApi";
-import { PROFILE_PERSONALITY_KEYWORDS } from "@/constants/profileKeywords";
+import {
+  PROFILE_INTEREST_KEYWORDS,
+  PROFILE_PERSONALITY_KEYWORDS,
+} from "@/constants/profileKeywords";
 import { getMyProfile } from "@/api/users/usersApi";
+import MicRecorder from "@/components/MicRecorder";
 import { AnalyzingView, VoiceKeyword } from "@/components/profile/ProfileVoiceParts";
 import { usePostVoiceAnalyzeMutation } from "@/hooks/api/useOnboarding";
 import {
@@ -58,6 +61,7 @@ const GRAY_500 = "#A6AFB6";
 const GRAY_300 = "#DEE3E5";
 const GRAY_150 = "#DEE3E5";
 const CHIP_ACTIVE_BG = "#FFECF1";
+const INTEREST_KEYWORD_LABELS = new Set<string>(PROFILE_INTEREST_KEYWORDS);
 
 const EXAMPLE_LINES = [
   "이렇게 말해도 좋아요!",
@@ -255,7 +259,7 @@ export default function IdealRecordingPage() {
     }
   };
 
-  // 중지 버튼: 녹음을 마무리하고 결과 파일을 보관합니다. (온보딩과 동일하게 10초 이상 필요)
+  // 녹음을 멈추고 녹음본을 보관합니다. 이후 재생하거나 전송할 수 있습니다.
   const stopRecording = async () => {
     if (!recorderState.isRecording || isSubmitting) return;
 
@@ -264,7 +268,6 @@ export default function IdealRecordingPage() {
       Math.floor(recorderState.durationMillis / 1000),
     );
 
-    // 10초 미만이면 경고만 띄우고 녹음을 계속합니다.
     if (nextSeconds < MIN_RECORDING_SECONDS) {
       setShowShortWarning(true);
       return;
@@ -276,7 +279,7 @@ export default function IdealRecordingPage() {
         allowsRecording: false,
         playsInSilentMode: true,
       });
-      const nextUri = audioRecorder.uri ?? recorderState.url;
+      const nextUri = audioRecorder.uri ?? audioRecorder.getStatus().url;
       if (!nextUri) {
         throw new Error("Recorded audio uri is empty.");
       }
@@ -288,6 +291,20 @@ export default function IdealRecordingPage() {
       console.error("Ideal Record Error:", error);
       Alert.alert("녹음 실패", "녹음을 멈추지 못했어요.");
     }
+  };
+
+  const handleRecordPress = () => {
+    if (recorderState.isRecording) {
+      void stopRecording();
+      return;
+    }
+
+    if (hasRecording) {
+      void togglePlayback();
+      return;
+    }
+
+    void startRecording();
   };
 
   // 가운데 버튼(녹음 중/녹음 완료): 녹음을 마무리하고 분석으로 전송합니다. (10초 이상 필요)
@@ -331,7 +348,7 @@ export default function IdealRecordingPage() {
         allowsRecording: false,
         playsInSilentMode: true,
       });
-      uri = audioRecorder.uri ?? recorderState.url;
+      uri = audioRecorder.uri ?? audioRecorder.getStatus().url;
     } catch (error) {
       console.error("Ideal Record Error:", error);
       Alert.alert("녹음 실패", "녹음을 종료하지 못했어요.");
@@ -524,78 +541,18 @@ export default function IdealRecordingPage() {
           </View>
         ) : null}
 
-        {recorderState.isRecording || hasRecording ? (
-          <Text style={styles.timerText}>{formatTime(displayTime)}</Text>
-        ) : null}
-
-        <View style={styles.recorderRow}>
-          <View style={styles.sideSlot}>
-            {recorderState.isRecording ? (
-              // 녹음 중: 중지 버튼
-              <Pressable
-                style={({ pressed }) => [
-                  styles.circleSideButton,
-                  pressed && styles.pressed,
-                ]}
-                onPress={stopRecording}
-                hitSlop={8}
-              >
-                <Ionicons name="pause" size={26} color={GRAY_700} />
-              </Pressable>
-            ) : hasRecording ? (
-              // 중지됨: 재생/일시정지 토글 버튼 (중지 버튼과 동일한 회색 디자인)
-              <Pressable
-                style={({ pressed }) => [
-                  styles.circleSideButton,
-                  pressed && styles.pressed,
-                ]}
-                onPress={togglePlayback}
-                hitSlop={8}
-              >
-                <Ionicons
-                  name={isPlaying ? "pause" : "play"}
-                  size={26}
-                  color={GRAY_700}
-                  style={!isPlaying ? styles.playIcon : undefined}
-                />
-              </Pressable>
-            ) : null}
-          </View>
-
-          <Pressable
-            style={({ pressed }) => [
-              styles.recordButton,
-              pressed && styles.pressed,
-            ]}
-            // 녹음 중/녹음 완료: 전송 / 초기: 녹음 시작
-            onPress={
-              recorderState.isRecording || hasRecording
-                ? sendRecording
-                : startRecording
-            }
-          >
-            {recorderState.isRecording || hasRecording ? (
-              <RecordingWave animate={recorderState.isRecording || isPlaying} />
-            ) : (
-              <Ionicons name="mic" size={34} color={PRIMARY} />
-            )}
-          </Pressable>
-
-          <View style={styles.sideSlot}>
-            {recorderState.isRecording || hasRecording ? (
-              <Pressable
-                style={({ pressed }) => [
-                  styles.circleSideButton,
-                  pressed && styles.pressed,
-                ]}
-                onPress={resetRecording}
-                hitSlop={8}
-              >
-                <Ionicons name="refresh" size={24} color={GRAY_500} />
-              </Pressable>
-            ) : null}
-          </View>
-        </View>
+        <MicRecorder
+          status={hasRecording ? "recorded" : undefined}
+          isRecording={recorderState.isRecording}
+          isPlaying={isPlaying}
+          recordingTime={displayTime}
+          onRecordPress={handleRecordPress}
+          onCancelPress={resetRecording}
+          onSendPress={sendRecording}
+          onResetPress={resetRecording}
+          onPlayPress={togglePlayback}
+          containerStyle={styles.recorder}
+        />
       </View>
     </SafeAreaView>
   );
@@ -782,66 +739,6 @@ function KeywordResultView({
   );
 }
 
-const WAVE_STATIC_SCALES = [0.4, 0.7, 1, 0.7, 0.4];
-
-function RecordingWave({ animate = true }: { animate?: boolean }) {
-  const scales = useRef(
-    WAVE_STATIC_SCALES.map((value) => new Animated.Value(value)),
-  ).current;
-
-  useEffect(() => {
-    // 녹음/재생 중이 아닐 때는 진행 중인 애니메이션을 멈추고 정적인 기본 높이로 고정합니다.
-    if (!animate) {
-      scales.forEach((scale, index) => {
-        scale.stopAnimation(() => scale.setValue(WAVE_STATIC_SCALES[index]));
-      });
-      return;
-    }
-
-    const animations = scales.map((scale, index) =>
-      Animated.loop(
-        Animated.sequence([
-          Animated.delay(index * 100),
-          Animated.timing(scale, {
-            toValue: 1,
-            duration: 300,
-            useNativeDriver: true,
-          }),
-          Animated.timing(scale, {
-            toValue: 0.4,
-            duration: 340,
-            useNativeDriver: true,
-          }),
-        ]),
-      ),
-    );
-
-    animations.forEach((animation) => animation.start());
-
-    return () => {
-      animations.forEach((animation) => animation.stop());
-    };
-  }, [animate, scales]);
-
-  return (
-    <View style={styles.wave}>
-      {scales.map((scale, index) => (
-        <Animated.View
-          key={`wave-${index}`}
-          style={[styles.waveBar, { transform: [{ scaleY: scale }] }]}
-        />
-      ))}
-    </View>
-  );
-}
-
-function formatTime(seconds: number) {
-  const mins = Math.floor(seconds / 60);
-  const secs = seconds % 60;
-
-  return `${mins}:${String(secs).padStart(2, "0")}`;
-}
-
 function wait(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -954,15 +851,16 @@ function getProfileKeywordOptions(profile?: IUserProfile) {
     return idealPersonalityKeywords;
   }
 
-  return labelsToVoiceKeywords([
-    ...(profile.personalities ?? []),
-    ...(profile.keywords ?? []),
-  ]);
+  return labelsToVoiceKeywords(profile.personalities ?? []);
 }
 
 function labelsToVoiceKeywords(labels: string[]) {
   const uniqueLabels = Array.from(
-    new Set(labels.map((label) => label.trim()).filter(Boolean)),
+    new Set(
+      labels
+        .map((label) => label.trim())
+        .filter((label) => label && !INTEREST_KEYWORD_LABELS.has(label)),
+    ),
   ).slice(0, 10);
 
   if (uniqueLabels.length === 0) {
@@ -988,10 +886,7 @@ function getIdealKeywordOptions(analysis: IAnalyzeResponse) {
   }
 
   return labelsToVoiceKeywords(
-    labelsFromScoredCandidates([
-      ...(analysis.keywordCandidates?.personalities ?? []),
-      ...(analysis.keywordCandidates?.interests ?? []),
-    ]),
+    labelsFromScoredCandidates(analysis.keywordCandidates?.personalities ?? []),
   );
 }
 
@@ -1011,8 +906,7 @@ function isIdealKeywordCategory(category?: string | null) {
 
   return (
     normalizedCategory.includes("IDEAL") ||
-    normalizedCategory.includes("PERSONAL") ||
-    normalizedCategory.includes("INTEREST")
+    normalizedCategory.includes("PERSONAL")
   );
 }
 
@@ -1223,66 +1117,9 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     fontWeight: "600",
   },
-  timerText: {
-    marginBottom: 17,
-    color: PRIMARY,
-    fontSize: 18,
-    lineHeight: 22,
-    fontWeight: "500",
-  },
-  recorderRow: {
-    width: 341,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  sideSlot: {
-    width: 64,
-    height: 64,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  circleSideButton: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: WHITE,
-    borderWidth: 1,
-    borderColor: "#EEF1F3",
-    shadowColor: "#000000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  recordButton: {
-    width: 90,
-    height: 90,
-    borderRadius: 45,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: WHITE,
-    shadowColor: "#A1002A",
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.12,
-    shadowRadius: 25,
-    elevation: 8,
-  },
-  wave: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-  },
-  waveBar: {
-    width: 6,
-    height: 22,
-    borderRadius: 14,
-    backgroundColor: PRIMARY,
-  },
-  playIcon: {
-    marginLeft: 3,
+  recorder: {
+    width: "100%",
+    paddingHorizontal: 22,
   },
   pressed: {
     opacity: 0.7,

@@ -787,7 +787,7 @@ export default function ChatRoom() {
         allowsRecording: false,
         playsInSilentMode: true,
       });
-      const nextUri = audioRecorder.uri ?? recorderState.url;
+      const nextUri = audioRecorder.uri ?? audioRecorder.getStatus().url;
       if (!nextUri) {
         throw new Error("Recorded audio uri is empty.");
       }
@@ -1236,6 +1236,7 @@ export default function ChatRoom() {
               <MicRecorder
                 status={isUploadingVoice ? "recorded" : undefined}
                 isRecording={isRecording}
+                isPlaying={playingVoiceMessageId === "recorded-voice-preview"}
                 recordingTime={displayRecordingTime}
                 onRecordPress={handleVoiceRecord}
                 onCancelPress={handleVoiceCancel}
@@ -1275,6 +1276,7 @@ export default function ChatRoom() {
             }
             onCameraPress={() => void handlePickPhoto("camera")}
             onGalleryPress={() => void handlePickPhoto("gallery")}
+            onVoicePress={handleVoiceButtonPress}
             isMediaSending={isUploadingPhoto}
           />
         )}
