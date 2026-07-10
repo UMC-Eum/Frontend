@@ -1,6 +1,8 @@
+import type { QueryClient } from "@tanstack/react-query";
 import * as Notifications from "expo-notifications";
 import { useEffect } from "react";
 
+import { queryKeys } from "@/hooks/api/queryKeys";
 import { useAuthStore } from "@/stores/authStore";
 import { useNotificationSettingsStore } from "@/stores/notificationSettingsStore";
 import {
@@ -15,7 +17,7 @@ import {
 } from "@/utils/pushNotifications";
 
 // 수신/탭 리스너를 붙이고, 로그인 + 알림 ON 상태에서 FCM 토큰을 서버에 등록한다.
-export function usePushNotifications() {
+export function usePushNotifications(queryClient?: QueryClient) {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const notificationEnabled = useNotificationSettingsStore(
     (state) => state.enabled,
@@ -25,6 +27,7 @@ export function usePushNotifications() {
     // 포그라운드 수신 → 로컬 알림으로 표시
     const unsubscribeMessage = onForegroundMessage((remoteMessage) => {
       void presentForegroundMessage(remoteMessage);
+      void queryClient?.invalidateQueries({ queryKey: queryKeys.notifications.all });
     });
     // 백그라운드에서 알림 탭 → 앱 열림 → payload 기준 라우팅
     const unsubscribeOpened = onNotificationOpened((message) => {
@@ -50,7 +53,7 @@ export function usePushNotifications() {
       unsubscribeOpened?.();
       responseSubscription.remove();
     };
-  }, []);
+  }, [queryClient]);
 
   // 로그인 + 알림받기 ON → 등록/갱신, 알림받기 OFF(인증 상태) → 해제
   useEffect(() => {

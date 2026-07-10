@@ -22,6 +22,7 @@ import { getMyProfile } from "@/api/users/usersApi";
 import GlobalUiOverlay from "@/components/GlobalUiOverlay";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
+import { useNotificationBellSync } from "@/hooks/useNotificationBellSync";
 import { usePrefetchAppData } from "@/hooks/usePrefetchAppData";
 import { useStableQueryClient } from "@/hooks/use-query-client";
 import { useAuthStore } from "@/stores/authStore";
@@ -40,7 +41,8 @@ export default function RootLayout() {
   const colorScheme = useColorScheme();
   const queryClient = useStableQueryClient();
 
-  usePushNotifications();
+  usePushNotifications(queryClient);
+  useNotificationBellSync(queryClient);
   usePrefetchAppData(queryClient);
 
   useEffect(() => {
