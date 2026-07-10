@@ -969,7 +969,9 @@ function ClubChatRow({
       !message.isMine &&
       message.senderName &&
       message.showAvatar !== false ? (
-        <Text style={styles.senderName}>{message.senderName}</Text>
+        <Text style={styles.senderName} numberOfLines={1}>
+          {message.senderName}
+        </Text>
       ) : null}
       <ChatMessage
         message={message}
@@ -1530,14 +1532,13 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   senderName: {
-    width: 32,
-    marginLeft: 0,
+    maxWidth: 230,
+    marginLeft: 48,
     marginBottom: 2,
     fontSize: 12,
     lineHeight: 16,
     fontWeight: "500",
     color: "#8E9AA3",
-    textAlign: "center",
   },
   systemRow: {
     alignItems: "center",

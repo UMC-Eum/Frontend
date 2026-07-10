@@ -70,7 +70,10 @@ type OptimisticHeartState = {
 export default function HeartScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { tab } = useLocalSearchParams<{ tab?: string }>();
+  const { tab, tabPressAt } = useLocalSearchParams<{
+    tab?: string;
+    tabPressAt?: string;
+  }>();
   const { width } = useWindowDimensions();
   const [activeTab, setActiveTab] = useState<HeartTab>(
     tab === "sent" ? "sent" : "received",
@@ -125,7 +128,7 @@ export default function HeartScreen() {
 
   useEffect(() => {
     if (tab === "sent" || tab === "received") setActiveTab(tab);
-  }, [tab]);
+  }, [tab, tabPressAt]);
 
   // 마음함이 포커스되면 현재까지 받은 마음을 읽음 처리해 navbar dot을 끈다.
   const markHeartsSeen = useHeartBadgeStore((state) => state.markHeartsSeen);
