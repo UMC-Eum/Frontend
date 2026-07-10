@@ -310,6 +310,7 @@ export default function HomePage() {
         },
       });
     }
+    // 같은 tab=sent로 재진입해도 전환되게, navbar와 같은 tabPressAt(매번 변경) param을 함께 넘긴다.
     router.replace({
       pathname: "/(tabs)/heart",
       params: { tab: "sent", tabPressAt: String(Date.now()) },

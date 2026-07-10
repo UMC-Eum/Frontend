@@ -1,9 +1,11 @@
 import type { FirebaseMessagingTypes } from "@react-native-firebase/messaging";
 import * as Application from "expo-application";
 import * as Notifications from "expo-notifications";
+import { router } from "expo-router";
 import { PermissionsAndroid, Platform } from "react-native";
 
 import {
+  readNotification,
   registerPushToken,
   unregisterPushToken,
 } from "@/api/notifications/notificationsApi";
@@ -142,6 +144,81 @@ export async function presentForegroundMessage(
     },
     trigger: null,
   });
+}
+
+export type PushRoute = { pathname: string; params: Record<string, string> };
+
+// FCM data 값은 전부 string으로 올 수 있어, 양의 정수로 검증된 값만 라우트 param으로 쓴다.
+function toId(value: unknown): string | null {
+  const num = Number(value);
+  return Number.isInteger(num) && num > 0 ? String(num) : null;
+}
+
+// FCM payload.data → 이동할 라우트. 목적지를 못 만들면 null(호출부에서 알림함 fallback).
+export function getRouteFromPushData(
+  data: Record<string, unknown> | undefined,
+): PushRoute | null {
+  if (!data) return null;
+
+  const type = String(data.type ?? "");
+  const chatRoomId = toId(data.chatRoomId);
+  const senderUserId = toId(data.senderUserId);
+  const clubId = toId(data.clubId);
+  const articleId = toId(data.articleId);
+  const heartId = toId(data.heartId);
+
+  if (type === "CHAT" && chatRoomId) {
+    return { pathname: "/chat/[id]", params: { id: chatRoomId } };
+  }
+  if (type === "HEART" && senderUserId) {
+    return {
+      pathname: "/profile-detail",
+      params: { userId: senderUserId, ...(heartId ? { heartId } : {}) },
+    };
+  }
+  if ((type === "ARTICLE" || type === "COMMENT") && clubId && articleId) {
+    return {
+      pathname: "/club/post-detail",
+      params: { clubId, postId: articleId },
+    };
+  }
+  if (type === "CLUB" && clubId) {
+    // 승인/거절(status)·동호회 신고(reportCount)는 상세로, 그 외(가입 신청)는 멤버 관리로.
+    const toDetail = data.status != null || data.reportCount != null;
+    return {
+      pathname: toDetail ? "/club/detail" : "/club/manage-members",
+      params: { clubId },
+    };
+  }
+  // ponytail: CLUB 게시글 신고(clubId 없이 articleId만) 포함, 목적지 불명은 전부 알림함으로
+  return null;
+}
+
+let lastOpenedKey = "";
+let lastOpenedAt = 0;
+
+// 알림 탭 공통 처리: notificationId 읽음 처리 + 라우팅.
+// RNFB/expo-notifications 리스너가 같은 탭에 중복 발화할 수 있어 2초 dedupe.
+export function openPushNotification(
+  data: Record<string, unknown> | undefined,
+): void {
+  const key = JSON.stringify(data ?? {});
+  const now = Date.now();
+  if (key === lastOpenedKey && now - lastOpenedAt < 2000) return;
+  lastOpenedKey = key;
+  lastOpenedAt = now;
+
+  const notificationId = toId(data?.notificationId);
+  if (notificationId) {
+    void readNotification(notificationId).catch(() => {});
+  }
+
+  const route = getRouteFromPushData(data);
+  if (route) {
+    router.push({ pathname: route.pathname, params: route.params } as never);
+  } else {
+    router.push("/notifications" as never);
+  }
 }
 
 // 로그인/알림 ON/토큰 갱신 시: 현재 FCM 토큰을 서버에 등록·갱신한다.

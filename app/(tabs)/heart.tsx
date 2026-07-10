@@ -126,6 +126,8 @@ export default function HeartScreen() {
   const isInitialLoading = activeQuery.isLoading && profiles.length === 0;
   const receivedCount = receivedProfiles.length;
 
+  // 화면이 이미 mount된 상태에서 같은 tab 값으로 재진입해도(연속 "마음에들어요")
+  // tabPressAt이 매번 바뀌므로 다시 적용된다. navbar 탭 클릭은 tab 없이 와서 통과.
   useEffect(() => {
     if (tab === "sent" || tab === "received") setActiveTab(tab);
   }, [tab, tabPressAt]);
