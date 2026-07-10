@@ -251,6 +251,7 @@ export default function ClubDetailScreen() {
           if (getApiErrorCode(error) === "CLUB-004") {
             setJoinModalVisible(false);
             setTriedJoinSubmit(false);
+            setJoinStatus("PENDING");
             Alert.alert("가입 신청", "이미 가입 신청 넣은 동호회입니다!");
             return;
           }
@@ -644,6 +645,7 @@ export default function ClubDetailScreen() {
 
       <JoinRequestModal
         visible={isJoinModalVisible}
+        clubImageUri={heroImage}
         clubTitle={clubTitle}
         clubMeta={categoryText}
         message={joinMessage}
@@ -1826,6 +1828,7 @@ function AlbumTab({
 
 function JoinRequestModal({
   visible,
+  clubImageUri,
   clubTitle,
   clubMeta,
   message,
@@ -1836,6 +1839,7 @@ function JoinRequestModal({
   onSubmit,
 }: {
   visible: boolean;
+  clubImageUri: string;
   clubTitle: string;
   clubMeta: string;
   message: string;
@@ -1892,7 +1896,11 @@ function JoinRequestModal({
               <View style={styles.sheetHandle} />
 
               <View style={styles.modalClubCard}>
-                <View style={styles.modalClubImage} />
+                <Image
+                  source={{ uri: clubImageUri }}
+                  style={styles.modalClubImage}
+                  contentFit="cover"
+                />
                 <View style={styles.modalClubInfo}>
                   <Text style={styles.modalClubTitle}>{clubTitle}</Text>
                   <Text style={styles.modalClubMeta}>{clubMeta}</Text>
