@@ -99,8 +99,7 @@ export default function ChatRoom() {
   const hasChatRoomId = Number.isFinite(chatRoomId);
   const roomDetailQuery = useChatRoomDetailQuery(chatRoomId, hasChatRoomId);
   const roomDetail = roomDetailQuery.data;
-  const isClubRoom =
-    roomDetail?.type === "CLUB" || Boolean(roomDetail && !roomDetail.peer);
+  const isClubRoom = roomDetail?.type === "CLUB" || Boolean(roomDetail?.club);
   const clubRoomsQuery = useChatRoomsInfiniteQuery(30, {
     enabled: hasChatRoomId && isClubRoom,
     staleTime: 15 * 1000,

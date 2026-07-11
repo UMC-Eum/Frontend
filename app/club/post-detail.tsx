@@ -9,7 +9,7 @@ import {
 } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import React, { useRef, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -52,6 +52,10 @@ import type {
   ClubPostCategory,
   IClubPostDetailResponse,
 } from "@/types/api/clubs/clubPostsDTO";
+import { blockUser, patchBlock } from "@/api/socials/socialsApi";
+import {
+  useBlocksInfiniteQuery,
+} from "@/hooks/api/useSocials";
 import { uniqueBy } from "@/utils/array";
 import { sharePost } from "@/utils/shareLinks";
 
@@ -81,6 +85,7 @@ export default function ClubPostDetailScreen() {
   const [selectedComment, setSelectedComment] = useState<{
     commentId: number;
     isMine?: boolean;
+    authorUserId?: number;
   } | null>(null);
   const [replyTarget, setReplyTarget] = useState<{
     commentId: number;
@@ -246,11 +251,57 @@ export default function ClubPostDetailScreen() {
     },
   });
 
+  const blocksQuery = useBlocksInfiniteQuery(50, { enabled: hasPostId });
+  const blockUserMutation = useMutation({
+    mutationFn: (targetUserId: number) =>
+      blockUser({ targetUserId: String(targetUserId), reason: "게시글에서 차단" }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.socials.all });
+      if (activeClubId) {
+        queryClient.invalidateQueries({ queryKey: queryKeys.articles.all(activeClubId) });
+      }
+      queryClient.invalidateQueries({ queryKey: queryKeys.clubs.post(postId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.clubs.comments(postId) });
+      Alert.alert("차단 완료", "상대방을 차단했습니다.");
+    },
+    onError: () => {
+      Alert.alert("차단 실패", "잠시 후 다시 시도해주세요.");
+    },
+  });
+  const unblockUserMutation = useMutation({
+    mutationFn: (blockId: number) => patchBlock(blockId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.socials.all });
+      Alert.alert("차단 해제", "차단이 해제되었습니다.");
+    },
+    onError: () => {
+      Alert.alert("차단 해제 실패", "잠시 후 다시 시도해주세요.");
+    },
+  });
+
   const post = postQuery.data;
   const comments = uniqueBy(
     commentsQuery.data?.pages.flatMap((page) => page.items) ?? [],
     (item) => item.commentId,
   );
+  const findBlockRelation = (userId?: number) => {
+    if (!userId || !blocksQuery.data) return null;
+    return (
+      blocksQuery.data.pages
+        .flatMap((page) => page.items)
+        .find((item) => String(item.targetUserId) === String(userId)) ?? null
+    );
+  };
+
+  const postAuthorBlock = useMemo(
+    () => findBlockRelation(post?.author.userId),
+    [blocksQuery.data, post?.author.userId],
+  );
+  const selectedCommentAuthorBlock = useMemo(
+    () => findBlockRelation(selectedComment?.authorUserId),
+    [blocksQuery.data, selectedComment?.authorUserId],
+  );
+
   const actionSheetMode: ClubActionSheetMode =
     post?.isMine === true
       ? "owner"
@@ -270,6 +321,18 @@ export default function ClubPostDetailScreen() {
     if (!post || likeMutation.isPending) return;
 
     likeMutation.mutate(!post.isLiked);
+  };
+
+  const navigateToProfile = (author: { userId: number; nickname: string; profileImageUrl: string | null }) => {
+    if (!author.userId) return;
+    router.push({
+      pathname: "/profile-detail",
+      params: {
+        userId: String(author.userId),
+        name: author.nickname,
+        image: author.profileImageUrl ?? "",
+      },
+    } as never);
   };
 
   const handleTogglePin = () => {
@@ -314,7 +377,27 @@ export default function ClubPostDetailScreen() {
       return;
     }
 
-    Alert.alert("준비 중", "사용자 차단 API 명세 확인 후 연결 예정입니다.");
+    const authorUserId = post?.author.userId;
+    if (!authorUserId || blockUserMutation.isPending || unblockUserMutation.isPending) return;
+
+    if (postAuthorBlock) {
+      Alert.alert("차단 해제", "이 사용자를 차단 해제할까요?", [
+        { text: "취소", style: "cancel" },
+        {
+          text: "차단 해제",
+          onPress: () => unblockUserMutation.mutate(postAuthorBlock.blockId),
+        },
+      ]);
+    } else {
+      Alert.alert("사용자 차단", "이 사용자를 차단할까요?", [
+        { text: "취소", style: "cancel" },
+        {
+          text: "차단하기",
+          style: "destructive",
+          onPress: () => blockUserMutation.mutate(authorUserId),
+        },
+      ]);
+    }
   };
 
   const handleCommentPrimaryAction = () => {
@@ -346,8 +429,30 @@ export default function ClubPostDetailScreen() {
   const handleCommentSecondaryAction = () => {
     if (!selectedComment) return;
 
+    const authorUserId = selectedComment.authorUserId;
+    const blockRelation = selectedCommentAuthorBlock;
     setSelectedComment(null);
-    Alert.alert("준비 중", "사용자 차단 API 명세 확인 후 연결 예정입니다.");
+
+    if (!authorUserId || blockUserMutation.isPending || unblockUserMutation.isPending) return;
+
+    if (blockRelation) {
+      Alert.alert("차단 해제", "이 사용자를 차단 해제할까요?", [
+        { text: "취소", style: "cancel" },
+        {
+          text: "차단 해제",
+          onPress: () => unblockUserMutation.mutate(blockRelation.blockId),
+        },
+      ]);
+    } else {
+      Alert.alert("사용자 차단", "이 사용자를 차단할까요?", [
+        { text: "취소", style: "cancel" },
+        {
+          text: "차단하기",
+          style: "destructive",
+          onPress: () => blockUserMutation.mutate(authorUserId),
+        },
+      ]);
+    }
   };
 
   return (
@@ -420,6 +525,11 @@ export default function ClubPostDetailScreen() {
                 time={formatRelativeTime(post.createdAt)}
                 category={CATEGORY_LABELS[post.category]}
                 avatarUri={post.author.profileImageUrl ?? undefined}
+                onAuthorPress={
+                  post.author.userId
+                    ? () => navigateToProfile(post.author)
+                    : undefined
+                }
               />
 
               <View style={styles.postBody}>
@@ -456,6 +566,11 @@ export default function ClubPostDetailScreen() {
                   text={item.content}
                   isReply={item.parentCommentId !== null}
                   avatarUri={item.author.profileImageUrl ?? undefined}
+                  onAuthorPress={
+                    item.author.userId
+                      ? () => navigateToProfile(item.author)
+                      : undefined
+                  }
                   onReplyPress={() => {
                     setReplyTarget({
                       commentId: item.parentCommentId ?? item.commentId,
@@ -467,6 +582,7 @@ export default function ClubPostDetailScreen() {
                     setSelectedComment({
                       commentId: item.commentId,
                       isMine: item.isMine,
+                      authorUserId: item.author.userId,
                     })
                   }
                 />
@@ -509,6 +625,13 @@ export default function ClubPostDetailScreen() {
           onClose={() => setActionSheetVisible(false)}
           onPrimaryPress={handlePrimaryAction}
           onSecondaryPress={handleSecondaryAction}
+          secondaryLabelOverride={
+            actionSheetMode === "guest"
+              ? postAuthorBlock
+                ? "차단 해제"
+                : "차단하기"
+              : undefined
+          }
         />
 
         <ClubPostActionSheet
@@ -517,6 +640,13 @@ export default function ClubPostDetailScreen() {
           onClose={() => setSelectedComment(null)}
           onPrimaryPress={handleCommentPrimaryAction}
           onSecondaryPress={handleCommentSecondaryAction}
+          secondaryLabelOverride={
+            commentActionSheetMode === "guest"
+              ? selectedCommentAuthorBlock
+                ? "차단 해제"
+                : "차단하기"
+              : undefined
+          }
         />
 
         <ClubImageLightbox
