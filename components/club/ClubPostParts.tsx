@@ -164,14 +164,16 @@ export function ClubAuthorMeta({
   time,
   category,
   avatarUri,
+  onAuthorPress,
 }: {
   name: string;
   time: string;
   category: string;
   avatarUri?: string;
+  onAuthorPress?: () => void;
 }) {
   return (
-    <View style={styles.authorRow}>
+    <Pressable style={styles.authorRow} onPress={onAuthorPress} disabled={!onAuthorPress}>
       {avatarUri ? (
         <Image source={{ uri: avatarUri }} style={styles.authorAvatar} contentFit="cover" />
       ) : (
@@ -185,7 +187,7 @@ export function ClubAuthorMeta({
           <Text style={styles.categoryText}>{category}</Text>
         </View>
       </View>
-    </View>
+    </Pressable>
   );
 }
 
@@ -220,6 +222,7 @@ export function ClubCommentItem({
   isReply = false,
   onMorePress,
   onReplyPress,
+  onAuthorPress,
   avatarUri,
 }: {
   name: string;
@@ -228,21 +231,24 @@ export function ClubCommentItem({
   isReply?: boolean;
   onMorePress?: () => void;
   onReplyPress?: () => void;
+  onAuthorPress?: () => void;
   avatarUri?: string | null;
 }) {
   return (
     <View style={[styles.commentRow, isReply && styles.replyCommentRow]}>
-      {avatarUri ? (
-        <Image source={{ uri: avatarUri }} style={styles.commentAvatar} contentFit="cover" />
-      ) : (
-        <View style={styles.commentAvatar} />
-      )}
+      <Pressable onPress={onAuthorPress} disabled={!onAuthorPress}>
+        {avatarUri ? (
+          <Image source={{ uri: avatarUri }} style={styles.commentAvatar} contentFit="cover" />
+        ) : (
+          <View style={styles.commentAvatar} />
+        )}
+      </Pressable>
       <View style={styles.commentContent}>
         <View style={styles.commentTopRow}>
-          <View style={styles.commentNameRow}>
+          <Pressable style={styles.commentNameRow} onPress={onAuthorPress} disabled={!onAuthorPress}>
             <Text style={styles.commentName}>{name}</Text>
             <Text style={styles.commentTime}>{time}</Text>
-          </View>
+          </Pressable>
           {onMorePress ? (
             <Pressable onPress={onMorePress} hitSlop={10}>
               <Ionicons name="ellipsis-vertical" size={22} color={CLUB_COLORS.gray500} />
@@ -318,17 +324,19 @@ export function ClubPostActionSheet({
   onClose,
   onPrimaryPress,
   onSecondaryPress,
+  secondaryLabelOverride,
 }: {
   visible: boolean;
   mode: ClubActionSheetMode;
   onClose: () => void;
   onPrimaryPress?: () => void;
   onSecondaryPress?: () => void;
+  secondaryLabelOverride?: string;
 }) {
   const isSingleAction = mode === "commentOwner";
   const primaryLabel =
     mode === "owner" ? "수정하기" : mode === "commentOwner" ? "삭제하기" : "신고하기";
-  const secondaryLabel = mode === "owner" ? "삭제하기" : "차단하기";
+  const secondaryLabel = secondaryLabelOverride ?? (mode === "owner" ? "삭제하기" : "차단하기");
   const primaryDanger = mode !== "owner";
   const secondaryDanger = mode === "owner";
 

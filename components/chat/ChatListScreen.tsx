@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useQueryClient } from "@tanstack/react-query";
-import { Image } from "@/components/Image";
-import { useRouter } from "expo-router";
+import { Image } from "expo-image";
+import { useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -82,6 +82,12 @@ export default function ChatListScreen() {
 
   const isFilterLoading =
     chatRoomsQuery.isFetchingNextPage && chatPreviews.length === 0;
+
+  useFocusEffect(
+    useCallback(() => {
+      void chatRoomsQuery.refetch();
+    }, [chatRoomsQuery]),
+  );
 
   useEffect(() => {
     if (
