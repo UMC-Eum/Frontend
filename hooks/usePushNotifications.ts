@@ -1,5 +1,8 @@
+import type { QueryClient } from "@tanstack/react-query";
+import * as Notifications from "expo-notifications";
 import { useEffect } from "react";
 
+import { queryKeys } from "@/hooks/api/queryKeys";
 import { useAuthStore } from "@/stores/authStore";
 import { useNotificationSettingsStore } from "@/stores/notificationSettingsStore";
 import {
@@ -7,13 +10,14 @@ import {
   onForegroundMessage,
   onNotificationOpened,
   onPushTokenRefresh,
+  openPushNotification,
   presentForegroundMessage,
   removePushTokenFromServer,
   syncPushTokenToServer,
 } from "@/utils/pushNotifications";
 
 // 수신/탭 리스너를 붙이고, 로그인 + 알림 ON 상태에서 FCM 토큰을 서버에 등록한다.
-export function usePushNotifications() {
+export function usePushNotifications(queryClient?: QueryClient) {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const notificationEnabled = useNotificationSettingsStore(
     (state) => state.enabled,
@@ -23,24 +27,33 @@ export function usePushNotifications() {
     // 포그라운드 수신 → 로컬 알림으로 표시
     const unsubscribeMessage = onForegroundMessage((remoteMessage) => {
       void presentForegroundMessage(remoteMessage);
+      void queryClient?.invalidateQueries({ queryKey: queryKeys.notifications.all });
     });
-    // 백그라운드에서 알림 탭 → 앱 열림
+    // 백그라운드에서 알림 탭 → 앱 열림 → payload 기준 라우팅
     const unsubscribeOpened = onNotificationOpened((message) => {
-      console.log("[push] 알림 탭:", message.notification);
-      // TODO: 알림 payload(data.type 등) 기준 딥링크 라우팅
+      openPushNotification(message.data);
     });
     // 앱이 완전히 종료된 상태에서 알림으로 실행된 경우
     void getInitialPushNotification().then((message) => {
       if (!message) return;
-      console.log("[push] 종료상태에서 알림으로 열림:", message.notification);
-      // TODO: 딥링크 라우팅
+      // ponytail: 인증 초기화·초기 Redirect가 끝난 뒤 이동하도록 지연으로 회피 —
+      // 콜드스타트에서 목적지 유실이 재발하면 pending-link 저장 방식으로 승격
+      setTimeout(() => openPushNotification(message.data), 1500);
     });
+    // 포그라운드에서 로컬 알림으로 표시한 것을 탭한 경우
+    const responseSubscription =
+      Notifications.addNotificationResponseReceivedListener((response) => {
+        openPushNotification(
+          response.notification.request.content.data as Record<string, unknown>,
+        );
+      });
 
     return () => {
       unsubscribeMessage?.();
       unsubscribeOpened?.();
+      responseSubscription.remove();
     };
-  }, []);
+  }, [queryClient]);
 
   // 로그인 + 알림받기 ON → 등록/갱신, 알림받기 OFF(인증 상태) → 해제
   useEffect(() => {

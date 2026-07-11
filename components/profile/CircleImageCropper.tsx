@@ -1,4 +1,4 @@
-import { Image } from "expo-image";
+import { Image } from "@/components/Image";
 import * as ImageManipulator from "expo-image-manipulator";
 import React, { useCallback, useMemo, useRef } from "react";
 import {

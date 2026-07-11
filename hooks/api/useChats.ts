@@ -104,6 +104,8 @@ export function useChatMessagesInfiniteQuery(
     initialPageParam: null as string | null,
     getNextPageParam: (lastPage) => lastPage.nextCursor,
     enabled: queryEnabled,
+    // 전역 staleTime(1시간)을 따르면 방 재진입 시 옛 메시지가 보이므로 5분으로 유지
+    staleTime: 5 * 60_000,
   });
 }
 

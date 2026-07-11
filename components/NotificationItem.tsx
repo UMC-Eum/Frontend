@@ -1,4 +1,6 @@
-import { Image, Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
+
+import { Image } from "@/components/Image";
 
 interface NotificationItemProps {
   isRead?: boolean;

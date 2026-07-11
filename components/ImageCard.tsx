@@ -1,12 +1,13 @@
 import { FontAwesome } from "@expo/vector-icons";
 import React from "react";
 import {
-  Image,
   StyleSheet,
   TouchableOpacity,
   View,
   ViewStyle,
 } from "react-native";
+
+import { Image } from "@/components/Image";
 
 interface ImageCardProps {
   imageUrl?: string; // 원격 혹은 로컬 파일의 이미지 주소 (옵션)
@@ -43,7 +44,7 @@ export const ImageCard: React.FC<ImageCardProps> = ({
         <Image
           source={{ uri: imageUrl }}
           style={styles.image}
-          resizeMode="cover" // 뷰 크기에 꽉 차게 비율 유지하면서 자르기 (CSS의 object-fit: cover 와 동일)
+
         />
       )}
 

@@ -52,8 +52,7 @@ export default function ChatInput({
           value={text}
           onChangeText={setText}
           placeholderTextColor="#A6AFB6"
-          returnKeyType="send"
-          onSubmitEditing={handleSend}
+          multiline
         />
 
         <Pressable style={styles.sendButton} onPress={handleSend} hitSlop={8}>
@@ -139,13 +138,16 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    height: 38,
+    minHeight: 38,
+    maxHeight: 120,
     borderRadius: 10,
     backgroundColor: "#F2F3F5",
     paddingHorizontal: 14,
+    paddingVertical: 8,
     fontSize: 13,
     fontWeight: "600",
     color: "#202020",
+    textAlignVertical: "center",
   },
   sendButton: {
     width: 34,

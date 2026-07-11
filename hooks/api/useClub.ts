@@ -4,6 +4,7 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
+import { useMemo } from "react";
 
 import {
   clearRecentClubSearches,
@@ -174,6 +175,45 @@ export function useUnlikeClubMutation() {
       queryClient.invalidateQueries({ queryKey: queryKeys.club.all });
     },
   });
+}
+
+// 캐시된 응답(목록/추천/내 동호회 등)을 훑어 해당 클럽의 썸네일 URL을 찾는다.
+function findClubThumbnail(value: unknown, clubId: number): string | null {
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const found = findClubThumbnail(item, clubId);
+      if (found) return found;
+    }
+    return null;
+  }
+  if (value && typeof value === "object") {
+    const record = value as Record<string, unknown>;
+    if (record.clubId === clubId && typeof record.thumbnailUrl === "string") {
+      return record.thumbnailUrl;
+    }
+    for (const nested of Object.values(record)) {
+      const found = findClubThumbnail(nested, clubId);
+      if (found) return found;
+    }
+  }
+  return null;
+}
+
+// 상세 응답을 기다리는 동안 목록 캐시에 이미 있는 썸네일을 먼저 보여준다.
+// 목록에서 같은 URL을 이미 렌더링했으므로 이미지 디스크 캐시에도 있어 즉시 뜬다.
+export function useCachedClubThumbnail(clubId: number): string | null {
+  const queryClient = useQueryClient();
+
+  return useMemo(() => {
+    if (!Number.isFinite(clubId)) return null;
+    for (const query of queryClient
+      .getQueryCache()
+      .findAll({ queryKey: queryKeys.club.all })) {
+      const found = findClubThumbnail(query.state.data, clubId);
+      if (found) return found;
+    }
+    return null;
+  }, [queryClient, clubId]);
 }
 
 export function useRecentClubSearchesQuery(enabled = true) {

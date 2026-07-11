@@ -26,6 +26,7 @@ import {
   View,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
+import { Image as CachedImage } from "@/components/Image";
 import { KeyboardAvoidingView } from "@/components/KeyboardCompat";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -48,7 +49,6 @@ import {
 } from "@/constants/keyboard";
 import {
   connectChatSocket,
-  disconnectChatSocket,
   getChatSocketDebugConfig,
   joinChatRoomSocket,
   onMessageDeleted,
@@ -562,7 +562,7 @@ export default function ChatRoom() {
       unsubscribeMessageNew();
       unsubscribeMessageRead();
       unsubscribeMessageDeleted();
-      disconnectChatSocket();
+      // 소켓은 전역 공유(알림 배너 등) — 화면에서는 리스너만 정리하고 끊지 않는다.
     };
   }, [
     chatRoomId,
@@ -1100,7 +1100,7 @@ export default function ChatRoom() {
         {profile ? (
           <>
             {profile.image ? (
-              <Image
+              <CachedImage
                 source={{ uri: profile.image }}
                 style={styles.profileAvatar}
               />

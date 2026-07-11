@@ -3,7 +3,7 @@ import { useRouter } from "expo-router";
 import { useCallback, useState } from "react";
 import {
   Alert,
-  Image,
+  Linking,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -12,6 +12,8 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+
+import { Image } from "@/components/Image";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { MyClubRowListSkeleton } from "@/components/skeletons";
@@ -30,8 +32,8 @@ const ACCENT = "#FC3367";
 const TEXT = "#202020";
 const SUB_TEXT = "#636970";
 const MUTED = "#A6AFB6";
-const PROFILE_IMAGE =
-  "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=240&h=240&fit=crop&crop=faces";
+// ponytail: 고객지원 URL 확정 전까지 빈 값 — 확정되면 값만 채우면 행이 노출된다.
+const SUPPORT_URL = "";
 
 export default function MyTabScreen() {
   const router = useRouter();
@@ -142,11 +144,16 @@ export default function MyTabScreen() {
               onPress={() => router.push("/profile/edit" as any)}
             >
               <View style={styles.avatarImageClip}>
-                <Image
-                  source={{ uri: profile?.profileImageUrl || PROFILE_IMAGE }}
-                  style={styles.avatarImage}
-                  resizeMode="cover"
-                />
+                {profile?.profileImageUrl ? (
+                  <Image
+                    source={{ uri: profile.profileImageUrl }}
+                    style={styles.avatarImage}
+                  />
+                ) : (
+                  <View style={styles.avatarPlaceholder}>
+                    <Ionicons name="person" size={40} color="#A6AFB6" />
+                  </View>
+                )}
               </View>
               <View style={styles.editBadge}>
                 <Ionicons
@@ -159,17 +166,16 @@ export default function MyTabScreen() {
 
             <View style={styles.profileInfo}>
               <View style={styles.nameRow}>
-                <Text style={styles.name}>{profile?.nickname ?? "루시"}</Text>
-                <Text style={styles.age}> · {profile?.age ?? 54}세</Text>
-                <View style={styles.verifiedBadge}>
-                  <Ionicons name="checkmark" size={13} color="#FFFFFF" />
-                </View>
+                <Text style={styles.name}>{profile?.nickname ?? "-"}</Text>
+                {profile?.age != null && (
+                  <Text style={styles.age}> · {profile.age}세</Text>
+                )}
               </View>
 
               <View style={styles.locationRow}>
                 <Ionicons name="location-sharp" size={21} color="#687076" />
                 <Text style={styles.location}>
-                  {profile?.area?.name ?? "서울시 광진구"}
+                  {profile?.area?.name ?? "지역 미설정"}
                 </Text>
                 <TouchableOpacity
                   activeOpacity={0.7}
@@ -188,8 +194,7 @@ export default function MyTabScreen() {
           >
             <Text style={styles.bioLabel}>나의 소개</Text>
             <Text style={styles.bioText} numberOfLines={2}>
-              {profile?.introText ||
-                "안녕하세요 등산이 취미인 사람입니다. 같이 즐겁게 등산하실분 구해요~ 등산 경험 여러 있습니다. 편하게 연..."}
+              {profile?.introText || "아직 소개가 없어요. 소개를 작성해보세요."}
             </Text>
           </TouchableOpacity>
 
@@ -293,6 +298,36 @@ export default function MyTabScreen() {
               ios_backgroundColor="#E5E7EB"
             />
           </View>
+          <View style={styles.thinDivider} />
+          {/* Apple 심사: 로그인 이후에도 약관/개인정보처리방침 접근이 가능해야 한다 */}
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={() =>
+              router.push("/onboarding/terms-detail?type=service" as any)
+            }
+          >
+            <Text style={styles.policyLinkText}>서비스이용약관</Text>
+          </TouchableOpacity>
+          <View style={styles.thinDivider} />
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={() =>
+              router.push("/onboarding/terms-detail?type=privacy" as any)
+            }
+          >
+            <Text style={styles.policyLinkText}>개인정보처리방침</Text>
+          </TouchableOpacity>
+          {SUPPORT_URL ? (
+            <>
+              <View style={styles.thinDivider} />
+              <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={() => Linking.openURL(SUPPORT_URL)}
+              >
+                <Text style={styles.policyLinkText}>고객지원</Text>
+              </TouchableOpacity>
+            </>
+          ) : null}
           <View style={styles.thinDivider} />
           <TouchableOpacity
             activeOpacity={0.7}
@@ -454,14 +489,10 @@ const styles = StyleSheet.create({
     fontWeight: "500",
     lineHeight: 30,
   },
-  verifiedBadge: {
-    width: 18,
-    height: 18,
+  avatarPlaceholder: {
+    flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    marginLeft: 6,
-    borderRadius: 9,
-    backgroundColor: ACCENT,
   },
   locationRow: {
     flexDirection: "row",
@@ -707,6 +738,11 @@ const styles = StyleSheet.create({
     height: 1,
     marginVertical: 15,
     backgroundColor: "#EEF0F2",
+  },
+  policyLinkText: {
+    color: TEXT,
+    fontSize: 15,
+    fontWeight: "500",
   },
   logoutText: {
     color: ACCENT,

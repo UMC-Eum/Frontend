@@ -108,12 +108,10 @@ export function useReadAllHeartNotificationsMutation() {
 
   return useMutation({
     mutationFn: readAllHeartNotifications,
-    // 마음 탭 목록 캐시만 직접 갱신해 refetch로 인한 스크롤 튐을 막는다.
+    // 마음 탭과 all 캐시의 HEART 항목만 직접 갱신해 bell dot도 즉시 꺼지게 한다.
     onMutate: () => {
-      patchNotificationCaches(
-        queryClient,
-        (item) => ({ ...item, isRead: true }),
-        "heart",
+      patchNotificationCaches(queryClient, (item) =>
+        item.type === "HEART" ? { ...item, isRead: true } : item,
       );
     },
   });

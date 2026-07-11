@@ -3,12 +3,13 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useGlobalSearchParams, usePathname, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  Image,
   Pressable,
   StyleSheet,
   Text,
   View,
 } from "react-native";
+
+import { Image } from "@/components/Image";
 import {
   Gesture,
   GestureDetector,

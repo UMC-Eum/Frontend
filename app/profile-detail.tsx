@@ -6,8 +6,6 @@ import { StatusBar } from "expo-status-bar";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
-  Image,
-  ImageBackground,
   Keyboard,
   LayoutChangeEvent,
   Modal,
@@ -20,6 +18,8 @@ import {
   View,
   useWindowDimensions,
 } from "react-native";
+
+import { Image, ImageBackground } from "@/components/Image";
 import { KeyboardAvoidingView } from "@/components/KeyboardCompat";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { ClipPath, Defs, G, Path, Rect } from "react-native-svg";

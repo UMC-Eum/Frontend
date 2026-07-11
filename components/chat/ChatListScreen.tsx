@@ -22,6 +22,7 @@ import {
 import { TAB_SCREEN_BOTTOM_PADDING } from "@/constants/layout";
 import { queryKeys } from "@/hooks/api/queryKeys";
 import { useChatRoomsInfiniteQuery } from "@/hooks/api/useChats";
+import { useNotificationBellBadge } from "@/hooks/useNotificationBellBadge";
 import { uniqueBy } from "@/utils/array";
 import { readUnreadMessagesInChatRoom } from "@/utils/chatRead";
 import { markChatRoomUnreadCountInCache } from "@/utils/chatUnreadCache";
@@ -47,6 +48,7 @@ const CHAT_FILTERS: { id: ChatFilter; label: string }[] = [
 export default function ChatListScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const { hasNotificationBadge } = useNotificationBellBadge();
   const [activeFilter, setActiveFilter] = useState<ChatFilter>("dm");
   const chatRoomsQuery = useChatRoomsInfiniteQuery(undefined, {
     staleTime: 30_000,
@@ -188,6 +190,7 @@ export default function ChatListScreen() {
           accessibilityLabel="알림 보기"
         >
           <Ionicons name="notifications-outline" size={23} color="#202020" />
+          {hasNotificationBadge ? <View style={styles.notificationBadgeDot} /> : null}
         </Pressable>
       </View>
       <View style={styles.filterTabs}>
@@ -395,10 +398,20 @@ const styles = StyleSheet.create({
     color: "#202020",
   },
   notificationButton: {
+    position: "relative",
     width: 44,
     height: 44,
     alignItems: "center",
     justifyContent: "center",
+  },
+  notificationBadgeDot: {
+    position: "absolute",
+    top: 10,
+    right: 10,
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+    backgroundColor: "#FF1B4D",
   },
   filterTabs: {
     flexDirection: "row",

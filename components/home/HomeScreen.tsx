@@ -1,5 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
-import { Image, ImageBackground } from "expo-image";
+import { Image, ImageBackground } from "@/components/Image";
+import { useQueryClient, type InfiniteData } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -29,12 +30,13 @@ import {
   useRecommendationsInfiniteQuery,
   useSendRecommendationHeartMutation,
 } from "@/hooks/api/useRecommendations";
-import { useNotificationsInfiniteQuery } from "@/hooks/api/useNotifications";
+import { queryKeys } from "@/hooks/api/queryKeys";
 import {
   useCreateProfileVisitMutation,
   useMyProfileQuery,
   useMyProfileVisitorsQuery,
 } from "@/hooks/api/useUsers";
+import { useNotificationBellBadge } from "@/hooks/useNotificationBellBadge";
 import { DEFAULT_PROFILE_IMAGE_URI } from "@/constants/defaultProfileImage";
 import { TAB_SCREEN_BOTTOM_PADDING } from "@/constants/layout";
 import ClubRow, { ClubRowItem } from "@/components/search/ClubRow";
@@ -53,7 +55,7 @@ import {
 } from "@/hooks/api/useClub";
 import { useAuthStore } from "@/stores/authStore";
 import { useClubLocationStore } from "@/stores/clubLocationStore";
-import { useNotificationSettingsStore } from "@/stores/notificationSettingsStore";
+import type { IHeartsentResponse } from "@/types/api/socials/socialsDTO";
 import { chunk, uniqueBy } from "@/utils/array";
 
 const PINK = "#FF1B4D";
@@ -142,6 +144,7 @@ const getCountdownText = (endAt: number) => {
 
 export default function HomePage() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { width } = useWindowDimensions();
   const fabAnimation = useRef(new Animated.Value(1)).current;
   const scrollViewRef = useRef<ScrollView>(null);
@@ -162,9 +165,7 @@ export default function HomePage() {
   const [, setLikedCount] = useState(0);
   const isAuthInitialized = useAuthStore((state) => state.isAuthInitialized);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-  const notificationEnabled = useNotificationSettingsStore(
-    (state) => state.enabled,
-  );
+  const { hasNotificationBadge } = useNotificationBellBadge();
   const myProfileQuery = useMyProfileQuery();
   const clubAreaCode = useClubLocationStore((state) => state.areaCode);
   const clubAreaName = useClubLocationStore((state) => state.areaName);
@@ -174,18 +175,6 @@ export default function HomePage() {
   const visitorsQuery = useMyProfileVisitorsQuery({ size: 12 });
   const recommendationsQuery = useRecommendationsInfiniteQuery();
   const refetchRecommendations = recommendationsQuery.refetch;
-  const heartNotificationsQuery = useNotificationsInfiniteQuery(
-    "heart",
-    undefined,
-    notificationEnabled,
-  );
-  // 알림 화면(app/notifications.tsx)이 마음/동호회 탭만 제공하므로 dot 기준도 heart+club로 맞춘다.
-  // (chat unread는 하단 navbar 채팅 badge가 별도로 표시)
-  const clubNotificationsQuery = useNotificationsInfiniteQuery(
-    "club",
-    undefined,
-    notificationEnabled,
-  );
   const clubRecommendationsQuery = useRecommendedClubsQuery(
     {
       ...(activeClubAreaCode ? { areaCode: activeClubAreaCode } : {}),
@@ -196,19 +185,12 @@ export default function HomePage() {
   const sendHeartMutation = useSendRecommendationHeartMutation();
   const createProfileVisitMutation = useCreateProfileVisitMutation();
 
+  const myAreaName = myProfileQuery.data?.area?.name?.trim() ?? "";
   const recommendedProfiles = useMemo(
-    () => mapRecommendationProfiles(recommendationsQuery.data),
-    [recommendationsQuery.data],
+    () => mapRecommendationProfiles(recommendationsQuery.data, myAreaName),
+    [recommendationsQuery.data, myAreaName],
   );
   const visitors = visitorsQuery.data?.items ?? [];
-  const heartUnreadCount = useMemo(
-    () => countUnreadNotifications(heartNotificationsQuery.data),
-    [heartNotificationsQuery.data],
-  );
-  const clubUnreadCount = useMemo(
-    () => countUnreadNotifications(clubNotificationsQuery.data),
-    [clubNotificationsQuery.data],
-  );
   const profiles = recommendedProfiles;
   const profile =
     profiles.length > 0
@@ -219,8 +201,6 @@ export default function HomePage() {
     !isAuthInitialized ||
     (isAuthenticated && !myProfileQuery.data && !myProfileQuery.isError);
   const cardWidth = width - 40;
-  const hasNotificationBadge =
-    notificationEnabled && heartUnreadCount + clubUnreadCount > 0;
 
   // 마이페이지 등에서 ?tab=club 으로 진입하면 동호회 탭을 엽니다.
   useEffect(() => {
@@ -323,11 +303,17 @@ export default function HomePage() {
   const handleLike = (selectedProfile: Profile) => {
     setLikedCount((prev) => prev + 1);
     if (selectedProfile.targetUserId && !selectedProfile.isLiked) {
-      sendHeartMutation.mutate(selectedProfile.targetUserId);
+      addOptimisticSentHeart(queryClient, selectedProfile);
+      sendHeartMutation.mutate(selectedProfile.targetUserId, {
+        onError: () => {
+          queryClient.invalidateQueries({ queryKey: queryKeys.socials.hearts.sent(20) });
+        },
+      });
     }
+    // 같은 tab=sent로 재진입해도 전환되게, navbar와 같은 tabPressAt(매번 변경) param을 함께 넘긴다.
     router.replace({
       pathname: "/(tabs)/heart",
-      params: { tab: "sent" },
+      params: { tab: "sent", tabPressAt: String(Date.now()) },
     } as never);
   };
 
@@ -596,48 +582,22 @@ function parseClubId(value: string) {
   return match?.[0] ?? value;
 }
 
-function countUnreadNotifications(data?: {
-  pages?: {
-    items: {
-      isRead?: boolean;
-      read?: boolean;
-      readAt?: string | null;
+function mapRecommendationProfiles(
+  data: {
+    pages?: {
+      items: {
+        userId: number;
+        nickname: string;
+        age: number;
+        introText: string;
+        profileImageUrl: string;
+        isLiked: boolean;
+        likedHeartId: number | null;
+      }[];
     }[];
-  }[];
-}) {
-  return (
-    data?.pages?.reduce(
-      (total, page) =>
-        total +
-        page.items.filter((item) => {
-          if (typeof item.isRead === "boolean") return !item.isRead;
-          if (typeof item.read === "boolean") return !item.read;
-          if ("readAt" in item) return !item.readAt;
-          return false;
-        }).length,
-      0,
-    ) ?? 0
-  );
-}
-
-function mapRecommendationProfiles(data?: {
-  pages?: {
-    items: {
-      userId: number;
-      nickname: string;
-      age: number;
-      // 서버가 평면(areaName)과 중첩(area.name) 두 형태로 지역을 내려줘 둘 다 지원한다.
-      areaName?: string | null;
-      area?: { name?: string | null } | null;
-      addressName?: string | null;
-      address?: { fullName?: string | null; name?: string | null } | null;
-      introText: string;
-      profileImageUrl: string;
-      isLiked: boolean;
-      likedHeartId: number | null;
-    }[];
-  }[];
-}): Profile[] {
+  } | undefined,
+  location: string,
+): Profile[] {
   return (
     uniqueBy(
       data?.pages?.flatMap((page) =>
@@ -646,7 +606,7 @@ function mapRecommendationProfiles(data?: {
           targetUserId: item.userId,
           name: item.nickname,
           age: item.age,
-          location: getProfileLocation(item),
+          location,
           intro: item.introText,
           isLiked: item.isLiked,
           likedHeartId: item.likedHeartId,
@@ -658,19 +618,50 @@ function mapRecommendationProfiles(data?: {
   );
 }
 
-function getProfileLocation(profile: {
-  areaName?: string | null;
-  area?: { name?: string | null } | null;
-  addressName?: string | null;
-  address?: { fullName?: string | null; name?: string | null } | null;
-}) {
-  return (
-    profile.areaName?.trim() ||
-    profile.area?.name?.trim() ||
-    profile.addressName?.trim() ||
-    profile.address?.fullName?.trim() ||
-    profile.address?.name?.trim() ||
-    ""
+function addOptimisticSentHeart(
+  queryClient: ReturnType<typeof useQueryClient>,
+  profile: Profile,
+) {
+  if (!profile.targetUserId) return;
+
+  const item = {
+    heartId: profile.likedHeartId ?? -Date.now(),
+    targetUserId: profile.targetUserId,
+    createdAt: new Date().toISOString(),
+    targetUser: {
+      id: profile.targetUserId,
+      nickname: profile.name,
+      age: profile.age,
+      area: profile.location ? { name: profile.location } : null,
+      profileImageUrl: profile.images[0] ?? DEFAULT_PROFILE_IMAGE_URI,
+    },
+  };
+
+  queryClient.setQueryData<InfiniteData<IHeartsentResponse, string | null>>(
+    queryKeys.socials.hearts.sent(20),
+    (current) => {
+      const pages = current?.pages.length
+        ? current.pages
+        : [{ nextCursor: null, items: [] }];
+
+      return {
+        pageParams: current?.pageParams ?? [null],
+        pages: pages.map((page, index) => ({
+          ...page,
+          items:
+            index === 0
+              ? [
+                  item,
+                  ...page.items.filter(
+                    (sentHeart) => sentHeart.targetUserId !== profile.targetUserId,
+                  ),
+                ]
+              : page.items.filter(
+                  (sentHeart) => sentHeart.targetUserId !== profile.targetUserId,
+                ),
+        })),
+      };
+    },
   );
 }
 
