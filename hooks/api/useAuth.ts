@@ -7,6 +7,7 @@ import {
   logout,
   testLogin,
 } from "@/api/auth/authApi";
+import { disconnectChatSocket } from "@/api/chats/chatSocketApi";
 import { useAuthStore } from "@/stores/authStore";
 import {
   IAppleLoginRequest,
@@ -62,6 +63,7 @@ export function useLogoutMutation() {
       return logout();
     },
     onSettled: () => {
+      disconnectChatSocket();
       clearAuth();
       queryClient.clear();
     },

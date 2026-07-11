@@ -130,7 +130,7 @@ export default function ClubDetailScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ clubId?: string }>();
   const insets = useSafeAreaInsets();
-  const { width, height } = useWindowDimensions();
+  const { width } = useWindowDimensions();
   const clubId = parseClubId(params.clubId);
   const [activeTab, setActiveTab] = useState<ClubDetailTab>("home");
   const [isFavorite, setFavorite] = useState(false);
@@ -199,10 +199,6 @@ export default function ClubDetailScreen() {
     ? insets.bottom + (activeTab === "board" ? 110 : 24)
     : insets.bottom + 96;
   const albumItemSize = width / 3;
-  const clubChatHeight = Math.max(
-    320,
-    height - insets.top - insets.bottom - 48 - 264 - 112 - 8 - 56,
-  );
   const trimmedJoinMessage = joinMessage.trim();
   const meetings = detail?.meetings ?? [];
   const archives =
@@ -435,8 +431,8 @@ export default function ClubDetailScreen() {
         <ClubChatTab
           chatRoomId={clubChatRoomId}
           memberCount={memberCount}
-          bottomPadding={8}
-          style={{ height: clubChatHeight }}
+          bottomPadding={insets.bottom + 8}
+          style={styles.chatTabFill}
         />
       ) : clubChatRoomQuery.isLoading || clubChatRoomQuery.isFetching ? (
         <View style={styles.preJoinChatPlaceholder}>
@@ -524,10 +520,13 @@ export default function ClubDetailScreen() {
       </View>
 
       {activeTab === "chat" ? (
-        <View style={styles.scrollView}>
+        <KeyboardAvoidingView
+          style={styles.scrollView}
+          behavior={KEYBOARD_AVOIDING_BEHAVIOR}
+        >
           {renderTopSection()}
           {renderChatTab()}
-        </View>
+        </KeyboardAvoidingView>
       ) : (
         <ScrollView
           style={styles.scrollView}
@@ -2688,12 +2687,16 @@ const styles = StyleSheet.create({
     backgroundColor: "#DDE2E4",
   },
   preJoinChatPlaceholder: {
+    flex: 1,
     minHeight: 240,
     backgroundColor: "#FFFFFF",
     alignItems: "center",
     justifyContent: "center",
     gap: 12,
     paddingHorizontal: 20,
+  },
+  chatTabFill: {
+    flex: 1,
   },
   preJoinChatText: {
     color: "#8E9AA3",

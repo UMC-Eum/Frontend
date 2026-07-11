@@ -1,4 +1,3 @@
-import { FontAwesome } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import * as AppleAuthentication from "expo-apple-authentication";
 import * as Linking from "expo-linking";
@@ -16,7 +15,6 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { getAgreementStatus } from "@/api/agreements/agreementsApi";
-import AgeRestrictionModal from "@/components/onboarding/AgeRestrictionModal";
 import TermsBottomSheet from "@/components/onboarding/TermsBottomSheet";
 import {
   KAKAO_AUTH_URL,
@@ -49,7 +47,6 @@ export default function LoginScreen() {
   const appleLoginMutation = useAppleLoginMutation();
   const kakaoLoginMutation = useKakaoLoginMutation();
 
-  const [showAgeModal, setShowAgeModal] = useState(false);
   const [showTermsSheet, setShowTermsSheet] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isOpeningBrowser, setIsOpeningBrowser] = useState(false);
@@ -283,39 +280,23 @@ export default function LoginScreen() {
           </View>
         </Pressable>
         {isAppleAuthAvailable ? (
-          <Pressable
-            style={({ pressed }) => [
-              styles.socialButton,
-              styles.appleButton,
-              styles.appleLoginButton,
-              isLoginPending && styles.socialButtonDisabled,
-              pressed && !isLoginPending && styles.socialButtonPressed,
-            ]}
+          // Apple 심사 4.8/HIG: Apple 로그인은 공식 버튼 컴포넌트를 사용해야 한다.
+          <AppleAuthentication.AppleAuthenticationButton
+            buttonType={
+              AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN
+            }
+            buttonStyle={
+              AppleAuthentication.AppleAuthenticationButtonStyle.BLACK
+            }
+            cornerRadius={16}
+            style={[styles.socialButton, styles.appleButton]}
             onPress={handleAppleLogin}
-            disabled={isLoginPending}
-            accessibilityRole="button"
-            accessibilityLabel="Apple로 로그인"
-          >
-            <View style={styles.socialButtonContent}>
-              <View style={styles.socialButtonIconBox}>
-                <FontAwesome name="apple" size={30} color="#FFFFFF" />
-              </View>
-              <Text style={[styles.socialButtonText, styles.appleButtonText]}>
-                Apple로 로그인
-              </Text>
-            </View>
-          </Pressable>
+          />
         ) : null}
         {errorMessage ? (
           <Text style={styles.errorText}>{errorMessage}</Text>
         ) : null}
       </View>
-
-      {/* 나이 제한 모달 */}
-      <AgeRestrictionModal
-        visible={showAgeModal}
-        onClose={() => setShowAgeModal(false)}
-      />
 
       {/* 이용약관 바텀시트 */}
       <TermsBottomSheet
@@ -386,9 +367,6 @@ const styles = StyleSheet.create({
   appleButton: {
     marginTop: 12,
   },
-  appleLoginButton: {
-    backgroundColor: "#000000",
-  },
   socialButtonContent: {
     width: "100%",
     height: "100%",
@@ -415,9 +393,6 @@ const styles = StyleSheet.create({
   },
   kakaoButtonText: {
     color: "rgba(0, 0, 0, 0.85)",
-  },
-  appleButtonText: {
-    color: "#FFFFFF",
   },
   errorText: {
     marginTop: 12,

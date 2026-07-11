@@ -273,6 +273,19 @@ export default function ClubManageMembersScreen() {
                     </View>
                   </View>
                 ))}
+                {requestsQuery.hasNextPage ? (
+                  <Pressable
+                    style={styles.loadMoreButton}
+                    onPress={() => requestsQuery.fetchNextPage()}
+                    disabled={requestsQuery.isFetchingNextPage}
+                  >
+                    <Text style={styles.loadMoreText}>
+                      {requestsQuery.isFetchingNextPage
+                        ? "불러오는 중..."
+                        : "가입신청 더 보기"}
+                    </Text>
+                  </Pressable>
+                ) : null}
               </View>
             )}
           </View>
@@ -337,6 +350,19 @@ export default function ClubManageMembersScreen() {
                   </View>
                 );
               })}
+              {membersQuery.hasNextPage ? (
+                <Pressable
+                  style={styles.loadMoreButton}
+                  onPress={() => membersQuery.fetchNextPage()}
+                  disabled={membersQuery.isFetchingNextPage}
+                >
+                  <Text style={styles.loadMoreText}>
+                    {membersQuery.isFetchingNextPage
+                      ? "불러오는 중..."
+                      : "멤버 더 보기"}
+                  </Text>
+                </Pressable>
+              ) : null}
             </View>
           )}
         </ScrollView>
@@ -465,6 +491,14 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   kickText: { fontSize: 16, lineHeight: 24, fontWeight: "500", color: COLORS.gray700 },
+  loadMoreButton: {
+    height: 44,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 8,
+    backgroundColor: COLORS.gray100,
+  },
+  loadMoreText: { fontSize: 15, fontWeight: "600", color: COLORS.gray700 },
   centerBox: {
     flex: 1,
     alignItems: "center",
