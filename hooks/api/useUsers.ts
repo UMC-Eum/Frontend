@@ -18,6 +18,7 @@ import {
   putPersonalities,
   updateMyProfile,
 } from "@/api/users/usersApi";
+import { disconnectChatSocket } from "@/api/chats/chatSocketApi";
 import { useAuthStore } from "@/stores/authStore";
 import { removePushTokenFromServer } from "@/utils/pushNotifications";
 import {
@@ -132,6 +133,7 @@ export function useDeactivateUserMutation() {
       return deactivateUser();
     },
     onSuccess: () => {
+      disconnectChatSocket();
       clearAuth();
       queryClient.clear();
     },

@@ -6,7 +6,7 @@ import {
 import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
-import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAuthStore } from "@/stores/authStore";
@@ -25,19 +25,19 @@ const PERMISSIONS: PermissionItem[] = [
   {
     id: "camera",
     icon: "camera",
-    title: "카메라 (필수)",
+    title: "카메라 (선택)",
     description: "사진으로 일정을 간편하게 등록",
   },
   {
     id: "mic",
     icon: "mic",
-    title: "마이크 (필수)",
+    title: "마이크 (선택)",
     description: "녹음한 음성은 매칭에만 사용돼요",
   },
   {
     id: "notification",
     icon: "bell",
-    title: "알림 (필수)",
+    title: "알림 (선택)",
     description: "새 인연 소식을 받아보세요.",
   },
 ];
@@ -109,25 +109,13 @@ export default function PermissionsScreen() {
     return nextState;
   };
 
+  // Apple 심사 가이드라인 5.1.1: 권한을 거부해도 가입/이용이 가능해야 한다.
+  // 거부된 권한은 해당 기능 사용 시점에 다시 안내한다.
   const handleConfirm = async () => {
-    const nextPermissions = { ...permissions };
-
     for (const item of PERMISSIONS) {
-      if (nextPermissions[item.id] !== "granted") {
-        nextPermissions[item.id] = await requestPermission(item.id);
+      if (permissions[item.id] !== "granted") {
+        await requestPermission(item.id);
       }
-    }
-
-    const hasDeniedPermission = PERMISSIONS.some(
-      (item) => nextPermissions[item.id] !== "granted",
-    );
-
-    if (hasDeniedPermission) {
-      Alert.alert(
-        "권한 허용이 필요해요",
-        "원활한 서비스 이용을 위해 카메라, 마이크, 알림 권한을 허용해주세요.",
-      );
-      return;
     }
 
     router.replace((onboardingRequired ? "/profile/name" : "/(tabs)") as any);
@@ -155,7 +143,7 @@ export default function PermissionsScreen() {
 
       <View style={styles.headerArea}>
         <Text style={styles.subtitle}>
-          원활한 서비스 이용을 위해{"\n"}다음 접근 권한 허용이 필요합니다.
+          권한을 허용하면{"\n"}서비스를 더 편리하게 이용할 수 있어요.
         </Text>
       </View>
 

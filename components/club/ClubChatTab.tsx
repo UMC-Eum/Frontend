@@ -24,7 +24,6 @@ import type { StyleProp, ViewStyle } from "react-native";
 
 import {
   connectChatSocket,
-  disconnectChatSocket,
   getChatSocketDebugConfig,
   joinChatRoomSocket,
   onMemberJoined,
@@ -439,7 +438,7 @@ export default function ClubChatTab({
       unsubscribeNew();
       unsubscribeRead();
       unsubscribeMember();
-      disconnectChatSocket();
+      // 소켓은 전역 공유(알림 배너 등) — 화면에서는 리스너만 정리하고 끊지 않는다.
     };
   }, [
     chatRoomId,

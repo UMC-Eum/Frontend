@@ -27,6 +27,15 @@ import { usePrefetchAppData } from "@/hooks/usePrefetchAppData";
 import { useStableQueryClient } from "@/hooks/use-query-client";
 import { useAuthStore } from "@/stores/authStore";
 
+// 운영 빌드에서는 콘솔 출력을 전역 차단한다(FCM 토큰·채팅 내용 등 민감정보 노출 방지).
+// console.error는 TestFlight/네이티브 크래시 로그 분석을 위해 남긴다.
+if (!__DEV__) {
+  console.log = () => {};
+  console.info = () => {};
+  console.debug = () => {};
+  console.warn = () => {};
+}
+
 export const unstable_settings = {
   anchor: "(tabs)",
 };
@@ -90,7 +99,6 @@ export default function RootLayout() {
               <Stack.Screen name="home" options={{ headerShown: false }} />
               <Stack.Screen name="ideal-recording" options={{ headerShown: false }} />
               <Stack.Screen name="profile-detail" options={{ headerShown: false }} />
-              <Stack.Screen name="payment" options={{ headerShown: false }} />
               <Stack.Screen name="club" options={{ headerShown: false }} />
               <Stack.Screen name="meeting-create" options={{ headerShown: false }} />
               <Stack.Screen
@@ -107,11 +115,6 @@ export default function RootLayout() {
                 options={{ headerShown: false, animation: "slide_from_right" }}
               />
               <Stack.Screen name="search" options={{ headerShown: false }} />
-              <Stack.Screen
-                name="modal"
-                options={{ presentation: "modal", title: "Modal" }}
-              />
-              <Stack.Screen name="test" options={{ headerShown: false }} />
               <Stack.Screen name="chat" options={{ headerShown: false }} />
             </Stack>
             <GlobalUiOverlay />

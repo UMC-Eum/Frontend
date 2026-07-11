@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "eum-mobile",
+    "name": "이음",
     "slug": "eum-mobile",
     "version": "1.1.0",
     "orientation": "portrait",
@@ -9,7 +9,7 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true,
+      "supportsTablet": false,
       "bundleIdentifier": "com.eum-dating.app",
       "buildNumber": "11",
       "usesAppleSignIn": true,
@@ -22,7 +22,9 @@
     "android": {
       "package": "com.eumdating.app",
       "versionCode": 1,
-      "permissions": ["POST_NOTIFICATIONS"],
+      "permissions": [
+        "POST_NOTIFICATIONS"
+      ],
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
@@ -61,7 +63,12 @@
           "cameraPermission": "프로필 사진 촬영을 위해 카메라 접근 권한이 필요합니다."
         }
       ],
-      "expo-audio",
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "음성 프로필 녹음을 위해 마이크 접근 권한이 필요합니다."
+        }
+      ],
       "expo-apple-authentication",
       "@react-native-firebase/app",
       "@react-native-firebase/messaging",
@@ -70,10 +77,15 @@
         {
           "ios": {
             "useFrameworks": "static",
-            "forceStaticLinking": ["RNFBApp", "RNFBMessaging"]
+            "forceStaticLinking": [
+              "RNFBApp",
+              "RNFBMessaging"
+            ]
           }
         }
-      ]
+      ],
+      "expo-asset",
+      "./plugins/withBlockedAndroidPermissions"
     ],
     "experiments": {
       "typedRoutes": true
