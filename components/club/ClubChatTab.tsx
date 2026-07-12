@@ -14,15 +14,13 @@ import { useRouter } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  FlatList,
   Pressable,
-  ScrollView,
-  StyleProp,
   StyleSheet,
   Text,
   View,
-  ViewStyle,
 } from "react-native";
-import { FullWindowOverlay } from "react-native-screens";
+import type { StyleProp, ViewStyle } from "react-native";
 
 import {
   connectChatSocket,
@@ -69,8 +67,6 @@ type Props = {
   chatRoomId: number;
   memberCount?: number | null;
   bottomPadding?: number;
-  embeddedInPage?: boolean;
-  fixedInputDock?: boolean;
   style?: StyleProp<ViewStyle>;
 };
 
@@ -83,8 +79,6 @@ export default function ClubChatTab({
   chatRoomId,
   memberCount,
   bottomPadding = 0,
-  embeddedInPage = false,
-  fixedInputDock = false,
   style,
 }: Props) {
   const router = useRouter();
@@ -99,14 +93,13 @@ export default function ClubChatTab({
     hasRoom,
   );
   const refetchMessages = messagesQuery.refetch;
-  const listRef = useRef<ScrollView>(null);
+  const listRef = useRef<FlatList<ClubChatMessage>>(null);
   const playbackPlayerRef = useRef<AudioPlayer | null>(null);
   const playbackStopTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
     null,
   );
   const roomReadInFlightRef = useRef(false);
   const lastReadTriggerIdRef = useRef(0);
-  const hasScrolledInitialMessagesRef = useRef(false);
   const [liveMessages, setLiveMessages] = useState<ClubChatMessage[]>([]);
   const [systemMessages, setSystemMessages] = useState<ClubChatMessage[]>([]);
   const [errorText, setErrorText] = useState("");
@@ -146,31 +139,20 @@ export default function ClubChatTab({
     () => withClubGroupedMessageTimes(messages),
     [messages],
   );
+  const displayedMessages = useMemo(
+    () => [...visibleMessages].reverse(),
+    [visibleMessages],
+  );
 
   const scrollToLatest = useCallback(() => {
-    if (embeddedInPage) return;
-
     requestAnimationFrame(() => {
-      listRef.current?.scrollToEnd({ animated: true });
+      listRef.current?.scrollToOffset({ offset: 0, animated: true });
     });
 
     setTimeout(() => {
-      listRef.current?.scrollToEnd({ animated: true });
+      listRef.current?.scrollToOffset({ offset: 0, animated: true });
     }, 80);
-  }, [embeddedInPage]);
-
-  useEffect(() => {
-    hasScrolledInitialMessagesRef.current = false;
-  }, [chatRoomId]);
-
-  useEffect(() => {
-    if (hasScrolledInitialMessagesRef.current || visibleMessages.length === 0) {
-      return;
-    }
-
-    hasScrolledInitialMessagesRef.current = true;
-    scrollToLatest();
-  }, [scrollToLatest, visibleMessages.length]);
+  }, []);
 
   const stopVoicePlayback = useCallback(() => {
     if (playbackStopTimerRef.current) {
@@ -853,16 +835,75 @@ export default function ClubChatTab({
     });
   };
 
-  const inputDock = (
-    <View
-      style={[
-        styles.inputDock,
-        fixedInputDock && [
-          styles.fixedInputDock,
-          { paddingBottom: bottomPadding },
-        ],
-      ]}
-    >
+  return (
+    <View style={[styles.container, style, { paddingBottom: bottomPadding }]}>
+      {errorText ? (
+        <View style={styles.banner}>
+          <Text style={styles.bannerText}>{errorText}</Text>
+        </View>
+      ) : null}
+
+      <FlatList
+        ref={listRef}
+        style={styles.messageList}
+        data={displayedMessages}
+        inverted
+        nestedScrollEnabled
+        keyExtractor={(item) => item.id}
+        renderItem={({ item }) => (
+          <ClubChatRow
+            message={
+              item.type === "voice"
+                ? { ...item, isPlaying: item.id === playingVoiceMessageId }
+                : item
+            }
+            onVoicePress={handleVoicePlay}
+            onAvatarPress={
+              item.type !== "date" && item.type !== "system" && !item.isMine
+                ? () => openMemberProfile(item.senderUserId, item.senderName)
+                : undefined
+            }
+          />
+        )}
+        ListFooterComponent={
+          messagesQuery.hasNextPage ? (
+            <Pressable
+              style={styles.loadMoreButton}
+              disabled={messagesQuery.isFetchingNextPage}
+              onPress={() => void messagesQuery.fetchNextPage()}
+            >
+              {messagesQuery.isFetchingNextPage ? (
+                <ActivityIndicator color="#FF3E70" />
+              ) : (
+                <Text style={styles.loadMoreText}>이전 대화 더 보기</Text>
+              )}
+            </Pressable>
+          ) : null
+        }
+        ListEmptyComponent={
+          messagesQuery.isLoading ? (
+            <View style={styles.empty}>
+              <ActivityIndicator color="#FF3E70" />
+            </View>
+          ) : (
+            <View style={styles.empty}>
+              <Text style={styles.emptyText}>
+                아직 대화가 없어요. 첫 메시지를 남겨보세요.
+              </Text>
+            </View>
+          )
+        }
+        contentContainerStyle={styles.list}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+        onEndReached={() => {
+          if (messagesQuery.hasNextPage && !messagesQuery.isFetchingNextPage) {
+            messagesQuery.fetchNextPage();
+          }
+        }}
+        onEndReachedThreshold={0.35}
+      />
+
       {!isAttachmentOpen ? (
         isVoiceRecorderOpen ? (
           <View style={styles.voiceRecorderWrap}>
@@ -899,144 +940,6 @@ export default function ClubChatTab({
           onGalleryPress={() => void handlePickPhoto("gallery")}
           isMediaSending={isUploadingPhoto}
         />
-      )}
-    </View>
-  );
-
-  return (
-    <View
-      style={[
-        styles.container,
-        embeddedInPage && styles.embeddedContainer,
-        style,
-        { paddingBottom: fixedInputDock ? 0 : bottomPadding },
-      ]}
-    >
-      {errorText ? (
-        <View style={styles.banner}>
-          <Text style={styles.bannerText}>{errorText}</Text>
-        </View>
-      ) : null}
-
-      {embeddedInPage ? (
-        <View style={[styles.messageList, styles.embeddedMessageList]}>
-          <ClubChatMessageContent
-            visibleMessages={visibleMessages}
-            hasNextPage={messagesQuery.hasNextPage}
-            isFetchingNextPage={messagesQuery.isFetchingNextPage}
-            isLoading={messagesQuery.isLoading}
-            playingVoiceMessageId={playingVoiceMessageId}
-            onFetchNextPage={() => void messagesQuery.fetchNextPage()}
-            onVoicePress={handleVoicePlay}
-            onAvatarPress={openMemberProfile}
-          />
-        </View>
-      ) : (
-        <ScrollView
-          ref={listRef}
-          style={styles.messageList}
-          nestedScrollEnabled
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-          onScroll={(event) => {
-            if (
-              event.nativeEvent.contentOffset.y <= 24 &&
-              messagesQuery.hasNextPage &&
-              !messagesQuery.isFetchingNextPage
-            ) {
-              void messagesQuery.fetchNextPage();
-            }
-          }}
-          scrollEventThrottle={16}
-        >
-          <ClubChatMessageContent
-            visibleMessages={visibleMessages}
-            hasNextPage={messagesQuery.hasNextPage}
-            isFetchingNextPage={messagesQuery.isFetchingNextPage}
-            isLoading={messagesQuery.isLoading}
-            playingVoiceMessageId={playingVoiceMessageId}
-            onFetchNextPage={() => void messagesQuery.fetchNextPage()}
-            onVoicePress={handleVoicePlay}
-            onAvatarPress={openMemberProfile}
-          />
-        </ScrollView>
-      )}
-
-      {fixedInputDock ? (
-        <FullWindowOverlay>
-          <View pointerEvents="box-none" style={styles.windowOverlay}>
-            {inputDock}
-          </View>
-        </FullWindowOverlay>
-      ) : (
-        inputDock
-      )}
-    </View>
-  );
-}
-
-function ClubChatMessageContent({
-  visibleMessages,
-  hasNextPage,
-  isFetchingNextPage,
-  isLoading,
-  playingVoiceMessageId,
-  onFetchNextPage,
-  onVoicePress,
-  onAvatarPress,
-}: {
-  visibleMessages: ClubChatMessage[];
-  hasNextPage?: boolean;
-  isFetchingNextPage: boolean;
-  isLoading: boolean;
-  playingVoiceMessageId: string | null;
-  onFetchNextPage: () => void;
-  onVoicePress: (message: Extract<ChatMessageData, { type: "voice" }>) => void;
-  onAvatarPress: (userId?: number, nickname?: string) => void;
-}) {
-  return (
-    <View style={styles.list}>
-      {hasNextPage ? (
-        <Pressable
-          style={styles.loadMoreButton}
-          disabled={isFetchingNextPage}
-          onPress={onFetchNextPage}
-        >
-          {isFetchingNextPage ? (
-            <ActivityIndicator color="#FF3E70" />
-          ) : (
-            <Text style={styles.loadMoreText}>이전 대화 더 보기</Text>
-          )}
-        </Pressable>
-      ) : null}
-
-      {visibleMessages.length > 0 ? (
-        visibleMessages.map((item) => (
-          <ClubChatRow
-            key={item.id}
-            message={
-              item.type === "voice"
-                ? { ...item, isPlaying: item.id === playingVoiceMessageId }
-                : item
-            }
-            onVoicePress={onVoicePress}
-            onAvatarPress={
-              item.type !== "date" && item.type !== "system" && !item.isMine
-                ? () => onAvatarPress(item.senderUserId, item.senderName)
-                : undefined
-            }
-          />
-        ))
-      ) : isLoading ? (
-        <View style={styles.empty}>
-          <ActivityIndicator color="#FF3E70" />
-        </View>
-      ) : (
-        <View style={styles.empty}>
-          <Text style={styles.emptyText}>
-            아직 대화가 없어요. 첫 메시지를 남겨보세요.
-          </Text>
-        </View>
       )}
     </View>
   );
@@ -1551,39 +1454,14 @@ const styles = StyleSheet.create({
     minHeight: 320,
     backgroundColor: "#FFFFFF",
   },
-  embeddedContainer: {
-    flex: 0,
-  },
   messageList: {
     flex: 1,
-  },
-  embeddedMessageList: {
-    flex: 0,
-    flexGrow: 1,
   },
   list: {
     flexGrow: 1,
     paddingHorizontal: 16,
     paddingTop: 18,
-    paddingBottom: 10,
-  },
-  inputDock: {
-    backgroundColor: "#FFFFFF",
-  },
-  fixedInputDock: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    shadowColor: "#000000",
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.04,
-    shadowRadius: 10,
-    elevation: 8,
-  },
-  windowOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    justifyContent: "flex-end",
+    paddingBottom: 12,
   },
   loadMoreButton: {
     alignSelf: "center",
@@ -1607,8 +1485,8 @@ const styles = StyleSheet.create({
     borderRadius: 31,
     alignItems: "center",
     justifyContent: "center",
-    marginTop: 2,
-    marginBottom: 2,
+    marginTop: 8,
+    marginBottom: 10,
     backgroundColor: "#FF3E70",
   },
   voiceRecorderWrap: {
