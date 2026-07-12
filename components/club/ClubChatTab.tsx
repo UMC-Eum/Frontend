@@ -147,15 +147,15 @@ export default function ClubChatTab({
     [messages],
   );
 
-  const scrollToLatest = useCallback(() => {
+  const scrollToLatest = useCallback((animated = true) => {
     if (embeddedInPage) return;
 
     requestAnimationFrame(() => {
-      listRef.current?.scrollToEnd({ animated: true });
+      listRef.current?.scrollToEnd({ animated });
     });
 
     setTimeout(() => {
-      listRef.current?.scrollToEnd({ animated: true });
+      listRef.current?.scrollToEnd({ animated });
     }, 80);
   }, [embeddedInPage]);
 
@@ -169,7 +169,7 @@ export default function ClubChatTab({
     }
 
     hasScrolledInitialMessagesRef.current = true;
-    scrollToLatest();
+    scrollToLatest(false);
   }, [scrollToLatest, visibleMessages.length]);
 
   const stopVoicePlayback = useCallback(() => {
@@ -1575,11 +1575,6 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    shadowColor: "#000000",
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.04,
-    shadowRadius: 10,
-    elevation: 8,
   },
   windowOverlay: {
     ...StyleSheet.absoluteFillObject,

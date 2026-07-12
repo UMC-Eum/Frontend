@@ -91,6 +91,8 @@ const PINK = "#FF3E70";
 const BLACK = "#202020";
 const GRAY = "#A6AFB6";
 const BORDER = "#E9ECED";
+const CHAT_INPUT_DOCK_BOTTOM_PADDING = 10;
+const CHAT_INPUT_DOCK_HEIGHT = 140;
 const HERO_IMAGE =
   "https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?q=85&w=1400&auto=format&fit=crop";
 
@@ -197,7 +199,7 @@ export default function ClubDetailScreen() {
   );
   const bottomBarHeight =
     activeTab === "chat"
-      ? insets.bottom + 156
+      ? CHAT_INPUT_DOCK_HEIGHT + 8
       : viewer.isParticipant
         ? insets.bottom + (activeTab === "board" ? 110 : 24)
         : insets.bottom + 96;
@@ -398,7 +400,7 @@ export default function ClubDetailScreen() {
         </View>
       </View>
 
-      <View style={styles.dividerBand} />
+      {activeTab === "chat" ? null : <View style={styles.dividerBand} />}
 
       <View style={styles.tabBar}>
         {CLUB_TABS.map((tab) => (
@@ -435,7 +437,7 @@ export default function ClubDetailScreen() {
         <ClubChatTab
           chatRoomId={clubChatRoomId}
           memberCount={memberCount}
-          bottomPadding={Math.max(insets.bottom, 8)}
+          bottomPadding={CHAT_INPUT_DOCK_BOTTOM_PADDING}
           fixedInputDock
           style={[styles.chatTabFill, { height: chatSectionHeight }]}
         />
