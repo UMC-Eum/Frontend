@@ -1,6 +1,6 @@
-import { KeyboardAvoidingView } from "@/components/KeyboardCompat";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "@/components/Image";
+import { KeyboardAvoidingView } from "@/components/KeyboardCompat";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import React, { useEffect, useMemo, useRef, useState } from "react";
@@ -91,6 +91,8 @@ const PINK = "#FF3E70";
 const BLACK = "#202020";
 const GRAY = "#A6AFB6";
 const BORDER = "#E9ECED";
+const CHAT_INPUT_DOCK_BOTTOM_PADDING = 10;
+const CHAT_INPUT_DOCK_HEIGHT = 140;
 const HERO_IMAGE =
   "https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?q=85&w=1400&auto=format&fit=crop";
 
@@ -130,7 +132,7 @@ export default function ClubDetailScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ clubId?: string }>();
   const insets = useSafeAreaInsets();
-  const { width } = useWindowDimensions();
+  const { width, height } = useWindowDimensions();
   const clubId = parseClubId(params.clubId);
   const [activeTab, setActiveTab] = useState<ClubDetailTab>("home");
   const [isFavorite, setFavorite] = useState(false);
@@ -195,10 +197,14 @@ export default function ClubDetailScreen() {
   const clubChatRoomErrorText = getClubChatRoomErrorText(
     clubChatRoomQuery.error,
   );
-  const bottomBarHeight = viewer.isParticipant
-    ? insets.bottom + (activeTab === "board" ? 110 : 24)
-    : insets.bottom + 96;
+  const bottomBarHeight =
+    activeTab === "chat"
+      ? CHAT_INPUT_DOCK_HEIGHT + 8
+      : viewer.isParticipant
+        ? insets.bottom + (activeTab === "board" ? 110 : 24)
+        : insets.bottom + 96;
   const albumItemSize = width / 3;
+  const chatSectionHeight = Math.max(360, Math.min(440, height * 0.42));
   const trimmedJoinMessage = joinMessage.trim();
   const meetings = detail?.meetings ?? [];
   const archives =
@@ -394,7 +400,7 @@ export default function ClubDetailScreen() {
         </View>
       </View>
 
-      <View style={styles.dividerBand} />
+      {activeTab === "chat" ? null : <View style={styles.dividerBand} />}
 
       <View style={styles.tabBar}>
         {CLUB_TABS.map((tab) => (
@@ -431,8 +437,9 @@ export default function ClubDetailScreen() {
         <ClubChatTab
           chatRoomId={clubChatRoomId}
           memberCount={memberCount}
-          bottomPadding={insets.bottom + 8}
-          style={styles.chatTabFill}
+          bottomPadding={CHAT_INPUT_DOCK_BOTTOM_PADDING}
+          fixedInputDock
+          style={[styles.chatTabFill, { height: chatSectionHeight }]}
         />
       ) : clubChatRoomQuery.isLoading || clubChatRoomQuery.isFetching ? (
         <View style={styles.preJoinChatPlaceholder}>
@@ -519,83 +526,80 @@ export default function ClubDetailScreen() {
         </View>
       </View>
 
-      {activeTab === "chat" ? (
-        <KeyboardAvoidingView
-          style={styles.scrollView}
-          behavior={KEYBOARD_AVOIDING_BEHAVIOR}
-        >
-          {renderTopSection()}
-          {renderChatTab()}
-        </KeyboardAvoidingView>
-      ) : (
+      <KeyboardAvoidingView
+        style={styles.scrollView}
+        behavior={KEYBOARD_AVOIDING_BEHAVIOR}
+      >
         <ScrollView
           style={styles.scrollView}
           contentContainerStyle={{ paddingBottom: bottomBarHeight }}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
+          nestedScrollEnabled
         >
           {renderTopSection()}
-        {activeTab === "home" ? (
-          <ClubHomeTab
-            clubId={clubId}
-            description={description}
-            viewer={viewer}
-            meetings={meetings}
-            onPressCreateMeeting={() =>
-              router.push({
-                pathname: "/meeting-create",
-                params: { clubId: String(clubId) },
-              } as never)
-            }
-            onPressMeetingManage={(meetingId) =>
-              router.push({
-                pathname: "/meeting-manage",
-                params: {
-                  clubId: String(clubId),
-                  meetingId: String(meetingId),
-                },
-              } as never)
-            }
-            onPressPendingMembers={() =>
-              router.push({
-                pathname: "/club/manage-members",
-                params: { clubId: String(clubId) },
-              } as never)
-            }
-          />
-        ) : null}
-        {activeTab === "board" ? (
-          viewer.isParticipant ? (
-            <BoardTab
+          {activeTab === "home" ? (
+            <ClubHomeTab
               clubId={clubId}
-              onPostPress={(postId) =>
+              description={description}
+              viewer={viewer}
+              meetings={meetings}
+              onPressCreateMeeting={() =>
                 router.push({
-                  pathname: "/club/post-detail",
+                  pathname: "/meeting-create",
+                  params: { clubId: String(clubId) },
+                } as never)
+              }
+              onPressMeetingManage={(meetingId) =>
+                router.push({
+                  pathname: "/meeting-manage",
                   params: {
-                    postId: String(postId),
                     clubId: String(clubId),
-                    canPin: String(viewer.isHost),
+                    meetingId: String(meetingId),
                   },
                 } as never)
               }
+              onPressPendingMembers={() =>
+                router.push({
+                  pathname: "/club/manage-members",
+                  params: { clubId: String(clubId) },
+                } as never)
+              }
             />
-          ) : (
-            <ClubLockedTab icon="document-text-outline" label="게시판" />
-          )
-        ) : null}
-        {activeTab === "album" ? (
-          viewer.isParticipant ? (
-            <AlbumTab
-              archives={archives}
-              isLoading={archivesQuery.isLoading}
-              itemSize={albumItemSize}
-            />
-          ) : (
-            <ClubLockedTab icon="images-outline" label="사진첩" />
-          )
-        ) : null}
+          ) : null}
+          {activeTab === "board" ? (
+            viewer.isParticipant ? (
+              <BoardTab
+                clubId={clubId}
+                onPostPress={(postId) =>
+                  router.push({
+                    pathname: "/club/post-detail",
+                    params: {
+                      postId: String(postId),
+                      clubId: String(clubId),
+                      canPin: String(viewer.isHost),
+                    },
+                  } as never)
+                }
+              />
+            ) : (
+              <ClubLockedTab icon="document-text-outline" label="게시판" />
+            )
+          ) : null}
+          {activeTab === "album" ? (
+            viewer.isParticipant ? (
+              <AlbumTab
+                archives={archives}
+                isLoading={archivesQuery.isLoading}
+                itemSize={albumItemSize}
+              />
+            ) : (
+              <ClubLockedTab icon="images-outline" label="사진첩" />
+            )
+          ) : null}
+          {activeTab === "chat" ? renderChatTab() : null}
         </ScrollView>
-      )}
+      </KeyboardAvoidingView>
 
       {viewer.canWritePost && activeTab === "board" ? (
         <Pressable
@@ -2696,7 +2700,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   chatTabFill: {
-    flex: 1,
+    backgroundColor: "#FFFFFF",
+    overflow: "hidden",
   },
   preJoinChatText: {
     color: "#8E9AA3",
