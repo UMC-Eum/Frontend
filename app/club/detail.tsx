@@ -37,6 +37,7 @@ import {
   useClubDetailQuery,
   useJoinClubMutation,
   useLeaveClubMutation,
+  useMyClubsQuery,
 } from "@/hooks/api/useClub";
 import {
   useAttendMeetingMutation,
@@ -146,6 +147,8 @@ export default function ClubDetailScreen() {
   const [isGuestSheetVisible, setGuestSheetVisible] = useState(false);
 
   const detailQuery = useClubDetailQuery(clubId);
+  // 화면 재진입 시 로컬 joinStatus가 초기화되므로, 내 동호회 목록의 상태(PENDING 등)로 복원한다.
+  const myClubsQuery = useMyClubsQuery(true, { includeInactive: true });
   const cachedThumbnail = useCachedClubThumbnail(clubId);
   const joinMutation = useJoinClubMutation(clubId);
   const leaveMutation = useLeaveClubMutation();
@@ -157,10 +160,15 @@ export default function ClubDetailScreen() {
   );
   const detail = detailQuery.data;
 
+  const myClubStatus =
+    myClubsQuery.data?.items.find((item) => Number(item.clubId) === clubId)
+      ?.status ?? null;
+  // 이 화면에서 방금 바꾼 로컬 상태가 서버 목록 캐시보다 우선한다.
+  const effectiveJoinStatus = joinStatus ?? myClubStatus;
   const isJoined =
-    joinStatus === "ACTIVE" ||
+    effectiveJoinStatus === "ACTIVE" ||
     Boolean(detail?.isJoined && joinStatus !== "LEFT");
-  const isJoinPending = joinStatus === "PENDING";
+  const isJoinPending = effectiveJoinStatus === "PENDING";
   const isHost = detail?.myAuthority === "HOST";
   // 게스트/멤버/호스트 역할과 화면 권한을 한 곳에서 계산한다.
   const viewer = getClubViewer({ isJoined, isHost });
