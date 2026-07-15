@@ -27,6 +27,8 @@ const api = create({
   baseURL: normalizedBaseUrl,
   headers: { "Content-Type": "application/json" },
   withCredentials: true,
+  // 정지된 커넥션이 콜드스타트/화면을 무한 대기시키지 않도록 전역 상한을 둔다.
+  timeout: 15000,
 });
 
 const formatDebugPayload = (payload: unknown) => {
