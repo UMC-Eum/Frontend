@@ -27,6 +27,8 @@ const api = create({
   baseURL: normalizedBaseUrl,
   headers: { "Content-Type": "application/json" },
   withCredentials: true,
+  // 정지된 커넥션이 콜드스타트/화면을 무한 대기시키지 않도록 전역 상한을 둔다.
+  timeout: 15000,
 });
 
 const formatDebugPayload = (payload: unknown) => {
@@ -53,27 +55,43 @@ const formatDebugPayload = (payload: unknown) => {
   }
 };
 
+// 동시 401 다발 시 refresh가 병렬로 여러 번 나가면, refresh token 회전 정책에서
+// 뒤따른 요청들이 전부 실패해 세션이 끊긴다 → 진행 중인 refresh를 공유한다.
+let refreshPromise: Promise<string> | null = null;
+
 export const refreshAccessToken = async () => {
+  if (refreshPromise) {
+    return refreshPromise;
+  }
+
   if (!normalizedBaseUrl) {
     throw new Error(
       "EXPO_PUBLIC_API_BASE_URL is required to refresh access token.",
     );
   }
 
-  const res = await axios.post<ApiSuccessResponse<ITokenRefreshResponse>>(
-    `${normalizedBaseUrl}${REFRESH_TOKEN_PATH}`,
-    {},
-    { withCredentials: true },
-  );
-  const { accessToken: refreshedAccessToken } = res.data.success.data;
+  refreshPromise = (async () => {
+    try {
+      const res = await axios.post<ApiSuccessResponse<ITokenRefreshResponse>>(
+        `${normalizedBaseUrl}${REFRESH_TOKEN_PATH}`,
+        {},
+        { withCredentials: true, timeout: 15000 },
+      );
+      const { accessToken: refreshedAccessToken } = res.data.success.data;
 
-  setAccessToken(refreshedAccessToken);
+      setAccessToken(refreshedAccessToken);
 
-  if (__DEV__) {
-    console.log("[ACCESS_TOKEN][REFRESH]", refreshedAccessToken);
-  }
+      if (__DEV__) {
+        console.log("[ACCESS_TOKEN][REFRESH]", refreshedAccessToken);
+      }
 
-  return refreshedAccessToken;
+      return refreshedAccessToken;
+    } finally {
+      refreshPromise = null;
+    }
+  })();
+
+  return refreshPromise;
 };
 
 api.interceptors.request.use((config) => {
