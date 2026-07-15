@@ -4,6 +4,7 @@ import {
   blockUser,
   createArticleReport,
   createClubReport,
+  createCommentReport,
   createReport,
   getBlocks,
   getReceivedHearts,
@@ -141,5 +142,16 @@ export function useCreateArticleReportMutation(
   return useMutation({
     mutationFn: (body: IClubReportRequest) =>
       createArticleReport(clubId, articleId, body),
+  });
+}
+
+export function useCreateCommentReportMutation(
+  clubId: number,
+  articleId: number,
+  commentId: number,
+) {
+  return useMutation({
+    mutationFn: (body: IClubReportRequest) =>
+      createCommentReport(clubId, articleId, commentId, body),
   });
 }

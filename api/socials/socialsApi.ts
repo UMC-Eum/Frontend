@@ -153,3 +153,19 @@ export const createArticleReport = async (
   >(`/v1/report/clubs/${clubId}/articles/${articleId}`, body);
   return data.success.data;
 };
+
+// 동호회 게시글 댓글 신고하기 (POST)
+export const createCommentReport = async (
+  clubId: number,
+  articleId: number,
+  commentId: number,
+  body: DTO.IClubReportRequest,
+) => {
+  const { data } = await api.post<
+    ApiSuccessResponse<DTO.IClubReportResponse>
+  >(
+    `/v1/report/clubs/${clubId}/articles/${articleId}/comments/${commentId}`,
+    body,
+  );
+  return data.success.data;
+};
