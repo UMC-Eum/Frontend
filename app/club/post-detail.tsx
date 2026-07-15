@@ -422,8 +422,16 @@ export default function ClubPostDetailScreen() {
       return;
     }
 
+    const commentId = selectedComment.commentId;
     setSelectedComment(null);
-    Alert.alert("준비 중", "댓글 신고 API 명세 확인 후 연결 예정입니다.");
+    router.push({
+      pathname: "/club/report",
+      params: {
+        clubId: String(clubId),
+        articleId: String(postId),
+        commentId: String(commentId),
+      },
+    } as never);
   };
 
   const handleCommentSecondaryAction = () => {

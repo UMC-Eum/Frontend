@@ -14,6 +14,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import {
   useCreateArticleReportMutation,
   useCreateClubReportMutation,
+  useCreateCommentReportMutation,
 } from "@/hooks/api/useSocials";
 import type { ReportCategory } from "@/types/api/socials/socialsDTO";
 
@@ -57,27 +58,37 @@ const REPORT_REASONS: ReportReason[] = [
 ];
 
 /**
- * 동호회 / 동호회 게시글 신고 화면
- * - articleId가 있으면 게시글 신고, 없으면 동호회 자체 신고로 동작합니다.
+ * 동호회 / 동호회 게시글 / 댓글 신고 화면
+ * - commentId가 있으면 댓글 신고, articleId만 있으면 게시글 신고, 둘 다 없으면 동호회 자체 신고로 동작합니다.
  */
 export default function ClubReportScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{
     clubId?: string;
     articleId?: string;
+    commentId?: string;
   }>();
   const clubId = parsePositiveInt(params.clubId);
   const articleId = parsePositiveInt(params.articleId);
-  const isArticleReport = articleId !== null;
+  const commentId = parsePositiveInt(params.commentId);
+  const isCommentReport = commentId !== null;
+  const isArticleReport = !isCommentReport && articleId !== null;
 
   const clubReportMutation = useCreateClubReportMutation(clubId ?? 0);
   const articleReportMutation = useCreateArticleReportMutation(
     clubId ?? 0,
     articleId ?? 0,
   );
-  const activeMutation = isArticleReport
-    ? articleReportMutation
-    : clubReportMutation;
+  const commentReportMutation = useCreateCommentReportMutation(
+    clubId ?? 0,
+    articleId ?? 0,
+    commentId ?? 0,
+  );
+  const activeMutation = isCommentReport
+    ? commentReportMutation
+    : isArticleReport
+      ? articleReportMutation
+      : clubReportMutation;
 
   const [selectedReason, setSelectedReason] = useState<ReportReason | null>(
     null,
@@ -155,9 +166,11 @@ export default function ClubReportScreen() {
 
       <View style={styles.container}>
         <Text style={styles.title}>
-          {isArticleReport
-            ? "게시글을 신고하려는\n이유를 선택해주세요."
-            : "동호회를 신고하려는\n이유를 선택해주세요."}
+          {isCommentReport
+            ? "댓글을 신고하려는\n이유를 선택해주세요."
+            : isArticleReport
+              ? "게시글을 신고하려는\n이유를 선택해주세요."
+              : "동호회를 신고하려는\n이유를 선택해주세요."}
         </Text>
 
         <View style={styles.reasonList}>
