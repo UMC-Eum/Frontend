@@ -125,7 +125,7 @@ export const createChatSocket = (options: ChatSocketOptions = {}) => {
     console.log("[ChatSocket] create", getChatSocketDebugConfig());
   }
 
-  return io(socketUrl, {
+  const socket = io(socketUrl, {
     path: CHAT_SOCKET_PATH,
     transports: ["websocket"],
     autoConnect: false,
@@ -133,6 +133,15 @@ export const createChatSocket = (options: ChatSocketOptions = {}) => {
     extraHeaders,
     ...options,
   }) as ChatSocket;
+
+  // 소켓을 앱 전역에서 유지하므로, 네트워크 단절 후 자동 재연결이 일어날 때도
+  // (connectChatSocket을 거치지 않고) 최신 accessToken으로 handshake 하도록 갱신한다.
+  socket.io.on("reconnect_attempt", () => {
+    socket.auth = getChatSocketAuth();
+    socket.io.opts.extraHeaders = getChatSocketExtraHeaders();
+  });
+
+  return socket;
 };
 
 export const getChatSocket = (options?: ChatSocketOptions) => {
