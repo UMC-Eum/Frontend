@@ -30,7 +30,7 @@ export function useKakaoLoginMutation() {
       }
 
       queryClient.removeQueries();
-      setAuth(data);
+      setAuth(data, "KAKAO");
     },
   });
 }
@@ -47,7 +47,7 @@ export function useAppleLoginMutation() {
       }
 
       queryClient.removeQueries();
-      setAuth(data);
+      setAuth(data, "APPLE");
     },
   });
 }
@@ -90,7 +90,7 @@ export function useTestLoginMutation() {
       }
 
       queryClient.removeQueries();
-      setAuth(data);
+      setAuth(data, "LOCAL");
     },
   });
 }
