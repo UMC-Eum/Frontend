@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import * as AppleAuthentication from "expo-apple-authentication";
 import { useRouter } from "expo-router";
 import { useCallback, useState } from "react";
 import {
@@ -22,9 +23,10 @@ import { useLogoutMutation } from "@/hooks/api/useAuth";
 import { useRecommendationsInfiniteQuery } from "@/hooks/api/useRecommendations";
 import { useReceivedHeartsInfiniteQuery } from "@/hooks/api/useSocials";
 import {
-  useDeactivateUserMutation,
+  useDeleteAccountMutation,
   useMyProfileQuery,
 } from "@/hooks/api/useUsers";
+import { useAuthStore } from "@/stores/authStore";
 import { useNotificationSettingsStore } from "@/stores/notificationSettingsStore";
 import { uniqueBy } from "@/utils/array";
 
@@ -48,7 +50,8 @@ export default function MyTabScreen() {
   const recommendationsQuery = useRecommendationsInfiniteQuery();
   const myClubsQuery = useMyClubsQuery();
   const logoutMutation = useLogoutMutation();
-  const deactivateUserMutation = useDeactivateUserMutation();
+  const deleteAccountMutation = useDeleteAccountMutation();
+  const authProvider = useAuthStore((state) => state.provider);
   const [isPullRefreshing, setIsPullRefreshing] = useState(false);
 
   // 홈 추천(recommendations)은 1시간 유지 정책이라 수동 새로고침 대상에서 제외한다.
@@ -102,16 +105,50 @@ export default function MyTabScreen() {
   };
 
   const handleDeactivate = () => {
+    if (deleteAccountMutation.isPending) return;
+
     Alert.alert("탈퇴하기", "정말 탈퇴하시겠어요?", [
       { text: "취소", style: "cancel" },
       {
         text: "탈퇴",
         style: "destructive",
-        onPress: () =>
-          deactivateUserMutation.mutate(undefined, {
-            onSuccess: () => router.replace("/onboarding/login" as never),
-            onError: () => Alert.alert("탈퇴 실패", "다시 시도해주세요."),
-          }),
+        onPress: async () => {
+          let appleAuthorizationCode: string | undefined;
+
+          if (authProvider === "APPLE") {
+            try {
+              const credential = await AppleAuthentication.signInAsync({
+                requestedScopes: [],
+              });
+              appleAuthorizationCode = credential.authorizationCode ?? undefined;
+            } catch (error) {
+              if ((error as { code?: string }).code === "ERR_REQUEST_CANCELED") {
+                return;
+              }
+              Alert.alert(
+                "Apple 인증 실패",
+                "탈퇴를 위해 Apple 인증을 다시 진행해주세요.",
+              );
+              return;
+            }
+
+            if (!appleAuthorizationCode) {
+              Alert.alert(
+                "Apple 인증 실패",
+                "Apple 인증 코드를 가져오지 못했어요.",
+              );
+              return;
+            }
+          }
+
+          deleteAccountMutation.mutate(
+            { appleAuthorizationCode },
+            {
+              onSuccess: () => router.replace("/onboarding/login" as never),
+              onError: () => Alert.alert("탈퇴 실패", "다시 시도해주세요."),
+            },
+          );
+        },
       },
     ]);
   };
@@ -344,10 +381,10 @@ export default function MyTabScreen() {
           style={styles.withdrawCard}
           activeOpacity={0.7}
           onPress={handleDeactivate}
-          disabled={deactivateUserMutation.isPending}
+          disabled={deleteAccountMutation.isPending}
         >
           <Text style={styles.withdrawText}>
-            {deactivateUserMutation.isPending ? "탈퇴 처리 중..." : "탈퇴하기"}
+            {deleteAccountMutation.isPending ? "탈퇴 처리 중..." : "탈퇴하기"}
           </Text>
         </TouchableOpacity>
       </ScrollView>

@@ -2,10 +2,12 @@ import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 
 import { IKakaoLoginResponse } from "@/types/api/auth/authDTO";
+import { AuthProvider, getAuthProviderFromToken } from "@/utils/authToken";
 import { safeAsyncStorage } from "@/utils/safeAsyncStorage";
 
 interface AuthState {
   accessToken: string | null;
+  provider: AuthProvider | null;
   user: IKakaoLoginResponse["user"] | null;
   isNewUser: boolean;
   onboardingRequired: boolean;
@@ -13,7 +15,7 @@ interface AuthState {
   isAuthInitialized: boolean;
   setAccessToken: (accessToken: string | null) => void;
   setUser: (user: AuthState["user"]) => void;
-  setAuth: (payload: IKakaoLoginResponse) => void;
+  setAuth: (payload: IKakaoLoginResponse, provider?: AuthProvider) => void;
   setAuthInitialized: (isAuthInitialized: boolean) => void;
   completeOnboarding: () => void;
   clearAuth: () => void;
@@ -23,6 +25,7 @@ export const useAuthStore = create<AuthState>()(
   persist(
     (set) => ({
       accessToken: null,
+      provider: null,
       user: null,
       isNewUser: false,
       onboardingRequired: false,
@@ -31,12 +34,14 @@ export const useAuthStore = create<AuthState>()(
       setAccessToken: (accessToken) =>
         set({
           accessToken,
+          provider: getAuthProviderFromToken(accessToken),
           isAuthenticated: !!accessToken,
         }),
       setUser: (user) => set({ user }),
-      setAuth: (payload) =>
+      setAuth: (payload, provider) =>
         set({
           accessToken: payload.accessToken,
+          provider: provider ?? getAuthProviderFromToken(payload.accessToken),
           user: payload.user,
           isNewUser: payload.isNewUser,
           onboardingRequired: payload.onboardingRequired,
@@ -55,6 +60,7 @@ export const useAuthStore = create<AuthState>()(
       clearAuth: () =>
         set({
           accessToken: null,
+          provider: null,
           user: null,
           isNewUser: false,
           onboardingRequired: false,
