@@ -293,3 +293,7 @@ expo-env.d.ts
 
 # 로컬에 git clone된 Claude Code 플러그인 (nested git repo, 개인 툴 설치물)
 .claude/skills/ponytail-repo/
+
+# 로컬 작업 산출물
+output/
+tmp/

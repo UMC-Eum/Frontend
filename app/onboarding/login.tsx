@@ -1,11 +1,9 @@
+import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import * as AppleAuthentication from "expo-apple-authentication";
-import * as Linking from "expo-linking";
-import * as WebBrowser from "expo-web-browser";
 import React, { useEffect, useState } from "react";
 import {
   Image,
-  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -14,29 +12,14 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { getAgreementStatus } from "@/api/agreements/agreementsApi";
 import TermsBottomSheet from "@/components/onboarding/TermsBottomSheet";
-import {
-  KAKAO_AUTH_URL,
-  KAKAO_REDIRECT_URI,
-  KAKAO_REST_API_KEY,
-} from "@/constants/auth";
-import {
-  useAppleLoginMutation,
-  useKakaoLoginMutation,
-} from "@/hooks/api/useAuth";
-
-const isIos = Platform.OS === "ios";
-
-function getUrlParam(url: string, name: string) {
-  return new URL(url).searchParams.get(name);
-}
+import { useSocialLogin } from "@/hooks/useSocialLogin";
 
 /**
  * 로그인 화면
  * - 상단: 온보딩 일러스트 이미지
  * - 중앙: 타이틀 + 서브타이틀
- * - 하단: 소셜 로그인 버튼
+ * - 하단: 소셜 로그인 버튼 + 아이디 로그인(심사용 임시)
  * - 모달: 나이 제한 / 이용약관
  */
 export default function LoginScreen() {
@@ -44,13 +27,16 @@ export default function LoginScreen() {
   const params = useLocalSearchParams<{ showTerms?: string }>();
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
-  const appleLoginMutation = useAppleLoginMutation();
-  const kakaoLoginMutation = useKakaoLoginMutation();
 
   const [showTermsSheet, setShowTermsSheet] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [isOpeningBrowser, setIsOpeningBrowser] = useState(false);
-  const [isAppleAuthAvailable, setIsAppleAuthAvailable] = useState(false);
+
+  const {
+    handleKakaoLogin,
+    handleAppleLogin,
+    isLoginPending,
+    errorMessage,
+    isAppleAuthAvailable,
+  } = useSocialLogin({ onShowTerms: () => setShowTermsSheet(true) });
 
   useEffect(() => {
     if (params.showTerms === "1") {
@@ -58,174 +44,17 @@ export default function LoginScreen() {
     }
   }, [params.showTerms]);
 
-  useEffect(() => {
-    if (!isIos) return;
-
-    let isMounted = true;
-
-    AppleAuthentication.isAvailableAsync()
-      .then((isAvailable) => {
-        if (isMounted) setIsAppleAuthAvailable(isAvailable);
-      })
-      .catch(() => {
-        if (isMounted) setIsAppleAuthAvailable(false);
-      });
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
-
   // Figma 기준 프레임(412x892)을 작은 화면에서도 자연스럽게 줄여 적용한다.
   const layoutScale = Math.min(width / 412, height / 892, 1);
   const illustrationWidth = 280 * layoutScale;
   const illustrationHeight = 326 * layoutScale;
   const bottomMarginTop = (isAppleAuthAvailable ? 48 : 112) * layoutScale;
 
-  const finishLogin = async (auth: {
-    isNewUser: boolean;
-    onboardingRequired: boolean;
-  }) => {
-    const needsOnboarding = auth.onboardingRequired || auth.isNewUser;
-
-    if (needsOnboarding) {
-      const hasPassedAgreements = await getAgreementStatus();
-
-      if (hasPassedAgreements) {
-        router.replace("/onboarding/permissions" as any);
-        return;
-      }
-
-      setShowTermsSheet(true);
-      return;
-    }
-
-    router.replace("/(tabs)" as any);
-  };
-
-  // 카카오 로그인 버튼 클릭 시
-  const handleKakaoLogin = async () => {
-    if (isLoginPending) return;
-
-    setErrorMessage(null);
-
-    if (!KAKAO_REST_API_KEY || !KAKAO_REDIRECT_URI) {
-      setErrorMessage("카카오 로그인 환경변수를 확인해주세요.");
-      return;
-    }
-
-    try {
-      setIsOpeningBrowser(true);
-      const appReturnUrl = Linking.createURL(
-        Platform.OS === "android" ? "/onboarding/login" : "/auth/kakao",
-      );
-      const params = new URLSearchParams({
-        response_type: "code",
-        client_id: KAKAO_REST_API_KEY,
-        redirect_uri: KAKAO_REDIRECT_URI,
-        state: appReturnUrl,
-        prompt: "select_account",
-      });
-      const authUrl = `${KAKAO_AUTH_URL}?${params.toString()}`;
-
-      if (__DEV__) {
-        console.log("[Kakao Login] kakaoRedirectUri:", KAKAO_REDIRECT_URI);
-        console.log("[Kakao Login] appReturnUrl:", appReturnUrl);
-      }
-
-      if (Platform.OS === "android") {
-        const result = await WebBrowser.openAuthSessionAsync(
-          authUrl,
-          appReturnUrl,
-        );
-        if (result.type !== "success") return;
-
-        const kakaoError =
-          getUrlParam(result.url, "error_description") ??
-          getUrlParam(result.url, "error");
-        if (kakaoError) {
-          setErrorMessage(kakaoError);
-          return;
-        }
-
-        const authorizationCode = getUrlParam(result.url, "code");
-        if (!authorizationCode) {
-          setErrorMessage("카카오 인가 코드를 가져오지 못했어요.");
-          return;
-        }
-
-        const auth = await kakaoLoginMutation.mutateAsync({
-          authorizationCode,
-          redirectUri: KAKAO_REDIRECT_URI,
-        });
-        await finishLogin(auth);
-        return;
-      }
-
-      await WebBrowser.openBrowserAsync(authUrl);
-    } catch (error) {
-      if (__DEV__) {
-        console.log("[Kakao Login] failed:", error);
-      }
-      setErrorMessage("카카오 로그인에 실패했어요. 다시 시도해주세요.");
-    } finally {
-      setIsOpeningBrowser(false);
-    }
-  };
-
-  const handleAppleLogin = async () => {
-    if (isLoginPending) return;
-
-    setErrorMessage(null);
-
-    try {
-      const credential = await AppleAuthentication.signInAsync({
-        requestedScopes: [
-          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
-          AppleAuthentication.AppleAuthenticationScope.EMAIL,
-        ],
-      });
-
-      if (!credential.identityToken) {
-        setErrorMessage("Apple 로그인 정보를 가져오지 못했어요.");
-        return;
-      }
-
-      if (!credential.authorizationCode) {
-        setErrorMessage("Apple 인증 코드를 가져오지 못했어요.");
-        return;
-      }
-
-      const auth = await appleLoginMutation.mutateAsync({
-        identityToken: credential.identityToken,
-        authorizationCode: credential.authorizationCode,
-        email: credential.email,
-        name: getAppleCredentialName(credential),
-      });
-
-      await finishLogin(auth);
-    } catch (error) {
-      if ((error as { code?: string }).code === "ERR_REQUEST_CANCELED") {
-        return;
-      }
-
-      if (__DEV__) {
-        console.log("[Apple Login] failed:", error);
-      }
-      setErrorMessage(getAppleLoginErrorMessage(error));
-    }
-  };
-
   // 이용약관 확인 후 → 앱 접근 권한 안내로 이동
   const handleTermsConfirm = () => {
     setShowTermsSheet(false);
     router.replace("/onboarding/permissions" as any);
   };
-
-  const isLoginPending =
-    isOpeningBrowser ||
-    appleLoginMutation.isPending ||
-    kakaoLoginMutation.isPending;
 
   return (
     <View style={[styles.container, { paddingBottom: insets.bottom + 24 }]}>
@@ -264,18 +93,16 @@ export default function LoginScreen() {
           onPress={handleKakaoLogin}
           disabled={isLoginPending}
           accessibilityRole="button"
-          accessibilityLabel="카카오 로그인"
+          accessibilityLabel="카카오로 시작하기"
         >
           <View style={styles.socialButtonContent}>
-            <View style={styles.socialButtonIconBox}>
-              <Image
-                source={require("@/assets/images/kakao-login-symbol.png")}
-                style={styles.kakaoSymbol}
-                resizeMode="contain"
-              />
-            </View>
+            <Image
+              source={require("@/assets/images/kakao-login-symbol.png")}
+              style={styles.kakaoSymbol}
+              resizeMode="contain"
+            />
             <Text style={[styles.socialButtonText, styles.kakaoButtonText]}>
-              카카오 로그인
+              카카오로 시작하기
             </Text>
           </View>
         </Pressable>
@@ -288,11 +115,31 @@ export default function LoginScreen() {
             buttonStyle={
               AppleAuthentication.AppleAuthenticationButtonStyle.BLACK
             }
-            cornerRadius={16}
+            cornerRadius={12}
             style={[styles.socialButton, styles.appleButton]}
             onPress={handleAppleLogin}
           />
         ) : null}
+        {/* ponytail: 심사용 임시 아이디(로컬) 로그인 진입점. 심사 종료 후 제거 (EUM-191) */}
+        <Pressable
+          style={({ pressed }) => [
+            styles.socialButton,
+            styles.emailLoginButton,
+            isLoginPending && styles.socialButtonDisabled,
+            pressed && !isLoginPending && styles.socialButtonPressed,
+          ]}
+          onPress={() => router.push("/onboarding/email-login" as any)}
+          disabled={isLoginPending}
+          accessibilityRole="button"
+          accessibilityLabel="아이디로 시작하기"
+        >
+          <View style={styles.socialButtonContent}>
+            <Ionicons name="person-outline" size={24} color="#111111" />
+            <Text style={[styles.socialButtonText, styles.emailButtonText]}>
+              아이디로 시작하기
+            </Text>
+          </View>
+        </Pressable>
         {errorMessage ? (
           <Text style={styles.errorText}>{errorMessage}</Text>
         ) : null}
@@ -347,11 +194,11 @@ const styles = StyleSheet.create({
   },
   socialButton: {
     width: "100%",
-    maxWidth: 367,
-    height: 55,
+    maxWidth: 372,
+    height: 52,
     justifyContent: "center",
     alignItems: "center",
-    borderRadius: 16,
+    borderRadius: 12,
     overflow: "hidden",
     position: "relative",
   },
@@ -367,17 +214,17 @@ const styles = StyleSheet.create({
   appleButton: {
     marginTop: 12,
   },
+  emailLoginButton: {
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#DEE3E5",
+    marginTop: 12,
+  },
   socialButtonContent: {
     width: "100%",
     height: "100%",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  socialButtonIconBox: {
-    position: "absolute",
-    left: 7,
-    width: 44,
-    height: "100%",
+    flexDirection: "row",
+    gap: 12,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -388,10 +235,13 @@ const styles = StyleSheet.create({
     includeFontPadding: false,
   },
   kakaoSymbol: {
-    width: 40,
-    height: 40,
+    width: 20,
+    height: 20,
   },
   kakaoButtonText: {
+    color: "rgba(0, 0, 0, 0.85)",
+  },
+  emailButtonText: {
     color: "rgba(0, 0, 0, 0.85)",
   },
   errorText: {
@@ -402,21 +252,3 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
 });
-
-function getAppleLoginErrorMessage(error: unknown) {
-  const apiMessage = (error as {
-    response?: { data?: { error?: { message?: string } } };
-  }).response?.data?.error?.message;
-
-  return apiMessage ?? "Apple 로그인에 실패했어요. 다시 시도해주세요.";
-}
-
-function getAppleCredentialName(
-  credential: Awaited<ReturnType<typeof AppleAuthentication.signInAsync>>,
-) {
-  const formattedName = credential.fullName
-    ? AppleAuthentication.formatFullName(credential.fullName).trim()
-    : "";
-
-  return formattedName || credential.email?.split("@")[0] || "Apple 사용자";
-}
