@@ -10,22 +10,17 @@ export function useNotificationBellBadge() {
   const enabled = isAuthInitialized && isAuthenticated;
   const heartQuery = useNotificationsInfiniteQuery("heart", undefined, enabled);
   const clubQuery = useNotificationsInfiniteQuery("club", undefined, enabled);
-  const chatQuery = useNotificationsInfiniteQuery("chat", undefined, enabled);
 
   const refetchNotificationBadge = () =>
-    Promise.all([
-      heartQuery.refetch(),
-      clubQuery.refetch(),
-      chatQuery.refetch(),
-    ]);
+    Promise.all([heartQuery.refetch(), clubQuery.refetch()]);
 
   const hasNotificationBadge = useMemo(
     () =>
       enabled &&
-      [heartQuery.data, clubQuery.data, chatQuery.data].some((data) =>
+      [heartQuery.data, clubQuery.data].some((data) =>
         data?.pages.some((page) => page.items.some(isUnreadNotification)),
       ),
-    [enabled, heartQuery.data, clubQuery.data, chatQuery.data],
+    [enabled, heartQuery.data, clubQuery.data],
   );
 
   return {

@@ -34,8 +34,9 @@ const ACCENT = "#FC3367";
 const TEXT = "#202020";
 const SUB_TEXT = "#636970";
 const MUTED = "#A6AFB6";
-// ponytail: 고객지원 URL 확정 전까지 빈 값 — 확정되면 값만 채우면 행이 노출된다.
-const SUPPORT_URL = "";
+const TERMS_URL = "https://eum-dating.com/terms";
+const PRIVACY_URL = "https://eum-dating.com/privacy";
+const SUPPORT_URL = "https://eum-dating.com/support";
 
 export default function MyTabScreen() {
   const router = useRouter();
@@ -339,32 +340,24 @@ export default function MyTabScreen() {
           {/* Apple 심사: 로그인 이후에도 약관/개인정보처리방침 접근이 가능해야 한다 */}
           <TouchableOpacity
             activeOpacity={0.7}
-            onPress={() =>
-              router.push("/onboarding/terms-detail?type=service" as any)
-            }
+            onPress={() => Linking.openURL(TERMS_URL)}
           >
-            <Text style={styles.policyLinkText}>서비스이용약관</Text>
+            <Text style={styles.policyLinkText}>서비스 이용약관</Text>
           </TouchableOpacity>
           <View style={styles.thinDivider} />
           <TouchableOpacity
             activeOpacity={0.7}
-            onPress={() =>
-              router.push("/onboarding/terms-detail?type=privacy" as any)
-            }
+            onPress={() => Linking.openURL(PRIVACY_URL)}
           >
             <Text style={styles.policyLinkText}>개인정보처리방침</Text>
           </TouchableOpacity>
-          {SUPPORT_URL ? (
-            <>
-              <View style={styles.thinDivider} />
-              <TouchableOpacity
-                activeOpacity={0.7}
-                onPress={() => Linking.openURL(SUPPORT_URL)}
-              >
-                <Text style={styles.policyLinkText}>고객지원</Text>
-              </TouchableOpacity>
-            </>
-          ) : null}
+          <View style={styles.thinDivider} />
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={() => Linking.openURL(SUPPORT_URL)}
+          >
+            <Text style={styles.policyLinkText}>고객지원</Text>
+          </TouchableOpacity>
           <View style={styles.thinDivider} />
           <TouchableOpacity
             activeOpacity={0.7}
