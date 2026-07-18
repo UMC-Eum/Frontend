@@ -24,6 +24,7 @@ import {
 } from "@/components/club/ClubPostParts";
 import { KEYBOARD_AVOIDING_BEHAVIOR } from "@/constants/keyboard";
 import { createArticle, updateArticle } from "@/api/articles/articlesApi";
+import { getApiErrorMessage } from "@/api/axiosInstance";
 import { getClubPostDetail } from "@/api/clubs/clubPostsApi";
 import { postPresign } from "@/api/onboarding/onboardingApi";
 import {
@@ -152,11 +153,12 @@ export default function ClubPostCreateScreen() {
     },
     onError: (error) => {
       const message =
-        error instanceof Error
+        getApiErrorMessage(error) ??
+        (error instanceof Error
           ? error.message
           : isEditMode
             ? "게시글 수정 중 문제가 발생했습니다."
-            : "게시글 등록 중 문제가 발생했습니다.";
+            : "게시글 등록 중 문제가 발생했습니다.");
       Alert.alert(isEditMode ? "수정 실패" : "등록 실패", message);
     },
   });

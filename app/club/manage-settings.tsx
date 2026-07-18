@@ -15,6 +15,7 @@ import {
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { getApiErrorMessage } from "@/api/axiosInstance";
 import DeleteClubModal from "@/components/club/DeleteClubModal";
 import { CLUB_CREATE_CATEGORIES } from "@/constants/club";
 import { useClubDetailQuery } from "@/hooks/api/useClub";
@@ -106,8 +107,11 @@ export default function ClubManageSettingsScreen() {
           Alert.alert("저장 완료", "동호회 정보가 저장되었어요.");
           router.back();
         },
-        onError: () => {
-          Alert.alert("저장 실패", "잠시 후 다시 시도해주세요.");
+        onError: (error) => {
+          Alert.alert(
+            "저장 실패",
+            getApiErrorMessage(error) ?? "잠시 후 다시 시도해주세요.",
+          );
         },
       },
     );

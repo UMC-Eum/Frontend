@@ -23,6 +23,7 @@ import {
 } from "react-native-safe-area-context";
 
 import { postPresign, uploadFileToS3 } from "@/api/onboarding/onboardingApi";
+import { getApiErrorMessage } from "@/api/axiosInstance";
 import CircleImageCropper, {
   CircleCropAsset,
   CircleCropResult,
@@ -223,7 +224,10 @@ export default function ProfileEditScreen() {
       if (__DEV__) {
         console.log("Profile edit submit error:", error);
       }
-      Alert.alert("저장 실패", "프로필을 다시 저장해주세요.");
+      Alert.alert(
+        "저장 실패",
+        getApiErrorMessage(error) ?? "프로필을 다시 저장해주세요.",
+      );
     }
   };
 

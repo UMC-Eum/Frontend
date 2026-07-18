@@ -37,7 +37,7 @@ export default function TabLayout() {
         const currentRouteName = props.state.routes[props.state.index].name;
 
         return (
-          <View style={styles.tabBar}>
+          <View pointerEvents="box-none" style={styles.tabBar}>
             <AppNavbar
               activeTabId={currentRouteName}
               onTabPress={(id) => {
@@ -83,5 +83,6 @@ const styles = StyleSheet.create({
   // 높이는 Navbar가 safe-area inset을 포함해 스스로 결정하므로 고정하지 않는다.
   tabBar: {
     backgroundColor: "#FFFFFF",
+    zIndex: 1,
   },
 });
