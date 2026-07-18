@@ -3,7 +3,6 @@ import { useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
   Animated,
-  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -16,28 +15,29 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { z } from "zod";
 
+import KakaoSymbol from "@/assets/images/kakao-symbol.svg";
 import { getAgreementStatus } from "@/api/agreements/agreementsApi";
 import { useLocalLoginMutation } from "@/hooks/api/useAuth";
 import { useSocialLogin } from "@/hooks/useSocialLogin";
 
-// ponytail: 심사용 임시 아이디(로컬) 로그인/회원가입 화면. 심사 종료 후 제거 (EUM-191)
-const loginSchema = z.object({
-  username: z.string().trim().min(1, "아이디를 입력해주세요."),
-  password: z.string().min(1, "비밀번호를 입력해주세요."),
-});
-
-const signupEmailSchema = z
+// ponytail: 심사용 임시 이메일(로컬) 로그인/회원가입 화면. 심사 종료 후 제거 (EUM-191)
+const emailSchema = z
   .string()
   .trim()
   .min(1, "이메일을 입력해주세요.")
   .pipe(z.email("올바른 이메일 형식이 아니에요."));
 
+// 로컬 계정은 이메일이 곧 로그인 아이디. API 필드명(username)은 백엔드 계약 유지
+const loginSchema = z.object({
+  username: emailSchema,
+  password: z.string().min(1, "비밀번호를 입력해주세요."),
+});
+
 const signupSchema = z
   .object({
-    username: z.string().trim().min(1, "아이디를 입력해주세요."),
+    email: emailSchema,
     password: z.string().min(1, "비밀번호를 입력해주세요."),
     passwordConfirm: z.string().min(1, "비밀번호를 다시 입력해주세요."),
-    email: signupEmailSchema,
   })
   .refine((data) => data.password === data.passwordConfirm, {
     message: "비밀번호가 일치하지 않아요.",
@@ -61,10 +61,10 @@ function zodFieldErrors(error: z.ZodError): FieldErrors {
 }
 
 /**
- * 아이디(로컬) 로그인/회원가입 화면 — 심사용 임시
+ * 이메일(로컬) 로그인/회원가입 화면 — 심사용 임시
  * - 상단: 뒤로가기 헤더 + 로그인/회원가입 세그먼트 탭
- * - 로그인: 아이디/비밀번호 입력 → 소셜 로그인과 동일한 온보딩 분기
- * - 회원가입: 아이디/비밀번호/비밀번호 확인 + 이메일 인증(3분 타이머)
+ * - 로그인: 이메일/비밀번호 입력 → 소셜 로그인과 동일한 온보딩 분기
+ * - 회원가입: 이메일 인증(3분 타이머) + 비밀번호/비밀번호 확인
  */
 export default function EmailLoginScreen() {
   const router = useRouter();
@@ -193,7 +193,6 @@ function SnsSection() {
         <Pressable
           style={({ pressed }) => [
             styles.snsCircle,
-            styles.snsKakaoCircle,
             isLoginPending && styles.snsCircleDisabled,
             pressed && !isLoginPending && styles.snsCirclePressed,
           ]}
@@ -202,11 +201,7 @@ function SnsSection() {
           accessibilityRole="button"
           accessibilityLabel="카카오로 시작하기"
         >
-          <Image
-            source={require("@/assets/images/kakao-login-symbol.png")}
-            style={styles.snsKakaoSymbol}
-            resizeMode="contain"
-          />
+          <KakaoSymbol width={48} height={48} />
         </Pressable>
         {isAppleAuthAvailable ? (
           <Pressable
@@ -282,21 +277,22 @@ function LoginForm({ router }: { router: ReturnType<typeof useRouter> }) {
 
   return (
     <View>
-      <Text style={styles.title}>아이디로 로그인</Text>
+      <Text style={styles.title}>이메일로 로그인</Text>
       <Text style={styles.subtitle}>
-        가입한 아이디와 비밀번호를 입력해주세요.
+        가입한 이메일과 비밀번호를 입력해주세요.
       </Text>
 
       <View style={styles.fieldBox}>
-        <Text style={styles.fieldLabel}>아이디</Text>
+        <Text style={styles.fieldLabel}>이메일</Text>
         <TextInput
           style={styles.input}
           value={username}
           onChangeText={setUsername}
-          placeholder="아이디 입력"
+          placeholder="이메일 입력"
           placeholderTextColor="#A6AFB6"
           autoCapitalize="none"
           autoCorrect={false}
+          keyboardType="email-address"
           returnKeyType="next"
         />
         {fieldErrors.username ? (
@@ -347,7 +343,6 @@ function LoginForm({ router }: { router: ReturnType<typeof useRouter> }) {
 }
 
 function SignupForm() {
-  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [passwordConfirm, setPasswordConfirm] = useState("");
   const [email, setEmail] = useState("");
@@ -374,7 +369,7 @@ function SignupForm() {
   const isExpired = verifyState === "requested" && remainingSeconds <= 0;
 
   const handleRequestVerification = () => {
-    const parsedEmail = signupEmailSchema.safeParse(email);
+    const parsedEmail = emailSchema.safeParse(email);
     if (!parsedEmail.success) {
       setFieldErrors((prev) => ({
         ...prev,
@@ -409,10 +404,9 @@ function SignupForm() {
     setErrorMessage(null);
 
     const parsed = signupSchema.safeParse({
-      username,
+      email,
       password,
       passwordConfirm,
-      email,
     });
     if (!parsed.success) {
       setFieldErrors(zodFieldErrors(parsed.error));
@@ -432,65 +426,10 @@ function SignupForm() {
 
   return (
     <View>
-      <Text style={styles.title}>아이디로 회원가입</Text>
+      <Text style={styles.title}>이메일로 회원가입</Text>
       <Text style={styles.subtitle}>
-        아이디와 비밀번호를 입력하고 이메일을 인증해주세요.
+        이메일과 비밀번호만 있으면 가입할 수 있어요.
       </Text>
-
-      <View style={styles.fieldBox}>
-        <Text style={styles.fieldLabel}>아이디</Text>
-        <TextInput
-          style={styles.input}
-          value={username}
-          onChangeText={setUsername}
-          placeholder="아이디 입력"
-          placeholderTextColor="#A6AFB6"
-          autoCapitalize="none"
-          autoCorrect={false}
-          returnKeyType="next"
-        />
-        {fieldErrors.username ? (
-          <Text style={styles.fieldErrorText}>{fieldErrors.username}</Text>
-        ) : null}
-      </View>
-
-      <View style={styles.fieldBox}>
-        <Text style={styles.fieldLabel}>비밀번호</Text>
-        <TextInput
-          style={styles.input}
-          value={password}
-          onChangeText={setPassword}
-          placeholder="비밀번호 입력"
-          placeholderTextColor="#A6AFB6"
-          autoCapitalize="none"
-          autoCorrect={false}
-          secureTextEntry
-          returnKeyType="next"
-        />
-        {fieldErrors.password ? (
-          <Text style={styles.fieldErrorText}>{fieldErrors.password}</Text>
-        ) : null}
-      </View>
-
-      <View style={styles.fieldBox}>
-        <Text style={styles.fieldLabel}>비밀번호 확인</Text>
-        <TextInput
-          style={styles.input}
-          value={passwordConfirm}
-          onChangeText={setPasswordConfirm}
-          placeholder="비밀번호 재입력"
-          placeholderTextColor="#A6AFB6"
-          autoCapitalize="none"
-          autoCorrect={false}
-          secureTextEntry
-          returnKeyType="next"
-        />
-        {fieldErrors.passwordConfirm ? (
-          <Text style={styles.fieldErrorText}>
-            {fieldErrors.passwordConfirm}
-          </Text>
-        ) : null}
-      </View>
 
       <View style={styles.fieldBox}>
         <Text style={styles.fieldLabel}>이메일</Text>
@@ -578,6 +517,44 @@ function SignupForm() {
           ) : null}
         </View>
       ) : null}
+
+      <View style={styles.fieldBox}>
+        <Text style={styles.fieldLabel}>비밀번호</Text>
+        <TextInput
+          style={styles.input}
+          value={password}
+          onChangeText={setPassword}
+          placeholder="비밀번호 입력"
+          placeholderTextColor="#A6AFB6"
+          autoCapitalize="none"
+          autoCorrect={false}
+          secureTextEntry
+          returnKeyType="next"
+        />
+        {fieldErrors.password ? (
+          <Text style={styles.fieldErrorText}>{fieldErrors.password}</Text>
+        ) : null}
+      </View>
+
+      <View style={styles.fieldBox}>
+        <Text style={styles.fieldLabel}>비밀번호 확인</Text>
+        <TextInput
+          style={styles.input}
+          value={passwordConfirm}
+          onChangeText={setPasswordConfirm}
+          placeholder="비밀번호 재입력"
+          placeholderTextColor="#A6AFB6"
+          autoCapitalize="none"
+          autoCorrect={false}
+          secureTextEntry
+          returnKeyType="done"
+        />
+        {fieldErrors.passwordConfirm ? (
+          <Text style={styles.fieldErrorText}>
+            {fieldErrors.passwordConfirm}
+          </Text>
+        ) : null}
+      </View>
 
       <Pressable
         style={({ pressed }) => [
@@ -794,19 +771,13 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     alignItems: "center",
     justifyContent: "center",
+    overflow: "hidden",
   },
   snsCirclePressed: {
     opacity: 0.85,
   },
   snsCircleDisabled: {
     opacity: 0.6,
-  },
-  snsKakaoCircle: {
-    backgroundColor: "#FEE500",
-  },
-  snsKakaoSymbol: {
-    width: 26,
-    height: 26,
   },
   snsAppleCircle: {
     backgroundColor: "#000000",

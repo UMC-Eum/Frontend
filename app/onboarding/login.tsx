@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import KakaoSymbol from "@/assets/images/kakao-symbol.svg";
 import TermsBottomSheet from "@/components/onboarding/TermsBottomSheet";
 import { useSocialLogin } from "@/hooks/useSocialLogin";
 
@@ -19,7 +20,7 @@ import { useSocialLogin } from "@/hooks/useSocialLogin";
  * 로그인 화면
  * - 상단: 온보딩 일러스트 이미지
  * - 중앙: 타이틀 + 서브타이틀
- * - 하단: 소셜 로그인 버튼 + 아이디 로그인(심사용 임시)
+ * - 하단: 소셜 로그인 버튼 + 이메일 로그인(심사용 임시)
  * - 모달: 나이 제한 / 이용약관
  */
 export default function LoginScreen() {
@@ -96,11 +97,8 @@ export default function LoginScreen() {
           accessibilityLabel="카카오로 시작하기"
         >
           <View style={styles.socialButtonContent}>
-            <Image
-              source={require("@/assets/images/kakao-login-symbol.png")}
-              style={styles.kakaoSymbol}
-              resizeMode="contain"
-            />
+            {/* 원 배경이 버튼과 같은 색이라 말풍선만 보인다. 말풍선 크기 20px에 맞춰 36px로 렌더 */}
+            <KakaoSymbol width={36} height={36} />
             <Text style={[styles.socialButtonText, styles.kakaoButtonText]}>
               카카오로 시작하기
             </Text>
@@ -120,7 +118,7 @@ export default function LoginScreen() {
             onPress={handleAppleLogin}
           />
         ) : null}
-        {/* ponytail: 심사용 임시 아이디(로컬) 로그인 진입점. 심사 종료 후 제거 (EUM-191) */}
+        {/* ponytail: 심사용 임시 이메일(로컬) 로그인 진입점. 심사 종료 후 제거 (EUM-191) */}
         <Pressable
           style={({ pressed }) => [
             styles.socialButton,
@@ -131,12 +129,12 @@ export default function LoginScreen() {
           onPress={() => router.push("/onboarding/email-login" as any)}
           disabled={isLoginPending}
           accessibilityRole="button"
-          accessibilityLabel="아이디로 시작하기"
+          accessibilityLabel="이메일로 시작하기"
         >
           <View style={styles.socialButtonContent}>
-            <Ionicons name="person-outline" size={24} color="#111111" />
+            <Ionicons name="mail-outline" size={24} color="#111111" />
             <Text style={[styles.socialButtonText, styles.emailButtonText]}>
-              아이디로 시작하기
+              이메일로 시작하기
             </Text>
           </View>
         </Pressable>
@@ -233,10 +231,6 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     textAlign: "center",
     includeFontPadding: false,
-  },
-  kakaoSymbol: {
-    width: 20,
-    height: 20,
   },
   kakaoButtonText: {
     color: "rgba(0, 0, 0, 0.85)",
