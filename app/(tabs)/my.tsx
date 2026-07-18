@@ -5,6 +5,8 @@ import { useCallback, useState } from "react";
 import {
   Alert,
   Linking,
+  Modal,
+  Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -54,6 +56,7 @@ export default function MyTabScreen() {
   const deleteAccountMutation = useDeleteAccountMutation();
   const authProvider = useAuthStore((state) => state.provider);
   const [isPullRefreshing, setIsPullRefreshing] = useState(false);
+  const [showWithdrawModal, setShowWithdrawModal] = useState(false);
 
   // 홈 추천(recommendations)은 1시간 유지 정책이라 수동 새로고침 대상에서 제외한다.
   const handleRefresh = useCallback(() => {
@@ -107,51 +110,47 @@ export default function MyTabScreen() {
 
   const handleDeactivate = () => {
     if (deleteAccountMutation.isPending) return;
+    setShowWithdrawModal(true);
+  };
 
-    Alert.alert("탈퇴하기", "정말 탈퇴하시겠어요?", [
-      { text: "취소", style: "cancel" },
+  const handleConfirmDeactivate = async () => {
+    if (deleteAccountMutation.isPending) return;
+
+    let appleAuthorizationCode: string | undefined;
+
+    if (authProvider === "APPLE") {
+      try {
+        const credential = await AppleAuthentication.signInAsync({
+          requestedScopes: [],
+        });
+        appleAuthorizationCode = credential.authorizationCode ?? undefined;
+      } catch (error) {
+        if ((error as { code?: string }).code === "ERR_REQUEST_CANCELED") {
+          return;
+        }
+        Alert.alert(
+          "Apple 인증 실패",
+          "탈퇴를 위해 Apple 인증을 다시 진행해주세요.",
+        );
+        return;
+      }
+
+      if (!appleAuthorizationCode) {
+        Alert.alert("Apple 인증 실패", "Apple 인증 코드를 가져오지 못했어요.");
+        return;
+      }
+    }
+
+    deleteAccountMutation.mutate(
+      { appleAuthorizationCode },
       {
-        text: "탈퇴",
-        style: "destructive",
-        onPress: async () => {
-          let appleAuthorizationCode: string | undefined;
-
-          if (authProvider === "APPLE") {
-            try {
-              const credential = await AppleAuthentication.signInAsync({
-                requestedScopes: [],
-              });
-              appleAuthorizationCode = credential.authorizationCode ?? undefined;
-            } catch (error) {
-              if ((error as { code?: string }).code === "ERR_REQUEST_CANCELED") {
-                return;
-              }
-              Alert.alert(
-                "Apple 인증 실패",
-                "탈퇴를 위해 Apple 인증을 다시 진행해주세요.",
-              );
-              return;
-            }
-
-            if (!appleAuthorizationCode) {
-              Alert.alert(
-                "Apple 인증 실패",
-                "Apple 인증 코드를 가져오지 못했어요.",
-              );
-              return;
-            }
-          }
-
-          deleteAccountMutation.mutate(
-            { appleAuthorizationCode },
-            {
-              onSuccess: () => router.replace("/onboarding/login" as never),
-              onError: () => Alert.alert("탈퇴 실패", "다시 시도해주세요."),
-            },
-          );
+        onSuccess: () => {
+          setShowWithdrawModal(false);
+          router.replace("/onboarding/login" as never);
         },
+        onError: () => Alert.alert("탈퇴 실패", "다시 시도해주세요."),
       },
-    ]);
+    );
   };
 
   return (
@@ -381,7 +380,64 @@ export default function MyTabScreen() {
           </Text>
         </TouchableOpacity>
       </ScrollView>
+
+      <WithdrawConfirmModal
+        visible={showWithdrawModal}
+        isPending={deleteAccountMutation.isPending}
+        onCancel={() => setShowWithdrawModal(false)}
+        onConfirm={handleConfirmDeactivate}
+      />
     </SafeAreaView>
+  );
+}
+
+function WithdrawConfirmModal({
+  visible,
+  isPending,
+  onCancel,
+  onConfirm,
+}: {
+  visible: boolean;
+  isPending: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
+      <View style={styles.withdrawModalOverlay}>
+        <View style={styles.withdrawModalBox}>
+          <Text style={styles.withdrawModalTitle}>정말 탈퇴 하시겠어요?</Text>
+          <Text style={styles.withdrawModalDescription}>
+            탈퇴하면 프로필과 매칭 기록이 사라져요{"\n"}탈퇴 후 30일간 재가입이 불가능해요
+          </Text>
+
+          <Pressable
+            style={({ pressed }) => [
+              styles.withdrawKeepButton,
+              pressed && styles.withdrawModalButtonPressed,
+            ]}
+            onPress={onCancel}
+            disabled={isPending}
+          >
+            <Text style={styles.withdrawKeepButtonText}>아뇨, 더 써볼래요</Text>
+          </Pressable>
+
+          <Pressable
+            style={({ pressed }) => [
+              styles.withdrawConfirmButton,
+              pressed && styles.withdrawModalButtonPressed,
+              isPending && styles.withdrawModalButtonDisabled,
+            ]}
+            onPress={onConfirm}
+            disabled={isPending}
+          >
+            <Text style={styles.withdrawConfirmButtonText}>
+              {isPending ? "탈퇴 처리 중..." : "탈퇴하기"}
+            </Text>
+          </Pressable>
+        </View>
+      </View>
+    </Modal>
   );
 }
 
@@ -796,5 +852,72 @@ const styles = StyleSheet.create({
     color: MUTED,
     fontSize: 15,
     fontWeight: "600",
+  },
+  withdrawModalOverlay: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 24,
+    backgroundColor: "rgba(0,0,0,0.46)",
+  },
+  withdrawModalBox: {
+    width: "100%",
+    maxWidth: 360,
+    borderRadius: 16,
+    paddingHorizontal: 20,
+    paddingTop: 34,
+    paddingBottom: 20,
+    backgroundColor: "#FFFFFF",
+  },
+  withdrawModalTitle: {
+    marginBottom: 14,
+    color: TEXT,
+    fontSize: 22,
+    fontWeight: "800",
+    lineHeight: 29,
+    textAlign: "center",
+  },
+  withdrawModalDescription: {
+    marginBottom: 28,
+    color: SUB_TEXT,
+    fontSize: 17,
+    fontWeight: "500",
+    lineHeight: 27,
+    textAlign: "center",
+  },
+  withdrawKeepButton: {
+    height: 64,
+    marginBottom: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 8,
+    backgroundColor: ACCENT,
+  },
+  withdrawKeepButtonText: {
+    color: "#FFFFFF",
+    fontSize: 18,
+    fontWeight: "800",
+    lineHeight: 24,
+  },
+  withdrawConfirmButton: {
+    height: 60,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#DFDFDF",
+    borderRadius: 8,
+    backgroundColor: "#FFFFFF",
+  },
+  withdrawConfirmButtonText: {
+    color: "#8F8F8F",
+    fontSize: 18,
+    fontWeight: "800",
+    lineHeight: 24,
+  },
+  withdrawModalButtonPressed: {
+    opacity: 0.82,
+  },
+  withdrawModalButtonDisabled: {
+    opacity: 0.55,
   },
 });
