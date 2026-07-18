@@ -10,6 +10,7 @@ export default function OnboardingLayout() {
     >
       <Stack.Screen name="splash" />
       <Stack.Screen name="login" />
+      <Stack.Screen name="email-login" />
       <Stack.Screen name="terms-detail" />
       <Stack.Screen name="permissions" />
     </Stack>

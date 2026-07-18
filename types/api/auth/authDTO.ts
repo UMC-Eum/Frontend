@@ -23,6 +23,14 @@ export interface ITokenRefreshResponse {
   accessToken: string;
 }
 
+// ponytail: 심사용 임시 로컬 로그인. 심사 종료 후 로컬 로그인 관련 코드 전체 제거 (EUM-191)
+export interface ILocalLoginRequest {
+  username: string;
+  password: string;
+}
+
+export type ILocalLoginResponse = IKakaoLoginResponse;
+
 export type ITestLoginRequest = Record<string, never>;
 export type ITestLoginResponse = IKakaoLoginResponse;
 
