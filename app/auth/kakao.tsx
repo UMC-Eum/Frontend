@@ -69,7 +69,7 @@ export default function KakaoAuthCallbackScreen() {
           redirectUri: KAKAO_REDIRECT_URI,
         });
 
-        const needsOnboarding = auth.onboardingRequired || auth.isNewUser;
+        const needsOnboarding = auth.onboardingRequired;
 
         if (needsOnboarding) {
           const hasPassedAgreements = await getAgreementStatus();

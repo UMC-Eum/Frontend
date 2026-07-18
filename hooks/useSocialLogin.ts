@@ -81,7 +81,7 @@ export function useSocialLogin({ onShowTerms }: { onShowTerms: () => void }) {
     isNewUser: boolean;
     onboardingRequired: boolean;
   }) => {
-    const needsOnboarding = auth.onboardingRequired || auth.isNewUser;
+    const needsOnboarding = auth.onboardingRequired;
 
     if (needsOnboarding) {
       const hasPassedAgreements = await getAgreementStatus();
