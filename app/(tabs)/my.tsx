@@ -19,6 +19,8 @@ import {
 import { Image } from "@/components/Image";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import IdealVoiceCompleteCard from "@/assets/images/profile-voice/ideal-voice-complete-card.svg";
+import IdealVoiceStartCard from "@/assets/images/profile-voice/ideal-voice-start-card.svg";
 import { MyClubRowListSkeleton } from "@/components/skeletons";
 import { useMyClubsQuery } from "@/hooks/api/useClub";
 import { useLogoutMutation } from "@/hooks/api/useAuth";
@@ -71,6 +73,10 @@ export default function MyTabScreen() {
   }, [myClubsQuery, myProfileQuery, receivedHeartsQuery]);
 
   const profile = myProfileQuery.data;
+  const hasIdealVoiceKeywords = (profile?.idealPersonalities?.length ?? 0) > 0;
+  const idealVoiceCardAspectRatio = hasIdealVoiceKeywords
+    ? 372 / 56
+    : 362 / 95;
   const receivedHeartCount =
     receivedHeartsQuery.data?.pages.reduce(
       (total, page) => total + page.items.length,
@@ -268,21 +274,18 @@ export default function MyTabScreen() {
           <Text style={styles.sectionTitle}>이상형 설정</Text>
 
           <TouchableOpacity
-            style={[styles.settingRow, styles.voiceSettingRow]}
+            style={[
+              styles.idealVoiceCardButton,
+              { aspectRatio: idealVoiceCardAspectRatio },
+            ]}
             activeOpacity={0.7}
             onPress={() => router.push("/ideal-recording" as any)}
           >
-            <View style={[styles.settingIcon, styles.voiceIcon]}>
-              <Ionicons name="mic" size={24} color="#FFFFFF" />
-            </View>
-            <View style={styles.settingTextBlock}>
-              <Text style={styles.settingTitle}>음성으로 말하기</Text>
-              <Text style={[styles.settingSubtitle, styles.voiceSubtitle]}>
-                이상형 음성을 녹음해보세요
-              </Text>
-            </View>
-            <Text style={styles.reRecordText}>녹음</Text>
-            <Ionicons name="chevron-forward" size={20} color={ACCENT} />
+            {hasIdealVoiceKeywords ? (
+              <IdealVoiceCompleteCard width="100%" height="100%" />
+            ) : (
+              <IdealVoiceStartCard width="100%" height="100%" />
+            )}
           </TouchableOpacity>
         </View>
 
@@ -675,10 +678,8 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: "#FFFFFF",
   },
-  voiceSettingRow: {
-    marginBottom: 10,
-    borderColor: "#FF7698",
-    backgroundColor: "#FFF0F4",
+  idealVoiceCardButton: {
+    width: "100%",
   },
   settingIcon: {
     width: 34,

@@ -13,6 +13,9 @@ export const updateClub = async (
       typeof body.introVoice === "string"
         ? normalizeS3ObjectRef(body.introVoice)
         : body.introVoice,
+    thumbnailUrl: body.thumbnailUrl
+      ? normalizeS3ObjectRef(body.thumbnailUrl)
+      : body.thumbnailUrl,
   };
   const { data } = await api.patch<
     ApiSuccessResponse<DTO.IClubUpdateResponse>
