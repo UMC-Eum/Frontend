@@ -21,6 +21,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Circle, Defs, Mask, Path, Rect } from "react-native-svg";
 
+import DefaultProfileAvatar from "@/components/profile/DefaultProfileAvatar";
 import ProfileStepLayout from "@/components/profile/ProfileStepLayout";
 import { useOnboardingDraftStore } from "@/stores/onboardingDraftStore";
 
@@ -416,14 +417,16 @@ export default function PhotoScreen() {
         {/* 원형 + 뱃지를 감싸는 컨테이너 */}
         <View style={styles.photoContainer}>
           <Pressable style={styles.photoCircle} onPress={handlePhotoPick}>
-            {photoUri && photoUri !== "default" ? (
+            {photoUri &&
+            photoUri !== "default" &&
+            photoUri !== DEFAULT_PROFILE_IMAGE_URI ? (
               <Image
                 source={getProfileImageSource(photoUri)}
                 style={styles.photoImage}
                 contentFit="cover"
               />
             ) : (
-              <ProfilePlaceholder />
+              <DefaultProfileAvatar size={PROFILE_IMAGE_SIZE} />
             )}
           </Pressable>
           {/* 카메라 뱃지 (원형 바깥) */}
@@ -528,23 +531,6 @@ function CropOverlay() {
         fill="transparent"
         stroke="#FFFFFF"
         strokeWidth={2}
-      />
-    </Svg>
-  );
-}
-
-function ProfilePlaceholder() {
-  return (
-    <Svg
-      width={PROFILE_IMAGE_SIZE}
-      height={PROFILE_IMAGE_SIZE}
-      viewBox="0 0 200 200"
-    >
-      <Circle cx="100" cy="100" r="100" fill="#DEE3E5" />
-      <Circle cx="100" cy="81" r="30" fill="#F8FAFB" />
-      <Path
-        d="M36 178C46 136 70 124 100 124C130 124 154 136 164 178C147 192 125 200 100 200C75 200 53 192 36 178Z"
-        fill="#F8FAFB"
       />
     </Svg>
   );

@@ -10,6 +10,7 @@ export interface IClubUpdateRequest {
   name?: string;
   introText?: string;
   introVoice?: string | null;
+  thumbnailUrl?: string | null;
   capacity?: number;
   category?: ClubCategory;
 }

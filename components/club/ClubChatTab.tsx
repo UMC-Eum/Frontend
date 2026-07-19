@@ -37,6 +37,9 @@ import {
 import { markChatRoomRead } from "@/api/chats/chatsApi";
 import ChatInput from "@/components/chat/ChatInput";
 import ChatMessage, { ChatMessageData } from "@/components/chat/ChatMessage";
+import ChatPhotoViewer, {
+  ChatPhotoViewerData,
+} from "@/components/chat/ChatPhotoViewer";
 import MicRecorder from "@/components/MicRecorder";
 import { queryKeys } from "@/hooks/api/queryKeys";
 import { useChatMessagesInfiniteQuery } from "@/hooks/api/useChats";
@@ -119,6 +122,8 @@ export default function ClubChatTab({
   const [playingVoiceMessageId, setPlayingVoiceMessageId] = useState<
     string | null
   >(null);
+  const [photoViewerData, setPhotoViewerData] =
+    useState<ChatPhotoViewerData | null>(null);
   const isRecording = recorderState.isRecording;
   const fallbackUnreadCount =
     typeof memberCount === "number" && Number.isFinite(memberCount)
@@ -821,6 +826,17 @@ export default function ClubChatTab({
     }
   };
 
+  const handlePhotoPress = (
+    message: Extract<ClubChatMessage, { type: "photo" }>,
+  ) => {
+    setPhotoViewerData({
+      uri: message.mediaUrl,
+      senderName: message.isMine ? "나" : message.senderName,
+      sentAt: message.sentAt,
+      time: message.time,
+    });
+  };
+
   const openMemberProfile = useCallback(
     (userId?: number, nickname?: string) => {
       if (!userId) return;
@@ -928,6 +944,7 @@ export default function ClubChatTab({
             playingVoiceMessageId={playingVoiceMessageId}
             onFetchNextPage={() => void messagesQuery.fetchNextPage()}
             onVoicePress={handleVoicePlay}
+            onPhotoPress={handlePhotoPress}
             onAvatarPress={openMemberProfile}
           />
         </View>
@@ -957,6 +974,7 @@ export default function ClubChatTab({
             playingVoiceMessageId={playingVoiceMessageId}
             onFetchNextPage={() => void messagesQuery.fetchNextPage()}
             onVoicePress={handleVoicePlay}
+            onPhotoPress={handlePhotoPress}
             onAvatarPress={openMemberProfile}
           />
         </ScrollView>
@@ -971,6 +989,11 @@ export default function ClubChatTab({
       ) : (
         inputDock
       )}
+
+      <ChatPhotoViewer
+        photo={photoViewerData}
+        onClose={() => setPhotoViewerData(null)}
+      />
     </View>
   );
 }
@@ -983,6 +1006,7 @@ function ClubChatMessageContent({
   playingVoiceMessageId,
   onFetchNextPage,
   onVoicePress,
+  onPhotoPress,
   onAvatarPress,
 }: {
   visibleMessages: ClubChatMessage[];
@@ -992,6 +1016,7 @@ function ClubChatMessageContent({
   playingVoiceMessageId: string | null;
   onFetchNextPage: () => void;
   onVoicePress: (message: Extract<ChatMessageData, { type: "voice" }>) => void;
+  onPhotoPress: (message: Extract<ClubChatMessage, { type: "photo" }>) => void;
   onAvatarPress: (userId?: number, nickname?: string) => void;
 }) {
   return (
@@ -1020,6 +1045,7 @@ function ClubChatMessageContent({
                 : item
             }
             onVoicePress={onVoicePress}
+            onPhotoPress={onPhotoPress}
             onAvatarPress={
               item.type !== "date" && item.type !== "system" && !item.isMine
                 ? () => onAvatarPress(item.senderUserId, item.senderName)
@@ -1045,10 +1071,12 @@ function ClubChatMessageContent({
 function ClubChatRow({
   message,
   onVoicePress,
+  onPhotoPress,
   onAvatarPress,
 }: {
   message: ClubChatMessage;
   onVoicePress?: (message: Extract<ChatMessageData, { type: "voice" }>) => void;
+  onPhotoPress?: (message: Extract<ClubChatMessage, { type: "photo" }>) => void;
   onAvatarPress?: () => void;
 }) {
   if (message.type === "system") {
@@ -1072,6 +1100,7 @@ function ClubChatRow({
       <ChatMessage
         message={message}
         onVoicePress={onVoicePress}
+        onPhotoPress={onPhotoPress}
         onAvatarPress={onAvatarPress}
       />
     </View>

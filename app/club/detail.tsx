@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "@/components/Image";
 import { KeyboardAvoidingView } from "@/components/KeyboardCompat";
+import { useQueryClient } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import React, { useEffect, useMemo, useRef, useState } from "react";
@@ -53,6 +54,8 @@ import {
   useChatRoomsInfiniteQuery,
   useClubChatRoomQuery,
 } from "@/hooks/api/useChats";
+import { createClubChatRoom } from "@/api/chats/chatsApi";
+import { queryKeys } from "@/hooks/api/queryKeys";
 import type { ApiFailResponse } from "@/types/api/api";
 import { IArticleListItem } from "@/types/api/articles/articlesDTO";
 import {
@@ -131,6 +134,7 @@ const CATEGORY_LABELS: Record<ClubPostCategory, string> = {
  */
 export default function ClubDetailScreen() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const params = useLocalSearchParams<{ clubId?: string }>();
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
@@ -145,6 +149,7 @@ export default function ClubDetailScreen() {
   const [isLeaveConfirmVisible, setLeaveConfirmVisible] = useState(false);
   const [isSettingsSheetVisible, setSettingsSheetVisible] = useState(false);
   const [isGuestSheetVisible, setGuestSheetVisible] = useState(false);
+  const [isOpeningClubChat, setOpeningClubChat] = useState(false);
 
   const detailQuery = useClubDetailQuery(clubId);
   // 화면 재진입 시 로컬 joinStatus가 초기화되므로, 내 동호회 목록의 상태(PENDING 등)로 복원한다.
@@ -317,6 +322,41 @@ export default function ClubDetailScreen() {
     void clubChatRoomQuery.refetch();
   };
 
+  const handlePressClubTab = async (tabId: ClubDetailTab) => {
+    if (tabId !== "chat") {
+      setActiveTab(tabId);
+      return;
+    }
+
+    if (!viewer.canUseChat) {
+      setActiveTab("chat");
+      return;
+    }
+
+    if (clubChatRoomId) {
+      router.push(`/chat/${clubChatRoomId}` as never);
+      return;
+    }
+
+    if (isOpeningClubChat) return;
+
+    setOpeningClubChat(true);
+
+    try {
+      const room = await queryClient.fetchQuery({
+        queryKey: queryKeys.chats.clubRoom(clubId),
+        queryFn: () => createClubChatRoom(clubId),
+        staleTime: 5 * 60 * 1000,
+      });
+
+      router.push(`/chat/${room.chatRoomId}` as never);
+    } catch (error) {
+      Alert.alert("채팅방을 열지 못했어요", getClubChatRoomErrorText(error));
+    } finally {
+      setOpeningClubChat(false);
+    }
+  };
+
   const settingsItems: ActionSheetItem[] = [
     {
       key: "edit",
@@ -408,14 +448,16 @@ export default function ClubDetailScreen() {
         </View>
       </View>
 
-      {activeTab === "chat" ? null : <View style={styles.dividerBand} />}
+      <View style={styles.dividerBand} />
 
       <View style={styles.tabBar}>
         {CLUB_TABS.map((tab) => (
           <Pressable
             key={tab.id}
             style={styles.tabButton}
-            onPress={() => setActiveTab(tab.id)}
+            onPress={() => {
+              void handlePressClubTab(tab.id);
+            }}
           >
             <View style={styles.tabLabelRow}>
               <Text
