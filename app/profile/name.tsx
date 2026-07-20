@@ -52,6 +52,10 @@ export default function NameScreen() {
     router.push("/profile/age");
   };
 
+  const handleBack = () => {
+    router.replace("/onboarding/login" as any);
+  };
+
   const handleClear = () => {
     setName("");
   };
@@ -70,6 +74,7 @@ export default function NameScreen() {
         totalSteps={5}
         buttonEnabled={isValid}
         onNext={handleNext}
+        onBack={handleBack}
       >
         <View style={styles.formArea}>
           <View style={styles.inputWrapper}>

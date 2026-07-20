@@ -36,6 +36,7 @@ import {
   CLUB_COLORS,
 } from "@/components/club/ClubPostParts";
 import { KEYBOARD_AVOIDING_BEHAVIOR } from "@/constants/keyboard";
+import { getApiErrorMessage } from "@/api/axiosInstance";
 import {
   createClubPostComment,
   deleteClubPostComment,
@@ -112,6 +113,11 @@ export default function ClubPostDetailScreen() {
     initialPageParam: null as string | null,
     getNextPageParam: (lastPage) => lastPage.nextCursor,
     enabled: hasPostId,
+    // 다른 사용자의 새 댓글은 이 기기 캐시를 invalidate하지 못하므로,
+    // 이 화면이 열려 있는 동안에만 짧게 폴링한다(전역 staleTime 1시간은 그대로 둔다).
+    staleTime: 0,
+    refetchInterval: 20_000,
+    refetchOnWindowFocus: true,
   });
   const likeMutation = useMutation({
     mutationFn: (nextLiked: boolean) =>
@@ -212,7 +218,8 @@ export default function ClubPostDetailScreen() {
         "댓글 등록 실패",
         getApiErrorStatus(error) === 403
           ? "클럽 회원만 이용할 수 있는 기능이에요"
-          : "댓글을 등록하는 중 문제가 발생했습니다.",
+          : getApiErrorMessage(error) ??
+              "댓글을 등록하는 중 문제가 발생했습니다.",
       );
     },
   });

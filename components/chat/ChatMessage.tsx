@@ -62,10 +62,12 @@ export default function ChatMessage({
   message,
   onVoicePress,
   onAvatarPress,
+  onPhotoPress,
 }: {
   message: ChatMessageData;
   onVoicePress?: (message: Extract<ChatMessageData, { type: "voice" }>) => void;
   onAvatarPress?: () => void;
+  onPhotoPress?: (message: Extract<ChatMessageData, { type: "photo" }>) => void;
 }) {
   if (message.type === "date") {
     return (
@@ -199,7 +201,12 @@ export default function ChatMessage({
             ) : null}
 
             {message.type === "photo" ? (
-              <Image source={{ uri: message.mediaUrl }} style={styles.photo} />
+              <Pressable
+                onPress={() => onPhotoPress?.(message)}
+                disabled={!onPhotoPress}
+              >
+                <Image source={{ uri: message.mediaUrl }} style={styles.photo} />
+              </Pressable>
             ) : null}
           </View>
 

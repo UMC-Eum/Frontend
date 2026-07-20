@@ -23,16 +23,20 @@ import {
 } from "react-native-safe-area-context";
 
 import { postPresign, uploadFileToS3 } from "@/api/onboarding/onboardingApi";
+import { getApiErrorMessage } from "@/api/axiosInstance";
+import ProfileVoiceCard from "@/assets/images/profile-voice/profile-voice-card.svg";
 import CircleImageCropper, {
   CircleCropAsset,
   CircleCropResult,
 } from "@/components/profile/CircleImageCropper";
+import DefaultProfileAvatar from "@/components/profile/DefaultProfileAvatar";
 import {
   useMyProfileQuery,
   useUpdateMyProfileMutation,
 } from "@/hooks/api/useUsers";
 import { KEYBOARD_AVOIDING_BEHAVIOR } from "@/constants/keyboard";
 import { DEFAULT_PROFILE_IMAGE_URI } from "@/constants/defaultProfileImage";
+import { useOnboardingDraftStore } from "@/stores/onboardingDraftStore";
 import { useFastInputScroll } from "@/hooks/useFastInputScroll";
 
 const ACCENT = "#FC3367";
@@ -54,6 +58,26 @@ export default function ProfileEditScreen() {
   const myProfileQuery = useMyProfileQuery();
   const updateMyProfileMutation = useUpdateMyProfileMutation();
   const profile = myProfileQuery.data;
+  const setDraftNickname = useOnboardingDraftStore((state) => state.setNickname);
+  const setDraftAge = useOnboardingDraftStore((state) => state.setAge);
+  const setDraftGender = useOnboardingDraftStore((state) => state.setGender);
+  const setDraftArea = useOnboardingDraftStore((state) => state.setArea);
+  const setDraftBirthDate = useOnboardingDraftStore((state) => state.setBirthDate);
+  const setDraftProfileImageUri = useOnboardingDraftStore(
+    (state) => state.setProfileImageUri,
+  );
+  const setDraftIntroText = useOnboardingDraftStore(
+    (state) => state.setIntroText,
+  );
+  const setDraftSelectedKeywords = useOnboardingDraftStore(
+    (state) => state.setSelectedKeywords,
+  );
+  const setDraftPersonalities = useOnboardingDraftStore(
+    (state) => state.setPersonalities,
+  );
+  const setDraftIdealPersonalities = useOnboardingDraftStore(
+    (state) => state.setIdealPersonalities,
+  );
   const [nickname, setNickname] = useState("");
   const [introText, setIntroText] = useState("");
   const [imageUri, setImageUri] = useState<string | null>(null);
@@ -223,8 +247,34 @@ export default function ProfileEditScreen() {
       if (__DEV__) {
         console.log("Profile edit submit error:", error);
       }
-      Alert.alert("저장 실패", "프로필을 다시 저장해주세요.");
+      Alert.alert(
+        "저장 실패",
+        getApiErrorMessage(error) ?? "프로필을 다시 저장해주세요.",
+      );
     }
+  };
+
+  const handleProfileVoicePress = () => {
+    if (profile) {
+      setDraftNickname(nickname.trim() || profile.nickname || "");
+      if (typeof profile.age === "number" && profile.age > 0) {
+        setDraftAge(profile.age);
+      }
+      if (profile.gender === "M" || profile.gender === "F") {
+        setDraftGender(profile.gender);
+      }
+      if (profile.area?.code) {
+        setDraftArea(profile.area.code, profile.area.name ?? "");
+      }
+      setDraftBirthDate(profile.birthDate ?? null);
+      setDraftProfileImageUri(imageUri || profile.profileImageUrl || null);
+      setDraftIntroText(introText.trim() || profile.introText || "");
+      setDraftSelectedKeywords(profile.keywords ?? []);
+      setDraftPersonalities(profile.personalities ?? []);
+      setDraftIdealPersonalities(profile.idealPersonalities ?? []);
+    }
+
+    router.push("/profile/welcome" as never);
   };
 
   if (myProfileQuery.isLoading) {
@@ -279,10 +329,11 @@ export default function ProfileEditScreen() {
         >
           <Pressable style={styles.photoButton} onPress={handlePhotoPick}>
             <View style={styles.avatar}>
-              <Image
-                source={{ uri: imageUri || DEFAULT_PROFILE_IMAGE_URI }}
-                style={styles.avatarImage}
-              />
+              {imageUri && imageUri !== DEFAULT_PROFILE_IMAGE_URI ? (
+                <Image source={{ uri: imageUri }} style={styles.avatarImage} />
+              ) : (
+                <DefaultProfileAvatar size={118} />
+              )}
             </View>
             <View style={styles.cameraBadge}>
               <Ionicons name="camera" size={20} color="#FFFFFF" />
@@ -308,6 +359,12 @@ export default function ProfileEditScreen() {
             <Text style={styles.label}>
               나의 소개<Text style={styles.required}> *</Text>
             </Text>
+            <Pressable
+              style={styles.profileVoiceCardButton}
+              onPress={handleProfileVoicePress}
+            >
+              <ProfileVoiceCard width="100%" height="100%" />
+            </Pressable>
             <TextInput
               value={introText}
               onChangeText={setIntroText}
@@ -514,6 +571,11 @@ const styles = StyleSheet.create({
   },
   introInput: {
     minHeight: 104,
+  },
+  profileVoiceCardButton: {
+    width: "100%",
+    aspectRatio: 372 / 56,
+    marginBottom: 12,
   },
   modalOverlay: {
     flex: 1,

@@ -12,6 +12,10 @@ export interface IPatchUserProfileRequest {
   profileImageUrl?: string;
 }
 
+export interface IDeleteAccountRequest {
+  appleAuthorizationCode?: string;
+}
+
 export interface IKeywordsRequest {
   interestKeywordIds: number[];
 }

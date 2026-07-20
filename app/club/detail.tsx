@@ -1,9 +1,10 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "@/components/Image";
 import { KeyboardAvoidingView } from "@/components/KeyboardCompat";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useQueryClient } from "@tanstack/react-query";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -53,6 +54,8 @@ import {
   useChatRoomsInfiniteQuery,
   useClubChatRoomQuery,
 } from "@/hooks/api/useChats";
+import { createClubChatRoom } from "@/api/chats/chatsApi";
+import { queryKeys } from "@/hooks/api/queryKeys";
 import type { ApiFailResponse } from "@/types/api/api";
 import { IArticleListItem } from "@/types/api/articles/articlesDTO";
 import {
@@ -131,6 +134,7 @@ const CATEGORY_LABELS: Record<ClubPostCategory, string> = {
  */
 export default function ClubDetailScreen() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const params = useLocalSearchParams<{ clubId?: string }>();
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
@@ -145,6 +149,7 @@ export default function ClubDetailScreen() {
   const [isLeaveConfirmVisible, setLeaveConfirmVisible] = useState(false);
   const [isSettingsSheetVisible, setSettingsSheetVisible] = useState(false);
   const [isGuestSheetVisible, setGuestSheetVisible] = useState(false);
+  const [isOpeningClubChat, setOpeningClubChat] = useState(false);
 
   const detailQuery = useClubDetailQuery(clubId);
   // 화면 재진입 시 로컬 joinStatus가 초기화되므로, 내 동호회 목록의 상태(PENDING 등)로 복원한다.
@@ -164,11 +169,30 @@ export default function ClubDetailScreen() {
     myClubsQuery.data?.items.find((item) => Number(item.clubId) === clubId)
       ?.status ?? null;
   // 이 화면에서 방금 바꾼 로컬 상태가 서버 목록 캐시보다 우선한다.
-  const effectiveJoinStatus = joinStatus ?? myClubStatus;
+  // 단 로컬 PENDING은 예외 — 승인/거절은 서버에서 일어나므로 갱신된 서버 상태가 이긴다.
+  // (이게 없으면 refetch로 ACTIVE를 받아와도 화면은 계속 "가입 대기중"으로 남는다.)
+  const effectiveJoinStatus =
+    joinStatus === "PENDING" && myClubStatus && myClubStatus !== "PENDING"
+      ? myClubStatus
+      : (joinStatus ?? myClubStatus);
   const isJoined =
     effectiveJoinStatus === "ACTIVE" ||
     Boolean(detail?.isJoined && joinStatus !== "LEFT");
   const isJoinPending = effectiveJoinStatus === "PENDING";
+
+  // 승인은 호스트 기기에서 일어나므로 이 기기 캐시가 갱신되지 않는다.
+  // 전역 staleTime이 1시간이라 PENDING 캐시를 계속 쓰게 되므로,
+  // 가입 대기 중일 때만 화면 진입/재포커스 시 내 동호회 목록과 상세를 다시 불러온다.
+  const refetchMyClubs = myClubsQuery.refetch;
+  const refetchDetail = detailQuery.refetch;
+  useFocusEffect(
+    useCallback(() => {
+      if (!isJoinPending) return;
+      refetchMyClubs();
+      refetchDetail();
+    }, [isJoinPending, refetchMyClubs, refetchDetail]),
+  );
+
   const isHost = detail?.myAuthority === "HOST";
   // 게스트/멤버/호스트 역할과 화면 권한을 한 곳에서 계산한다.
   const viewer = getClubViewer({ isJoined, isHost });
@@ -317,6 +341,41 @@ export default function ClubDetailScreen() {
     void clubChatRoomQuery.refetch();
   };
 
+  const handlePressClubTab = async (tabId: ClubDetailTab) => {
+    if (tabId !== "chat") {
+      setActiveTab(tabId);
+      return;
+    }
+
+    if (!viewer.canUseChat) {
+      setActiveTab("chat");
+      return;
+    }
+
+    if (clubChatRoomId) {
+      router.push(`/chat/${clubChatRoomId}` as never);
+      return;
+    }
+
+    if (isOpeningClubChat) return;
+
+    setOpeningClubChat(true);
+
+    try {
+      const room = await queryClient.fetchQuery({
+        queryKey: queryKeys.chats.clubRoom(clubId),
+        queryFn: () => createClubChatRoom(clubId),
+        staleTime: 5 * 60 * 1000,
+      });
+
+      router.push(`/chat/${room.chatRoomId}` as never);
+    } catch (error) {
+      Alert.alert("채팅방을 열지 못했어요", getClubChatRoomErrorText(error));
+    } finally {
+      setOpeningClubChat(false);
+    }
+  };
+
   const settingsItems: ActionSheetItem[] = [
     {
       key: "edit",
@@ -408,14 +467,16 @@ export default function ClubDetailScreen() {
         </View>
       </View>
 
-      {activeTab === "chat" ? null : <View style={styles.dividerBand} />}
+      <View style={styles.dividerBand} />
 
       <View style={styles.tabBar}>
         {CLUB_TABS.map((tab) => (
           <Pressable
             key={tab.id}
             style={styles.tabButton}
-            onPress={() => setActiveTab(tab.id)}
+            onPress={() => {
+              void handlePressClubTab(tab.id);
+            }}
           >
             <View style={styles.tabLabelRow}>
               <Text
@@ -2410,6 +2471,8 @@ const styles = StyleSheet.create({
   meetingSheetDivider: {
     height: 1,
     backgroundColor: "#DEE3E5",
+    // 구분선과 "안내사항" 제목이 붙어 보여서 아래쪽 여백을 준다.
+    marginBottom: 24,
   },
   meetingSheetBar: {
     alignSelf: "stretch",

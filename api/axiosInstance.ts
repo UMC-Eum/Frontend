@@ -1,4 +1,9 @@
-import axios, { AxiosError, AxiosRequestConfig, create } from "axios";
+import axios, {
+  AxiosError,
+  AxiosRequestConfig,
+  create,
+  isAxiosError,
+} from "axios";
 import { getAuthAccessToken, useAuthStore } from "../stores/authStore";
 import { ApiFailResponse, ApiSuccessResponse } from "../types/api/api";
 import { ITokenRefreshResponse } from "../types/api/auth/authDTO";
@@ -23,10 +28,16 @@ const normalizedBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL?.replace(
 );
 const REFRESH_TOKEN_PATH = "/v1/auth/token/refresh";
 
+export const getApiErrorMessage = (error: unknown) =>
+  isAxiosError<ApiFailResponse>(error)
+    ? error.response?.data?.error?.message
+    : undefined;
+
 const api = create({
   baseURL: normalizedBaseUrl,
   headers: { "Content-Type": "application/json" },
   withCredentials: true,
+  timeout: 15000,
 });
 
 const formatDebugPayload = (payload: unknown) => {

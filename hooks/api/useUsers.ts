@@ -7,7 +7,7 @@ import {
 
 import {
   createProfileVisit,
-  deactivateUser,
+  deleteAccount,
   getActiveUsers,
   getLikedClubs,
   getMyProfile,
@@ -23,6 +23,7 @@ import { useAuthStore } from "@/stores/authStore";
 import { removePushTokenFromServer } from "@/utils/pushNotifications";
 import {
   IActiveUsersParams,
+  IDeleteAccountRequest,
   IKeywordsRequest,
   ILikedClubsParams,
   IMyProfileVisitorsRequest,
@@ -122,15 +123,15 @@ export function useUpdateMyProfileMutation() {
   });
 }
 
-export function useDeactivateUserMutation() {
+export function useDeleteAccountMutation() {
   const queryClient = useQueryClient();
   const clearAuth = useAuthStore((state) => state.clearAuth);
 
   return useMutation({
     // 인증이 남아있을 때 푸시 토큰 먼저 해제한 뒤 탈퇴
-    mutationFn: async () => {
+    mutationFn: async (body: IDeleteAccountRequest = {}) => {
       await removePushTokenFromServer();
-      return deactivateUser();
+      return deleteAccount(body);
     },
     onSuccess: () => {
       disconnectChatSocket();

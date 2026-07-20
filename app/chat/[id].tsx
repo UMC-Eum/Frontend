@@ -40,6 +40,9 @@ import {
 import ChatActionSheet from "@/components/chat/ChatActionSheet";
 import ChatInput from "@/components/chat/ChatInput";
 import ChatMessage, { ChatMessageData } from "@/components/chat/ChatMessage";
+import ChatPhotoViewer, {
+  ChatPhotoViewerData,
+} from "@/components/chat/ChatPhotoViewer";
 import ConfirmModal from "@/components/chat/ConfirmModal";
 import ClubChatTab from "@/components/club/ClubChatTab";
 import MicRecorder from "@/components/MicRecorder";
@@ -192,6 +195,8 @@ export default function ChatRoom() {
     string | null
   >(null);
   const [toastMessage, setToastMessage] = useState("");
+  const [photoViewerData, setPhotoViewerData] =
+    useState<ChatPhotoViewerData | null>(null);
   const isRecording = recorderState.isRecording;
   const displayRecordingTime = isRecording
     ? Math.floor(recorderState.durationMillis / 1000)
@@ -973,6 +978,17 @@ export default function ChatRoom() {
     });
   };
 
+  const handlePhotoPress = (
+    message: Extract<ChatMessageData, { type: "photo" }>,
+  ) => {
+    setPhotoViewerData({
+      uri: message.mediaUrl,
+      senderName: message.isMine ? "나" : profile?.name,
+      sentAt: message.sentAt,
+      time: message.time,
+    });
+  };
+
   const handlePickPhoto = async (source: "camera" | "gallery") => {
     if (isUploadingPhoto || !hasChatRoomId) return;
 
@@ -1173,6 +1189,7 @@ export default function ChatRoom() {
                 }
                 onVoicePress={handleVoicePlay}
                 onAvatarPress={openPeerProfile}
+                onPhotoPress={handlePhotoPress}
               />
             )}
             ListFooterComponent={
@@ -1285,6 +1302,11 @@ export default function ChatRoom() {
           <Text style={styles.toastText}>{toastMessage}</Text>
         </View>
       ) : null}
+
+      <ChatPhotoViewer
+        photo={photoViewerData}
+        onClose={() => setPhotoViewerData(null)}
+      />
 
       <ChatActionSheet
         visible={showActionSheet}

@@ -6,6 +6,8 @@ import {
   IAppleLoginResponse,
   IKakaoLoginRequest,
   IKakaoLoginResponse,
+  ILocalLoginRequest,
+  ILocalLoginResponse,
   ITestAccountsResponse,
   ITestLoginRequest,
   ITestLoginResponse,
@@ -25,6 +27,16 @@ export const kakaoLogin = async (body: IKakaoLoginRequest) => {
 export const appleLogin = async (body: IAppleLoginRequest) => {
   const { data } = await api.post<ApiSuccessResponse<IAppleLoginResponse>>(
     "/v1/auth/apple/login",
+    body,
+  );
+
+  return data.success.data;
+};
+
+//v1/auth/local/login (심사용 임시, EUM-191)
+export const localLogin = async (body: ILocalLoginRequest) => {
+  const { data } = await api.post<ApiSuccessResponse<ILocalLoginResponse>>(
+    "/v1/auth/local/login",
     body,
   );
 

@@ -1,5 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "@/components/Image";
+import * as ImagePicker from "expo-image-picker";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import React, { useEffect, useState } from "react";
@@ -15,6 +16,8 @@ import {
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { getApiErrorMessage } from "@/api/axiosInstance";
+import { postPresign } from "@/api/onboarding/onboardingApi";
 import DeleteClubModal from "@/components/club/DeleteClubModal";
 import { CLUB_CREATE_CATEGORIES } from "@/constants/club";
 import { useClubDetailQuery } from "@/hooks/api/useClub";
@@ -23,6 +26,10 @@ import {
   useUpdateClubMutation,
 } from "@/hooks/api/useHost";
 import type { ClubCategory } from "@/types/api/club/clubDTO";
+import {
+  normalizeImageForUpload,
+  uploadImageUriToS3,
+} from "@/utils/s3ImageUpload";
 
 const COLORS = {
   pink: "#FF3E70",
@@ -62,6 +69,7 @@ export default function ClubManageSettingsScreen() {
   const [intro, setIntro] = useState("");
   const [category, setCategory] = useState<ClubCategory | null>(null);
   const [capacity, setCapacity] = useState(1);
+  const [isUploadingPhotos, setUploadingPhotos] = useState(false);
   const [deleteVisible, setDeleteVisible] = useState(false);
 
   // 최대인원은 현재 가입 인원보다 낮게 설정할 수 없다.
@@ -81,7 +89,36 @@ export default function ClubManageSettingsScreen() {
     setPhotos((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const handleSave = () => {
+  const handlePickPhotos = async () => {
+    try {
+      const permissionResult =
+        await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+      if (permissionResult.status !== "granted") {
+        Alert.alert(
+          "권한 필요",
+          "커버 사진을 선택하려면 앨범 접근 권한이 필요합니다.",
+        );
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsMultipleSelection: true,
+        selectionLimit: 5,
+        quality: 0.8,
+      });
+
+      if (!result.canceled) {
+        setPhotos(result.assets.slice(0, 5).map((asset) => asset.uri));
+      }
+    } catch (error) {
+      console.error("Club cover image picker error:", error);
+      Alert.alert("사진 선택 실패", "사진을 불러오는 중 문제가 발생했습니다.");
+    }
+  };
+
+  const handleSave = async () => {
     if (!Number.isFinite(clubId)) return;
 
     const trimmedName = name.trim();
@@ -94,23 +131,32 @@ export default function ClubManageSettingsScreen() {
       return;
     }
 
-    updateMutation.mutate(
-      {
+    setUploadingPhotos(true);
+
+    try {
+      const thumbnailUrl = photos[0] ? await uploadClubCoverImage(photos[0]) : null;
+
+      await updateMutation.mutateAsync({
         name: trimmedName,
         introText: intro.trim(),
         category,
         capacity,
-      },
-      {
-        onSuccess: () => {
-          Alert.alert("저장 완료", "동호회 정보가 저장되었어요.");
-          router.back();
-        },
-        onError: () => {
-          Alert.alert("저장 실패", "잠시 후 다시 시도해주세요.");
-        },
-      },
-    );
+        thumbnailUrl,
+      });
+
+      Alert.alert("저장 완료", "동호회 정보가 저장되었어요.");
+      router.back();
+    } catch (error) {
+      Alert.alert(
+        "저장 실패",
+        getApiErrorMessage(error) ??
+          (error instanceof Error && error.message
+            ? error.message
+            : "잠시 후 다시 시도해주세요."),
+      );
+    } finally {
+      setUploadingPhotos(false);
+    }
   };
 
   const handleDelete = () => {
@@ -162,7 +208,7 @@ export default function ClubManageSettingsScreen() {
         contentContainerStyle={{ paddingBottom: insets.bottom + 120 }}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.cover}>
+        <Pressable style={styles.cover} onPress={handlePickPhotos}>
           {photos[0] ? (
             <Image source={{ uri: photos[0] }} style={styles.coverImage} contentFit="cover" />
           ) : null}
@@ -171,7 +217,7 @@ export default function ClubManageSettingsScreen() {
             <Ionicons name="camera" size={36} color={COLORS.gray150} />
             <Text style={styles.coverText}>커버 사진{"\n"}(최대 5장까지 가능)</Text>
           </View>
-        </View>
+        </Pressable>
 
         <ScrollView
           horizontal
@@ -303,12 +349,13 @@ export default function ClubManageSettingsScreen() {
         <Pressable
           style={[
             styles.saveButton,
-            updateMutation.isPending && styles.saveButtonDisabled,
+            (updateMutation.isPending || isUploadingPhotos) &&
+              styles.saveButtonDisabled,
           ]}
           onPress={handleSave}
-          disabled={updateMutation.isPending}
+          disabled={updateMutation.isPending || isUploadingPhotos}
         >
-          {updateMutation.isPending ? (
+          {updateMutation.isPending || isUploadingPhotos ? (
             <ActivityIndicator color={COLORS.white} />
           ) : (
             <Text style={styles.saveButtonText}>저장</Text>
@@ -327,6 +374,32 @@ function FieldLabel({ label }: { label: string }) {
       <Text style={styles.fieldLabel}>{label}</Text>
       <Text style={styles.requiredMark}>*</Text>
     </View>
+  );
+}
+
+async function uploadClubCoverImage(uri: string) {
+  if (isRemoteImageUri(uri)) return uri;
+
+  const uploadImage = await normalizeImageForUpload(uri);
+  const { uploadUrl, fileRef } = await postPresign({
+    fileName: `club-cover-${Date.now()}.${uploadImage.extension}`,
+    contentType: uploadImage.contentType,
+    purpose: "CLUB",
+  });
+  await uploadImageUriToS3(
+    uploadUrl,
+    uploadImage.uri,
+    uploadImage.contentType,
+  );
+
+  return fileRef;
+}
+
+function isRemoteImageUri(uri: string) {
+  return (
+    uri.startsWith("http://") ||
+    uri.startsWith("https://") ||
+    uri.startsWith("s3://")
   );
 }
 

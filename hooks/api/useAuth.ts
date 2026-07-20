@@ -4,6 +4,7 @@ import {
   appleLogin,
   getTestAccounts,
   kakaoLogin,
+  localLogin,
   logout,
   testLogin,
 } from "@/api/auth/authApi";
@@ -12,6 +13,7 @@ import { useAuthStore } from "@/stores/authStore";
 import {
   IAppleLoginRequest,
   IKakaoLoginRequest,
+  ILocalLoginRequest,
   ITestLoginRequest,
 } from "@/types/api/auth/authDTO";
 import { removePushTokenFromServer } from "@/utils/pushNotifications";
@@ -30,7 +32,7 @@ export function useKakaoLoginMutation() {
       }
 
       queryClient.removeQueries();
-      setAuth(data);
+      setAuth(data, "KAKAO");
     },
   });
 }
@@ -47,7 +49,25 @@ export function useAppleLoginMutation() {
       }
 
       queryClient.removeQueries();
-      setAuth(data);
+      setAuth(data, "APPLE");
+    },
+  });
+}
+
+// ponytail: 심사용 임시 로컬 로그인. 심사 종료 후 제거 (EUM-191)
+export function useLocalLoginMutation() {
+  const queryClient = useQueryClient();
+  const setAuth = useAuthStore((state) => state.setAuth);
+
+  return useMutation({
+    mutationFn: (body: ILocalLoginRequest) => localLogin(body),
+    onSuccess: (data) => {
+      if (__DEV__) {
+        console.log("[ACCESS_TOKEN][LOCAL_LOGIN]", data.accessToken);
+      }
+
+      queryClient.removeQueries();
+      setAuth(data, "LOCAL");
     },
   });
 }
@@ -90,7 +110,7 @@ export function useTestLoginMutation() {
       }
 
       queryClient.removeQueries();
-      setAuth(data);
+      setAuth(data, "LOCAL");
     },
   });
 }

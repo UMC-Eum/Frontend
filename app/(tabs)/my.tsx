@@ -1,9 +1,12 @@
 import { Ionicons } from "@expo/vector-icons";
+import * as AppleAuthentication from "expo-apple-authentication";
 import { useRouter } from "expo-router";
 import { useCallback, useState } from "react";
 import {
   Alert,
   Linking,
+  Modal,
+  Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -16,15 +19,18 @@ import {
 import { Image } from "@/components/Image";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import IdealVoiceCompleteCard from "@/assets/images/profile-voice/ideal-voice-complete-card.svg";
+import IdealVoiceStartCard from "@/assets/images/profile-voice/ideal-voice-start-card.svg";
 import { MyClubRowListSkeleton } from "@/components/skeletons";
 import { useMyClubsQuery } from "@/hooks/api/useClub";
 import { useLogoutMutation } from "@/hooks/api/useAuth";
 import { useRecommendationsInfiniteQuery } from "@/hooks/api/useRecommendations";
 import { useReceivedHeartsInfiniteQuery } from "@/hooks/api/useSocials";
 import {
-  useDeactivateUserMutation,
+  useDeleteAccountMutation,
   useMyProfileQuery,
 } from "@/hooks/api/useUsers";
+import { useAuthStore } from "@/stores/authStore";
 import { useNotificationSettingsStore } from "@/stores/notificationSettingsStore";
 import { uniqueBy } from "@/utils/array";
 
@@ -32,8 +38,9 @@ const ACCENT = "#FC3367";
 const TEXT = "#202020";
 const SUB_TEXT = "#636970";
 const MUTED = "#A6AFB6";
-// ponytail: 고객지원 URL 확정 전까지 빈 값 — 확정되면 값만 채우면 행이 노출된다.
-const SUPPORT_URL = "";
+const TERMS_URL = "https://eum-dating.com/terms";
+const PRIVACY_URL = "https://eum-dating.com/privacy";
+const SUPPORT_URL = "https://eum-dating.com/support";
 
 export default function MyTabScreen() {
   const router = useRouter();
@@ -48,8 +55,10 @@ export default function MyTabScreen() {
   const recommendationsQuery = useRecommendationsInfiniteQuery();
   const myClubsQuery = useMyClubsQuery();
   const logoutMutation = useLogoutMutation();
-  const deactivateUserMutation = useDeactivateUserMutation();
+  const deleteAccountMutation = useDeleteAccountMutation();
+  const authProvider = useAuthStore((state) => state.provider);
   const [isPullRefreshing, setIsPullRefreshing] = useState(false);
+  const [showWithdrawModal, setShowWithdrawModal] = useState(false);
 
   // 홈 추천(recommendations)은 1시간 유지 정책이라 수동 새로고침 대상에서 제외한다.
   const handleRefresh = useCallback(() => {
@@ -64,6 +73,10 @@ export default function MyTabScreen() {
   }, [myClubsQuery, myProfileQuery, receivedHeartsQuery]);
 
   const profile = myProfileQuery.data;
+  const hasIdealVoiceKeywords = (profile?.idealPersonalities?.length ?? 0) > 0;
+  const idealVoiceCardAspectRatio = hasIdealVoiceKeywords
+    ? 372 / 56
+    : 362 / 95;
   const receivedHeartCount =
     receivedHeartsQuery.data?.pages.reduce(
       (total, page) => total + page.items.length,
@@ -102,18 +115,48 @@ export default function MyTabScreen() {
   };
 
   const handleDeactivate = () => {
-    Alert.alert("탈퇴하기", "정말 탈퇴하시겠어요?", [
-      { text: "취소", style: "cancel" },
+    if (deleteAccountMutation.isPending) return;
+    setShowWithdrawModal(true);
+  };
+
+  const handleConfirmDeactivate = async () => {
+    if (deleteAccountMutation.isPending) return;
+
+    let appleAuthorizationCode: string | undefined;
+
+    if (authProvider === "APPLE") {
+      try {
+        const credential = await AppleAuthentication.signInAsync({
+          requestedScopes: [],
+        });
+        appleAuthorizationCode = credential.authorizationCode ?? undefined;
+      } catch (error) {
+        if ((error as { code?: string }).code === "ERR_REQUEST_CANCELED") {
+          return;
+        }
+        Alert.alert(
+          "Apple 인증 실패",
+          "탈퇴를 위해 Apple 인증을 다시 진행해주세요.",
+        );
+        return;
+      }
+
+      if (!appleAuthorizationCode) {
+        Alert.alert("Apple 인증 실패", "Apple 인증 코드를 가져오지 못했어요.");
+        return;
+      }
+    }
+
+    deleteAccountMutation.mutate(
+      { appleAuthorizationCode },
       {
-        text: "탈퇴",
-        style: "destructive",
-        onPress: () =>
-          deactivateUserMutation.mutate(undefined, {
-            onSuccess: () => router.replace("/onboarding/login" as never),
-            onError: () => Alert.alert("탈퇴 실패", "다시 시도해주세요."),
-          }),
+        onSuccess: () => {
+          setShowWithdrawModal(false);
+          router.replace("/onboarding/login" as never);
+        },
+        onError: () => Alert.alert("탈퇴 실패", "다시 시도해주세요."),
       },
-    ]);
+    );
   };
 
   return (
@@ -231,21 +274,18 @@ export default function MyTabScreen() {
           <Text style={styles.sectionTitle}>이상형 설정</Text>
 
           <TouchableOpacity
-            style={[styles.settingRow, styles.voiceSettingRow]}
+            style={[
+              styles.idealVoiceCardButton,
+              { aspectRatio: idealVoiceCardAspectRatio },
+            ]}
             activeOpacity={0.7}
             onPress={() => router.push("/ideal-recording" as any)}
           >
-            <View style={[styles.settingIcon, styles.voiceIcon]}>
-              <Ionicons name="mic" size={24} color="#FFFFFF" />
-            </View>
-            <View style={styles.settingTextBlock}>
-              <Text style={styles.settingTitle}>음성으로 말하기</Text>
-              <Text style={[styles.settingSubtitle, styles.voiceSubtitle]}>
-                이상형 음성을 녹음해보세요
-              </Text>
-            </View>
-            <Text style={styles.reRecordText}>녹음</Text>
-            <Ionicons name="chevron-forward" size={20} color={ACCENT} />
+            {hasIdealVoiceKeywords ? (
+              <IdealVoiceCompleteCard width="100%" height="100%" />
+            ) : (
+              <IdealVoiceStartCard width="100%" height="100%" />
+            )}
           </TouchableOpacity>
         </View>
 
@@ -302,32 +342,24 @@ export default function MyTabScreen() {
           {/* Apple 심사: 로그인 이후에도 약관/개인정보처리방침 접근이 가능해야 한다 */}
           <TouchableOpacity
             activeOpacity={0.7}
-            onPress={() =>
-              router.push("/onboarding/terms-detail?type=service" as any)
-            }
+            onPress={() => Linking.openURL(TERMS_URL)}
           >
-            <Text style={styles.policyLinkText}>서비스이용약관</Text>
+            <Text style={styles.policyLinkText}>서비스 이용약관</Text>
           </TouchableOpacity>
           <View style={styles.thinDivider} />
           <TouchableOpacity
             activeOpacity={0.7}
-            onPress={() =>
-              router.push("/onboarding/terms-detail?type=privacy" as any)
-            }
+            onPress={() => Linking.openURL(PRIVACY_URL)}
           >
             <Text style={styles.policyLinkText}>개인정보처리방침</Text>
           </TouchableOpacity>
-          {SUPPORT_URL ? (
-            <>
-              <View style={styles.thinDivider} />
-              <TouchableOpacity
-                activeOpacity={0.7}
-                onPress={() => Linking.openURL(SUPPORT_URL)}
-              >
-                <Text style={styles.policyLinkText}>고객지원</Text>
-              </TouchableOpacity>
-            </>
-          ) : null}
+          <View style={styles.thinDivider} />
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={() => Linking.openURL(SUPPORT_URL)}
+          >
+            <Text style={styles.policyLinkText}>고객지원</Text>
+          </TouchableOpacity>
           <View style={styles.thinDivider} />
           <TouchableOpacity
             activeOpacity={0.7}
@@ -344,14 +376,71 @@ export default function MyTabScreen() {
           style={styles.withdrawCard}
           activeOpacity={0.7}
           onPress={handleDeactivate}
-          disabled={deactivateUserMutation.isPending}
+          disabled={deleteAccountMutation.isPending}
         >
           <Text style={styles.withdrawText}>
-            {deactivateUserMutation.isPending ? "탈퇴 처리 중..." : "탈퇴하기"}
+            {deleteAccountMutation.isPending ? "탈퇴 처리 중..." : "탈퇴하기"}
           </Text>
         </TouchableOpacity>
       </ScrollView>
+
+      <WithdrawConfirmModal
+        visible={showWithdrawModal}
+        isPending={deleteAccountMutation.isPending}
+        onCancel={() => setShowWithdrawModal(false)}
+        onConfirm={handleConfirmDeactivate}
+      />
     </SafeAreaView>
+  );
+}
+
+function WithdrawConfirmModal({
+  visible,
+  isPending,
+  onCancel,
+  onConfirm,
+}: {
+  visible: boolean;
+  isPending: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
+      <View style={styles.withdrawModalOverlay}>
+        <View style={styles.withdrawModalBox}>
+          <Text style={styles.withdrawModalTitle}>정말 탈퇴 하시겠어요?</Text>
+          <Text style={styles.withdrawModalDescription}>
+            탈퇴하면 프로필과 매칭 기록이 사라져요{"\n"}탈퇴 후 30일간 재가입이 불가능해요
+          </Text>
+
+          <Pressable
+            style={({ pressed }) => [
+              styles.withdrawKeepButton,
+              pressed && styles.withdrawModalButtonPressed,
+            ]}
+            onPress={onCancel}
+            disabled={isPending}
+          >
+            <Text style={styles.withdrawKeepButtonText}>아뇨, 더 써볼래요</Text>
+          </Pressable>
+
+          <Pressable
+            style={({ pressed }) => [
+              styles.withdrawConfirmButton,
+              pressed && styles.withdrawModalButtonPressed,
+              isPending && styles.withdrawModalButtonDisabled,
+            ]}
+            onPress={onConfirm}
+            disabled={isPending}
+          >
+            <Text style={styles.withdrawConfirmButtonText}>
+              {isPending ? "탈퇴 처리 중..." : "탈퇴하기"}
+            </Text>
+          </Pressable>
+        </View>
+      </View>
+    </Modal>
   );
 }
 
@@ -589,10 +678,8 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: "#FFFFFF",
   },
-  voiceSettingRow: {
-    marginBottom: 10,
-    borderColor: "#FF7698",
-    backgroundColor: "#FFF0F4",
+  idealVoiceCardButton: {
+    width: "100%",
   },
   settingIcon: {
     width: 34,
@@ -766,5 +853,72 @@ const styles = StyleSheet.create({
     color: MUTED,
     fontSize: 15,
     fontWeight: "600",
+  },
+  withdrawModalOverlay: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 24,
+    backgroundColor: "rgba(0,0,0,0.46)",
+  },
+  withdrawModalBox: {
+    width: "100%",
+    maxWidth: 360,
+    borderRadius: 16,
+    paddingHorizontal: 20,
+    paddingTop: 34,
+    paddingBottom: 20,
+    backgroundColor: "#FFFFFF",
+  },
+  withdrawModalTitle: {
+    marginBottom: 14,
+    color: TEXT,
+    fontSize: 22,
+    fontWeight: "800",
+    lineHeight: 29,
+    textAlign: "center",
+  },
+  withdrawModalDescription: {
+    marginBottom: 28,
+    color: SUB_TEXT,
+    fontSize: 17,
+    fontWeight: "500",
+    lineHeight: 27,
+    textAlign: "center",
+  },
+  withdrawKeepButton: {
+    height: 64,
+    marginBottom: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 8,
+    backgroundColor: ACCENT,
+  },
+  withdrawKeepButtonText: {
+    color: "#FFFFFF",
+    fontSize: 18,
+    fontWeight: "800",
+    lineHeight: 24,
+  },
+  withdrawConfirmButton: {
+    height: 60,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#DFDFDF",
+    borderRadius: 8,
+    backgroundColor: "#FFFFFF",
+  },
+  withdrawConfirmButtonText: {
+    color: "#8F8F8F",
+    fontSize: 18,
+    fontWeight: "800",
+    lineHeight: 24,
+  },
+  withdrawModalButtonPressed: {
+    opacity: 0.82,
+  },
+  withdrawModalButtonDisabled: {
+    opacity: 0.55,
   },
 });

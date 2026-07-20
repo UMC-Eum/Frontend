@@ -207,6 +207,9 @@ export interface IRecommendedClubItem {
   capacity: number;
   likes: number;
   similarityScore: number;
+  // 미검증(401로 실응답 확인 못 함). 현재 이 엔드포인트는 참석 인원을 안 내려주는 것으로 보이며,
+  // 백엔드가 추가하면 홈 "나를 위한 동호회" 카드의 "N명 참석중"이 바로 표시된다.
+  memberCount?: number;
 }
 
 export interface IRecommendedClubsResponse {
@@ -216,6 +219,32 @@ export interface IRecommendedClubsResponse {
     hasNext: boolean;
     nextCursor?: string | null;
   };
+}
+
+// v1/clubs/today-recommended (GET)
+// 2026-07-20 실제 응답 확인 결과 /v1/matches/club/recommended와 shape이 다르다.
+// 위치 필드(addressName/areaName/addressCode/sidoCode/sigunguCode)가 아예 없어서
+// 홈 "오늘의 추천 동호회" 카드에 지역이 표시되지 않는다 — 백엔드 추가 필요.
+export interface ITodayRecommendedClubItem {
+  clubId: string;
+  name: string;
+  category: ClubCategory;
+  introText: string | null;
+  thumbnailUrl: string | null;
+  capacity: number;
+  memberCount: number;
+  likes: number;
+  recommendationScore: number;
+  // 이 응답은 userId/clubId를 문자열로 내려줘서 IClubUserSummary(userId: number)와 다르다.
+  host: {
+    userId: number | string;
+    nickname: string;
+    profileImageUrl: string | null;
+  };
+}
+
+export interface ITodayRecommendedClubsResponse {
+  items: ITodayRecommendedClubItem[];
 }
 
 // v1/clubs/search/recent (GET)

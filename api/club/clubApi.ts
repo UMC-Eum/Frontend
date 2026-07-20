@@ -104,7 +104,7 @@ export const getTodayRecommendedClubs = async (
   params: { limit?: number } = {},
 ) => {
   const { data } = await api.get<
-    ApiSuccessResponse<DTO.IRecommendedClubsResponse>
+    ApiSuccessResponse<DTO.ITodayRecommendedClubsResponse>
   >("/v1/clubs/today-recommended", { params });
   return data.success.data;
 };

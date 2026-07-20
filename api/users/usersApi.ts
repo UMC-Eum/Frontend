@@ -6,6 +6,7 @@ import { IUserProfile, IUserPublicProfile } from "../../types/user";
 import {
   IActiveUsersParams,
   IActiveUsersResponse,
+  IDeleteAccountRequest,
   IKeywordsRequest,
   ILikedClubsParams,
   ILikedClubsResponse,
@@ -52,11 +53,11 @@ export const updateMyProfile = async (body: IPatchUserProfileRequest) => {
 
   return data.success.data;
 };
-//v1/users/me/deactivate(patch)
-export const deactivateUser = async () => {
-  const { data } = await api.patch<ApiSuccessResponse<null>>(
-    "/v1/users/me/deactivate",
-  );
+//v1/users/me(delete)
+export const deleteAccount = async (body: IDeleteAccountRequest = {}) => {
+  const { data } = await api.delete<ApiSuccessResponse<null>>("/v1/users/me", {
+    data: body,
+  });
 
   return data.success.data;
 };
