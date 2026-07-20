@@ -2,9 +2,9 @@ import { Ionicons } from "@expo/vector-icons";
 import { Image } from "@/components/Image";
 import { KeyboardAvoidingView } from "@/components/KeyboardCompat";
 import { useQueryClient } from "@tanstack/react-query";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -169,11 +169,30 @@ export default function ClubDetailScreen() {
     myClubsQuery.data?.items.find((item) => Number(item.clubId) === clubId)
       ?.status ?? null;
   // 이 화면에서 방금 바꾼 로컬 상태가 서버 목록 캐시보다 우선한다.
-  const effectiveJoinStatus = joinStatus ?? myClubStatus;
+  // 단 로컬 PENDING은 예외 — 승인/거절은 서버에서 일어나므로 갱신된 서버 상태가 이긴다.
+  // (이게 없으면 refetch로 ACTIVE를 받아와도 화면은 계속 "가입 대기중"으로 남는다.)
+  const effectiveJoinStatus =
+    joinStatus === "PENDING" && myClubStatus && myClubStatus !== "PENDING"
+      ? myClubStatus
+      : (joinStatus ?? myClubStatus);
   const isJoined =
     effectiveJoinStatus === "ACTIVE" ||
     Boolean(detail?.isJoined && joinStatus !== "LEFT");
   const isJoinPending = effectiveJoinStatus === "PENDING";
+
+  // 승인은 호스트 기기에서 일어나므로 이 기기 캐시가 갱신되지 않는다.
+  // 전역 staleTime이 1시간이라 PENDING 캐시를 계속 쓰게 되므로,
+  // 가입 대기 중일 때만 화면 진입/재포커스 시 내 동호회 목록과 상세를 다시 불러온다.
+  const refetchMyClubs = myClubsQuery.refetch;
+  const refetchDetail = detailQuery.refetch;
+  useFocusEffect(
+    useCallback(() => {
+      if (!isJoinPending) return;
+      refetchMyClubs();
+      refetchDetail();
+    }, [isJoinPending, refetchMyClubs, refetchDetail]),
+  );
+
   const isHost = detail?.myAuthority === "HOST";
   // 게스트/멤버/호스트 역할과 화면 권한을 한 곳에서 계산한다.
   const viewer = getClubViewer({ isJoined, isHost });
@@ -2452,6 +2471,8 @@ const styles = StyleSheet.create({
   meetingSheetDivider: {
     height: 1,
     backgroundColor: "#DEE3E5",
+    // 구분선과 "안내사항" 제목이 붙어 보여서 아래쪽 여백을 준다.
+    marginBottom: 24,
   },
   meetingSheetBar: {
     alignSelf: "stretch",

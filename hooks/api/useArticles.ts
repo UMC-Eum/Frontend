@@ -43,6 +43,11 @@ export function useArticlesInfiniteQuery(
     initialPageParam: null as string | null,
     getNextPageParam: (lastPage) => lastPage.nextCursor,
     enabled: enabled && Number.isFinite(clubId),
+    // 다른 사용자의 새 게시물은 이 기기 캐시를 invalidate하지 못하므로,
+    // 게시판 탭이 열려 있는 동안에만 짧게 폴링한다(전역 staleTime 1시간은 그대로 둔다).
+    staleTime: 0,
+    refetchInterval: 30_000,
+    refetchOnWindowFocus: true,
   });
 }
 

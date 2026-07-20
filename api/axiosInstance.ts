@@ -37,6 +37,7 @@ const api = create({
   baseURL: normalizedBaseUrl,
   headers: { "Content-Type": "application/json" },
   withCredentials: true,
+  timeout: 15000,
 });
 
 const formatDebugPayload = (payload: unknown) => {
