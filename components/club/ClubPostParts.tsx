@@ -519,7 +519,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 18,
     paddingHorizontal: 20,
+    // 본문 입력 영역과 사진 미리보기를 구분한다. 구분선은 아래 mediaBar와 동일한 톤을 쓴다.
+    borderTopWidth: 1,
+    borderTopColor: CLUB_COLORS.gray300,
     paddingTop: 18,
+    paddingBottom: 14,
   },
   previewItem: {
     width: 82,

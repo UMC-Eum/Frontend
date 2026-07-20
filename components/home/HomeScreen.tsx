@@ -866,6 +866,7 @@ type ClubRowSource = {
   sidoCode?: string | null;
   sigunguCode?: string | null;
   district?: string | null;
+  memberCount?: number | null;
 };
 
 type ClubRowsData = {
@@ -891,6 +892,10 @@ function mapClubRows(
           club.addressName?.trim() ||
           club.district?.trim() ||
           undefined,
+        // 응답에 memberCount가 없으면 "N명 참석중"을 숨긴다(임의 값 만들지 않음).
+        // today-recommended는 memberCount를 내려주지만 위치 필드가 없어 district가 항상 비어 있다.
+        // ponytail: 백엔드가 addressName을 추가하면 위 매핑이 그대로 동작한다.
+        members: club.memberCount ?? undefined,
         thumbnailUrl: club.thumbnailUrl,
       })),
     (item) => item.id,
