@@ -31,6 +31,30 @@ export interface ILocalLoginRequest {
 
 export type ILocalLoginResponse = IKakaoLoginResponse;
 
+export interface IEmailSendCodeRequest {
+  email: string;
+}
+
+export interface IEmailSendCodeResponse {
+  expiresInMinutes: number;
+}
+
+export interface IEmailVerifyCodeRequest {
+  email: string;
+  code: string;
+}
+
+export interface IEmailVerifyCodeResponse {
+  verified: boolean;
+}
+
+export interface IEmailSignupRequest {
+  email: string;
+  password: string;
+}
+
+export type IEmailSignupResponse = IKakaoLoginResponse;
+
 export type ITestLoginRequest = Record<string, never>;
 export type ITestLoginResponse = IKakaoLoginResponse;
 

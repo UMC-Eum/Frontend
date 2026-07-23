@@ -17,7 +17,12 @@ import { z } from "zod";
 
 import KakaoSymbol from "@/assets/images/kakao-symbol.svg";
 import { getAgreementStatus } from "@/api/agreements/agreementsApi";
-import { useLocalLoginMutation } from "@/hooks/api/useAuth";
+import {
+  useEmailSignupMutation,
+  useLocalLoginMutation,
+  useSendEmailCodeMutation,
+  useVerifyEmailCodeMutation,
+} from "@/hooks/api/useAuth";
 import { useSocialLogin } from "@/hooks/useSocialLogin";
 
 // ponytail: 심사용 임시 이메일(로컬) 로그인/회원가입 화면. 심사 종료 후 제거 (EUM-191)
@@ -33,10 +38,14 @@ const loginSchema = z.object({
   password: z.string().min(1, "비밀번호를 입력해주세요."),
 });
 
+// 백엔드 정책: 비밀번호 8자 이상, 인증번호 6자리
 const signupSchema = z
   .object({
     email: emailSchema,
-    password: z.string().min(1, "비밀번호를 입력해주세요."),
+    password: z
+      .string()
+      .min(1, "비밀번호를 입력해주세요.")
+      .min(8, "비밀번호는 8자 이상 입력해주세요."),
     passwordConfirm: z.string().min(1, "비밀번호를 다시 입력해주세요."),
   })
   .refine((data) => data.password === data.passwordConfirm, {
@@ -44,12 +53,23 @@ const signupSchema = z
     path: ["passwordConfirm"],
   });
 
+const codeSchema = z
+  .string()
+  .trim()
+  .regex(/^\d{6}$/, "인증번호 6자리를 입력해주세요.");
+
 type LoginField = keyof z.infer<typeof loginSchema>;
 type SignupField = keyof z.infer<typeof signupSchema>;
 type FieldErrors = Partial<Record<LoginField | SignupField, string>>;
 
 // 이메일 인증번호 유효기간(초). 백엔드 정책: 3분
 const VERIFICATION_TTL_SECONDS = 180;
+
+function getApiErrorMessage(error: unknown) {
+  return (error as {
+    response?: { data?: { error?: { message?: string } } };
+  }).response?.data?.error?.message;
+}
 
 function zodFieldErrors(error: z.ZodError): FieldErrors {
   const errors: FieldErrors = {};
@@ -267,11 +287,9 @@ function LoginForm({ router }: { router: ReturnType<typeof useRouter> }) {
 
       router.replace("/(tabs)" as any);
     } catch (error) {
-      const apiMessage = (error as {
-        response?: { data?: { error?: { message?: string } } };
-      }).response?.data?.error?.message;
-
-      setErrorMessage(apiMessage ?? "로그인에 실패했어요. 다시 시도해주세요.");
+      setErrorMessage(
+        getApiErrorMessage(error) ?? "로그인에 실패했어요. 다시 시도해주세요.",
+      );
     }
   };
 
@@ -343,6 +361,11 @@ function LoginForm({ router }: { router: ReturnType<typeof useRouter> }) {
 }
 
 function SignupForm() {
+  const router = useRouter();
+  const sendCodeMutation = useSendEmailCodeMutation();
+  const verifyCodeMutation = useVerifyEmailCodeMutation();
+  const signupMutation = useEmailSignupMutation();
+
   const [password, setPassword] = useState("");
   const [passwordConfirm, setPasswordConfirm] = useState("");
   const [email, setEmail] = useState("");
@@ -368,7 +391,9 @@ function SignupForm() {
 
   const isExpired = verifyState === "requested" && remainingSeconds <= 0;
 
-  const handleRequestVerification = () => {
+  const handleRequestVerification = async () => {
+    if (sendCodeMutation.isPending) return;
+
     const parsedEmail = emailSchema.safeParse(email);
     if (!parsedEmail.success) {
       setFieldErrors((prev) => ({
@@ -379,28 +404,65 @@ function SignupForm() {
     }
 
     setFieldErrors((prev) => ({ ...prev, email: undefined }));
-    setVerificationCode("");
-    setVerifyState("requested");
-    setRemainingSeconds(VERIFICATION_TTL_SECONDS);
-    // ponytail: 인증번호 발송 API 추가되면 여기서 호출 (EUM-191)
+    setErrorMessage(null);
+
+    try {
+      const result = await sendCodeMutation.mutateAsync({
+        email: parsedEmail.data,
+      });
+
+      setVerificationCode("");
+      setVerifyState("requested");
+      setRemainingSeconds(
+        (result.expiresInMinutes ?? VERIFICATION_TTL_SECONDS / 60) * 60,
+      );
+    } catch (error) {
+      setErrorMessage(
+        getApiErrorMessage(error) ??
+          "인증번호 발송에 실패했어요. 다시 시도해주세요.",
+      );
+    }
   };
 
-  const handleConfirmVerification = () => {
+  const handleConfirmVerification = async () => {
+    if (verifyCodeMutation.isPending) return;
+
     if (isExpired) {
       setErrorMessage("인증번호가 만료되었어요. 다시 요청해주세요.");
       return;
     }
-    if (!verificationCode.trim()) {
-      setErrorMessage("인증번호를 입력해주세요.");
+
+    const parsedCode = codeSchema.safeParse(verificationCode);
+    if (!parsedCode.success) {
+      setErrorMessage(parsedCode.error.issues[0].message);
       return;
     }
 
     setErrorMessage(null);
-    // ponytail: 인증번호 확인 API 추가되면 여기서 검증. 지금은 UI만 통과 처리 (EUM-191)
-    setVerifyState("verified");
+
+    try {
+      const result = await verifyCodeMutation.mutateAsync({
+        email: email.trim(),
+        code: parsedCode.data,
+      });
+
+      if (result.verified) {
+        setVerifyState("verified");
+      } else {
+        setErrorMessage("인증번호가 일치하지 않아요.");
+      }
+    } catch (error) {
+      // 만료/횟수 초과 등 서버 메시지를 그대로 노출
+      setErrorMessage(
+        getApiErrorMessage(error) ??
+          "인증번호 확인에 실패했어요. 다시 시도해주세요.",
+      );
+    }
   };
 
-  const handleSignup = () => {
+  const handleSignup = async () => {
+    if (signupMutation.isPending) return;
+
     setErrorMessage(null);
 
     const parsed = signupSchema.safeParse({
@@ -420,8 +482,30 @@ function SignupForm() {
       return;
     }
 
-    // ponytail: 회원가입 API 추가되면 여기서 호출 후 로그인 분기 연결 (EUM-191)
-    setErrorMessage("회원가입 API 연동 예정이에요.");
+    try {
+      const auth = await signupMutation.mutateAsync({
+        email: parsed.data.email,
+        password: parsed.data.password,
+      });
+      const needsOnboarding = auth.onboardingRequired || auth.isNewUser;
+
+      if (needsOnboarding) {
+        const hasPassedAgreements = await getAgreementStatus();
+
+        if (hasPassedAgreements) {
+          router.replace("/onboarding/permissions" as any);
+        } else {
+          router.replace("/onboarding/login?showTerms=1" as any);
+        }
+        return;
+      }
+
+      router.replace("/(tabs)" as any);
+    } catch (error) {
+      setErrorMessage(
+        getApiErrorMessage(error) ?? "회원가입에 실패했어요. 다시 시도해주세요.",
+      );
+    }
   };
 
   return (
@@ -449,17 +533,22 @@ function SignupForm() {
           <Pressable
             style={({ pressed }) => [
               styles.inlineButton,
-              verifyState === "verified" && styles.ctaButtonDisabled,
+              (verifyState === "verified" || sendCodeMutation.isPending) &&
+                styles.ctaButtonDisabled,
               pressed && verifyState !== "verified" &&
                 styles.ctaButtonPressed,
             ]}
             onPress={handleRequestVerification}
-            disabled={verifyState === "verified"}
+            disabled={verifyState === "verified" || sendCodeMutation.isPending}
             accessibilityRole="button"
             accessibilityLabel="인증번호 요청"
           >
             <Text style={styles.inlineButtonText}>
-              {verifyState === "idle" ? "인증 요청" : "재요청"}
+              {sendCodeMutation.isPending
+                ? "발송 중..."
+                : verifyState === "idle"
+                  ? "인증 요청"
+                  : "재요청"}
             </Text>
           </Pressable>
         </View>
@@ -495,18 +584,28 @@ function SignupForm() {
             <Pressable
               style={({ pressed }) => [
                 styles.inlineButton,
-                (verifyState === "verified" || isExpired) &&
+                (verifyState === "verified" ||
+                  isExpired ||
+                  verifyCodeMutation.isPending) &&
                   styles.ctaButtonDisabled,
                 pressed && verifyState === "requested" && !isExpired &&
                   styles.ctaButtonPressed,
               ]}
               onPress={handleConfirmVerification}
-              disabled={verifyState === "verified" || isExpired}
+              disabled={
+                verifyState === "verified" ||
+                isExpired ||
+                verifyCodeMutation.isPending
+              }
               accessibilityRole="button"
               accessibilityLabel="인증번호 확인"
             >
               <Text style={styles.inlineButtonText}>
-                {verifyState === "verified" ? "인증 완료" : "확인"}
+                {verifyState === "verified"
+                  ? "인증 완료"
+                  : verifyCodeMutation.isPending
+                    ? "확인 중..."
+                    : "확인"}
               </Text>
             </Pressable>
           </View>
@@ -559,13 +658,17 @@ function SignupForm() {
       <Pressable
         style={({ pressed }) => [
           styles.ctaButton,
-          pressed && styles.ctaButtonPressed,
+          signupMutation.isPending && styles.ctaButtonDisabled,
+          pressed && !signupMutation.isPending && styles.ctaButtonPressed,
         ]}
         onPress={handleSignup}
+        disabled={signupMutation.isPending}
         accessibilityRole="button"
         accessibilityLabel="회원가입"
       >
-        <Text style={styles.ctaButtonText}>회원가입</Text>
+        <Text style={styles.ctaButtonText}>
+          {signupMutation.isPending ? "가입 중..." : "회원가입"}
+        </Text>
       </Pressable>
 
       {errorMessage ? (

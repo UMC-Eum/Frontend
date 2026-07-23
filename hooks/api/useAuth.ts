@@ -2,16 +2,22 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
   appleLogin,
+  emailSignup,
   getTestAccounts,
   kakaoLogin,
   localLogin,
   logout,
+  sendEmailCode,
   testLogin,
+  verifyEmailCode,
 } from "@/api/auth/authApi";
 import { disconnectChatSocket } from "@/api/chats/chatSocketApi";
 import { useAuthStore } from "@/stores/authStore";
 import {
   IAppleLoginRequest,
+  IEmailSendCodeRequest,
+  IEmailSignupRequest,
+  IEmailVerifyCodeRequest,
   IKakaoLoginRequest,
   ILocalLoginRequest,
   ITestLoginRequest,
@@ -64,6 +70,36 @@ export function useLocalLoginMutation() {
     onSuccess: (data) => {
       if (__DEV__) {
         console.log("[ACCESS_TOKEN][LOCAL_LOGIN]", data.accessToken);
+      }
+
+      queryClient.removeQueries();
+      setAuth(data, "LOCAL");
+    },
+  });
+}
+
+// ponytail: 이메일 인증/회원가입 3종 — 심사용 임시. 심사 종료 후 제거 (EUM-191)
+export function useSendEmailCodeMutation() {
+  return useMutation({
+    mutationFn: (body: IEmailSendCodeRequest) => sendEmailCode(body),
+  });
+}
+
+export function useVerifyEmailCodeMutation() {
+  return useMutation({
+    mutationFn: (body: IEmailVerifyCodeRequest) => verifyEmailCode(body),
+  });
+}
+
+export function useEmailSignupMutation() {
+  const queryClient = useQueryClient();
+  const setAuth = useAuthStore((state) => state.setAuth);
+
+  return useMutation({
+    mutationFn: (body: IEmailSignupRequest) => emailSignup(body),
+    onSuccess: (data) => {
+      if (__DEV__) {
+        console.log("[ACCESS_TOKEN][EMAIL_SIGNUP]", data.accessToken);
       }
 
       queryClient.removeQueries();
