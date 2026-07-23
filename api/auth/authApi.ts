@@ -4,6 +4,12 @@ import { ApiSuccessResponse } from "../../types/api/api";
 import {
   IAppleLoginRequest,
   IAppleLoginResponse,
+  IEmailSendCodeRequest,
+  IEmailSendCodeResponse,
+  IEmailSignupRequest,
+  IEmailSignupResponse,
+  IEmailVerifyCodeRequest,
+  IEmailVerifyCodeResponse,
   IKakaoLoginRequest,
   IKakaoLoginResponse,
   ILocalLoginRequest,
@@ -37,6 +43,36 @@ export const appleLogin = async (body: IAppleLoginRequest) => {
 export const localLogin = async (body: ILocalLoginRequest) => {
   const { data } = await api.post<ApiSuccessResponse<ILocalLoginResponse>>(
     "/v1/auth/local/login",
+    body,
+  );
+
+  return data.success.data;
+};
+
+//v1/auth/email/send-code (심사용 임시, EUM-191)
+export const sendEmailCode = async (body: IEmailSendCodeRequest) => {
+  const { data } = await api.post<ApiSuccessResponse<IEmailSendCodeResponse>>(
+    "/v1/auth/email/send-code",
+    body,
+  );
+
+  return data.success.data;
+};
+
+//v1/auth/email/verify-code (심사용 임시, EUM-191)
+export const verifyEmailCode = async (body: IEmailVerifyCodeRequest) => {
+  const { data } = await api.post<ApiSuccessResponse<IEmailVerifyCodeResponse>>(
+    "/v1/auth/email/verify-code",
+    body,
+  );
+
+  return data.success.data;
+};
+
+//v1/auth/email/signup (심사용 임시, EUM-191)
+export const emailSignup = async (body: IEmailSignupRequest) => {
+  const { data } = await api.post<ApiSuccessResponse<IEmailSignupResponse>>(
+    "/v1/auth/email/signup",
     body,
   );
 
