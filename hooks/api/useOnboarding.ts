@@ -35,6 +35,7 @@ export function usePostProfileMutation() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.users.me() });
       queryClient.invalidateQueries({ queryKey: queryKeys.onboarding.profile() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.recommendations.all });
     },
   });
 }
@@ -56,6 +57,7 @@ export function usePutOnboardingIdealPersonalitiesMutation() {
         queryKey: queryKeys.onboarding.idealPersonalities(),
       });
       queryClient.invalidateQueries({ queryKey: queryKeys.users.me() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.recommendations.all });
     },
   });
 }
