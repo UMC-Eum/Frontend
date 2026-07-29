@@ -217,6 +217,15 @@ export default function HomePage() {
     fabAnimation.setValue(1);
   }, [fabAnimation, tabPressAt]);
 
+  // 캐시 복원 후에도 마지막 추천 갱신 시각을 기준으로 남은 시간을 표시합니다.
+  useEffect(() => {
+    if (!recommendationsQuery.dataUpdatedAt) return;
+
+    countdownEndAt.current =
+      recommendationsQuery.dataUpdatedAt + RECOMMENDATION_COUNTDOWN_MS;
+    setCountdown(getCountdownText(countdownEndAt.current));
+  }, [recommendationsQuery.dataUpdatedAt]);
+
   // 추천 마감 카운트다운이 끝나면 추천 목록을 새로 받아옵니다.
   useEffect(() => {
     const tick = () => {
