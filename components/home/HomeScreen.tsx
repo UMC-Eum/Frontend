@@ -231,8 +231,11 @@ export default function HomePage() {
     const tick = () => {
       const now = Date.now();
 
-      if (now >= countdownEndAt.current) {
-        countdownEndAt.current = now + RECOMMENDATION_COUNTDOWN_MS;
+      if (
+        now >= countdownEndAt.current &&
+        !recommendationsQuery.isFetching &&
+        !recommendationsQuery.isError
+      ) {
         setProfileIndex(0);
         profileListRef.current?.scrollToOffset({ offset: 0, animated: false });
         void refetchRecommendations();
@@ -244,7 +247,11 @@ export default function HomePage() {
     tick();
     const timer = setInterval(tick, 1000);
     return () => clearInterval(timer);
-  }, [refetchRecommendations]);
+  }, [
+    recommendationsQuery.isError,
+    recommendationsQuery.isFetching,
+    refetchRecommendations,
+  ]);
 
   // 추천 목록 길이가 변해도 현재 인덱스가 유효한 카드만 가리키도록 보정합니다.
   useEffect(() => {
