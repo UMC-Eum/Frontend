@@ -2,6 +2,7 @@ import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-q
 
 import { getRecommendations } from "@/api/onboarding/onboardingApi";
 import { sendHeart } from "@/api/socials/socialsApi";
+import { useAuthStore } from "@/stores/authStore";
 
 import { queryKeys } from "./queryKeys";
 import { useProtectedQueryEnabled } from "./useProtectedQueryEnabled";
@@ -12,10 +13,11 @@ export function useRecommendationsInfiniteQuery(
   size = DEFAULT_RECOMMENDATION_SIZE,
   enabled = true,
 ) {
-  const queryEnabled = useProtectedQueryEnabled(enabled);
+  const userId = useAuthStore((state) => state.user?.userId);
+  const queryEnabled = useProtectedQueryEnabled(enabled && !!userId);
 
   return useInfiniteQuery({
-    queryKey: queryKeys.recommendations.list(size),
+    queryKey: queryKeys.recommendations.list(userId ?? 0, size),
     queryFn: ({ pageParam }) =>
       getRecommendations({
         cursor: pageParam ?? undefined,

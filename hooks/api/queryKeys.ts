@@ -14,7 +14,8 @@ export const queryKeys = {
   },
   recommendations: {
     all: ["recommendations"] as const,
-    list: (size: number) => [...queryKeys.recommendations.all, { size }] as const,
+    list: (userId: number, size: number) =>
+      [...queryKeys.recommendations.all, { userId, size }] as const,
   },
   socials: {
     all: ["socials"] as const,

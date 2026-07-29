@@ -119,6 +119,7 @@ export function useUpdateMyProfileMutation() {
     mutationFn: (body: IPatchUserProfileRequest) => updateMyProfile(body),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.users.me() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.recommendations.all });
     },
   });
 }
@@ -148,6 +149,7 @@ export function usePutInterestKeywordsMutation() {
     mutationFn: (body: IKeywordsRequest) => putInterestKeywords(body),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.users.me() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.recommendations.all });
     },
   });
 }
@@ -159,6 +161,7 @@ export function usePutPersonalitiesMutation() {
     mutationFn: (body: IKeywordsRequest) => putPersonalities(body),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.users.me() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.recommendations.all });
     },
   });
 }
@@ -170,6 +173,7 @@ export function usePutIdealPersonalitiesMutation() {
     mutationFn: (body: IPutIdealRequest) => putIdealPersonalities(body),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.users.me() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.recommendations.all });
     },
   });
 }

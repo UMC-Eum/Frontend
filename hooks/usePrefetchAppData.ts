@@ -53,10 +53,13 @@ const MAX_PREFETCH_CLUB_DETAILS = 8;
 export function usePrefetchAppData(queryClient: QueryClient) {
   const isAuthInitialized = useAuthStore((state) => state.isAuthInitialized);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-  const ready = isAuthInitialized && isAuthenticated;
+  const onboardingRequired = useAuthStore((state) => state.onboardingRequired);
+  const userId = useAuthStore((state) => state.user?.userId);
+  const ready =
+    isAuthInitialized && isAuthenticated && !onboardingRequired && !!userId;
 
   useEffect(() => {
-    if (!ready) return;
+    if (!ready || !userId) return;
 
     const prefetchInfinite = <TPage,>(
       queryKey: readonly unknown[],
@@ -73,7 +76,7 @@ export function usePrefetchAppData(queryClient: QueryClient) {
       const clubDetailIds = new Set<number>();
       const tasks: Promise<unknown>[] = [
         // 홈
-        prefetchInfinite(queryKeys.recommendations.list(10), (cursor) =>
+        prefetchInfinite(queryKeys.recommendations.list(userId, 10), (cursor) =>
           getRecommendations({ cursor: cursor ?? undefined, size: 10 }),
         ),
         queryClient.prefetchQuery({
@@ -156,5 +159,5 @@ export function usePrefetchAppData(queryClient: QueryClient) {
     };
 
     void run();
-  }, [ready, queryClient]);
+  }, [ready, queryClient, userId]);
 }
