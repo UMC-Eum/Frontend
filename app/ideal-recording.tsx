@@ -44,6 +44,7 @@ import type {
 } from "@/types/api/onboarding/onboardingDTO";
 import type { IPatchUserProfileRequest } from "@/types/api/users/usersDTO";
 import type { IUserProfile } from "@/types/user";
+import { ensurePermission } from "@/utils/permissions";
 import { resolveBirthDate } from "@/utils/profileVoice";
 
 const AUDIO_CONTENT_TYPE = "audio/mp4";
@@ -143,11 +144,13 @@ export default function IdealRecordingPage() {
 
   useEffect(() => {
     (async () => {
-      const permission = await AudioModule.requestRecordingPermissionsAsync();
-      if (!permission.granted) {
-        Alert.alert("마이크 권한 필요", "이상형 음성 녹음을 위해 마이크 권한이 필요해요.");
-        return;
-      }
+      const hasPermission = await ensurePermission({
+        getPermission: () => AudioModule.getRecordingPermissionsAsync(),
+        requestPermission: () => AudioModule.requestRecordingPermissionsAsync(),
+        title: "마이크 권한 필요",
+        message: "설정에서 마이크 접근 권한을 허용해주세요.",
+      });
+      if (!hasPermission) return;
 
       await setAudioModeAsync({
         allowsRecording: true,

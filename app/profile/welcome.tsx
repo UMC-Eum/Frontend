@@ -1,7 +1,7 @@
 import {
+  AudioModule,
   createAudioPlayer,
   RecordingPresets,
-  requestRecordingPermissionsAsync,
   setAudioModeAsync,
   setIsAudioActiveAsync,
   useAudioRecorder,
@@ -43,6 +43,7 @@ import type {
   IAnalyzeResponse,
   PresignPurpose,
 } from "@/types/api/onboarding/onboardingDTO";
+import { ensurePermission } from "@/utils/permissions";
 import { resolveBirthDate } from "@/utils/profileVoice";
 
 type VoiceStep =
@@ -243,11 +244,13 @@ export default function WelcomeScreen() {
 
   const handleStartRecording = async () => {
     try {
-      const { granted } = await requestRecordingPermissionsAsync();
-      if (!granted) {
-        Alert.alert("마이크 권한 필요", "목소리를 녹음하려면 마이크 권한이 필요해요.");
-        return;
-      }
+      const hasPermission = await ensurePermission({
+        getPermission: () => AudioModule.getRecordingPermissionsAsync(),
+        requestPermission: () => AudioModule.requestRecordingPermissionsAsync(),
+        title: "마이크 권한 필요",
+        message: "설정에서 마이크 접근 권한을 허용해주세요.",
+      });
+      if (!hasPermission) return;
 
       stopPlayback();
       await setAudioModeAsync({

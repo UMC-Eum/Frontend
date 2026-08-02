@@ -34,6 +34,7 @@ import {
 import { queryKeys } from "@/hooks/api/queryKeys";
 import { useFastInputScroll } from "@/hooks/useFastInputScroll";
 import { ClubPostCategory } from "@/types/api/clubs/clubPostsDTO";
+import { ensurePermission } from "@/utils/permissions";
 
 const CATEGORY_OPTIONS: { label: string; value: ClubPostCategory }[] = [
   { label: "공지", value: "NOTICE" },
@@ -201,12 +202,13 @@ export default function ClubPostCreateScreen() {
       return;
     }
 
-    const permission = await ImagePicker.requestCameraPermissionsAsync();
-
-    if (!permission.granted) {
-      Alert.alert("카메라 권한 필요", "사진을 촬영하려면 카메라 권한이 필요합니다.");
-      return;
-    }
+    const hasPermission = await ensurePermission({
+      getPermission: ImagePicker.getCameraPermissionsAsync,
+      requestPermission: ImagePicker.requestCameraPermissionsAsync,
+      title: "카메라 권한 필요",
+      message: "설정에서 카메라 접근 권한을 허용해주세요.",
+    });
+    if (!hasPermission) return;
 
     const result = await ImagePicker.launchCameraAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,

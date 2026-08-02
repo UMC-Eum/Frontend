@@ -46,6 +46,7 @@ import { useChatMessagesInfiniteQuery } from "@/hooks/api/useChats";
 import { useAuthStore } from "@/stores/authStore";
 import { uniqueBy } from "@/utils/array";
 import { markChatRoomUnreadCountInCache } from "@/utils/chatUnreadCache";
+import { ensurePermission } from "@/utils/permissions";
 import {
   pickChatImage,
   uploadChatPhotoMessage,
@@ -625,11 +626,13 @@ export default function ClubChatTab({
 
     try {
       stopVoicePlayback();
-      const permission = await AudioModule.requestRecordingPermissionsAsync();
-      if (!permission.granted) {
-        setErrorText("마이크 권한이 필요해요.");
-        return;
-      }
+      const hasPermission = await ensurePermission({
+        getPermission: () => AudioModule.getRecordingPermissionsAsync(),
+        requestPermission: () => AudioModule.requestRecordingPermissionsAsync(),
+        title: "마이크 권한 필요",
+        message: "설정에서 마이크 접근 권한을 허용해주세요.",
+      });
+      if (!hasPermission) return;
 
       await setAudioModeAsync({
         allowsRecording: true,

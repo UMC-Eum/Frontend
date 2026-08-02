@@ -19,11 +19,12 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import Svg, { Circle, Defs, Mask, Path, Rect } from "react-native-svg";
+import Svg, { Circle, Defs, Mask, Rect } from "react-native-svg";
 
 import DefaultProfileAvatar from "@/components/profile/DefaultProfileAvatar";
 import ProfileStepLayout from "@/components/profile/ProfileStepLayout";
 import { useOnboardingDraftStore } from "@/stores/onboardingDraftStore";
+import { ensurePermission } from "@/utils/permissions";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 const PROFILE_IMAGE_SIZE = 200;
@@ -110,7 +111,7 @@ export default function PhotoScreen() {
           ? await pickImageFromGallery()
           : await takePhotoWithCamera();
 
-      if (!result.canceled && result.assets && result.assets.length > 0) {
+      if (result && !result.canceled && result.assets.length > 0) {
         const asset = result.assets[0];
         resetCropOffset();
         setPreviewAsset({
@@ -156,11 +157,13 @@ export default function PhotoScreen() {
   };
 
   const takePhotoWithCamera = async () => {
-    const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
-    if (permissionResult.status !== "granted") {
-      alert("카메라 권한이 필요합니다.");
-      throw new Error("Camera permission denied.");
-    }
+    const hasPermission = await ensurePermission({
+      getPermission: ImagePicker.getCameraPermissionsAsync,
+      requestPermission: ImagePicker.requestCameraPermissionsAsync,
+      title: "카메라 권한 필요",
+      message: "설정에서 카메라 접근 권한을 허용해주세요.",
+    });
+    if (!hasPermission) return;
 
     return ImagePicker.launchCameraAsync({
       mediaTypes: ["images"],
