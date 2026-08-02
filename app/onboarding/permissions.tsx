@@ -10,6 +10,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAuthStore } from "@/stores/authStore";
+import { useNotificationSettingsStore } from "@/stores/notificationSettingsStore";
 
 type PermissionId = "camera" | "mic" | "notification";
 type PermissionState = "idle" | "requesting" | "granted" | "denied";
@@ -45,12 +46,15 @@ const PERMISSIONS: PermissionItem[] = [
 /**
  * 앱 접근 권한 안내 화면
  * - 카메라, 마이크, 알림 권한 카드
- * - 카드 또는 확인 버튼으로 실제 시스템 권한을 요청합니다.
+ * - 하단 계속 버튼으로 실제 시스템 권한을 요청합니다.
  */
 export default function PermissionsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const onboardingRequired = useAuthStore((state) => state.onboardingRequired);
+  const setNotificationEnabled = useNotificationSettingsStore(
+    (state) => state.setEnabled,
+  );
 
   const [permissions, setPermissions] = useState<
     Record<PermissionId, PermissionState>
@@ -101,6 +105,7 @@ export default function PermissionsScreen() {
     if (id === "notification") {
       const result = await requestNotificationPermissionsAsync();
       granted = result.granted;
+      setNotificationEnabled(granted);
     }
 
     const nextState = toRequestedPermissionState(granted);
@@ -130,13 +135,7 @@ export default function PermissionsScreen() {
     >
       {/* 헤더 */}
       <View style={styles.header}>
-        <Pressable
-          style={styles.backButton}
-          onPress={() => router.back()}
-          hitSlop={12}
-        >
-          <Ionicons name="chevron-back" size={26} color="#A6AFB6" />
-        </Pressable>
+        <View style={styles.headerSpacer} />
         <Text style={styles.headerTitle}>앱 접근 권한 안내</Text>
         <View style={styles.headerSpacer} />
       </View>
@@ -152,14 +151,11 @@ export default function PermissionsScreen() {
         {PERMISSIONS.map((item) => {
           const permissionState = permissions[item.id];
           const isActive = permissionState === "granted";
-          const isRequesting = permissionState === "requesting";
 
           return (
-            <Pressable
+            <View
               key={item.id}
               style={[styles.card, isActive && styles.cardActive]}
-              onPress={() => requestPermission(item.id)}
-              disabled={isRequesting}
             >
               <View style={styles.cardLeft}>
                 <Feather name={item.icon} size={29} color="#202020" />
@@ -173,7 +169,7 @@ export default function PermissionsScreen() {
                   <Ionicons name="checkmark-circle" size={28} color="#FF3E70" />
                 </View>
               )}
-            </Pressable>
+            </View>
           );
         })}
       </View>
@@ -194,7 +190,7 @@ export default function PermissionsScreen() {
               isAllGranted ? styles.confirmTextActive : styles.confirmTextReady,
             ]}
           >
-            {isAllGranted ? "확인" : "권한 허용하기"}
+            계속
           </Text>
         </Pressable>
       </View>
@@ -213,12 +209,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     backgroundColor: "#FFFFFF",
-  },
-  backButton: {
-    width: 48,
-    height: 48,
-    alignItems: "center",
-    justifyContent: "center",
   },
   headerTitle: {
     flex: 1,

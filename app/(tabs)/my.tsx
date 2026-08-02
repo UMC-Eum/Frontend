@@ -1,5 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as AppleAuthentication from "expo-apple-authentication";
+import * as Notifications from "expo-notifications";
 import { useRouter } from "expo-router";
 import { useCallback, useState } from "react";
 import {
@@ -33,6 +34,7 @@ import {
 import { useAuthStore } from "@/stores/authStore";
 import { useNotificationSettingsStore } from "@/stores/notificationSettingsStore";
 import { uniqueBy } from "@/utils/array";
+import { ensurePermission } from "@/utils/permissions";
 
 const ACCENT = "#FC3367";
 const TEXT = "#202020";
@@ -98,8 +100,19 @@ export default function MyTabScreen() {
     .filter((item) => !item.status || item.status === "ACTIVE")
     .slice(0, 5);
 
-  const handleNotificationToggle = (enabled: boolean) => {
-    setNotificationEnabled(enabled);
+  const handleNotificationToggle = async (enabled: boolean) => {
+    if (!enabled) {
+      setNotificationEnabled(false);
+      return;
+    }
+
+    const hasPermission = await ensurePermission({
+      getPermission: Notifications.getPermissionsAsync,
+      requestPermission: Notifications.requestPermissionsAsync,
+      title: "알림 권한 필요",
+      message: "설정에서 알림 권한을 허용해주세요.",
+    });
+    setNotificationEnabled(hasPermission);
   };
 
   // 계정 액션은 mutation으로 서버에 반영하고 로컬 Query 캐시를 정리합니다.

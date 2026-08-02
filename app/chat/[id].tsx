@@ -76,6 +76,7 @@ import {
 import { useAuthStore } from "@/stores/authStore";
 import { uniqueBy } from "@/utils/array";
 import { markChatRoomUnreadCountInCache } from "@/utils/chatUnreadCache";
+import { ensurePermission } from "@/utils/permissions";
 import type {
   MessageDeletedData,
   MessageNewData,
@@ -753,11 +754,13 @@ export default function ChatRoom() {
 
     try {
       stopVoicePlayback();
-      const permission = await AudioModule.requestRecordingPermissionsAsync();
-      if (!permission.granted) {
-        showToast("마이크 권한이 필요해요.");
-        return;
-      }
+      const hasPermission = await ensurePermission({
+        getPermission: () => AudioModule.getRecordingPermissionsAsync(),
+        requestPermission: () => AudioModule.requestRecordingPermissionsAsync(),
+        title: "마이크 권한 필요",
+        message: "설정에서 마이크 접근 권한을 허용해주세요.",
+      });
+      if (!hasPermission) return;
 
       await setAudioModeAsync({
         allowsRecording: true,
@@ -1868,11 +1871,13 @@ async function pickChatImage(source: "camera" | "gallery") {
     return result.canceled ? null : (result.assets[0] ?? null);
   }
 
-  const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
-  if (!permissionResult.granted) {
-    Alert.alert("카메라 권한 필요", "사진을 촬영하려면 카메라 권한이 필요해요.");
-    return null;
-  }
+  const hasPermission = await ensurePermission({
+    getPermission: ImagePicker.getCameraPermissionsAsync,
+    requestPermission: ImagePicker.requestCameraPermissionsAsync,
+    title: "카메라 권한 필요",
+    message: "설정에서 카메라 접근 권한을 허용해주세요.",
+  });
+  if (!hasPermission) return null;
 
   const result = await ImagePicker.launchCameraAsync({
     mediaTypes: ["images"],

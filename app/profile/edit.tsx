@@ -38,6 +38,7 @@ import { KEYBOARD_AVOIDING_BEHAVIOR } from "@/constants/keyboard";
 import { DEFAULT_PROFILE_IMAGE_URI } from "@/constants/defaultProfileImage";
 import { useOnboardingDraftStore } from "@/stores/onboardingDraftStore";
 import { useFastInputScroll } from "@/hooks/useFastInputScroll";
+import { ensurePermission } from "@/utils/permissions";
 
 const ACCENT = "#FC3367";
 const TEXT = "#202020";
@@ -152,11 +153,13 @@ export default function ProfileEditScreen() {
   const runImageAction = async (action: "camera" | "gallery") => {
     try {
       if (action === "camera") {
-        const permission = await ImagePicker.requestCameraPermissionsAsync();
-        if (permission.status !== "granted") {
-          Alert.alert("카메라 권한 필요", "설정에서 카메라 접근 권한을 허용해주세요.");
-          return;
-        }
+        const hasPermission = await ensurePermission({
+          getPermission: ImagePicker.getCameraPermissionsAsync,
+          requestPermission: ImagePicker.requestCameraPermissionsAsync,
+          title: "카메라 권한 필요",
+          message: "설정에서 카메라 접근 권한을 허용해주세요.",
+        });
+        if (!hasPermission) return;
       }
 
       const result =
