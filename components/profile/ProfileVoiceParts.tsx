@@ -210,14 +210,25 @@ export function PlaybackControls({
 }
 
 export function AnalyzingView({ userName }: { userName: string }) {
+  const { height } = useWindowDimensions();
+  const isCompactHeight = height < 750;
+
   return (
-    <View style={styles.analyzingWrap}>
+    <ScrollView
+      style={styles.analyzingScroll}
+      contentContainerStyle={[
+        styles.analyzingWrap,
+        isCompactHeight && styles.analyzingWrapCompact,
+      ]}
+      showsVerticalScrollIndicator={false}
+      bounces={false}
+    >
       <AnalyzingMark />
       <Text style={styles.analyzingTitle}>잠시만 기다려주세요...</Text>
       <Text style={styles.analyzingSubtitle}>
         AI가 {userName}님의 이야기를 정리중이에요!
       </Text>
-      <View style={styles.tipBox}>
+      <View style={[styles.tipBox, isCompactHeight && styles.tipBoxCompact]}>
         <View style={styles.tipBadge}>
           <Text style={styles.tipBadgeText}>Tip</Text>
         </View>
@@ -226,7 +237,7 @@ export function AnalyzingView({ userName }: { userName: string }) {
           아시나요?
         </Text>
       </View>
-    </View>
+    </ScrollView>
   );
 }
 
@@ -377,7 +388,7 @@ export function CompletePreviewView({
       ? profileImageUri
       : DEFAULT_PROFILE_IMAGE_URI;
   const { height } = useWindowDimensions();
-  const previewCardHeight = Math.min(472, Math.max(390, height - 420));
+  const previewCardHeight = Math.min(472, Math.max(260, height - 420));
 
   return (
     <View style={styles.completeScreen}>
@@ -748,11 +759,18 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  analyzingWrap: {
+  analyzingScroll: {
     flex: 1,
+  },
+  analyzingWrap: {
+    flexGrow: 1,
     alignItems: "center",
     paddingTop: 133,
     paddingHorizontal: 20,
+    paddingBottom: 24,
+  },
+  analyzingWrapCompact: {
+    paddingTop: 48,
   },
   analyzingMark: {
     width: 126,
@@ -805,10 +823,8 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   tipBox: {
-    position: "absolute",
-    left: 20,
-    right: 20,
-    top: 503,
+    width: "100%",
+    marginTop: 112,
     minHeight: 98,
     borderRadius: 14,
     borderWidth: 1,
@@ -822,6 +838,9 @@ const styles = StyleSheet.create({
     shadowRadius: 18,
     shadowOffset: { width: 0, height: 4 },
     elevation: 5,
+  },
+  tipBoxCompact: {
+    marginTop: 48,
   },
   tipBadge: {
     paddingHorizontal: 10,
