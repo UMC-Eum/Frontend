@@ -264,7 +264,12 @@ export function KeywordSelectView({
     : [...baseKeywords, ...selectedMoreKeywords];
 
   return (
-    <View style={styles.keywordScreen}>
+    <ScrollView
+      style={styles.keywordScroll}
+      contentContainerStyle={styles.keywordScrollContent}
+      showsVerticalScrollIndicator={false}
+      bounces={false}
+    >
       <View style={styles.keywordIntro}>
         <View style={styles.aiRow}>
           <Text style={styles.aiSparkle}>✦</Text>
@@ -370,7 +375,7 @@ export function KeywordSelectView({
           </View>
         </View>
       </Modal>
-    </View>
+    </ScrollView>
   );
 }
 
@@ -391,7 +396,12 @@ export function CompletePreviewView({
   const previewCardHeight = Math.min(472, Math.max(260, height - 420));
 
   return (
-    <View style={styles.completeScreen}>
+    <ScrollView
+      style={styles.completeScroll}
+      contentContainerStyle={styles.completeScreen}
+      showsVerticalScrollIndicator={false}
+      bounces={false}
+    >
       <View style={styles.completeTitleArea}>
         <VoiceTitle>
           {userName}님의 프로필이{"\n"}준비됐어요! 🎉
@@ -444,7 +454,7 @@ export function CompletePreviewView({
           </Text>
         </Pressable>
       </View>
-    </View>
+    </ScrollView>
   );
 }
 
@@ -613,11 +623,11 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     lineHeight: 23,
   },
+  // ponytail: absolute bottom 대신 흐름 배치 + marginTop auto.
+  // 작은 높이에서 예시 텍스트 위로 겹치던 문제를 막는다.
   idleRecorder: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 69,
+    marginTop: "auto",
+    marginBottom: 69,
     alignItems: "center",
   },
   coachBubbleGroup: {
@@ -665,10 +675,9 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   recordingControls: {
-    position: "absolute",
-    left: 20,
-    right: 20,
-    bottom: 23,
+    marginTop: "auto",
+    marginBottom: 23,
+    marginHorizontal: 20,
     alignItems: "center",
   },
   warningToast: {
@@ -862,10 +871,6 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     textAlign: "center",
   },
-  keywordScreen: {
-    flex: 1,
-    paddingHorizontal: 20,
-  },
   keywordIntro: {
     paddingTop: 52,
   },
@@ -983,13 +988,20 @@ const styles = StyleSheet.create({
   keywordModalChip: {
     borderRadius: 7,
   },
+  // ponytail: absolute를 걷어내 칩이 CTA 뒤로 숨지 않게 한다.
   doubleCta: {
-    position: "absolute",
-    left: 20,
-    right: 20,
-    bottom: 48,
+    marginTop: "auto",
+    paddingTop: 16,
+    marginBottom: 48,
     flexDirection: "row",
     gap: 12,
+  },
+  keywordScroll: {
+    flex: 1,
+  },
+  keywordScrollContent: {
+    flexGrow: 1,
+    paddingHorizontal: 20,
   },
   secondaryCta: {
     flex: 1,
@@ -1019,8 +1031,11 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     lineHeight: 23,
   },
-  completeScreen: {
+  completeScroll: {
     flex: 1,
+  },
+  completeScreen: {
+    flexGrow: 1,
     paddingHorizontal: 20,
   },
   completeTitleArea: {

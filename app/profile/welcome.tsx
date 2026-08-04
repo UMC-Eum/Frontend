@@ -12,7 +12,7 @@ import type { AudioPlayer } from "expo-audio";
 import { useRouter } from "expo-router";
 import { useQueryClient } from "@tanstack/react-query";
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Alert, StyleSheet, View } from "react-native";
+import { Alert, ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { postPresign } from "@/api/onboarding/onboardingApi";
@@ -672,36 +672,42 @@ export default function WelcomeScreen() {
   return (
     <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
       <VoiceHeader onBack={handleBack} />
-      <View style={styles.content}>
-        <VoiceTitle>
-          {step === "recording" || step === "reviewing"
-            ? `${userName}님의 이야기를 듣고있어요..`
-            : `반갑습니다! ${userName}님\n${userName}님의 이야기를 들려주세요.`}
-        </VoiceTitle>
-        <VoiceExamples compact={step === "recording" || step === "reviewing"} />
-      </View>
+      <ScrollView
+        contentContainerStyle={styles.voiceScrollContent}
+        showsVerticalScrollIndicator={false}
+        bounces={false}
+      >
+        <View style={styles.content}>
+          <VoiceTitle>
+            {step === "recording" || step === "reviewing"
+              ? `${userName}님의 이야기를 듣고있어요..`
+              : `반갑습니다! ${userName}님\n${userName}님의 이야기를 들려주세요.`}
+          </VoiceTitle>
+          <VoiceExamples compact={step === "recording" || step === "reviewing"} />
+        </View>
 
-      {step === "recording" ? (
-        <RecordingControls
-          seconds={recordingSeconds}
-          showShortWarning={showShortWarning}
-          onCancel={handleCancelRecording}
-          onFinish={handleFinishRecording}
-          onReset={handleResetRecording}
-        />
-      ) : step === "reviewing" ? (
-        <PlaybackControls
-          seconds={recordingSeconds}
-          isPlaying={isPlayingRecorded}
-          isSubmitting={isUploadingAudio}
-          onCancel={handleCancelRecording}
-          onTogglePlay={handleTogglePlayback}
-          onSubmit={handleSubmitRecording}
-          onReset={handleResetRecording}
-        />
-      ) : (
-        <IdleRecorder onStart={handleStartRecording} />
-      )}
+        {step === "recording" ? (
+          <RecordingControls
+            seconds={recordingSeconds}
+            showShortWarning={showShortWarning}
+            onCancel={handleCancelRecording}
+            onFinish={handleFinishRecording}
+            onReset={handleResetRecording}
+          />
+        ) : step === "reviewing" ? (
+          <PlaybackControls
+            seconds={recordingSeconds}
+            isPlaying={isPlayingRecorded}
+            isSubmitting={isUploadingAudio}
+            onCancel={handleCancelRecording}
+            onTogglePlay={handleTogglePlayback}
+            onSubmit={handleSubmitRecording}
+            onReset={handleResetRecording}
+          />
+        ) : (
+          <IdleRecorder onStart={handleStartRecording} />
+        )}
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -714,6 +720,10 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: 20,
     paddingTop: 22,
+  },
+  // ponytail: 작은 높이에서만 스크롤되고, 여유가 있으면 녹음 컨트롤이 하단에 붙는다.
+  voiceScrollContent: {
+    flexGrow: 1,
   },
 });
 

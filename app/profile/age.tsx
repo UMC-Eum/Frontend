@@ -6,6 +6,7 @@ import {
   NativeSyntheticEvent,
   ScrollView,
   StyleSheet,
+  useWindowDimensions,
   View,
 } from "react-native";
 
@@ -17,8 +18,9 @@ const MAX_AGE = 120;
 const DEFAULT_AGE = 60;
 const ITEM_HEIGHT = 58;
 const VISIBLE_ITEMS = 7;
-const PICKER_HEIGHT = ITEM_HEIGHT * VISIBLE_ITEMS;
-const PICKER_PADDING = (PICKER_HEIGHT - ITEM_HEIGHT) / 2;
+// ponytail: 작은 높이(iPad 호환 모드 등)에서는 보이는 항목 수만 줄인다.
+// 스냅·오프셋 계산은 ITEM_HEIGHT만 쓰므로 영향받지 않는다.
+const COMPACT_VISIBLE_ITEMS = 5;
 const SELECTION_OFFSET = 24;
 
 /**
@@ -28,6 +30,10 @@ const SELECTION_OFFSET = 24;
  */
 export default function AgeScreen() {
   const router = useRouter();
+  const { height } = useWindowDimensions();
+  const visibleItems = height < 750 ? COMPACT_VISIBLE_ITEMS : VISIBLE_ITEMS;
+  const pickerHeight = ITEM_HEIGHT * visibleItems;
+  const pickerPadding = (pickerHeight - ITEM_HEIGHT) / 2;
   const draftAge = useOnboardingDraftStore((state) => state.age);
   const setDraftAge = useOnboardingDraftStore((state) => state.setAge);
   const initialAge = clampAge(draftAge ?? DEFAULT_AGE);
@@ -85,8 +91,11 @@ export default function AgeScreen() {
       <View style={styles.pickerContainer}>
         <Animated.ScrollView
           ref={scrollRef}
-          style={styles.pickerWindow}
-          contentContainerStyle={styles.pickerContent}
+          style={[styles.pickerWindow, { height: pickerHeight }]}
+          contentContainerStyle={{
+            paddingTop: pickerPadding + SELECTION_OFFSET,
+            paddingBottom: pickerPadding + SELECTION_OFFSET + ITEM_HEIGHT,
+          }}
           showsVerticalScrollIndicator={false}
           snapToInterval={ITEM_HEIGHT}
           decelerationRate="fast"
@@ -167,12 +176,7 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   pickerWindow: {
-    height: PICKER_HEIGHT,
     width: 160,
-  },
-  pickerContent: {
-    paddingTop: PICKER_PADDING + SELECTION_OFFSET,
-    paddingBottom: PICKER_PADDING + SELECTION_OFFSET + ITEM_HEIGHT,
   },
   pickerItem: {
     height: ITEM_HEIGHT,
