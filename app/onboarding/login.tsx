@@ -5,6 +5,7 @@ import React, { useEffect, useState } from "react";
 import {
   Image,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   useWindowDimensions,
@@ -47,8 +48,11 @@ export default function LoginScreen() {
 
   // Figma 기준 프레임(412x892)을 작은 화면에서도 자연스럽게 줄여 적용한다.
   const layoutScale = Math.min(width / 412, height / 892, 1);
+  const isCompactHeight = height < 750;
   const illustrationWidth = 280 * layoutScale;
   const illustrationHeight = 326 * layoutScale;
+  const illustrationMarginTop =
+    (isCompactHeight ? 80 : 221) * layoutScale;
   const bottomMarginTop = (isAppleAuthAvailable ? 48 : 112) * layoutScale;
 
   // 이용약관 확인 후 → 앱 접근 권한 안내로 이동
@@ -58,10 +62,18 @@ export default function LoginScreen() {
   };
 
   return (
-    <View style={[styles.container, { paddingBottom: insets.bottom + 24 }]}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={[
+        styles.contentContainer,
+        { paddingBottom: insets.bottom + 24 },
+      ]}
+      showsVerticalScrollIndicator={false}
+      bounces={false}
+    >
       {/* 상단: 일러스트 영역 */}
       <View
-        style={[styles.illustrationArea, { marginTop: 221 * layoutScale }]}
+        style={[styles.illustrationArea, { marginTop: illustrationMarginTop }]}
       >
         {/* Figma에서 추출한 온보딩 일러스트 */}
         <Image
@@ -149,7 +161,7 @@ export default function LoginScreen() {
         onConfirm={handleTermsConfirm}
         onClose={() => setShowTermsSheet(false)}
       />
-    </View>
+    </ScrollView>
   );
 }
 
@@ -157,6 +169,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#FFFFFF",
+  },
+  contentContainer: {
+    flexGrow: 1,
   },
   // 상단 일러스트 영역
   illustrationArea: {
