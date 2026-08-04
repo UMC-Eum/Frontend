@@ -6,7 +6,7 @@ import {
 import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAuthStore } from "@/stores/authStore";
@@ -147,7 +147,12 @@ export default function PermissionsScreen() {
       </View>
 
       {/* 권한 카드 목록 */}
-      <View style={styles.cardList}>
+      <ScrollView
+        style={styles.cardListScroll}
+        contentContainerStyle={styles.cardList}
+        showsVerticalScrollIndicator={false}
+        bounces={false}
+      >
         {PERMISSIONS.map((item) => {
           const permissionState = permissions[item.id];
           const isActive = permissionState === "granted";
@@ -172,7 +177,7 @@ export default function PermissionsScreen() {
             </View>
           );
         })}
-      </View>
+      </ScrollView>
 
       {/* 하단 영역 */}
       <View style={styles.bottomArea}>
@@ -235,8 +240,11 @@ const styles = StyleSheet.create({
     lineHeight: 23,
     textAlign: "center",
   },
-  cardList: {
+  cardListScroll: {
     flex: 1,
+  },
+  cardList: {
+    flexGrow: 1,
     paddingHorizontal: 20,
     gap: 12,
   },

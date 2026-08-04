@@ -1,7 +1,13 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import {
+  Pressable,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
+} from "react-native";
 import { KeyboardAvoidingView } from "@/components/KeyboardCompat";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { KEYBOARD_AVOIDING_BEHAVIOR } from "@/constants/keyboard";
@@ -55,6 +61,10 @@ const ProfileStepLayout = ({
 }: ProfileStepLayoutProps) => {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  // ponytail: 고정 chrome이 242pt라 작은 높이 + 키보드에서 하단 버튼이 화면 밖으로 밀린다.
+  // 여백만 줄여 약 46pt를 회수한다.
+  const { height } = useWindowDimensions();
+  const isCompactHeight = height < 750;
 
   return (
     <KeyboardAvoidingView
@@ -79,8 +89,12 @@ const ProfileStepLayout = ({
       />
 
       {/* 제목 + 서브타이틀 */}
-      <View style={styles.titleArea}>
-        <Text style={styles.title}>{title}</Text>
+      <View
+        style={[styles.titleArea, isCompactHeight && styles.titleAreaCompact]}
+      >
+        <Text style={[styles.title, isCompactHeight && styles.titleCompact]}>
+          {title}
+        </Text>
         {subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}
       </View>
 
@@ -88,7 +102,12 @@ const ProfileStepLayout = ({
       <View style={styles.content}>{children}</View>
 
       {!hideBottomButton && (
-        <View style={[styles.bottomArea, { paddingBottom: insets.bottom + 24 }]}>
+        <View
+          style={[
+            styles.bottomArea,
+            { paddingBottom: insets.bottom + (isCompactHeight ? 12 : 24) },
+          ]}
+        >
           <Pressable
             style={({ pressed }) => [
               styles.nextButton,
@@ -141,11 +160,19 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
     gap: 4,
   },
+  titleAreaCompact: {
+    paddingTop: 12,
+    paddingBottom: 10,
+  },
   title: {
     fontSize: 28,
     fontWeight: "600",
     color: "#202020",
     lineHeight: 36,
+  },
+  titleCompact: {
+    fontSize: 24,
+    lineHeight: 30,
   },
   subtitle: {
     fontSize: 14,

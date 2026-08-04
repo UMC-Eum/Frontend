@@ -1,7 +1,13 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import {
+  Pressable,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
+} from "react-native";
 
 import ProfileStepLayout from "@/components/profile/ProfileStepLayout";
 import { useOnboardingDraftStore } from "@/stores/onboardingDraftStore";
@@ -26,6 +32,10 @@ const GENDERS: GenderOption[] = [
  */
 export default function GenderScreen() {
   const router = useRouter();
+  // ponytail: 원 2개(150) + gap 48 = 348이라 작은 높이에서 "다음" 버튼을 덮는다.
+  const { height } = useWindowDimensions();
+  const isCompactHeight = height < 750;
+  const circleSize = isCompactHeight ? 116 : 150;
   const draftGender = useOnboardingDraftStore((state) => state.gender);
   const setDraftGender = useOnboardingDraftStore((state) => state.setGender);
   const [selected, setSelected] = useState<Gender>(
@@ -51,7 +61,12 @@ export default function GenderScreen() {
       buttonEnabled={selected !== null}
       onNext={handleNext}
     >
-      <View style={styles.optionsContainer}>
+      <View
+        style={[
+          styles.optionsContainer,
+          isCompactHeight && styles.optionsContainerCompact,
+        ]}
+      >
         {GENDERS.map((gender) => {
           const isActive = selected === gender.id;
           return (
@@ -59,6 +74,11 @@ export default function GenderScreen() {
               key={gender.id}
               style={[
                 styles.genderCircle,
+                {
+                  width: circleSize,
+                  height: circleSize,
+                  borderRadius: circleSize / 2,
+                },
                 isActive && styles.genderCircleActive,
               ]}
               onPress={() => setSelected(gender.id)}
@@ -91,10 +111,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 48,
   },
+  optionsContainerCompact: {
+    gap: 20,
+  },
   genderCircle: {
-    width: 150,
-    height: 150,
-    borderRadius: 75,
     borderWidth: 2,
     borderColor: "#DEE3E5",
     backgroundColor: "#F8FAFB",
